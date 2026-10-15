@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.SkipQueryVerification
 import androidx.room.Transaction
+import androidx.room.Upsert
 
 /**
  * DAO for Unified OCR data access.
@@ -260,8 +261,12 @@ interface UnifiedOcrDao {
 
     /**
      * Upsert OCR text record.
+     *
+     * An existing id is UPDATEd in place, never REPLACEd: REPLACE deletes the old row without
+     * firing the delete trigger, so each re-index left a stale document in
+     * unified_ocr_text_fts (see FTS4_CALLBACK in Db.kt).
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertOcrText(text: UnifiedOcrText)
 
     /**

@@ -165,8 +165,19 @@ abstract class AppDatabase : RoomDatabase() {
          *
          * FTS4 is used instead of FTS5 because Boox devices run older SQLite versions
          * that may not support FTS5 reliably.
+         *
+         * The FTS table is external-content (content="unified_ocr_text"): to remove a document,
+         * FTS4 reads its old text back from unified_ocr_text. So the FTS delete must run in a
+         * BEFORE DELETE / BEFORE UPDATE trigger, while the row still holds the old text
+         * (sqlite.org/fts3.html, "External Content FTS4 Tables"). Until Oct 2026 the triggers
+         * were AFTER DELETE / AFTER UPDATE, which left every deleted or updated document in the
+         * index, and upsertOcrText used REPLACE, which fires no delete trigger at all
+         * ("malformed inverted index" in PRAGMA integrity_check, 1,056 FTS documents for 552
+         * rows). A database without the BEFORE DELETE trigger gets the new triggers and one
+         * full 'rebuild' of the index from unified_ocr_text, in one transaction; the trigger
+         * itself marks the database as done, so a restored older database file is fixed too.
          */
-        private val FTS4_CALLBACK = object : RoomDatabase.Callback() {
+        internal val FTS4_CALLBACK = object : RoomDatabase.Callback() {
             override fun onOpen(db: SupportSQLiteDatabase) {
                 super.onOpen(db)
                 try {
@@ -191,23 +202,47 @@ abstract class AppDatabase : RoomDatabase() {
                         END
                     """.trimIndent())
 
-                    // Trigger: After DELETE on unified_ocr_text, delete from FTS
-                    db.execSQL("""
-                        CREATE TRIGGER IF NOT EXISTS unified_ocr_text_fts_ad
-                        AFTER DELETE ON unified_ocr_text BEGIN
-                            DELETE FROM unified_ocr_text_fts WHERE docid = old.rowid;
-                        END
-                    """.trimIndent())
+                    val hasBeforeDeleteTrigger = db.query(
+                        "SELECT 1 FROM sqlite_master WHERE type = 'trigger' AND name = 'unified_ocr_text_fts_bd'"
+                    ).use { it.moveToFirst() }
+                    if (!hasBeforeDeleteTrigger) {
+                        db.beginTransaction()
+                        try {
+                            // The old AFTER triggers (the AFTER UPDATE one also did the delete)
+                            db.execSQL("DROP TRIGGER IF EXISTS unified_ocr_text_fts_ad")
+                            db.execSQL("DROP TRIGGER IF EXISTS unified_ocr_text_fts_au")
 
-                    // Trigger: After UPDATE on unified_ocr_text, update FTS
-                    db.execSQL("""
-                        CREATE TRIGGER IF NOT EXISTS unified_ocr_text_fts_au
-                        AFTER UPDATE ON unified_ocr_text BEGIN
-                            DELETE FROM unified_ocr_text_fts WHERE docid = old.rowid;
-                            INSERT INTO unified_ocr_text_fts(docid, text, textNormalized, synopsis)
-                            VALUES (new.rowid, new.text, new.textNormalized, new.synopsis);
-                        END
-                    """.trimIndent())
+                            // Trigger: Before DELETE on unified_ocr_text, delete from FTS
+                            db.execSQL("""
+                                CREATE TRIGGER unified_ocr_text_fts_bd
+                                BEFORE DELETE ON unified_ocr_text BEGIN
+                                    DELETE FROM unified_ocr_text_fts WHERE docid = old.rowid;
+                                END
+                            """.trimIndent())
+
+                            // Triggers: UPDATE on unified_ocr_text = FTS delete before, insert after
+                            db.execSQL("""
+                                CREATE TRIGGER unified_ocr_text_fts_bu
+                                BEFORE UPDATE ON unified_ocr_text BEGIN
+                                    DELETE FROM unified_ocr_text_fts WHERE docid = old.rowid;
+                                END
+                            """.trimIndent())
+                            db.execSQL("""
+                                CREATE TRIGGER unified_ocr_text_fts_au
+                                AFTER UPDATE ON unified_ocr_text BEGIN
+                                    INSERT INTO unified_ocr_text_fts(docid, text, textNormalized, synopsis)
+                                    VALUES (new.rowid, new.text, new.textNormalized, new.synopsis);
+                                END
+                            """.trimIndent())
+
+                            // Drop the stale documents the old triggers left behind
+                            db.execSQL("INSERT INTO unified_ocr_text_fts(unified_ocr_text_fts) VALUES('rebuild')")
+                            db.setTransactionSuccessful()
+                        } finally {
+                            db.endTransaction()
+                        }
+                        Log.i("AppDatabase", "FTS4 triggers replaced and index rebuilt")
+                    }
 
                     Log.d("AppDatabase", "FTS4 virtual table and triggers ensured")
                 } catch (e: Exception) {
