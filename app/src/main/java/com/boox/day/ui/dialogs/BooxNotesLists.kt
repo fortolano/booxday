@@ -213,7 +213,7 @@ internal fun BooxNotesDayList(
 /** Smart Link status for all notes, shown under the All notes list */
 internal sealed interface AllSuggestionsStatus {
     data object Idle : AllSuggestionsStatus
-    data class Finding(val progress: Float) : AllSuggestionsStatus
+    data class Finding(val progress: Float, val step: String) : AllSuggestionsStatus
     data class Ready(val count: Int) : AllSuggestionsStatus
 }
 
@@ -365,6 +365,7 @@ internal fun BooxNotesAllList(
                     color = EInkTheme.Colors.darkGray
                 )
                 BooxNotesProgressBar(progress = suggestionsStatus.progress, modifier = Modifier.fillMaxWidth())
+                Text(text = suggestionsStatus.step, fontSize = EInkTheme.Typography.bodySmall, color = EInkTheme.Colors.darkGray)
             }
             is AllSuggestionsStatus.Ready -> if (suggestionsStatus.count > 0) {
                 EinkSecondaryButton(

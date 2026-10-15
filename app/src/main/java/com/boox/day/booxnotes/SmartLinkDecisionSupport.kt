@@ -81,6 +81,17 @@ internal object SmartLinkDecisionSupport {
         }
     }
 
+    /**
+     * How much work comparing each note is: one unit, plus one per timed event within [searchDays] of
+     * its date (the events it is scored against). Used to move the suggestions progress bar with time.
+     */
+    fun comparisonWork(noteDates: List<LocalDate?>, events: List<CalendarEvent>, searchDays: Int): List<Int> {
+        val timedPerDay = events.filter { !it.isAllDay }.groupingBy { it.dayId }.eachCount()
+        return noteDates.map { date ->
+            1 + if (date == null) 0 else (-searchDays..searchDays).sumOf { timedPerDay[date.plusDays(it.toLong()).toString()] ?: 0 }
+        }
+    }
+
     fun filterEligibleEvents(
         note: BooxNoteIndex,
         events: List<CalendarEvent>,

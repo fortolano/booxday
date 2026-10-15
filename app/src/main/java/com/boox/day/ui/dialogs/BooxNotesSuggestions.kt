@@ -61,7 +61,7 @@ internal sealed interface SuggestionsContent {
     /** Smart Link can't run: no usable events, or turned off */
     data class Blocked(val status: SmartLinkPreflightStatus) : SuggestionsContent
 
-    data class Finding(val progress: Float) : SuggestionsContent
+    data class Finding(val progress: Float, val step: String) : SuggestionsContent
 
     data object Ready : SuggestionsContent
 }
@@ -144,6 +144,7 @@ internal fun BooxNotesSuggestionsView(
                     color = EInkTheme.Colors.primary
                 )
                 BooxNotesProgressBar(progress = content.progress, modifier = Modifier.fillMaxWidth(0.7f))
+                Text(text = content.step, fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.darkGray)
                 EinkSecondaryButton(text = "Stop", onClick = onStop)
             }
 

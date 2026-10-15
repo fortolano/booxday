@@ -35,6 +35,7 @@ import com.boox.day.booxnotes.BooxNotePreviewResult
 import com.boox.day.booxnotes.CrossDayLinkSuggestion
 import com.boox.day.booxnotes.LinkConfidence
 import com.boox.day.booxnotes.MatchReason
+import com.boox.day.booxnotes.SmartLinkProgress
 import com.boox.day.data.db.BooxNoteIndex
 import com.boox.day.data.db.CalendarEvent
 import com.boox.day.ui.components.EinkSecondaryButton
@@ -205,6 +206,21 @@ internal object BooxNotesSuggestionCache {
     }
 
     fun best(noteId: String): CrossDayLinkSuggestion? = byNote[noteId]?.firstOrNull()
+}
+
+/** Fastest the suggestions progress repaints (each repaint refreshes part of the e-ink panel) */
+internal const val PROGRESS_REPAINT_MS = 500L
+
+/** The line under the suggestions progress bar: what Smart Link is doing right now */
+internal fun findingStepText(progress: SmartLinkProgress?, isScanning: Boolean): String {
+    if (progress == null) return if (isScanning) "Checking for new Boox notes" else "Getting ready"
+    val count = if (progress.total > 0) " · ${progress.done} of ${progress.total}" else ""
+    return when (progress.step) {
+        SmartLinkProgress.Step.READING_EVENTS -> "Reading your calendar"
+        SmartLinkProgress.Step.READING_NOTES -> "Reading your notes"
+        SmartLinkProgress.Step.READING_EVENT_DETAILS -> "Reading event details$count"
+        SmartLinkProgress.Step.COMPARING -> "Comparing notes with events$count"
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

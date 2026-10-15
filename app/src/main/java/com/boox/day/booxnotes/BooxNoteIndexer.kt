@@ -26,7 +26,6 @@ import com.boox.day.ocr.model.EntityType
 import com.boox.day.ocr.model.OcrSource
 import com.boox.day.ocr.semantic.SemanticGeniusService
 import com.boox.day.ocr.semantic.classification.AbbreviationsDictionary
-import com.boox.day.ocr.semantic.classification.ContextDisambiguator
 import com.boox.day.ocr.semantic.classification.DictionaryLoader
 import com.boox.day.ocr.semantic.classification.LanguageDictionaries
 import com.boox.day.ocr.semantic.classification.OcrCorrector
@@ -161,6 +160,33 @@ data class CrossDayLinkSuggestion(
     val matchReasons: List<MatchReason>,
     val dataQualityFlags: List<SmartLinkDataQualityFlag> = emptyList()
 )
+
+/**
+ * How far [BooxNoteIndexer.suggestLinks] is: the step, items done in that step (shown to the user),
+ * and how much of the step's work is done ([stepShare]). Each step owns a slice of the bar sized to
+ * its share of the run time on a Go 10.3, so the bar moves steadily from the first second (Oct 2026:
+ * it sat at 0% for most of the run).
+ */
+data class SmartLinkProgress(
+    val step: Step,
+    val done: Int,
+    val total: Int,
+    val stepShare: Float = if (total > 0) done.coerceIn(0, total).toFloat() / total else 0f
+) {
+    enum class Step(val start: Float, val end: Float) {
+        READING_EVENTS(0f, 0.02f),
+        READING_NOTES(0.02f, 0.06f),
+        READING_EVENT_DETAILS(0.06f, 0.14f),
+        COMPARING(0.14f, 1f)
+    }
+
+    val fraction: Float
+        get() = step.start + (step.end - step.start) * stepShare.coerceIn(0f, 1f)
+
+    companion object {
+        val DONE = SmartLinkProgress(Step.COMPARING, 1, 1)
+    }
+}
 
 /**
  * Session state for bulk smart linking.
@@ -429,6 +455,7 @@ class BooxNoteIndexer(
 
     // Language dictionaries for domain-based semantic matching (Phase 7)
     private val languageDictionaries: LanguageDictionaries by lazy { dictionaryLoader.loadDictionaries("en") }
+    private val domainOverlapScorer by lazy { DomainOverlapScorer(languageDictionaries.domains, ::hasLdsContext) }
 
     // Abbreviations dictionary for title matching (Phase 7)
     private val abbreviations: AbbreviationsDictionary by lazy { dictionaryLoader.loadAbbreviations() }
@@ -2821,12 +2848,14 @@ class BooxNoteIndexer(
      * @return Map of event ID to SemanticProfile (only for events with existing profiles)
      */
     private suspend fun loadEventProfilesBatch(
-        events: List<CalendarEvent>
+        events: List<CalendarEvent>,
+        onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }
     ): Map<String, SemanticProfile> {
         val service = getSemanticServiceForMatching() ?: return emptyMap()
         val result = mutableMapOf<String, SemanticProfile>()
-        for (event in events) {
-            if (event.isAllDay) continue
+        events.forEachIndexed { index, event ->
+            onProgress(index, events.size)
+            if (event.isAllDay) return@forEachIndexed
             try {
                 // Use getEventProfileIfExists - returns null if not indexed (no on-demand creation)
                 service.getEventProfileIfExists(event.id)?.let { profile ->
@@ -3029,40 +3058,6 @@ class BooxNoteIndexer(
     }
 
     /**
-     * Calculate prior domain scores from UNAMBIGUOUS tokens only.
-     * Used to provide context for disambiguation of ambiguous terms.
-     *
-     * BUGFIX (Jan 2026): Added to fix empty priors bug where disambiguation
-     * was ignoring 40% of the signal by passing emptyMap().
-     *
-     * @param tokens All tokens from the text
-     * @param ambiguousTerms Set of terms considered ambiguous (will be excluded)
-     * @return Map of Domain -> score from unambiguous terms only
-     */
-    private fun calculatePriorScoresFromUnambiguous(
-        tokens: Set<String>,
-        ambiguousTerms: Set<String>
-    ): Map<Domain, Float> {
-        val unambiguousTokens = tokens.filter { it !in ambiguousTerms }
-        val scores = mutableMapOf<Domain, Float>()
-
-        for ((domainName, domainDict) in languageDictionaries.domains) {
-            var score = 0f
-            for (token in unambiguousTokens) {
-                val weight = domainDict.getWeight(token)
-                if (weight > 0) {
-                    score += weight
-                }
-            }
-            if (score > 0) {
-                scores[domainName] = score
-            }
-        }
-
-        return scores
-    }
-
-    /**
      * Enhanced semantic group scoring with weighted analysis (Jan 2026).
      * Returns a quality score indicating strength of semantic overlap.
      *
@@ -3083,220 +3078,8 @@ class BooxNoteIndexer(
      * - 0.2-0.4: Weak overlap (mostly TierC, no exact overlap)
      * - <0.2: Insufficient (single generic term, different domains)
      */
-    private fun calculateSemanticOverlapScore(noteTitle: String, eventText: String): Float {
-        val noteTitleLower = noteTitle.lowercase()
-        val eventTitleLower = eventText.lowercase()
-
-        // Tokenize with minimum length filter
-        // Keep both indexed list (for context window) and set (for fast lookup)
-        val noteTokensList = noteTitleLower.split(Regex("[\\s\\-_]+"))
-            .filter { it.length >= 2 }
-        val noteWords = noteTokensList.toSet()
-        val eventTokensList = eventTitleLower.split(Regex("[\\s\\-_]+"))
-            .filter { it.length >= 2 }
-        val eventWords = eventTokensList.toSet()
-
-        // LDS context detection (Fix #8)
-        val noteHasLdsContext = hasLdsContext(noteTitleLower)
-        val eventHasLdsContext = hasLdsContext(eventTitleLower)
-        val bothHaveLdsContext = noteHasLdsContext && eventHasLdsContext
-
-        // ═══════════════════════════════════════════════════════════════════════════
-        // Fix #9: Collocation-based disambiguation for ambiguous terms
-        // For terms like "primary", "service", "meeting" - use local context to
-        // determine which domain they belong to, boosting correct domain scores.
-        //
-        // BUGFIX (Jan 2026): Previously passed emptyMap() as priors, which ignored
-        // 40% of the disambiguation signal. Now we calculate priors from unambiguous
-        // terms first, then pass them to improve disambiguation accuracy.
-        // ═══════════════════════════════════════════════════════════════════════════
-
-        // Step 1: Calculate prior scores from UNAMBIGUOUS tokens only
-        // This gives the disambiguator context about what domains are already present
-        val ambiguousTerms = ContextDisambiguator.AMBIGUOUS_TERMS.keys
-        val notePriors = calculatePriorScoresFromUnambiguous(noteWords, ambiguousTerms)
-        val eventPriors = calculatePriorScoresFromUnambiguous(eventWords, ambiguousTerms)
-
-        // Step 2: Disambiguate ambiguous terms using priors + collocations
-        // Map: term -> resolved domain (if successfully disambiguated)
-        val noteDisambiguated = mutableMapOf<String, Domain>()
-        for ((idx, token) in noteTokensList.withIndex()) {
-            if (ContextDisambiguator.isAmbiguous(token)) {
-                val result = ContextDisambiguator.resolve(
-                    term = token,
-                    tokens = noteTokensList,
-                    termIndex = idx,
-                    priorScores = notePriors  // BUGFIX: Now uses real priors
-                )
-                if (result != null && result.confidence >= 0.6f) {
-                    noteDisambiguated[token] = result.resolvedDomain
-                }
-            }
-        }
-
-        // Pre-compute disambiguation for ambiguous terms in event
-        val eventDisambiguated = mutableMapOf<String, Domain>()
-        for ((idx, token) in eventTokensList.withIndex()) {
-            if (ContextDisambiguator.isAmbiguous(token)) {
-                val result = ContextDisambiguator.resolve(
-                    term = token,
-                    tokens = eventTokensList,
-                    termIndex = idx,
-                    priorScores = eventPriors  // BUGFIX: Now uses real priors
-                )
-                if (result != null && result.confidence >= 0.6f) {
-                    eventDisambiguated[token] = result.resolvedDomain
-                }
-            }
-        }
-
-        // Track best overlap across all domains
-        var bestOverlapScore = 0f
-
-        for ((domainName, domainDict) in languageDictionaries.domains) {
-            // Calculate weighted score for NOTE in this domain
-            var noteScore = 0f
-            var noteTierACount = 0
-            val noteMatchedTerms = mutableSetOf<String>()
-
-            for (word in noteWords) {
-                var weight = domainDict.getWeight(word)
-                if (weight > 0) {
-                    // Fix #9: Apply disambiguation modifier for ambiguous terms
-                    // If this term was disambiguated, boost/reduce based on whether
-                    // it resolved to THIS domain or a DIFFERENT domain
-                    val disambiguatedDomain = noteDisambiguated[word]
-                    if (disambiguatedDomain != null) {
-                        weight *= if (disambiguatedDomain == domainName) {
-                            1.5f  // Boost: context confirms this domain
-                        } else {
-                            0.3f  // Penalty: context points to different domain
-                        }
-                    }
-
-                    noteScore += weight
-                    noteMatchedTerms.add(word)
-                    if (domainDict.getTier(word) == "A") noteTierACount++
-                }
-            }
-
-            // Check multi-word TierA terms (e.g., "ward-council", "elders-quorum")
-            // BUGFIX (Jan 2026): Use token set membership, not substring contains()
-            // Previously "reward" would match "ward" via contains()
-            for (term in domainDict.tierA.first) {
-                val termLower = term.lowercase()
-                if (termLower.contains("-") || termLower.contains(" ")) {
-                    // Check if all parts of the term are present as WHOLE WORDS
-                    val parts = termLower.split(Regex("[\\-\\s]+"))
-                    if (parts.all { it in noteWords }) {  // Token match, not substring
-                        noteScore += domainDict.tierA.second
-                        noteTierACount++
-                        noteMatchedTerms.addAll(parts)
-                    }
-                }
-            }
-
-            // Calculate weighted score for EVENT in this domain
-            var eventScore = 0f
-            var eventTierACount = 0
-            val eventMatchedTerms = mutableSetOf<String>()
-
-            for (word in eventWords) {
-                var weight = domainDict.getWeight(word)
-                if (weight > 0) {
-                    // Fix #9: Apply disambiguation modifier for ambiguous terms
-                    val disambiguatedDomain = eventDisambiguated[word]
-                    if (disambiguatedDomain != null) {
-                        weight *= if (disambiguatedDomain == domainName) {
-                            1.5f  // Boost: context confirms this domain
-                        } else {
-                            0.3f  // Penalty: context points to different domain
-                        }
-                    }
-
-                    eventScore += weight
-                    eventMatchedTerms.add(word)
-                    if (domainDict.getTier(word) == "A") eventTierACount++
-                }
-            }
-
-            // Check multi-word TierA terms for event
-            // BUGFIX (Jan 2026): Use token set membership, not substring contains()
-            for (term in domainDict.tierA.first) {
-                val termLower = term.lowercase()
-                if (termLower.contains("-") || termLower.contains(" ")) {
-                    val parts = termLower.split(Regex("[\\-\\s]+"))
-                    if (parts.all { it in eventWords }) {  // Token match, not substring
-                        eventScore += domainDict.tierA.second
-                        eventTierACount++
-                        eventMatchedTerms.addAll(parts)
-                    }
-                }
-            }
-
-            // Both must have SOME score in this domain for overlap
-            if (noteScore > 0 && eventScore > 0) {
-                // Calculate exact term overlap (same words in both)
-                val exactOverlap = noteMatchedTerms.intersect(eventMatchedTerms)
-                val exactOverlapBonus = when {
-                    exactOverlap.isEmpty() -> 1.0f      // No bonus
-                    exactOverlap.size == 1 -> 1.3f     // Single shared term
-                    else -> 1.5f                        // Multiple shared terms
-                }
-
-                // TierA presence bonus (high-value terms on both sides)
-                val tierABonus = when {
-                    noteTierACount > 0 && eventTierACount > 0 -> 1.5f  // Both have TierA
-                    noteTierACount > 0 || eventTierACount > 0 -> 1.2f  // One has TierA
-                    else -> 1.0f                                        // No TierA
-                }
-
-                // LDS context boost (Fix #8)
-                // When both note and event have LDS context AND we're scoring LDS_LEADERSHIP domain,
-                // apply a contextual boost to help disambiguate from generic business terms
-                val ldsContextBoost = if (bothHaveLdsContext &&
-                    domainName == Domain.LDS_LEADERSHIP) {
-                    1.4f  // 40% boost for LDS domain when both have context
-                } else {
-                    1.0f
-                }
-
-                // Fix #9: Collocation agreement bonus
-                // When BOTH note and event have the same ambiguous term that both resolved
-                // to THIS domain, it's a very strong signal of semantic overlap
-                val sharedAmbiguousTerms = noteDisambiguated.keys.intersect(eventDisambiguated.keys)
-                val collocationAgreementCount = sharedAmbiguousTerms.count { term ->
-                    noteDisambiguated[term] == domainName && eventDisambiguated[term] == domainName
-                }
-                val collocationAgreementBonus = when (collocationAgreementCount) {
-                    0 -> 1.0f      // No agreement
-                    1 -> 1.3f      // One shared disambiguated term
-                    else -> 1.5f   // Multiple shared disambiguated terms
-                }
-
-                // Geometric mean: sqrt(noteScore * eventScore)
-                // This requires BOTH to be strong - one strong + one weak = moderate
-                val geometricMean = kotlin.math.sqrt(noteScore * eventScore)
-
-                // Apply bonuses and compute final score
-                // Max expected geometric mean: sqrt(8 * 8) = 8 for very strong matches
-                // Divide by 8 to normalize base, then apply multiplicative bonuses
-                //
-                // BUGFIX (Jan 2026): Removed coerceAtMost(1.0f) that was destroying ranking data.
-                // With max multiplier of 1.5 × 1.5 × 1.4 × 1.5 = 4.725, mediocre and excellent
-                // matches were both clamped to 1.0, making them indistinguishable.
-                // Scores > 1.0 now indicate exceptionally strong matches.
-                // Caller should normalize for UI display if needed.
-                val normalizedScore = (geometricMean / 8f) * exactOverlapBonus * tierABonus * ldsContextBoost * collocationAgreementBonus
-
-                if (normalizedScore > bestOverlapScore) {
-                    bestOverlapScore = normalizedScore  // Allow scores > 1.0 for ranking
-                }
-            }
-        }
-
-        return bestOverlapScore
-    }
+    private fun calculateSemanticOverlapScore(noteTitle: String, eventText: String): Float =
+        domainOverlapScorer.score(noteTitle, eventText)
 
     /**
      * Legacy boolean wrapper for compatibility.
@@ -3756,14 +3539,16 @@ class BooxNoteIndexer(
      */
     suspend fun suggestLinks(
         notes: List<BooxNoteIndex>,
-        onProgress: (Float) -> Unit = {}
+        onProgress: (SmartLinkProgress) -> Unit = {}
     ): Map<String, List<CrossDayLinkSuggestion>> = withContext(Dispatchers.IO) {
         if (!isSmartLinkRuntimeEnabled()) {
             logSmartLinkRuntimeDisabled("Smart Link suggestions")
-            onProgress(1f)
+            onProgress(SmartLinkProgress.DONE)
             return@withContext emptyMap()
         }
 
+        val startedAt = System.currentTimeMillis()
+        onProgress(SmartLinkProgress(SmartLinkProgress.Step.READING_EVENTS, 0, 0))
         val linkedNoteIds = noteRepository.getAllLinks()
             .filter { it.linkedEventId != null }
             .map { it.noteUniqueId }
@@ -3771,7 +3556,7 @@ class BooxNoteIndexer(
         val unlinkedNotes = notes.filter { it.uniqueId !in linkedNoteIds && it.originalDate.isNotBlank() }
         val noteDates = unlinkedNotes.mapNotNull { runCatching { LocalDate.parse(it.originalDate) }.getOrNull() }
         if (noteDates.isEmpty()) {
-            onProgress(1f)
+            onProgress(SmartLinkProgress.DONE)
             return@withContext emptyMap()
         }
 
@@ -3779,9 +3564,24 @@ class BooxNoteIndexer(
             noteDates.min().minusDays(BULK_MODE_SEARCH_DAYS.toLong()).format(DateTimeFormatter.ISO_LOCAL_DATE),
             noteDates.max().plusDays(BULK_MODE_SEARCH_DAYS.toLong()).format(DateTimeFormatter.ISO_LOCAL_DATE)
         )
+        val eventsDoneAt = System.currentTimeMillis()
+        onProgress(SmartLinkProgress(SmartLinkProgress.Step.READING_NOTES, 0, unlinkedNotes.size))
         val semanticProfilesCache = mutableMapOf<String, List<SemanticProfile>?>()
         preloadSemanticProfilesFromAggregates(unlinkedNotes, semanticProfilesCache)
-        val eventProfilesMap = loadEventProfilesBatch(events)
+        val notesDoneAt = System.currentTimeMillis()
+        val eventProfilesMap = loadEventProfilesBatch(events) { done, total ->
+            onProgress(SmartLinkProgress(SmartLinkProgress.Step.READING_EVENT_DETAILS, done, total))
+        }
+        val detailsDoneAt = System.currentTimeMillis()
+
+        // A note with many events near it takes longer to compare: the bar follows that work
+        val work = SmartLinkDecisionSupport.comparisonWork(
+            noteDates = unlinkedNotes.map { runCatching { LocalDate.parse(it.originalDate) }.getOrNull() },
+            events = events,
+            searchDays = BULK_MODE_SEARCH_DAYS
+        )
+        val totalWork = work.sum().toFloat()
+        var workDone = 0
 
         val suggestions = linkedMapOf<String, List<CrossDayLinkSuggestion>>()
         unlinkedNotes.forEachIndexed { index, note ->
@@ -3797,9 +3597,18 @@ class BooxNoteIndexer(
             if (noteSuggestions.isNotEmpty()) {
                 suggestions[note.uniqueId] = noteSuggestions
             }
-            onProgress((index + 1).toFloat() / unlinkedNotes.size)
+            workDone += work[index]
+            onProgress(
+                SmartLinkProgress(SmartLinkProgress.Step.COMPARING, index + 1, unlinkedNotes.size, stepShare = workDone / totalWork)
+            )
         }
-        Log.d(TAG, "Smart Link suggestions: ${suggestions.size} of ${unlinkedNotes.size} unlinked notes")
+        val doneAt = System.currentTimeMillis()
+        Log.d(
+            TAG,
+            "Smart Link suggestions: ${suggestions.size} of ${unlinkedNotes.size} unlinked notes in ${doneAt - startedAt}ms " +
+                "(${events.size} events ${eventsDoneAt - startedAt}ms, notes ${notesDoneAt - eventsDoneAt}ms, " +
+                "${eventProfilesMap.size} event details ${detailsDoneAt - notesDoneAt}ms, comparing ${doneAt - detailsDoneAt}ms)"
+        )
         suggestions
     }
 

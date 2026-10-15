@@ -78,6 +78,47 @@ class SmartLinkDecisionSupportTest {
     }
 
     @Test
+    fun `progress moves through every step and ends at 100 percent`() {
+        val steps = listOf(
+            SmartLinkProgress(SmartLinkProgress.Step.READING_EVENTS, 0, 0),
+            SmartLinkProgress(SmartLinkProgress.Step.READING_NOTES, 0, 115),
+            SmartLinkProgress(SmartLinkProgress.Step.READING_EVENT_DETAILS, 0, 640),
+            SmartLinkProgress(SmartLinkProgress.Step.READING_EVENT_DETAILS, 320, 640),
+            SmartLinkProgress(SmartLinkProgress.Step.COMPARING, 1, 115),
+            SmartLinkProgress(SmartLinkProgress.Step.COMPARING, 115, 115)
+        ).map { it.fraction }
+
+        assertEquals(steps, steps.sorted())
+        assertTrue(steps[3] > steps[2])
+        assertEquals(1f, steps.last(), 0.0001f)
+        assertEquals(1f, SmartLinkProgress.DONE.fraction, 0.0001f)
+    }
+
+    @Test
+    fun `comparisonWork counts the timed events near each note`() {
+        val events = listOf(
+            createEvent(id = "a", title = "Standup", dayId = "2026-03-06"),
+            createEvent(id = "b", title = "Review", dayId = "2026-03-10"),
+            createEvent(id = "c", title = "Far away", dayId = "2026-04-30")
+        )
+
+        val work = SmartLinkDecisionSupport.comparisonWork(
+            noteDates = listOf(java.time.LocalDate.parse("2026-03-06"), java.time.LocalDate.parse("2026-01-01"), null),
+            events = events,
+            searchDays = 7
+        )
+
+        assertEquals(listOf(3, 1, 1), work)
+    }
+
+    @Test
+    fun `comparing progress follows the work share, not the note count`() {
+        val progress = SmartLinkProgress(SmartLinkProgress.Step.COMPARING, done = 1, total = 115, stepShare = 0.5f)
+
+        assertEquals(0.57f, progress.fraction, 0.0001f)
+    }
+
+    @Test
     fun `mergeMatchReasons adds semantic and ai reasons without duplicates`() {
         val merged = SmartLinkDecisionSupport.mergeMatchReasons(
             reasons = listOf(MatchReason.TITLE_MATCH, MatchReason.AI_SUGGESTED_MATCH),

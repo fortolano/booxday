@@ -1,5 +1,6 @@
 package com.boox.day.ui.dialogs
 
+import android.os.SystemClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -48,6 +49,7 @@ import com.boox.day.booxnotes.BooxNotesIntegration
 import com.boox.day.booxnotes.CrossDayLinkSuggestion
 import com.boox.day.booxnotes.MatchReason
 import com.boox.day.booxnotes.SmartLinkDecisionMode
+import com.boox.day.booxnotes.SmartLinkProgress
 import com.boox.day.data.db.BooxNoteIndex
 import com.boox.day.data.db.BooxNoteLink
 import com.boox.day.data.db.BooxNoteRepository
@@ -127,7 +129,7 @@ fun BooxNotesDialog(
     var selectedIntent by remember { mutableStateOf<Intent?>(null) }
 
     // Smart Link
-    var allProgress by remember { mutableStateOf<Float?>(null) }
+    var allProgress by remember { mutableStateOf<SmartLinkProgress?>(null) }
     var allJob by remember { mutableStateOf<Job?>(null) }
     var preflight by remember { mutableStateOf<SmartLinkPreflightStatus?>(null) }
     var preflightChecked by remember { mutableStateOf(false) }
@@ -270,14 +272,16 @@ fun BooxNotesDialog(
         val indexer = booxNoteIndexer ?: return
         if (cache.allScored || allJob?.isActive == true || allNotes.isEmpty()) return
         allJob = scope.launch {
-            allProgress = 0f
+            allProgress = SmartLinkProgress(SmartLinkProgress.Step.READING_EVENTS, 0, 0)
             try {
                 val notes = allNotes
-                var shown = 0f
+                var shownAt = 0L
                 val results = indexer.suggestLinks(notes) { progress ->
-                    // At most every 10%: each change refreshes the e-ink panel
-                    if (progress - shown >= 0.1f) {
-                        shown = progress
+                    // Each change repaints part of the e-ink panel: a new step shows at once,
+                    // counts at most twice a second
+                    val now = SystemClock.uptimeMillis()
+                    if (progress.step != allProgress?.step || now - shownAt >= PROGRESS_REPAINT_MS) {
+                        shownAt = now
                         allProgress = progress
                     }
                 }
@@ -367,19 +371,23 @@ fun BooxNotesDialog(
     }
 
     // Suggestions: this day's notes right away; all notes once All notes or its suggestions are shown
-    LaunchedEffect(loaded, currentDate, allNotes) {
+    // The all-notes run scores these notes too: never run beside it (two runs slow each other down)
+    val allRunWanted = showAll || (showSuggestions && suggestionsForAll)
+    LaunchedEffect(loaded, currentDate, allNotes, allRunWanted) {
         val indexer = booxNoteIndexer ?: return@LaunchedEffect
+        if (allRunWanted && !cache.allScored) return@LaunchedEffect
         val toScore = dayNotes.filter { it.uniqueId !in cache.scored && !isLinked(it.uniqueId) }
         if (loaded && toScore.isNotEmpty()) {
             cache.store(toScore.map { it.uniqueId }, indexer.suggestLinks(toScore))
         }
     }
-    LaunchedEffect(loaded, showAll, showSuggestions, suggestionsForAll) {
-        if (loaded && (showAll || (showSuggestions && suggestionsForAll))) startAllSuggestions()
+    LaunchedEffect(loaded, allRunWanted) {
+        if (loaded && allRunWanted) startAllSuggestions()
     }
-    LaunchedEffect(loaded, selectedId) {
+    LaunchedEffect(loaded, selectedId, allRunWanted) {
         val note = selectedNote ?: return@LaunchedEffect
         val indexer = booxNoteIndexer ?: return@LaunchedEffect
+        if (allRunWanted && !cache.allScored) return@LaunchedEffect
         if (loaded && note.uniqueId !in cache.scored && !isLinked(note.uniqueId)) {
             cache.store(listOf(note.uniqueId), indexer.suggestLinks(listOf(note)))
         }
@@ -510,7 +518,7 @@ fun BooxNotesDialog(
                         val content = when {
                             !preflightChecked -> SuggestionsContent.Checking
                             blocked -> SuggestionsContent.Blocked(preflight!!)
-                            suggestionsForAll && !cache.allScored -> SuggestionsContent.Finding(allProgress ?: 0f)
+                            suggestionsForAll && !cache.allScored -> SuggestionsContent.Finding(allProgress?.fraction ?: 0f, findingStepText(allProgress, isScanning))
                             else -> SuggestionsContent.Ready
                         }
                         BooxNotesSuggestionsView(
@@ -588,7 +596,7 @@ fun BooxNotesDialog(
                                             selectedIntent = selectedIntent,
                                             onIntentChange = { selectedIntent = it },
                                             suggestionsStatus = when {
-                                                allProgress != null -> AllSuggestionsStatus.Finding(allProgress ?: 0f)
+                                                allProgress != null -> AllSuggestionsStatus.Finding(allProgress?.fraction ?: 0f, findingStepText(allProgress, isScanning))
                                                 cache.allScored -> AllSuggestionsStatus.Ready(
                                                     allNotes.count { !isLinked(it.uniqueId) && cache.best(it.uniqueId) != null }
                                                 )
