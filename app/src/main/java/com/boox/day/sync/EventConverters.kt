@@ -1,6 +1,5 @@
 package com.boox.day.sync
 
-import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.db.LocalEvent
 import com.boox.day.data.db.SyncStatus
 import com.google.api.services.calendar.model.Event
@@ -13,12 +12,11 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 /**
- * Extension functions for converting between LocalEvent, CalendarEvent, and Google Calendar API Event.
+ * Extension functions for converting between LocalEvent and Google Calendar API Event.
  *
  * This file contains all type conversion logic for the hybrid calendar system:
  * - Google API Event → LocalEvent (pulling from Google)
  * - LocalEvent → Google API Event (pushing to Google)
- * - CalendarEvent → LocalEvent (migration from v10 to v11)
  * - Conflict detection helpers
  */
 
@@ -246,52 +244,9 @@ fun LocalEvent.mergeWithRemote(remoteEvent: Event, calendarInfo: GoogleCalendarI
     )
 }
 
-// =============================================================================
-// CalendarEvent → LocalEvent (Migration)
-// =============================================================================
-
-/**
- * Convert legacy CalendarEvent to LocalEvent.
- * Used during database migration from v10 to v11.
- *
- * Note: The actual migration in MIGRATION_10_11 uses SQL for efficiency,
- * but this function is useful for programmatic conversion if needed.
- *
- * @return LocalEvent with sync enabled and status SYNCED
- */
-fun CalendarEvent.toLocalEvent(): LocalEvent {
-    return LocalEvent(
-        // Generate new local UUID (Google ID stored separately)
-        id = UUID.randomUUID().toString(),
-
-        // Core event data
-        title = this.title,
-        dayId = this.dayId,
-        endDayId = this.endDayId.ifEmpty { this.dayId },
-        startTime = this.startTime,
-        endTime = this.endTime,
-        isAllDay = this.isAllDay,
-        location = this.location,
-        description = this.description,
-        colorHex = this.colorHex,
-        attendees = this.attendees,
-
-        // Sync metadata - came from Google, so mark as synced
-        syncEnabled = true,
-        syncStatus = SyncStatus.SYNCED,
-        googleEventId = this.id,  // Original Google ID
-        googleCalendarId = this.calendarId,
-        googleCalendarName = this.calendarName,
-        lastSyncedAt = this.syncedAt,
-        serverEtag = null,  // Not available in CalendarEvent
-
-        // Local metadata
-        isReadOnly = this.isReadOnly,
-        createdAt = this.syncedAt,
-        updatedAt = this.syncedAt,
-        linkedMemoPageId = null
-    )
-}
+// CalendarEvent → LocalEvent: CalendarEvent.toLocalEvent() (a member, CalendarEvent.kt). An
+// extension of the same name here (new UUID, Google id in googleEventId) was never called —
+// Kotlin always picks the member — and is removed.
 
 // =============================================================================
 // Conflict Detection

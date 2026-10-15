@@ -386,7 +386,7 @@ class EventConvertersTest {
     }
 
     // =============================================================================
-    // CalendarEvent → LocalEvent (Migration) Tests
+    // CalendarEvent → LocalEvent (CalendarEvent.toLocalEvent, used by AgenticContextBuilder)
     // =============================================================================
 
     @Test
@@ -405,33 +405,33 @@ class EventConvertersTest {
             attendees = "legacy@example.com",
             isReadOnly = true,
             colorHex = "#FBBC04",
-            syncedAt = 1702800000000L
+            syncedAt = 1702800000000L,
+            providerId = "GOOGLE",
+            accountId = "account-1",
+            accountEmail = "me@example.com"
         )
 
         val localEvent = calendarEvent.toLocalEvent()
 
-        // Local event should have new UUID, not Google ID
-        assertNotEquals("google-legacy-123", localEvent.id)
-        assertTrue(localEvent.id.isNotBlank())
-
-        // But Google ID should be stored separately
-        assertEquals("google-legacy-123", localEvent.googleEventId)
-        assertEquals("legacy-calendar-id", localEvent.googleCalendarId)
-        assertEquals("Legacy Calendar", localEvent.googleCalendarName)
+        // Same id every time, and the provider id that AgenticContextBuilder de-duplicates on
+        assertEquals("google-legacy-123", localEvent.id)
+        assertEquals("google-legacy-123", localEvent.providerEventId)
+        assertEquals("GOOGLE", localEvent.providerId)
+        assertEquals("legacy-calendar-id", localEvent.providerCalendarId)
+        assertEquals("Legacy Calendar", localEvent.providerCalendarName)
+        assertEquals("account-1", localEvent.accountId)
+        assertEquals("me@example.com", localEvent.accountEmail)
 
         // Core data should be preserved
         assertEquals("Legacy Event", localEvent.title)
         assertEquals("2023-12-18", localEvent.dayId)
+        assertEquals("2023-12-18", localEvent.endDayId)
         assertEquals(1702900800000L, localEvent.startTime)
         assertEquals(1702904400000L, localEvent.endTime)
         assertEquals("Old Room", localEvent.location)
+        assertEquals("Migrated event", localEvent.description)
         assertEquals("legacy@example.com", localEvent.attendees)
         assertTrue(localEvent.isReadOnly)
-        assertEquals("#FBBC04", localEvent.colorHex)
-
-        // Sync status should be SYNCED (came from Google)
-        assertTrue(localEvent.syncEnabled)
-        assertEquals(SyncStatus.SYNCED, localEvent.syncStatus)
     }
 
     // =============================================================================
