@@ -1,0 +1,125 @@
+{
+  "intent": "IEP_504",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "individualized-education-program",
+      "iep",
+      "504",
+      "504-plan",
+      "accommodation",
+      "accommodations",
+      "modification",
+      "specially-designed-instruction",
+      "annual-goal",
+      "iep-goal",
+      "present-levels",
+      "plop",
+      "special-education",
+      "sped",
+      "case-manager",
+      "iep-meeting"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "eligibility",
+      "evaluation",
+      "reevaluation",
+      "triennial",
+      "related-services",
+      "speech",
+      "occupational-therapy",
+      "physical-therapy",
+      "counseling-services",
+      "inclusion",
+      "resource",
+      "self-contained",
+      "least-restrictive-environment",
+      "transition-plan",
+      "behavior-intervention-plan",
+      "functional-behavior-assessment",
+      "manifestation-determination",
+      "progress-monitoring",
+      "monitoring",
+      "data-collection",
+      "data",
+      "rti",
+      "goal-progress",
+      "extended-school-year",
+      "assistive-technology"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "support",
+      "services",
+      "special",
+      "education",
+      "goal",
+      "plan",
+      "student",
+      "intervention",
+      "progress",
+      "meeting",
+      "team",
+      "parent",
+      "accommodate",
+      "modify",
+      "adapt",
+      "individualize"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "iep\\s+(?:meeting|goal|team|review)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "504\\s+(?:plan|meeting|accommodation)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "special\\s+education(?:\\s+(?:teacher|student|services))?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "accommodation(?:s)?\\s+(?:for|include|list)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:annual|iep)\\s+goal",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:eligibility|evaluation|reevaluation)\\s+(?:meeting|for)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:behavior\\s+intervention|bip|fba)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:related|support)\\s+services",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:present|current)\\s+levels?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:speech|ot|pt)\\s+(?:services|therapy|goals)?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:transition|post[\\s-]secondary)\\s+(?:plan|goal)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:progress|data)\\s+(?:monitoring|collection|toward)",
+      "weight": 4.0
+    }
+  ]
+}

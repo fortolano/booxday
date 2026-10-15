@@ -1,0 +1,36 @@
+appId: com.boox.day
+---
+# Verify tab switching with measured coordinates
+# Tasks tab: 8%, 46%
+# Memos tab: 3%, 46%
+
+- launchApp
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "8000"
+
+- takeScreenshot: verify/01_initial
+
+# Tap Tasks tab at measured position
+- tapOn:
+    point: "8%,46%"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "2000"
+
+- takeScreenshot: verify/02_tasks_tab
+
+# Tap Memos tab
+- tapOn:
+    point: "3%,46%"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "2000"
+
+- takeScreenshot: verify/03_memos_tab

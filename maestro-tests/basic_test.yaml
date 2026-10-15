@@ -1,0 +1,17 @@
+appId: com.boox.day
+---
+# Basic test: Launch and screenshot only
+
+- launchApp
+
+# Give e-ink time to refresh
+- repeat:
+    times: 3
+    commands:
+      - swipe:
+          start: "50%, 50%"
+          end: "50%, 50%"
+          duration: 500
+
+# Take screenshot
+- takeScreenshot: basic_screenshot

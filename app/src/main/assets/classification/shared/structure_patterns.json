@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "patterns": {
+    "CHECKBOX_UNCHECKED": {
+      "regex": "(?:^|\\n)\\s*[\\[\\(]\\s*[\\]\\)]",
+      "inferredIntent": "TODO_LIST",
+      "weight": 5.0
+    },
+    "CHECKBOX_CHECKED": {
+      "regex": "(?:^|\\n)\\s*[\\[\\(][xX✓✔][\\]\\)]",
+      "inferredIntent": "TODO_LIST",
+      "weight": 5.0
+    },
+    "BULLET_LIST": {
+      "regex": "(?:^|\\n)\\s*[-•*]\\s+\\S",
+      "minMatches": 2,
+      "weight": 2.0
+    },
+    "NUMBERED_LIST": {
+      "regex": "(?:^|\\n)\\s*\\d+[.):\\s]+\\S",
+      "minMatches": 2,
+      "inferredIntent": "PLANNING",
+      "weight": 2.5
+    },
+    "CODE_BLOCK": {
+      "regex": "```[\\s\\S]*?```",
+      "inferredDomain": "TECH",
+      "weight": 6.0
+    },
+    "INDENTED_CODE": {
+      "regex": "(?:^|\\n)(?: {4,}|\\t+)[a-zA-Z_]",
+      "minMatches": 3,
+      "inferredDomain": "TECH",
+      "weight": 4.0
+    }
+  }
+}

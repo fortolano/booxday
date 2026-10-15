@@ -1,0 +1,126 @@
+{
+  "intent": "CURRICULUM_DEV",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "curriculum",
+      "syllabus",
+      "course-outline",
+      "scope-and-sequence",
+      "curriculum-map",
+      "curriculum-guide",
+      "standards-alignment",
+      "common-core",
+      "state-standards",
+      "backwards-design",
+      "understanding-by-design",
+      "curriculum-development",
+      "curriculum-design"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "course-design",
+      "unit-design",
+      "vertical-alignment",
+      "horizontal-alignment",
+      "pacing",
+      "pacing-calendar",
+      "content-standards",
+      "performance-standards",
+      "benchmark",
+      "essential-standards",
+      "power-standards",
+      "priority-standards",
+      "curriculum-committee",
+      "curriculum-review",
+      "textbook-adoption",
+      "learning-progression",
+      "skill-sequence",
+      "spiral-curriculum",
+      "cross-curricular",
+      "interdisciplinary",
+      "curriculum-mapping",
+      "curriculum-audit",
+      "program-evaluation",
+      "accreditation",
+      "course-approval",
+      "curriculum-framework"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "standard",
+      "standards",
+      "alignment",
+      "state",
+      "design",
+      "align",
+      "develop",
+      "plan",
+      "sequence",
+      "outline",
+      "framework",
+      "scope",
+      "content",
+      "skills",
+      "knowledge",
+      "competency",
+      "objective",
+      "unit",
+      "template"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "curriculum\\s+(?:map|guide|design|development|framework)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "scope\\s+and\\s+sequence",
+      "weight": 5.0
+    },
+    {
+      "pattern": "standards\\s+(?:alignment|aligned|based)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "syllabus\\s+(?:for|draft|template)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:backwards|understanding\\s+by)\\s+design",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:vertical|horizontal)\\s+alignment",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:common\\s+core|state)\\s+standards?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "pacing\\s+(?:guide|calendar|chart)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:essential|power|priority)\\s+standards?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:unit|course|lesson)\\s+design",
+      "weight": 4.0
+    },
+    {
+      "pattern": "textbook\\s+(?:adoption|selection|review)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "curriculum\\s+(?:committee|review|audit)",
+      "weight": 4.5
+    }
+  ]
+}

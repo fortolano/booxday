@@ -1,0 +1,126 @@
+{
+  "intent": "ASSIGNMENT_WORK",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "homework",
+      "assignment",
+      "project",
+      "paper",
+      "essay",
+      "draft",
+      "outline",
+      "rough-draft",
+      "due-date",
+      "deadline",
+      "submit-by",
+      "turn-in",
+      "homework-assignment",
+      "class-project",
+      "term-paper"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "assignment-details",
+      "project-requirements",
+      "rubric",
+      "group-project",
+      "partner-work",
+      "presentation",
+      "works-cited",
+      "bibliography",
+      "citation",
+      "word-count",
+      "page-requirement",
+      "format",
+      "mla-format",
+      "apa-format",
+      "thesis-statement",
+      "introduction",
+      "body-paragraph",
+      "conclusion",
+      "revision",
+      "peer-review",
+      "feedback",
+      "resubmit",
+      "late-assignment",
+      "extension",
+      "final-draft",
+      "research-paper",
+      "lab-report",
+      "annotated-bibliography",
+      "powerpoint",
+      "slides"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "submit",
+      "write",
+      "complete",
+      "finish",
+      "start",
+      "work-on",
+      "research",
+      "cite",
+      "edit",
+      "proofread",
+      "revise",
+      "review",
+      "present"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "homework\\s+(?:for|due|assignment)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "assignment\\s+(?:due|for|details)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "due\\s+(?:date|by|on|tomorrow|today)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:project|paper|essay)\\s+(?:due|for|outline)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:rough|final)\\s+draft",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:turn|hand|submit)\\s+(?:in|by)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:word|page)\\s+(?:count|requirement|limit)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:mla|apa|chicago)\\s+format",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:group|partner)\\s+(?:project|work|assignment)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:works\\s+cited|bibliography|references)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:late|missing)\\s+(?:assignment|work|homework)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:thesis|introduction|conclusion)\\s+(?:statement|paragraph)?",
+      "weight": 4.0
+    }
+  ]
+}

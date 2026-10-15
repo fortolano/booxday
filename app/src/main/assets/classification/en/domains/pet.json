@@ -1,0 +1,185 @@
+{
+  "domain": "PET",
+  "displayName": "Pet Care",
+  "description": "Pet health, vet visits, training, feeding schedules, grooming",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "puppy",
+      "kitten",
+      "canine",
+      "feline",
+      "veterinarian",
+      "vet-visit",
+      "vet-appointment",
+      "animal-hospital",
+      "pet-food",
+      "kibble",
+      "wet-food",
+      "treats",
+      "diet",
+      "grooming",
+      "groomer",
+      "pet-sitter",
+      "dog-walker",
+      "boarding",
+      "vaccination",
+      "rabies",
+      "distemper",
+      "parvo",
+      "bordetella",
+      "heartworm",
+      "flea",
+      "tick",
+      "deworming",
+      "microchip"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "feeding",
+      "feed-schedule",
+      "portion",
+      "bowl",
+      "automatic-feeder",
+      "walk",
+      "walking",
+      "leash",
+      "collar",
+      "harness",
+      "muzzle",
+      "training",
+      "obedience",
+      "command",
+      "trick",
+      "behavior",
+      "crate",
+      "kennel",
+      "carrier",
+      "blanket",
+      "litter",
+      "litter-box",
+      "potty-training",
+      "housebroken",
+      "accident",
+      "breed",
+      "breeder",
+      "rescue",
+      "shelter",
+      "adoption",
+      "foster",
+      "neuter",
+      "spay",
+      "checkup",
+      "shot",
+      "medication",
+      "prescription",
+      "fish",
+      "bird",
+      "hamster",
+      "rabbit",
+      "guinea-pig",
+      "reptile",
+      "aquarium",
+      "cage",
+      "tank",
+      "terrarium",
+      "habitat",
+      "nail-trim",
+      "bath",
+      "brush",
+      "shampoo",
+      "dental",
+      "teeth-cleaning"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "animal",
+      "feed",
+      "train",
+      "care",
+      "love",
+      "companion",
+      "health",
+      "wellness",
+      "energy",
+      "temperament",
+      "play",
+      "exercise",
+      "activity",
+      "outdoor",
+      "indoor",
+      "schedule",
+      "routine",
+      "daily",
+      "morning",
+      "evening",
+      "night"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "vet\\s+(?:visit|appointment|checkup|bill)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:dog|cat|pet)\\s+(?:food|training|grooming|sitter)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "feed(?:ing)?\\s+(?:schedule|time|amount)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:walk|walked)\\s+(?:the\\s+)?(?:dog|puppy)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:flea|tick|heartworm)\\s+(?:medication|treatment|prevention)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "pet\\s+(?:sitter|sitting|care|boarding)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:dog|cat|puppy|kitten)\\s+(?:training|behavior|class)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:vaccination|vaccine|shot)\\s+(?:schedule|appointment|due)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:rescue|shelter)\\s+(?:dog|cat|animal|adoption)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:spay|neuter)\\s+(?:appointment|surgery)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:grooming|groomer)\\s+(?:appointment|session)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:litter|potty)\\s+(?:box|training|accident)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:nail|teeth)\\s+(?:trim|cleaning|appointment)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:dog|cat)\\s+(?:park|daycare|boarding)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:pet|animal)\\s+(?:insurance|emergency|hospital)",
+      "weight": 4.5
+    }
+  ]
+}

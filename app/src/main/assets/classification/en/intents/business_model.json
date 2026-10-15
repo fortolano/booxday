@@ -1,0 +1,122 @@
+{
+  "intent": "BUSINESS_MODEL",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "business-model",
+      "revenue-model",
+      "value-proposition",
+      "pricing-model",
+      "unit-economics",
+      "customer-segment",
+      "channel-strategy",
+      "cost-structure",
+      "profit-model",
+      "business-model-canvas",
+      "lean-canvas",
+      "value-chain",
+      "revenue-engine",
+      "monetization-strategy",
+      "freemium",
+      "subscription-model"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "market-analysis",
+      "competitive-advantage",
+      "differentiation",
+      "moat",
+      "go-to-market",
+      "monetization",
+      "revenue-stream",
+      "pricing-tier",
+      "customer-acquisition",
+      "lifetime-value",
+      "churn",
+      "retention",
+      "conversion",
+      "funnel",
+      "marketplace",
+      "platform",
+      "saas",
+      "enterprise",
+      "direct-sales",
+      "distribution",
+      "partnership",
+      "licensing",
+      "transaction-fee"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "model",
+      "revenue",
+      "market",
+      "pricing",
+      "customer",
+      "value",
+      "profit",
+      "margin",
+      "growth",
+      "scale",
+      "economics",
+      "business",
+      "channel",
+      "segment",
+      "strategy"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "business\\s+model",
+      "weight": 5.0
+    },
+    {
+      "pattern": "revenue\\s+(?:model|stream|engine)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "value\\s+prop(?:osition)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "pricing\\s+(?:strategy|model|tier)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "unit\\s+economics",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:customer|market)\\s+segment",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:lean|business\\s+model)\\s+canvas",
+      "weight": 4.5
+    },
+    {
+      "pattern": "go[\\s-]to[\\s-]market",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:cac|ltv|lifetime\\s+value)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:subscription|freemium|saas)\\s+model",
+      "weight": 4.5
+    },
+    {
+      "pattern": "cost\\s+structure",
+      "weight": 4.0
+    },
+    {
+      "pattern": "competitive\\s+(?:advantage|moat)",
+      "weight": 4.0
+    }
+  ]
+}

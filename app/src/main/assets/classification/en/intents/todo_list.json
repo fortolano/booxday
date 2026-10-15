@@ -1,0 +1,122 @@
+{
+  "intent": "TODO_LIST",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "todo",
+      "to-do",
+      "task",
+      "tasks",
+      "checklist",
+      "checkbox",
+      "check",
+      "uncheck",
+      "complete",
+      "completed",
+      "done",
+      "finish",
+      "task-list",
+      "to-do-list",
+      "action-item",
+      "action-items"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "action",
+      "items",
+      "pending",
+      "remaining",
+      "left",
+      "priority",
+      "urgent",
+      "asap",
+      "deadline",
+      "overdue",
+      "blocked",
+      "in-progress",
+      "not-started",
+      "backlog",
+      "queue",
+      "next-up",
+      "high-priority",
+      "low-priority",
+      "medium-priority",
+      "delegate",
+      "assign",
+      "owner",
+      "follow-up",
+      "reminder",
+      "recurring"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "must",
+      "should",
+      "start",
+      "handle",
+      "address",
+      "resolve",
+      "tackle"
+    ]
+  },
+  "structureBoosts": {
+    "CHECKBOX_UNCHECKED": 3.0,
+    "CHECKBOX_CHECKED": 3.0,
+    "BULLET_LIST": 1.5,
+    "NUMBERED_LIST": 1.5
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "to[\\s-]?do\\s*(?:list|items?)?",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:task|item)s?\\s+(?:to|for)\\s+(?:complete|do|today)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "\\[\\s*[xX]?\\s*\\]",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:need|must|should)\\s+(?:to\\s+)?(?:do|complete|finish)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:action|task)\\s+(?:item|list)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:pending|remaining|outstanding)\\s+(?:task|item)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:high|low|medium)[\\s-]priority",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:due|deadline)\\s+(?:by|on|today|tomorrow)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:blocked|in[\\s-]progress|not[\\s-]started)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:assign|delegate)\\s+(?:to|task)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:follow|follow[\\s-]up)\\s+(?:on|with)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:p0|p1|p2|asap|urgent)",
+      "weight": 4.0
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Large 4-pointed star (main) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M19,9l-1.5,-3L14,4.5L17.5,3L19,0l1.5,3L24,4.5L20.5,6z"/>
+
+    <!-- Medium 4-pointed star (bottom left) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M11.5,18l-1.12,-2.25L8.13,14.63l2.25,-1.12L11.5,11.25l1.12,2.26l2.25,1.12l-2.25,1.12z"/>
+
+    <!-- Small 4-pointed star (top left) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M9.5,9L8.75,7.5L7.25,6.75L8.75,6L9.5,4.5L10.25,6L11.75,6.75L10.25,7.5z"/>
+
+</vector>

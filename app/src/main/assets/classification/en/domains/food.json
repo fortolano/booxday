@@ -1,0 +1,202 @@
+{
+  "domain": "FOOD",
+  "displayName": "Food & Cooking",
+  "description": "Recipes, meal planning, cooking notes, dietary tracking, restaurant reviews",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "recipe",
+      "ingredient",
+      "ingredients",
+      "cooking",
+      "baking",
+      "meal-plan",
+      "meal-prep",
+      "grocery-list",
+      "shopping-list",
+      "breakfast",
+      "lunch",
+      "dinner",
+      "dessert",
+      "appetizer",
+      "snack",
+      "cuisine",
+      "kitchen",
+      "oven",
+      "stovetop",
+      "instant-pot",
+      "slow-cooker",
+      "air-fryer",
+      "food-processor",
+      "blender",
+      "mixer",
+      "cookbook",
+      "chef",
+      "culinary",
+      "gourmet",
+      "homemade",
+      "brunch",
+      "leftovers",
+      "freezer-meal",
+      "batch-cooking"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "tablespoon",
+      "teaspoon",
+      "ounce",
+      "pound",
+      "gram",
+      "preheat",
+      "bake",
+      "roast",
+      "saute",
+      "simmer",
+      "boil",
+      "chop",
+      "dice",
+      "mince",
+      "slice",
+      "whisk",
+      "fold",
+      "knead",
+      "marinate",
+      "season",
+      "garnish",
+      "serve",
+      "portion",
+      "plate",
+      "calories",
+      "carbs",
+      "protein",
+      "macros",
+      "nutrition",
+      "fiber",
+      "vegetarian",
+      "vegan",
+      "gluten-free",
+      "keto",
+      "paleo",
+      "dairy-free",
+      "restaurant",
+      "takeout",
+      "delivery",
+      "reservation",
+      "dining",
+      "skillet",
+      "baking-sheet",
+      "mixing-bowl",
+      "cutting-board",
+      "grill",
+      "broil",
+      "steam",
+      "poach",
+      "braise",
+      "sear",
+      "caramelize",
+      "prep-time",
+      "cook-time",
+      "servings",
+      "yield",
+      "difficulty",
+      "potluck"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "food",
+      "cook",
+      "meal",
+      "dish",
+      "taste",
+      "flavor",
+      "sweet",
+      "savory",
+      "spicy",
+      "sour",
+      "salty",
+      "bitter",
+      "umami",
+      "fresh",
+      "frozen",
+      "canned",
+      "organic",
+      "local",
+      "seasonal",
+      "healthy",
+      "comfort",
+      "quick",
+      "easy",
+      "simple",
+      "delicious",
+      "prepare",
+      "combine",
+      "stir"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "recipe\\s+for",
+      "weight": 5.0
+    },
+    {
+      "pattern": "meal\\s+(?:plan|prep|planning|prepping)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "grocery\\s+(?:list|shopping|store|run)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "preheat.*(?:oven|to\\s+\\d+)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:cup|tbsp|tsp|oz)\\s+(?:of\\s+)?\\w+",
+      "weight": 4.5
+    },
+    {
+      "pattern": "\\d+\\s*(?:cups?|tablespoons?|teaspoons?|ounces?)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:serves?|servings?)\\s*:?\\s*\\d+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:prep|cook)\\s*time",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:dinner|lunch|breakfast)\\s+(?:idea|recipe|menu)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:slow|pressure)\\s+cooker",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:air|deep)\\s+(?:fryer|fry)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:vegetarian|vegan|keto|paleo)\\s+(?:recipe|meal|option)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:restaurant|dinner)\\s+(?:reservation|recommendation)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:batch|freezer)\\s+(?:cooking|meal)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:calorie|macro)\\s+(?:count|tracking)",
+      "weight": 4.0
+    }
+  ]
+}

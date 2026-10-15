@@ -1,0 +1,128 @@
+{
+  "intent": "LEADERSHIP_NOTES",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "delegation",
+      "accountability",
+      "vision",
+      "alignment",
+      "coaching",
+      "mentoring",
+      "stewardship",
+      "oversight",
+      "empowerment",
+      "influence",
+      "leadership",
+      "strategic",
+      "leadership-notes",
+      "leadership-meeting"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "team",
+      "lead",
+      "direction",
+      "initiative",
+      "inspire",
+      "motivate",
+      "guide",
+      "champion",
+      "sponsor",
+      "ownership",
+      "responsibility",
+      "decision-making",
+      "communication",
+      "collaboration",
+      "feedback",
+      "performance",
+      "development",
+      "growth",
+      "culture",
+      "values",
+      "mission",
+      "goals",
+      "objectives",
+      "execution",
+      "strategy",
+      "change-management",
+      "transformation",
+      "stakeholder",
+      "executive"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "direct",
+      "manage",
+      "oversee",
+      "support",
+      "enable",
+      "facilitate",
+      "coordinate",
+      "organize",
+      "plan",
+      "execute",
+      "deliver",
+      "achieve",
+      "accomplish"
+    ]
+  },
+  "structureBoosts": {
+    "BULLET_LIST": 1.5,
+    "NUMBERED_LIST": 1.5
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:leadership|leader)\\s+(?:notes|meeting|discussion|style)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:team|org)\\s+(?:structure|dynamics|culture|alignment)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:mentor|coach)(?:ing)?\\s+(?:session|notes|conversation)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:development|growth)\\s+(?:plan|opportunity|conversation)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:delegation|accountability)\\s+(?:framework|discussion)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:vision|mission|values)\\s+(?:alignment|statement)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:change|transformation)\\s+(?:management|initiative)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:strategic|leadership)\\s+(?:initiative|priority|decision)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:inspire|motivate|empower)\\s+(?:team|people)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:feedback|performance)\\s+(?:conversation|discussion|review)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:executive|stakeholder)\\s+(?:meeting|alignment|communication)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:culture|engagement)\\s+(?:building|improvement|initiative)",
+      "weight": 4.0
+    }
+  ]
+}

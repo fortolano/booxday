@@ -1,0 +1,133 @@
+{
+  "intent": "CONTACT_INFO",
+  "displayName": "Contact Information",
+  "description": "Contact details, phone numbers, emails, addresses",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "contact-info",
+      "contact-information",
+      "contact-details",
+      "phone-number",
+      "email-address",
+      "mailing-address",
+      "phone",
+      "email",
+      "address",
+      "contact",
+      "cell",
+      "mobile",
+      "office",
+      "extension",
+      "linkedin",
+      "twitter",
+      "facebook",
+      "instagram",
+      "social-media",
+      "website"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "name",
+      "title",
+      "company",
+      "organization",
+      "department",
+      "street",
+      "city",
+      "zipcode",
+      "postal-code",
+      "state",
+      "country",
+      "po-box",
+      "reach",
+      "call",
+      "text",
+      "message",
+      "connect",
+      "follow",
+      "direct-line",
+      "main-line",
+      "switchboard",
+      "receptionist",
+      "assistant",
+      "secretary",
+      "emergency-contact",
+      "alternate-contact",
+      "backup-contact",
+      "preferred-contact",
+      "work-phone",
+      "home-phone",
+      "personal-email",
+      "work-email",
+      "business-card",
+      "vcard",
+      "qr-code",
+      "handle",
+      "username"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "info",
+      "details",
+      "number",
+      "locate",
+      "person",
+      "people"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "contact\\s+(?:info|information|details)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:email|phone|address|mobile|cell)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "@[a-z]+\\.[a-z]+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "\\d{3}[\\s.-]\\d{3}[\\s.-]\\d{4}",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:reach|contact)\\s+(?:me|us|them)\\s+(?:at|via)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:ext|extension)\\s*\\.?\\s*\\d+",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:linkedin|twitter|facebook|instagram)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:work|home|cell|mobile|office)\\s+(?:phone|number)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:po\\s+box|p\\.o\\.\\s+box)\\s*\\d+",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:street|city|state|zip)\\s*:",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:business|calling)\\s+card",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:emergency|alternate|backup)\\s+contact",
+      "weight": 4.5
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+appId: com.boox.day
+---
+# Reusable flow: Open Boox Notes dialog
+# Boox Notes (B icon with red dot) is on the DRAWING toolbar at x=35%, y=46%
+
+- tapOn:
+    point: "35%,46%"
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "2000"

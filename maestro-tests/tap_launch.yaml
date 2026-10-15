@@ -1,0 +1,16 @@
+appId: com.boox.day
+---
+# Launch BooxDay by tapping its icon in the Boox launcher
+# Use this if launchApp doesn't work on Boox devices
+
+# BooxDay bounds from hierarchy: [1345,452][1523,566]
+# Center: x=1434 (77%), y=509 (20%)
+- tapOn:
+    point: "77%,20%"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "5000"
+
+- takeScreenshot: tap_launch/01_after_tap

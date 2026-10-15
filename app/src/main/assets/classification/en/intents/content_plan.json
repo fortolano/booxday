@@ -1,0 +1,125 @@
+{
+  "intent": "CONTENT_PLAN",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "content-calendar",
+      "posting-schedule",
+      "content-plan",
+      "editorial-calendar",
+      "content-strategy",
+      "content-pillar",
+      "content-theme",
+      "content-series",
+      "content-schedule",
+      "publishing-schedule",
+      "social-calendar",
+      "content-roadmap",
+      "content-pipeline",
+      "content-backlog"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "post-idea",
+      "caption",
+      "hook",
+      "call-to-action",
+      "thumbnail",
+      "video-script",
+      "reel-idea",
+      "story-idea",
+      "carousel",
+      "thread",
+      "blog-post",
+      "newsletter",
+      "podcast-episode",
+      "youtube-video",
+      "tiktok",
+      "instagram",
+      "linkedin-post",
+      "twitter-thread",
+      "content-type",
+      "content-format",
+      "repurpose",
+      "evergreen",
+      "trending-topic",
+      "hashtag",
+      "content-batch",
+      "batch-content",
+      "content-creator",
+      "publish-date",
+      "draft-due"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "post",
+      "content",
+      "schedule",
+      "plan",
+      "idea",
+      "topic",
+      "theme",
+      "publish",
+      "draft",
+      "create",
+      "write",
+      "record",
+      "edit",
+      "upload"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "content\\s+(?:calendar|plan|strategy|schedule)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:posting|publishing)\\s+schedule",
+      "weight": 4.5
+    },
+    {
+      "pattern": "editorial\\s+calendar",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:post|content|video)\\s+idea",
+      "weight": 4.0
+    },
+    {
+      "pattern": "content\\s+(?:pillar|theme|series)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:blog|newsletter|podcast)\\s+(?:post|episode|schedule)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:reel|story|carousel|thread)\\s+idea",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:batch|repurpose)\\s+content",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:youtube|tiktok|instagram|linkedin)\\s+(?:video|post|content)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "publish\\s+(?:date|schedule|on)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:trending|evergreen)\\s+(?:topic|content)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "content\\s+(?:pipeline|backlog|roadmap)",
+      "weight": 4.5
+    }
+  ]
+}

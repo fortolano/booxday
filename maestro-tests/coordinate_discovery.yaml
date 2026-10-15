@@ -1,0 +1,53 @@
+appId: com.boox.day
+---
+# Coordinate Discovery Test
+# Screen: 1860x2480
+# Test absolute pixel coordinates to understand the system
+
+- launchApp
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "8000"
+
+- takeScreenshot: discovery/00_baseline
+
+# Test 1: Tap at absolute pixel 930,40 (center of toolbar, should hit something)
+- tapOn:
+    point: "930,40"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "2000"
+
+- takeScreenshot: discovery/01_tap_930_40
+
+- back
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+
+# Test 2: Tap at absolute pixel 155,1130 (should be Tasks tab area)
+- tapOn:
+    point: "155,1130"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "2000"
+
+- takeScreenshot: discovery/02_tap_155_1130
+
+# Test 3: Tap at absolute pixel 908,40 (settings gear area)
+- tapOn:
+    point: "908,40"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "2000"
+
+- takeScreenshot: discovery/03_tap_908_40

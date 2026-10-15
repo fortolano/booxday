@@ -1,0 +1,330 @@
+{
+  "domain": "EDUCATION",
+  "description": "Education & Learning - covers students, learners, and academic institutions",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "exam",
+      "midterm",
+      "final-exam",
+      "finals-week",
+      "finals",
+      "chapter",
+      "chapters",
+      "gpa",
+      "lab",
+      "photosynthesis",
+      "economics",
+      "supply",
+      "demand",
+      "literature",
+      "equipment",
+      "protocol",
+      "safety",
+      "quiz",
+      "professor",
+      "syllabus",
+      "semester",
+      "credits",
+      "credit-hours",
+      "homework",
+      "homework-due",
+      "assignment-due",
+      "project-due",
+      "essay",
+      "thesis",
+      "thesis-defense",
+      "thesis-advisor",
+      "dissertation",
+      "dissertation-proposal",
+      "graduate",
+      "undergraduate",
+      "masters",
+      "bachelors",
+      "associates",
+      "tuition",
+      "scholarship",
+      "financial-aid",
+      "fafsa",
+      "grant",
+      "loan",
+      "dean",
+      "deans-list",
+      "registrar",
+      "admissions",
+      "enrollment",
+      "commencement",
+      "convocation",
+      "valedictorian",
+      "cum-laude",
+      "honors",
+      "prerequisite",
+      "corequisite",
+      "elective",
+      "major",
+      "minor",
+      "concentration",
+      "exam-prep",
+      "flash-cards",
+      "flashcards",
+      "practice-problems",
+      "degree-requirements",
+      "lab-report",
+      "lab-notebook",
+      "experiment",
+      "hypothesis",
+      "reading-assignment",
+      "chapter-notes",
+      "textbook",
+      "cramming",
+      "all-nighter",
+      "pomodoro",
+      "quizlet",
+      "anki",
+      "notecards",
+      "study-notes",
+      "lecture-notes",
+      "practice-exam",
+      "past-exams"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "assignment",
+      "curriculum",
+      "grade",
+      "test",
+      "assessment",
+      "study-for",
+      "study-guide",
+      "study-session",
+      "study-group",
+      "test-prep",
+      "review-sheet",
+      "study-break",
+      "exam-review",
+      "review-session",
+      "campus",
+      "university",
+      "school",
+      "academy",
+      "institute",
+      "library",
+      "lecture-hall",
+      "auditorium",
+      "diploma",
+      "degree",
+      "certificate",
+      "certification",
+      "attendance",
+      "absence",
+      "tardy",
+      "excused",
+      "unexcused",
+      "tutoring",
+      "tutoring-center",
+      "office-hours",
+      "academic-advisor",
+      "counselor",
+      "dean-of-students",
+      "provost",
+      "dormitory",
+      "dorm",
+      "housing",
+      "meal-plan",
+      "student-id",
+      "extracurricular",
+      "greek-life",
+      "fraternity",
+      "sorority",
+      "undergrad",
+      "graduate-student",
+      "grad-student",
+      "high-school",
+      "middle-school",
+      "quarter",
+      "trimester",
+      "academic-year",
+      "registration",
+      "drop-deadline",
+      "add-deadline",
+      "teaching-assistant",
+      "recitation",
+      "discussion-section",
+      "seminar",
+      "thesis-chapter",
+      "literature-review",
+      "methodology",
+      "research-proposal",
+      "advisor",
+      "defense-date",
+      "problem-set",
+      "problem-set-due",
+      "homework-help",
+      "academic-probation",
+      "academic-standing",
+      "freshman",
+      "sophomore",
+      "junior",
+      "senior"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "lecture",
+      "student",
+      "study",
+      "project",
+      "paper",
+      "submit",
+      "deadline",
+      "read",
+      "reading",
+      "write",
+      "notes",
+      "notebook",
+      "binder",
+      "pass",
+      "fail",
+      "incomplete",
+      "withdraw",
+      "drop",
+      "retake",
+      "campus-map",
+      "memorization",
+      "review",
+      "group-project",
+      "grading",
+      "rubric",
+      "feedback",
+      "reference",
+      "isbn",
+      "chicago",
+      "research"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "due\\s+(?:date|by|on|tomorrow|today)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "study\\s+(?:for|group|session|guide|plan|hall|break)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "office\\s+hours",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:final|midterm|placement)\\s+exam",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:class|course)\\s+(?:registration|schedule|syllabus)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:research|term|thesis)\\s+paper",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:tuition|scholarship|financial-aid)\\s+(?:payment|deadline|application)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:gpa|grade)\\s+(?:requirement|calculation|average|tracking)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:academic|college|grad-school)\\s+(?:advisor|application|deadline)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:major|minor)\\s+(?:declaration|requirement|change)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:lecture|lab)\\s+(?:notes|section|time|report|notebook|assignment)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:spring|fall|winter|summer)\\s+(?:semester|quarter|break)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:drop|add)\\s+(?:class|course|deadline)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:student|campus)\\s+(?:housing|life|services)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:honors|graduate)\\s+(?:program|thesis|student)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "homework\\s+(?:for|due|assignment)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:exam|test|final|midterm)\\s+(?:prep|review|study)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:assignment|project|paper|essay)\\s+due",
+      "weight": 4.0
+    },
+    {
+      "pattern": "thesis\\s+(?:chapter|defense|advisor|proposal)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:reading|chapter)\\s+(?:notes|assignment)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:flash|note)\\s*cards?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:problem|homework)\\s+set",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:finals|midterms)\\s+(?:week|schedule)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:practice|past)\\s+(?:exam|test|quiz)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:dissertation|thesis)\\s+(?:proposal|chapter|defense)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:research|literature)\\s+review",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:scholarship|financial aid)\\s+(?:application|deadline)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "group\\s+(?:project|presentation|meeting)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:degree|graduation)\\s+requirements?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:tutoring|office)\\s+hours",
+      "weight": 3.5
+    }
+  ]
+}

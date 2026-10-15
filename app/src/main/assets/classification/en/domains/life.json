@@ -1,0 +1,641 @@
+{
+  "domain": "LIFE",
+  "description": "Life & Personal - covers personal growth, family, and social activities",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "self-improvement",
+      "personal-growth",
+      "mindset",
+      "habit",
+      "routine",
+      "discipline",
+      "motivation",
+      "journal",
+      "diary",
+      "reflection",
+      "reflections",
+      "gratitude",
+      "mindfulness",
+      "affirmation",
+      "new-years-resolution",
+      "yearly-goal",
+      "life-goal",
+      "bucket-list",
+      "personal-goal",
+      "self-care",
+      "self-reflection",
+      "introspection",
+      "morning-routine",
+      "evening-routine",
+      "daily-habit",
+      "habit-tracker",
+      "goal-tracker",
+      "habit-stacking",
+      "atomic-habits",
+      "keystone-habit",
+      "personal-development",
+      "life-coaching",
+      "growth-mindset",
+      "deep-work",
+      "time-blocking",
+      "time-block",
+      "focus-session",
+      "energy-management",
+      "weekly-planning",
+      "daily-planning",
+      "monthly-planning",
+      "quarterly-review",
+      "annual-planning",
+      "90-day-goal",
+      "12-week-year",
+      "bullet-journal",
+      "bujo",
+      "gtd",
+      "getting-things-done",
+      "eat-the-frog",
+      "eisenhower-matrix",
+      "second-brain",
+      "zettelkasten",
+      "mother",
+      "father",
+      "mom",
+      "dad",
+      "daughter",
+      "child",
+      "kids",
+      "kids'",
+      "infant",
+      "toddler",
+      "husband",
+      "wife",
+      "spouse",
+      "marriage",
+      "wedding",
+      "engaged",
+      "fiance",
+      "grandma",
+      "grandpa",
+      "grandmother",
+      "grandfather",
+      "grandparent",
+      "grandparents",
+      "birthday",
+      "anniversary",
+      "graduation",
+      "baptism",
+      "christening",
+      "family-reunion",
+      "family-gathering",
+      "family-dinner",
+      "thanksgiving",
+      "school-conference",
+      "custody",
+      "co-parenting",
+      "divorce",
+      "separation",
+      "blended-family",
+      "engagement-party",
+      "rehearsal-dinner",
+      "shower",
+      "bridal-shower",
+      "baby-shower",
+      "bachelor",
+      "bachelorette",
+      "anniversary-party",
+      "birthday-party",
+      "holiday-party",
+      "housewarming",
+      "movie",
+      "venue",
+      "catering"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "resolution",
+      "milestone",
+      "progress",
+      "develop",
+      "morning",
+      "evening",
+      "focus",
+      "accomplish",
+      "achieve",
+      "career",
+      "development",
+      "goals",
+      "track",
+      "measure",
+      "reminder",
+      "appointment",
+      "errand",
+      "to-do",
+      "groceries",
+      "hobby",
+      "organize",
+      "declutter",
+      "simplify",
+      "minimize",
+      "prioritize",
+      "wellness",
+      "balance",
+      "lifestyle",
+      "positive",
+      "productive",
+      "intentional",
+      "purpose",
+      "meaning",
+      "fulfillment",
+      "commitment",
+      "consistency",
+      "persistence",
+      "monthly-review",
+      "weekly-review",
+      "daily-review",
+      "year-in-review",
+      "flow-state",
+      "distraction-free",
+      "focus-time",
+      "productivity-system",
+      "time-audit",
+      "calendar-blocking",
+      "task-batching",
+      "maker-schedule",
+      "manager-schedule",
+      "inbox-zero",
+      "weekly-reset",
+      "sunday-reset",
+      "brain-dump",
+      "mind-sweep",
+      "capture-system",
+      "review-system",
+      "household",
+      "relatives",
+      "sibling",
+      "cousin",
+      "twin",
+      "aunt",
+      "uncle",
+      "nephew",
+      "niece",
+      "in-law",
+      "babysit",
+      "babysitter",
+      "nanny",
+      "au-pair",
+      "daycare",
+      "preschool",
+      "bedtime",
+      "naptime",
+      "snack",
+      "mealtime",
+      "soccer-mom",
+      "soccer",
+      "carpool",
+      "school-bus",
+      "extracurricular",
+      "sports-practice",
+      "recital",
+      "performance",
+      "award-ceremony",
+      "playdate",
+      "sleepover",
+      "family-outing",
+      "allowance",
+      "chores",
+      "screen-time",
+      "parenting",
+      "pregnancy",
+      "expecting",
+      "due-date",
+      "nursery",
+      "friend",
+      "friends",
+      "buddy",
+      "bestie",
+      "hangout",
+      "outing",
+      "date",
+      "date-night",
+      "double-date",
+      "coffee",
+      "drinks",
+      "brunch",
+      "happy-hour",
+      "invite",
+      "invitation",
+      "rsvp",
+      "host",
+      "hostess",
+      "guest",
+      "location",
+      "restaurant",
+      "club",
+      "lounge",
+      "decorations",
+      "theme",
+      "dress-code",
+      "attire",
+      "plus-one",
+      "guest-list",
+      "table",
+      "reservation",
+      "toast",
+      "speech",
+      "gift",
+      "present",
+      "wishlist",
+      "card",
+      "favor",
+      "dancing",
+      "music",
+      "band",
+      "entertainment",
+      "games",
+      "pediatrician",
+      "meditation",
+      "seminar",
+      "party",
+      "celebration",
+      "gathering",
+      "reunion",
+      "get-together",
+      "reception",
+      "networking",
+      "meetup",
+      "workshop-event",
+      "event",
+      "gala",
+      "fundraiser",
+      "charity-event",
+      "benefit",
+      "potluck",
+      "cookout",
+      "picnic",
+      "bonfire",
+      "vacation"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "self",
+      "life",
+      "dream",
+      "wish",
+      "remember",
+      "plan",
+      "personal",
+      "private",
+      "myself",
+      "alone",
+      "solo",
+      "calm",
+      "peace",
+      "quiet",
+      "rest",
+      "relax",
+      "recharge",
+      "ponder",
+      "contemplate",
+      "visualize",
+      "imagine",
+      "write",
+      "record",
+      "document",
+      "today",
+      "tomorrow",
+      "this-week",
+      "this-month",
+      "this-year",
+      "afternoon",
+      "night",
+      "wake-up",
+      "wind-down",
+      "prepare",
+      "ready",
+      "start",
+      "together",
+      "trip",
+      "holiday",
+      "weekend",
+      "play",
+      "game",
+      "park",
+      "museum",
+      "love",
+      "care",
+      "support",
+      "help",
+      "teach",
+      "guide",
+      "visit",
+      "call",
+      "facetime",
+      "photos",
+      "memories",
+      "album",
+      "grow",
+      "first-step",
+      "first-word",
+      "potty-training",
+      "meet",
+      "catch",
+      "chat",
+      "buffer",
+      "connect",
+      "enjoy",
+      "celebrate",
+      "socialize",
+      "mingle",
+      "happy",
+      "hour",
+      "college",
+      "downtown",
+      "task",
+      "completed",
+      "pending",
+      "step",
+      "process",
+      "first",
+      "second",
+      "final",
+      "quote",
+      "quotes",
+      "coordinate",
+      "schedule",
+      "arrange",
+      "attend",
+      "join",
+      "participate",
+      "come",
+      "bring",
+      "place",
+      "how-many",
+      "goal",
+      "daily",
+      "weekly",
+      "todo",
+      "read",
+      "learn",
+      "practice",
+      "family",
+      "home",
+      "house",
+      "dinner",
+      "lunch",
+      "meal",
+      "school",
+      "homework",
+      "improve",
+      "better",
+      "growth",
+      "brother",
+      "sister"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:wedding|event|party)\\s+(?:budget|cost|expense)",
+      "weight": 10.0
+    },
+    {
+      "pattern": "(?:daily|morning|evening|night)\\s+(?:routine|habit|ritual)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:personal|self)\\s+(?:development|improvement|growth|care)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:new|year'?s?)\\s+resolution",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:life|personal|yearly|monthly)\\s+goal",
+      "weight": 4.0
+    },
+    {
+      "pattern": "habit\\s+(?:tracker|tracking|building)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:journal|diary)\\s+(?:entry|writing|prompt)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "gratitude\\s+(?:journal|list|practice)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "meditation\\s+(?:session|practice|app)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "mindfulness\\s+(?:practice|exercise|moment)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:weekly|monthly|daily)\\s+(?:review|reflection)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "goal\\s+(?:setting|tracking|review)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:morning|evening)\\s+(?:pages|writing)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "bucket\\s+list",
+      "weight": 4.0
+    },
+    {
+      "pattern": "life\\s+(?:plan|goals|vision)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "self[\\-\\s]?(?:reflection|improvement|care|love)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:pick|drop)\\s+(?:up|off)\\s+(?:kids|children|son|daughter)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "family\\s+(?:dinner|time|meeting|vacation|reunion|gathering)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:soccer|baseball|basketball|dance|music)\\s+(?:game|practice|recital|lesson)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:parent|school)\\s+(?:teacher|conference|meeting)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:birthday|graduation|wedding|anniversary)\\s+(?:party|celebration|gift)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:kids|children)\\s+(?:bedtime|homework|school|activity)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:baby|nursery|newborn)\\s+(?:shower|room|supplies)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:daycare|preschool|school)\\s+(?:pickup|dropoff|schedule)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:family|kids)\\s+(?:vacation|trip|outing)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:mom|dad|spouse)\\s+(?:birthday|gift|anniversary)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:babysitter|nanny)\\s+(?:schedule|needed|available)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:screen|play)\\s+time",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:co-parent|custody)\\s+(?:schedule|agreement)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:holiday|thanksgiving|christmas)\\s+(?:dinner|gathering|plans)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:child|kid|baby)\\s+(?:milestone|development|checkup)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:catch|meet)\\s+up\\s+(?:with|for)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:birthday|dinner|house|holiday)\\s+party",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:happy|drinks|dinner)\\s+(?:hour|after|with)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:bridal|baby|wedding)\\s+shower",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:networking|social|community)\\s+event",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:get-together|gathering)\\s+(?:at|with|for)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:dinner|lunch|brunch|coffee)\\s+(?:date|with|at)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:send|receive)\\s+(?:invite|invitation|rsvp)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:bachelor|bachelorette)\\s+party",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:plus-one|guest)\\s+(?:list|allowed|bring)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:make|plan|organize)\\s+(?:reservation|party|event)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:dress|formal|casual)\\s+(?:code|attire)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:potluck|bbq|cookout|picnic)\\s+(?:at|with)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:charity|fundraising)\\s+(?:event|gala|dinner)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:date|girls|guys)\\s+night",
+      "weight": 4.0
+    },
+    {
+      "pattern": "deep\\s+work\\s+(?:session|block|time)",
+      "weight": 5.5
+    },
+    {
+      "pattern": "time[\\s-]block(?:ing)?\\s+(?:schedule|calendar|session)",
+      "weight": 5.5
+    },
+    {
+      "pattern": "(?:focus|flow)\\s+(?:session|state|time|block)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:weekly|daily|monthly|quarterly|annual)\\s+(?:planning|review|reset)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:bullet|bujo)\\s+journal",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:gtd|getting\\s+things\\s+done)\\s+(?:system|workflow|review)",
+      "weight": 5.5
+    },
+    {
+      "pattern": "(?:brain|mind)\\s+(?:dump|sweep)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:inbox|email)\\s+zero",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:eisenhower|priority)\\s+matrix",
+      "weight": 5.0
+    },
+    {
+      "pattern": "eat\\s+(?:the|that)\\s+frog",
+      "weight": 5.5
+    },
+    {
+      "pattern": "(?:second|digital)\\s+brain",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:12[\\s-]week|90[\\s-]day)\\s+(?:year|goal|plan)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:energy|task)\\s+(?:management|batching)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:maker|manager)\\s+schedule",
+      "weight": 5.0
+    }
+  ]
+}

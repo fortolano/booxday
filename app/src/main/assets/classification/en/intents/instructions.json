@@ -1,0 +1,146 @@
+{
+  "intent": "INSTRUCTIONS",
+  "displayName": "Instructions",
+  "description": "Step-by-step instructions, how-to guides, procedures",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "step",
+      "steps",
+      "instructions",
+      "instruction",
+      "how-to",
+      "howto",
+      "procedure",
+      "procedures",
+      "process",
+      "directions",
+      "guide",
+      "tutorial",
+      "walkthrough",
+      "step-by-step",
+      "follow-these-steps",
+      "step-one",
+      "step-two",
+      "step-three"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "first",
+      "second",
+      "third",
+      "then",
+      "next",
+      "finally",
+      "lastly",
+      "after",
+      "before",
+      "once",
+      "until",
+      "while",
+      "during",
+      "create",
+      "follow",
+      "click",
+      "select",
+      "enter",
+      "type",
+      "open",
+      "close",
+      "save",
+      "submit",
+      "press",
+      "swipe",
+      "drag",
+      "drop",
+      "copy",
+      "paste",
+      "delete",
+      "remove",
+      "insert",
+      "navigate",
+      "go-to",
+      "scroll",
+      "download",
+      "upload",
+      "install",
+      "configure",
+      "setup",
+      "enable",
+      "disable",
+      "activate",
+      "restart",
+      "refresh"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "method",
+      "approach",
+      "perform",
+      "execute",
+      "complete",
+      "finish",
+      "start",
+      "begin",
+      "continue"
+    ]
+  },
+  "structureBoosts": {
+    "NUMBERED_LIST": 3.0,
+    "BULLET_LIST": 1.5
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:step|how)\\s+(?:\\d+|to)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:first|then|next|finally|lastly)\\s*,?\\s+\\w+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:instructions?|guide|tutorial)\\s+(?:for|on|to)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "\\d+\\.\\s+[A-Z]",
+      "weight": 4.5
+    },
+    {
+      "pattern": "step[\\s-]by[\\s-]step\\s+(?:guide|instructions?|process)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:click|tap|press|select)\\s+(?:on\\s+)?(?:the\\s+)?\\w+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:follow|complete)\\s+(?:these|the)\\s+steps",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:go\\s+to|navigate\\s+to|open)\\s+\\w+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:how\\s+to|howto)\\s+\\w+",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:make\\s+sure|ensure|verify)\\s+(?:that|you)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:once|after|when)\\s+(?:done|complete|finished)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:repeat|continue)\\s+(?:until|for)",
+      "weight": 4.0
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+appId: com.boox.day
+---
+# Test if taps register - try the + (add event) button
+# + button should be at approximately x=557, which is 30%
+
+- launchApp
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "8000"
+
+- takeScreenshot: add_test/01_before
+
+# Tap the + button (add event) - should open a dialog
+# y=4% is below the status bar (y=0-2%)
+- tapOn:
+    point: "30%,4%"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "2000"
+
+- takeScreenshot: add_test/02_after_plus

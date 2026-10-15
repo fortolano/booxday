@@ -1,0 +1,148 @@
+{
+  "intent": "PACKING_LIST",
+  "displayName": "Packing List",
+  "description": "Travel packing lists, luggage checklists, trip preparation lists",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "packing-list",
+      "pack-list",
+      "packing-checklist",
+      "to-pack",
+      "things-to-pack",
+      "what-to-pack",
+      "luggage",
+      "suitcase",
+      "carry-on",
+      "checked-bag",
+      "backpack",
+      "duffel",
+      "travel-bag",
+      "overnight-bag",
+      "packing",
+      "packed",
+      "luggage-list",
+      "travel-checklist"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "toiletries",
+      "clothes",
+      "clothing",
+      "outfit",
+      "outfits",
+      "underwear",
+      "socks",
+      "shoes",
+      "jacket",
+      "coat",
+      "sweater",
+      "pants",
+      "shirts",
+      "charger",
+      "adapter",
+      "power-adapter",
+      "converter",
+      "electronics",
+      "laptop",
+      "tablet",
+      "phone",
+      "camera",
+      "passport",
+      "visa",
+      "documents",
+      "tickets",
+      "boarding-pass",
+      "itinerary",
+      "reservation",
+      "medication",
+      "first-aid",
+      "sunscreen",
+      "sunglasses",
+      "snacks",
+      "water-bottle",
+      "travel-pillow",
+      "headphones",
+      "earbuds",
+      "day-pack",
+      "travel-size",
+      "mini",
+      "travel-kit",
+      "toiletry-bag",
+      "compression-bags",
+      "packing-cubes",
+      "laundry-bag",
+      "swimsuit",
+      "umbrella",
+      "rain-jacket",
+      "comfortable-shoes",
+      "walking-shoes"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "pack",
+      "bring",
+      "trip",
+      "travel",
+      "vacation",
+      "journey",
+      "gear",
+      "essentials",
+      "items"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "packing\\s+(?:list|checklist)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:things|what|stuff|items)\\s+to\\s+(?:pack|bring)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:don't|do\\s+not)\\s+forget\\s+to\\s+(?:pack|bring)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:carry[\\s-]?on|checked)\\s+(?:bag|luggage)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:packed|need\\s+to\\s+pack)\\s*\\?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "bring\\s+(?:for|to|on)\\s+(?:trip|travel|vacation)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:travel|trip|vacation)\\s+(?:packing|essentials|checklist)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:overnight|weekend|week[\\s-]long)\\s+(?:trip|bag)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:toiletries|electronics|clothes)\\s+(?:bag|kit|list)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:remember|must)\\s+(?:pack|bring)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:packing|compression)\\s+cubes?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:flight|airport|security)\\s+(?:friendly|approved)",
+      "weight": 4.0
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+{
+  "intent": "LAB_NOTES",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "lab-report",
+      "lab-notebook",
+      "lab-notes",
+      "lab",
+      "experiment",
+      "hypothesis",
+      "procedure",
+      "observation",
+      "data-collection",
+      "results",
+      "conclusion",
+      "analysis",
+      "scientific-method",
+      "lab-write-up",
+      "experimental-design",
+      "laboratory"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "variable",
+      "control",
+      "independent-variable",
+      "dependent-variable",
+      "trial",
+      "measurement",
+      "sample",
+      "specimen",
+      "equipment",
+      "materials",
+      "apparatus",
+      "protocol",
+      "quiz",
+      "orientation",
+      "graph",
+      "chart",
+      "table",
+      "data-table",
+      "error-analysis",
+      "sources-of-error",
+      "accuracy",
+      "precision",
+      "calibration",
+      "safety",
+      "lab-safety",
+      "goggles",
+      "photosynthesis",
+      "titration",
+      "reaction",
+      "chemical",
+      "physical",
+      "biological"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "data",
+      "observe",
+      "measure",
+      "test",
+      "record",
+      "collect",
+      "analyze",
+      "calculate",
+      "determine",
+      "compare",
+      "examine",
+      "investigate",
+      "verify",
+      "replicate"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "lab\\s+(?:report|notes|notebook|write[\\s-]?up)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "experiment\\s+(?:\\d+|on|about|procedure)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:hypothesis|procedure|results|conclusion)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:independent|dependent|control)\\s+variable",
+      "weight": 4.5
+    },
+    {
+      "pattern": "data\\s+(?:table|collection|analysis)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:trial|measurement|observation)\\s+(?:\\d+|#|number)?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:error|sources\\s+of\\s+error)\\s+analysis",
+      "weight": 4.5
+    },
+    {
+      "pattern": "scientific\\s+method",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:materials|equipment|apparatus)\\s*:",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:accuracy|precision)\\s+(?:of|in)?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:graph|chart|table)\\s+(?:of|showing)?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:safety|ppe|goggles|gloves)",
+      "weight": 4.0
+    }
+  ]
+}

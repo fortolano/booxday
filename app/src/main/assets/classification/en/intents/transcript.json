@@ -1,0 +1,137 @@
+{
+  "intent": "TRANSCRIPT",
+  "displayName": "Transcript",
+  "description": "Verbatim records of conversations, speeches, lectures, interviews",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "transcript",
+      "transcription",
+      "verbatim",
+      "speaker",
+      "interviewee",
+      "interviewer",
+      "recording",
+      "recorded",
+      "audio-transcript",
+      "video-transcript",
+      "court-reporter",
+      "stenographer",
+      "dictation",
+      "word-for-word",
+      "transcribed",
+      "transcribing",
+      "closed-caption",
+      "subtitle",
+      "captions"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "said",
+      "stated",
+      "replied",
+      "responded",
+      "asked",
+      "question",
+      "answer",
+      "q-and-a",
+      "testimony",
+      "deposition",
+      "hearing",
+      "lecture",
+      "sermon",
+      "speech",
+      "talk",
+      "presentation",
+      "podcast",
+      "interview",
+      "conversation",
+      "dialogue",
+      "timestamp",
+      "timecode",
+      "minute-mark",
+      "inaudible",
+      "unintelligible",
+      "crosstalk",
+      "pause",
+      "laughter",
+      "applause",
+      "off-the-record",
+      "on-the-record",
+      "moderator",
+      "panelist",
+      "host",
+      "guest",
+      "caller",
+      "audience-member",
+      "opening-remarks",
+      "closing-remarks",
+      "keynote",
+      "webinar"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "spoke",
+      "quote",
+      "record",
+      "speak",
+      "voice",
+      "audio",
+      "video"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "\\[\\d{1,2}:\\d{2}(?::\\d{2})?\\]",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:speaker|interviewer|interviewee|host|guest)\\s*:",
+      "weight": 5.0
+    },
+    {
+      "pattern": "[A-Z][a-z]+\\s*:",
+      "weight": 3.5
+    },
+    {
+      "pattern": "\\[(?:inaudible|unintelligible|crosstalk|pause|laughter|applause)\\]",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:q|question)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:a|answer)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "transcript\\s+of",
+      "weight": 5.0
+    },
+    {
+      "pattern": "verbatim\\s+(?:record|transcript|notes)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "\\[(?:begins?|ends?|starts?)\\s+(?:at|recording)\\]",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:opening|closing)\\s+remarks",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:audio|video)\\s+transcript",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:court|official|legal)\\s+(?:transcript|record)",
+      "weight": 5.0
+    }
+  ]
+}

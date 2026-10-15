@@ -1,0 +1,76 @@
+{
+  "version": 2,
+  "description": "Concept bridges enable semantic matching between related but non-overlapping terms. Signals are words found in notes; targets are words found in event titles.",
+  "bridges": [
+    {
+      "id": "hunger_food",
+      "signals": ["hungry", "starving", "famished", "appetite", "hangry", "snack", "snacking", "eating", "ate", "eaten"],
+      "targets": ["lunch", "dinner", "breakfast", "brunch", "meal", "food", "eat", "restaurant", "cafe", "cafeteria"]
+    },
+    {
+      "id": "exercise_fitness",
+      "signals": ["jog", "jogging", "lift", "lifting", "cardio", "sweat", "sweating", "weights", "treadmill", "spinning", "hiit", "crossfit", "stretching", "reps", "sets"],
+      "targets": ["gym", "fitness", "workout", "training", "yoga", "pilates", "exercise", "run", "running"]
+    },
+    {
+      "id": "meeting_synonyms",
+      "signals": ["sync", "standup", "1:1", "huddle", "touchbase", "catchup", "debrief", "align", "chat", "discuss", "recap", "briefing"],
+      "targets": ["meeting", "call", "conference", "discussion", "review", "session"]
+    },
+    {
+      "id": "deadline_urgency",
+      "signals": ["urgent", "asap", "priority", "critical", "rush", "immediately", "overdue", "pressing", "crucial", "important"],
+      "targets": ["deadline", "due", "deliverable", "milestone", "target", "submission"]
+    },
+    {
+      "id": "travel_transport",
+      "signals": ["flying", "pack", "packing", "packed", "itinerary", "luggage", "passport", "ticket", "boarding", "layover", "connecting"],
+      "targets": ["flight", "travel", "trip", "vacation", "airport", "departure", "arrival", "hotel"]
+    },
+    {
+      "id": "medical_health",
+      "signals": ["doctor", "physician", "sick", "ill", "symptoms", "dentist", "dental", "therapy", "therapist", "prescription", "medication", "nurse", "pain", "ache", "fever"],
+      "targets": ["appointment", "medical", "health", "clinic", "hospital", "visit", "checkup", "physical", "exam"]
+    },
+    {
+      "id": "learning_education",
+      "signals": ["studying", "cramming", "revision", "revise", "tutorial", "reviewing", "memorize", "memorizing", "notes", "textbook"],
+      "targets": ["class", "lecture", "course", "school", "education", "lesson", "exam", "test", "quiz", "study"]
+    },
+    {
+      "id": "family_life",
+      "signals": ["kids", "children", "son", "daughter", "spouse", "wife", "husband", "mom", "dad", "parent", "parents", "sibling", "brother", "sister", "grandma", "grandpa", "grandparent"],
+      "targets": ["family", "home", "pickup", "dropoff", "school", "birthday", "anniversary", "dinner"]
+    },
+    {
+      "id": "rest_recovery",
+      "signals": ["tired", "exhausted", "sleepy", "fatigue", "fatigued", "drained", "burnout", "worn", "weary", "drowsy"],
+      "targets": ["rest", "break", "nap", "sleep", "recovery", "recharge", "relax", "downtime"]
+    },
+    {
+      "id": "social_gathering",
+      "signals": ["hangout", "hanging", "visit", "visiting", "see", "seeing", "catch", "catching", "meetup"],
+      "targets": ["dinner", "lunch", "coffee", "drinks", "party", "gathering", "brunch", "happy"]
+    },
+    {
+      "id": "communication_contact",
+      "signals": ["ring", "text", "texting", "message", "ping", "reach", "contact", "email", "emailing"],
+      "targets": ["call", "phone", "meeting", "chat", "discussion"]
+    },
+    {
+      "id": "work_tasks",
+      "signals": ["todo", "todos", "task", "tasks", "action", "actions", "followup", "pending", "backlog", "blocked", "blocker"],
+      "targets": ["work", "project", "sprint", "planning", "review", "standup"]
+    },
+    {
+      "id": "creative_projects",
+      "signals": ["writing", "drafting", "editing", "brainstorm", "brainstorming", "sketch", "sketching", "design", "designing", "prototype", "prototyping"],
+      "targets": ["workshop", "session", "review", "presentation", "demo", "creative"]
+    },
+    {
+      "id": "finance_money",
+      "signals": ["pay", "paying", "paid", "owe", "owing", "bill", "bills", "invoice", "expense", "expenses", "reimburse", "reimbursement"],
+      "targets": ["budget", "financial", "finance", "payment", "billing", "accounting", "tax"]
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "intent": "SOCIAL_ANALYTICS",
+  "displayName": "Social Analytics",
+  "description": "Engagement tracking, analytics review",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "engagement-rate",
+      "reach",
+      "impressions",
+      "follower-growth",
+      "analytics",
+      "insights",
+      "performance-report",
+      "top-performing",
+      "viral-post",
+      "social-analytics",
+      "engagement-analytics",
+      "audience-insights",
+      "content-performance",
+      "social-metrics"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "likes",
+      "comments",
+      "shares",
+      "saves",
+      "views",
+      "watch-time",
+      "click-through-rate",
+      "conversion",
+      "audience-demographics",
+      "follower-count",
+      "following",
+      "profile-visit",
+      "story-view",
+      "reel-view",
+      "video-completion",
+      "average-watch-time",
+      "retention-rate",
+      "bounce-rate",
+      "organic-reach",
+      "paid-reach",
+      "hashtag-performance",
+      "best-time-to-post",
+      "posting-frequency",
+      "content-reach",
+      "engagement-trend",
+      "growth-rate",
+      "audience-growth"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "metrics",
+      "growth",
+      "performance",
+      "engagement",
+      "data",
+      "report",
+      "track",
+      "analyze",
+      "measure",
+      "trend",
+      "insight",
+      "stat",
+      "statistics",
+      "numbers"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "engagement\\s+(?:rate|analytics|trend)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "follower\\s+(?:growth|count|analytics)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:analytics|insights)\\s+(?:review|report|dashboard)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "\\d+\\s*(?:views|likes|comments|shares|followers)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:top|best)\\s+performing\\s+(?:post|content)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:social|content)\\s+(?:analytics|metrics|performance)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:organic|paid)\\s+reach",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:click[\\s-]through|conversion)\\s+rate",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:watch|view)\\s+time",
+      "weight": 4.0
+    },
+    {
+      "pattern": "audience\\s+(?:demographics|insights|growth)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "best\\s+time\\s+to\\s+post",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:weekly|monthly)\\s+(?:analytics|report|metrics)",
+      "weight": 4.0
+    }
+  ]
+}

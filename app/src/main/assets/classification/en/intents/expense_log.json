@@ -1,0 +1,142 @@
+{
+  "intent": "EXPENSE_LOG",
+  "displayName": "Expense Log",
+  "description": "Expense tracking, receipts, reimbursements, spending records",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "expense",
+      "expense-log",
+      "expense-report",
+      "expense-tracker",
+      "spent",
+      "paid",
+      "cost",
+      "receipt",
+      "receipts",
+      "invoice",
+      "reimbursement",
+      "reimbursable",
+      "expenditure",
+      "spending",
+      "purchase",
+      "purchased",
+      "transaction",
+      "charge",
+      "charged"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "bought",
+      "vendor",
+      "merchant",
+      "store",
+      "restaurant",
+      "hotel",
+      "travel",
+      "meals",
+      "meal",
+      "supplies",
+      "equipment",
+      "mileage",
+      "fuel",
+      "parking",
+      "toll",
+      "tolls",
+      "uber",
+      "lyft",
+      "taxi",
+      "airfare",
+      "flight",
+      "lodging",
+      "accommodation",
+      "per-diem",
+      "allowance",
+      "budget",
+      "over-budget",
+      "under-budget",
+      "category",
+      "business-expense",
+      "personal-expense",
+      "tax-deductible",
+      "billable",
+      "client-expense",
+      "project-expense",
+      "approved",
+      "pending",
+      "submitted",
+      "rejected",
+      "date",
+      "amount",
+      "total",
+      "subtotal"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "money",
+      "payment",
+      "price",
+      "dollar",
+      "cash",
+      "credit",
+      "debit",
+      "card",
+      "account",
+      "finance"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:expense|spending)\\s+(?:log|tracker|report|record)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "\\$\\s*\\d+(?:,\\d{3})*(?:\\.\\d{2})?",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:paid|spent|cost|charged)\\s+\\$?\\d+",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:receipt|reimburs|invoice)\\s+(?:for|from)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:business|travel|meal)\\s+expense",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:mileage|parking|toll|gas)\\s+(?:expense|reimbursement)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:submit|pending|approved)\\s+(?:expense|reimbursement)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:per[\\s-]diem|allowance)\\s+(?:for|of)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:tax[\\s-]deductible|billable)\\s+(?:expense)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:date|amount|vendor|category)\\s*:",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:total|subtotal|grand\\s+total)\\s*:?\\s*\\$?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:bought|purchased)\\s+(?:at|from)",
+      "weight": 4.0
+    }
+  ]
+}

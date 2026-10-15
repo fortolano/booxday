@@ -1,0 +1,130 @@
+{
+  "intent": "STAKEHOLDER_UPDATE",
+  "displayName": "Stakeholder Update",
+  "description": "Stakeholder updates, board prep, investor relations",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "board-meeting",
+      "board-deck",
+      "investor-update",
+      "stakeholder-update",
+      "stakeholder",
+      "shareholder",
+      "board-of-directors",
+      "investor-relations",
+      "quarterly-update",
+      "board-report",
+      "board-presentation",
+      "board-agenda",
+      "board-materials",
+      "executive-update",
+      "leadership-update",
+      "c-suite-update"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "executive-summary",
+      "status-update",
+      "progress-report",
+      "briefing",
+      "key-highlights",
+      "wins",
+      "challenges",
+      "decision-needed",
+      "board-member",
+      "director",
+      "advisory-board",
+      "board-observer",
+      "committee-meeting",
+      "audit-committee",
+      "compensation-committee",
+      "board-resolution",
+      "board-approval",
+      "fiduciary",
+      "governance",
+      "quarterly-review",
+      "annual-report",
+      "monthly-update",
+      "weekly-update",
+      "yoy",
+      "priorities",
+      "platform",
+      "engineers",
+      "reps",
+      "risk-update",
+      "financial-update",
+      "operational-update"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "update",
+      "report",
+      "summary",
+      "status",
+      "progress",
+      "highlights",
+      "presentation",
+      "deck",
+      "meeting",
+      "review",
+      "approval",
+      "decision",
+      "oversight"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "board\\s+(?:meeting|deck|report|presentation|agenda)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "investor\\s+(?:update|relations|meeting)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "stakeholder\\s+(?:update|meeting|communication)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:quarterly|monthly|annual)\\s+(?:update|report|review)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "executive\\s+(?:summary|update|briefing)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:key|main)\\s+highlights",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:decision|approval)\\s+needed",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:advisory|audit|compensation)\\s+(?:board|committee)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "board\\s+(?:resolution|approval|observer)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:risk|financial|operational)\\s+update",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:wins|challenges|progress)\\s+(?:update|report)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "leadership\\s+(?:update|briefing|meeting)",
+      "weight": 4.0
+    }
+  ]
+}

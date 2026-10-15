@@ -1,0 +1,123 @@
+{
+  "intent": "STRATEGY_PLANNING",
+  "displayName": "Strategy Planning",
+  "description": "Strategic planning, roadmaps, competitive analysis",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "strategic-plan",
+      "roadmap",
+      "multi-year",
+      "long-term-plan",
+      "swot",
+      "competitive-analysis",
+      "market-positioning",
+      "strategic-priority",
+      "strategic-vision",
+      "strategic-roadmap",
+      "business-strategy",
+      "corporate-strategy",
+      "competitive-strategy",
+      "strategic-objective"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "annual-plan",
+      "quarterly-plan",
+      "planning-cycle",
+      "strategic-initiative",
+      "scenario-planning",
+      "trade-off-analysis",
+      "resource-allocation",
+      "strategic-goal",
+      "strategic-pillar",
+      "strategic-theme",
+      "strategy-review",
+      "strategic-framework",
+      "porter's-five-forces",
+      "pestel",
+      "pest",
+      "competitive-landscape",
+      "market-analysis",
+      "industry-analysis",
+      "strategic-options",
+      "strategic-choice",
+      "execution-plan",
+      "strategic-alignment",
+      "strategic-fit",
+      "capability-gap",
+      "risk-assessment"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "strategy",
+      "plan",
+      "priority",
+      "initiative",
+      "horizon",
+      "vision",
+      "goal",
+      "objective",
+      "direction",
+      "focus",
+      "alignment",
+      "execution",
+      "framework",
+      "analysis"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "strategic\\s+(?:plan|vision|roadmap|priority|initiative)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:multi|\\d+)[\\s-]year\\s+(?:plan|roadmap|strategy)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "long[\\s-]term\\s+(?:plan|strategy|vision)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:swot|pestel?|porter)\\s+(?:analysis)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "competitive\\s+(?:analysis|landscape|strategy)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:annual|quarterly)\\s+(?:plan|planning)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "scenario\\s+planning",
+      "weight": 4.5
+    },
+    {
+      "pattern": "market\\s+positioning",
+      "weight": 4.5
+    },
+    {
+      "pattern": "resource\\s+allocation",
+      "weight": 4.0
+    },
+    {
+      "pattern": "strategy\\s+review",
+      "weight": 4.0
+    },
+    {
+      "pattern": "strategic\\s+(?:alignment|fit|option)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:industry|market)\\s+analysis",
+      "weight": 4.0
+    }
+  ]
+}

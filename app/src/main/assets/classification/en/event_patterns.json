@@ -1,0 +1,289 @@
+{
+  "version": 2,
+  "description": "Event-specific patterns for calendar event classification (v2: aligned with Domain/Intent enums)",
+  "domainEventKeywords": {
+    "PROFESSIONAL": {
+      "keywords": ["1:1", "board", "coaching", "deadline", "executive", "feedback", "interview", "meeting", "mentoring", "planning", "presentation", "project", "retro", "review", "standup", "strategy", "sync", "team", "vision"],
+      "weight": 2.5
+    },
+    "BUSINESS": {
+      "keywords": ["meeting", "client", "partner", "contract", "deal", "pitch", "proposal", "negotiation"],
+      "weight": 2.5
+    },
+    "EDUCATION": {
+      "keywords": ["assignment", "class", "exam", "homework", "lab", "lecture", "presentation", "project", "quiz", "study"],
+      "weight": 2.5
+    },
+    "LIFE": {
+      "keywords": ["anniversary", "appointment", "birthday", "dropoff", "errand", "family", "goal", "journal", "kids", "pickup", "reflection", "reminder", "school"],
+      "weight": 2.5
+    },
+    "HEALTH": {
+      "keywords": ["doctor", "appointment", "checkup", "therapy", "gym", "workout", "dentist", "medical"],
+      "weight": 3.0
+    },
+    "TEACHING": {
+      "keywords": ["class", "lesson", "lecture", "grading", "office hours", "parent", "conference"],
+      "weight": 2.5
+    },
+    "TECH": {
+      "keywords": ["deploy", "release", "sprint", "standup", "demo", "code review", "hackathon"],
+      "weight": 2.5
+    },
+    "FINANCE": {
+      "keywords": ["budget", "review", "quarterly", "tax", "audit", "financial", "investment"],
+      "weight": 2.5
+    },
+    "TRAVEL": {
+      "keywords": ["flight", "hotel", "trip", "vacation", "travel", "airport", "check-in"],
+      "weight": 2.5
+    },
+    "LEGAL": {
+      "keywords": ["court", "hearing", "deposition", "contract", "signing", "legal", "attorney"],
+      "weight": 2.5
+    },
+    "HOME": {
+      "keywords": ["repair", "maintenance", "contractor", "inspection", "moving", "delivery"],
+      "weight": 2.5
+    },
+    "SHOPPING": {
+      "keywords": ["store", "pickup", "delivery", "order", "shopping", "return"],
+      "weight": 2.5
+    },
+    "CREATIVE": {
+      "keywords": ["workshop", "rehearsal", "performance", "exhibit", "gallery", "studio"],
+      "weight": 2.5
+    },
+    "SPIRITUAL": {
+      "keywords": ["church", "service", "prayer", "worship", "temple", "meeting", "study"],
+      "weight": 2.5
+    },
+    "STRATEGY": {
+      "keywords": ["planning", "roadmap", "quarterly", "annual", "review", "strategy"],
+      "weight": 2.5
+    },
+    "SOCIAL_MEDIA": {
+      "keywords": ["post", "campaign", "content", "analytics", "engagement", "live"],
+      "weight": 2.5
+    },
+    "ENTREPRENEURSHIP": {
+      "keywords": ["pitch", "investor", "funding", "demo", "launch", "mvp"],
+      "weight": 2.5
+    },
+    "LDS_LEADERSHIP": {
+      "keywords": ["interview", "council", "ward", "stake", "bishopric", "ministering"],
+      "weight": 2.5
+    },
+    "FOOD": {
+      "keywords": ["dinner", "lunch", "breakfast", "restaurant", "reservation", "cooking", "recipe", "meal", "grocery"],
+      "weight": 2.5
+    },
+    "COMMUNITY": {
+      "keywords": ["civic", "coffee", "community", "dinner", "drinks", "event", "hangout", "hoa", "lunch", "meeting", "meetup", "neighborhood", "party", "town hall", "volunteer"],
+      "weight": 2.5
+    },
+    "PET": {
+      "keywords": ["vet", "veterinarian", "grooming", "dog", "cat", "pet", "appointment", "checkup"],
+      "weight": 2.5
+    }
+  },
+  "intentEventKeywords": {
+    "TODO_LIST": {
+      "keywords": ["deadline", "due", "task", "action", "follow-up"],
+      "weight": 2.0
+    },
+    "PLANNING": {
+      "keywords": ["planning", "roadmap", "strategy", "quarterly", "annual"],
+      "weight": 2.0
+    },
+    "GOAL_SETTING": {
+      "keywords": ["goal", "objective", "okr", "kpi", "target", "milestone"],
+      "weight": 2.0
+    },
+    "MEETING_NOTES": {
+      "keywords": ["meeting", "sync", "1:1", "standup", "review", "discussion"],
+      "weight": 2.0
+    },
+    "CALL_LOG": {
+      "keywords": ["call", "phone", "conference", "dial-in"],
+      "weight": 2.0
+    },
+    "BRAINSTORM": {
+      "keywords": ["brainstorm", "ideation", "workshop", "whiteboard"],
+      "weight": 2.0
+    },
+    "JOURNAL": {
+      "keywords": ["journaling", "reflection", "morning pages", "diary", "journal time"],
+      "weight": 2.0
+    },
+    "LECTURE_NOTES": {
+      "keywords": ["lecture", "class", "seminar", "presentation", "talk"],
+      "weight": 2.0
+    },
+    "TRANSCRIPT": {
+      "keywords": ["transcript", "recording", "interview", "verbatim", "dictation"],
+      "weight": 2.0
+    },
+    "LESSON_PLAN": {
+      "keywords": ["lesson", "class", "teaching", "curriculum"],
+      "weight": 2.0
+    },
+    "GRADING": {
+      "keywords": ["grading", "grade papers", "assessment", "rubric"],
+      "weight": 2.0
+    },
+    "CLASSROOM_MGMT": {
+      "keywords": ["classroom", "setup", "parent pickup", "attendance"],
+      "weight": 2.0
+    },
+    "CURRICULUM_DEV": {
+      "keywords": ["curriculum", "standards", "scope sequence", "planning"],
+      "weight": 2.0
+    },
+    "PARENT_COMM": {
+      "keywords": ["parent conference", "parent meeting", "parent teacher", "progress report"],
+      "weight": 2.0
+    },
+    "IEP_504": {
+      "keywords": ["iep", "504", "special education", "accommodation", "review"],
+      "weight": 2.0
+    },
+    "FACULTY_MEETING": {
+      "keywords": ["faculty", "plc", "department", "staff meeting", "pd"],
+      "weight": 2.0
+    },
+    "STUDY_PLAN": {
+      "keywords": ["study", "exam", "review", "practice", "quiz"],
+      "weight": 2.0
+    },
+    "ASSIGNMENT_WORK": {
+      "keywords": ["homework", "project", "assignment", "paper"],
+      "weight": 2.0
+    },
+    "READING_NOTES": {
+      "keywords": ["reading", "book club", "literature", "chapter"],
+      "weight": 2.0
+    },
+    "LAB_NOTES": {
+      "keywords": ["lab", "experiment", "research", "observation"],
+      "weight": 2.0
+    },
+    "THESIS_WORK": {
+      "keywords": ["thesis", "dissertation", "defense", "committee", "writing"],
+      "weight": 2.0
+    },
+    "COURSE_PLANNING": {
+      "keywords": ["registration", "advising", "enrollment", "credits"],
+      "weight": 2.0
+    },
+    "EXPENSE_LOG": {
+      "keywords": ["expense", "receipt", "reimbursement", "budget"],
+      "weight": 2.0
+    },
+    "BUDGET": {
+      "keywords": ["budget", "financial", "quarterly", "planning"],
+      "weight": 2.0
+    },
+    "DRAFT_MESSAGE": {
+      "keywords": ["email", "message", "communication", "response"],
+      "weight": 2.0
+    },
+    "TALKING_POINTS": {
+      "keywords": ["presentation", "speech", "talk", "keynote"],
+      "weight": 2.0
+    },
+    "ACTION_REVIEW": {
+      "keywords": ["retrospective", "retro", "post-mortem", "review", "lessons learned"],
+      "weight": 2.0
+    },
+    "TROUBLESHOOTING": {
+      "keywords": ["debug", "fix", "issue", "problem", "incident"],
+      "weight": 2.0
+    },
+    "RESEARCH": {
+      "keywords": ["research", "investigation", "analysis", "study"],
+      "weight": 2.0
+    },
+    "LEADERSHIP_NOTES": {
+      "keywords": ["leadership", "coaching", "mentoring", "vision", "alignment"],
+      "weight": 2.0
+    },
+    "PEOPLE_MANAGEMENT": {
+      "keywords": ["1:1", "one on one", "performance review", "feedback", "hiring"],
+      "weight": 2.0
+    },
+    "STRATEGY_PLANNING": {
+      "keywords": ["strategy", "strategic", "roadmap", "offsite", "planning"],
+      "weight": 2.0
+    },
+    "BUSINESS_MODEL": {
+      "keywords": ["business model", "revenue", "market", "canvas"],
+      "weight": 2.0
+    },
+    "METRICS_TRACKING": {
+      "keywords": ["metrics", "okr", "kpi", "dashboard", "check-in"],
+      "weight": 2.0
+    },
+    "STAKEHOLDER_UPDATE": {
+      "keywords": ["board", "investor", "stakeholder", "update", "quarterly"],
+      "weight": 2.0
+    },
+    "STARTUP_IDEAS": {
+      "keywords": ["ideation", "brainstorm", "pivot", "validation"],
+      "weight": 2.0
+    },
+    "FUNDRAISING": {
+      "keywords": ["investor", "pitch", "funding", "vc", "demo day"],
+      "weight": 2.0
+    },
+    "PRODUCT_DEV": {
+      "keywords": ["sprint", "product", "demo", "feature", "mvp", "launch"],
+      "weight": 2.0
+    },
+    "CONTENT_PLAN": {
+      "keywords": ["content", "editorial", "calendar", "posting"],
+      "weight": 2.0
+    },
+    "SOCIAL_ANALYTICS": {
+      "keywords": ["analytics", "metrics", "engagement", "review"],
+      "weight": 2.0
+    },
+    "CAMPAIGN_NOTES": {
+      "keywords": ["campaign", "marketing", "launch", "promotion"],
+      "weight": 2.0
+    },
+    "LDS_COUNCIL": {
+      "keywords": ["activity", "bishopric", "budget", "byc", "calling", "camp", "come follow me", "fast offering", "fsy", "gospel", "interview", "lesson", "mutual", "pec", "release", "setting apart", "settlement", "stake", "sustaining", "teaching", "temple recommend", "tithing", "trek", "ward council", "worthiness", "youth"],
+      "weight": 2.0
+    },
+    "LDS_MINISTERING": {
+      "keywords": ["assignment", "companion", "member", "ministering", "needs", "storehouse", "visit", "welfare"],
+      "weight": 2.0
+    },
+    "CREATIVE_WRITING": {
+      "keywords": ["writing", "draft", "chapter", "manuscript", "story", "novel"],
+      "weight": 2.0
+    },
+    "RECIPE": {
+      "keywords": ["recipe", "cooking", "meal prep", "ingredients", "dinner", "baking"],
+      "weight": 2.0
+    },
+    "PACKING_LIST": {
+      "keywords": ["packing", "luggage", "trip", "travel", "suitcase"],
+      "weight": 2.0
+    },
+    "DEVOTIONAL": {
+      "keywords": ["devotional", "prayer", "scripture", "quiet time", "meditation", "worship"],
+      "weight": 2.0
+    },
+    "CHEAT_SHEET": {
+      "keywords": ["reference", "cheat sheet", "shortcut", "quick guide", "syntax"],
+      "weight": 2.0
+    }
+  },
+  "exclusionPatterns": [
+    "(?i)\\b(daily\\s+)?(standup|scrum|sync|huddle)\\b",
+    "(?i)\\b(focus\\s+time|blocked|busy)\\b",
+    "(?i)\\b(lunch|break|coffee)\\b"
+  ]
+}

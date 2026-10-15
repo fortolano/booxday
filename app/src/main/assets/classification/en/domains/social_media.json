@@ -1,0 +1,198 @@
+{
+  "domain": "SOCIAL_MEDIA",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "instagram",
+      "twitter",
+      "tiktok",
+      "linkedin",
+      "facebook",
+      "youtube",
+      "threads",
+      "x.com",
+      "snapchat",
+      "pinterest",
+      "reddit",
+      "discord",
+      "influencer",
+      "creator",
+      "content-creator",
+      "viral",
+      "trending",
+      "hashtag",
+      "algorithm",
+      "feed",
+      "stories",
+      "reels",
+      "shorts",
+      "twitch",
+      "streamer",
+      "streaming",
+      "live-stream",
+      "vlog",
+      "vlogger",
+      "brand-deal",
+      "sponsorship",
+      "affiliate",
+      "monetization",
+      "adsense",
+      "followers",
+      "subscriber",
+      "fanbase",
+      "community",
+      "audience",
+      "verification",
+      "blue-check",
+      "verified",
+      "creator-fund"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "engagement",
+      "reach",
+      "impressions",
+      "likes",
+      "comments",
+      "shares",
+      "saves",
+      "views",
+      "watch-time",
+      "click-through",
+      "content-calendar",
+      "posting-schedule",
+      "social-strategy",
+      "brand-voice",
+      "community-management",
+      "reply",
+      "mention",
+      "collab",
+      "profile",
+      "handle",
+      "username",
+      "link-in-bio",
+      "linktree",
+      "caption",
+      "thumbnail",
+      "hook",
+      "call-to-action",
+      "carousel",
+      "grid",
+      "aesthetic",
+      "branding",
+      "theme",
+      "analytics",
+      "insights",
+      "metrics",
+      "growth-rate",
+      "engagement-rate",
+      "boost",
+      "promote",
+      "sponsored",
+      "paid-partnership",
+      "shadowban",
+      "demonetization",
+      "copyright-strike",
+      "content-policy",
+      "crosspost",
+      "repurpose",
+      "batch-content",
+      "content-pillar"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "post",
+      "content",
+      "upload",
+      "publish",
+      "schedule",
+      "draft",
+      "niche",
+      "growth",
+      "trend",
+      "challenge",
+      "follow",
+      "unfollow",
+      "block",
+      "mute",
+      "delete",
+      "notification",
+      "message",
+      "inbox",
+      "chat",
+      "comment-section",
+      "edit",
+      "filter",
+      "effect",
+      "music",
+      "sound",
+      "audio"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "content\\s+(?:calendar|planning|strategy|creation|pillar)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:posting|social-media|content)\\s+(?:schedule|strategy|plan)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:engagement|analytics|performance)\\s+report",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:influencer|brand|creator)\\s+(?:outreach|partnership|collaboration)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:instagram|tiktok|youtube|linkedin)\\s+(?:post|reel|video|story)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:follower|subscriber)\\s+(?:count|growth|goal)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:viral|trending)\\s+(?:content|video|post|audio)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:brand|sponsorship)\\s+deal",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:live|go)\\s+(?:stream|live)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:hashtag|caption)\\s+(?:research|strategy)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:community|audience)\\s+(?:building|engagement|management)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:algorithm|reach)\\s+(?:change|drop|boost)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:dm|collab|partnership)\\s+(?:outreach|request)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:batch|create|plan)\\s+content",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:link-in-bio|linktree)\\s+(?:update|click)",
+      "weight": 4.0
+    }
+  ]
+}

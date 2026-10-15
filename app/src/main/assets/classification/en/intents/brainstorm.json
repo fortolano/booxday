@@ -1,0 +1,127 @@
+{
+  "intent": "BRAINSTORM",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "brainstorm",
+      "ideas",
+      "ideation",
+      "possibilities",
+      "what-if",
+      "could-we",
+      "maybe",
+      "explore",
+      "creative",
+      "innovation",
+      "concepts",
+      "brainstorming",
+      "idea-generation",
+      "creative-thinking",
+      "divergent-thinking"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "thinking",
+      "consider",
+      "options",
+      "alternatives",
+      "mind-map",
+      "sketch",
+      "draft",
+      "rough",
+      "potential",
+      "experiment",
+      "whiteboard",
+      "sticky-notes",
+      "freeform",
+      "blue-sky",
+      "wild-idea",
+      "build-on",
+      "yes-and",
+      "quantity-over-quality",
+      "no-bad-ideas",
+      "lateral-thinking",
+      "association",
+      "analogy",
+      "metaphor",
+      "reverse-brainstorm",
+      "brainwriting",
+      "six-hats",
+      "scamper"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "idea",
+      "thought",
+      "wonder",
+      "imagine",
+      "create",
+      "invent",
+      "ponder",
+      "muse",
+      "speculate",
+      "dream",
+      "envision",
+      "conceive",
+      "generate"
+    ]
+  },
+  "structureBoosts": {
+    "BULLET_LIST": 2.5,
+    "NUMBERED_LIST": 1.5
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "brainstorm(?:ing)?\\s+(?:session|ideas|notes)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "idea\\s+(?:dump|storm|list|generation)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:possible|potential|wild)\\s+ideas?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:creative|free|lateral)\\s+thinking",
+      "weight": 4.5
+    },
+    {
+      "pattern": "what\\s+if\\s+we",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:could|should|might)\\s+we\\s+(?:try|consider)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "mind\\s+map(?:ping)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:blue[\\s-]sky|no\\s+bad\\s+ideas)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:divergent|convergent)\\s+thinking",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:explore|consider)\\s+(?:options|alternatives)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:yes[\\s-]and|build\\s+on)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:scamper|six\\s+hats|brainwriting)",
+      "weight": 4.5
+    }
+  ]
+}

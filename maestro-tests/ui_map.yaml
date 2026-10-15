@@ -1,0 +1,484 @@
+# Boox Day UI Coordinate Map
+# Screen resolution: 1860x2480
+# All coordinates are INTEGER percentages (0-100) - Maestro doesn't support decimals!
+#
+# Usage: Reference these coordinates in Maestro tests
+# Last calibrated: 2025-12-31 (from UI hierarchy bounds)
+#
+# To recalibrate: Run `maestro test calibration_flow.yaml` and update coordinates
+#
+# IMPORTANT NOTES:
+# - Status bar occupies y=0-2% - DO NOT tap in this region
+# - Top toolbar icons are at y=3% (center of 10-135px bounds)
+# - Toolbar spans FULL WIDTH: x=4% to x=96%
+# - After using `- back`, add `- launchApp: clearState: false` as guard
+
+screen:
+  width: 1860
+  height: 2480
+
+# =============================================================================
+# TOP TOOLBAR (y: 3% - icon centers at ~72px from top)
+# Left to right: navigation, voice, today, add, sync, refresh, streak, settings
+# =============================================================================
+toolbar:
+  back_arrow:
+    x: 4
+    y: 3
+    description: "Navigate to previous month (<)"
+
+  month_year_label:
+    x: 14
+    y: 3
+    description: "Month/year display (December 2025) - opens month picker"
+
+  forward_arrow:
+    x: 25
+    y: 3
+    description: "Navigate to next month (>)"
+
+  voice_input:
+    x: 32
+    y: 3
+    description: "Voice input button (microphone icon)"
+
+  today_button:
+    x: 44
+    y: 3
+    description: "Jump to today (calendar 31 icon)"
+
+  add_event:
+    x: 51
+    y: 3
+    description: "Add new calendar event (+)"
+
+  sync_accounts:
+    x: 59
+    y: 3
+    description: "Connect Google/Outlook accounts (shows 'Sign in' when not connected)"
+
+  refresh:
+    x: 66
+    y: 3
+    description: "Refresh/sync calendars"
+
+  streak_stats:
+    x: 88
+    y: 3
+    description: "Flame icon - opens user's streak stats for accomplishing tasks"
+
+  settings:
+    x: 96
+    y: 3
+    description: "Settings gear icon - opens preferences dialog"
+
+# =============================================================================
+# DRAWING TOOLBAR (y: 46% - below calendar grid, spans horizontally)
+# This toolbar changes based on active tab (Memos vs Tasks)
+# =============================================================================
+
+# MEMOS TAB TOOLBAR - left to right:
+# Memos tab | Tasks tab | Drawing tools | Drawing settings | Eraser | Lasso |
+# Image insert | AI features | Boox Notes | Undo | Redo |
+# Prev page (<) | Page indicator (1/2) | Next page (>) | Hamburger menu
+memos_toolbar:
+  memos_tab:
+    x: 3
+    y: 46
+    description: "Memos tab selector (active when on memos)"
+
+  tasks_tab:
+    x: 9
+    y: 46
+    description: "Tasks tab selector"
+
+  drawing_tools:
+    x: 13
+    y: 46
+    description: "Pen/brush style selector"
+
+  drawing_settings:
+    x: 17
+    y: 46
+    description: "Pen size and settings"
+
+  eraser:
+    x: 21
+    y: 46
+    description: "Eraser tool"
+
+  lasso_select:
+    x: 25
+    y: 46
+    description: "Lasso selection tool"
+
+  image_insert:
+    x: 28
+    y: 46
+    description: "Insert image and other content"
+
+  ai_features:
+    x: 31
+    y: 46
+    description: "AI tools (OCR, summarize, etc.)"
+
+  boox_notes:
+    x: 35
+    y: 46
+    description: "Boox Notes integration (B icon with red notification dot)"
+ 
+  undo:
+    x: 38
+    y: 46
+    description: "Undo last action"
+
+  redo:
+    x: 41
+    y: 46
+    description: "Redo action"
+
+  prev_page:
+    x: 44
+    y: 46
+    description: "Previous page (<)"
+
+  page_indicator:
+    x: 47
+    y: 46
+    description: "Current page indicator (e.g., 1/2)"
+
+  next_page:
+    x: 49
+    y: 46
+    description: "Next page (>)"
+
+  hamburger_menu:
+    x: 51
+    y: 46
+    description: "Menu (export, clear, delete page, etc.)"
+
+# TASKS TAB TOOLBAR - left to right:
+# Memos tab | Tasks tab | Drawing tools | Drawing settings | Eraser |
+# Task actions dropdown | Add task | AI features | Boox Notes | Undo | Redo |
+# Prev page (<) | Page indicator (1/2) | Next page (>) | Hamburger menu
+tasks_toolbar:
+  memos_tab:
+    x: 3
+    y: 46
+    description: "Memos tab selector"
+
+  tasks_tab:
+    x: 9
+    y: 46
+    description: "Tasks tab selector (active when on tasks)"
+
+  drawing_tools:
+    x: 13
+    y: 46
+    description: "Pen/brush style selector"
+
+  drawing_settings:
+    x: 17
+    y: 46
+    description: "Pen size and settings"
+
+  eraser:
+    x: 21
+    y: 46
+    description: "Eraser tool"
+
+  task_actions:
+    x: 25
+    y: 46
+    description: "Task actions dropdown (move, copy, delete tasks)"
+
+  add_task:
+    x: 28
+    y: 46
+    description: "Add new task"
+
+  ai_features:
+    x: 31
+    y: 46
+    description: "AI tools for tasks"
+
+  boox_notes:
+    x: 35
+    y: 46
+    description: "Boox Notes integration (B icon with red notification dot)"
+ 
+  undo:
+    x: 38
+    y: 46
+    description: "Undo last action"
+
+  redo:
+    x: 41
+    y: 46
+    description: "Redo action"
+
+  prev_page:
+    x: 44
+    y: 46
+    description: "Previous page (<)"
+
+  page_indicator:
+    x: 47
+    y: 46
+    description: "Current page indicator (e.g., 1/2)"
+
+  next_page:
+    x: 49
+    y: 46
+    description: "Next page (>)"
+
+  hamburger_menu:
+    x: 51
+    y: 46
+    description: "Menu (export, clear, delete page, etc.)"
+
+# =============================================================================
+# CALENDAR GRID (left ~30%, y: 6-44%)
+# =============================================================================
+calendar:
+  # Day of week headers
+  header:
+    sunday: { x: 3.5%, y: 4% }
+    monday: { x: 8%, y: 4% }
+    tuesday: { x: 12%, y: 4% }
+    wednesday: { x: 16%, y: 4% }
+    thursday: { x: 20%, y: 4% }
+    friday: { x: 24.5%, y: 4% }
+    saturday: { x: 29%, y: 4% }
+
+  # Grid rows (6 rows for month display)
+  # Row 1: y ~8%, Row 2: y ~14%, Row 3: y ~20%, Row 4: y ~26%, Row 5: y ~32%, Row 6: y ~38%
+  grid:
+    row_1_y: 8%
+    row_2_y: 14%
+    row_3_y: 20%
+    row_4_y: 26%
+    row_5_y: 32%
+    row_6_y: 38%
+
+    # Column X positions (same as header)
+    col_sun_x: 3.5%
+    col_mon_x: 8%
+    col_tue_x: 12%
+    col_wed_x: 16%
+    col_thu_x: 20%
+    col_fri_x: 24.5%
+    col_sat_x: 29%
+
+# =============================================================================
+# EVENTS PANEL (right side, y: 4-44%)
+# =============================================================================
+events_panel:
+  events_tab:
+    x: 35%
+    y: 4.5%
+    description: "Events tab header"
+
+  due_tab:
+    x: 41%
+    y: 4.5%
+    description: "Due tasks tab"
+
+  mini_calendar:
+    x: 48%
+    y: 4.5%
+    description: "Mini calendar toggle"
+
+  google_calendar:
+    x: 51%
+    y: 4.5%
+    description: "Google Calendar icon"
+
+  # Event list items (approximate y positions)
+  event_1: { x: 42%, y: 8% }
+  event_2: { x: 42%, y: 12% }
+  event_3: { x: 42%, y: 16% }
+  event_4: { x: 42%, y: 20% }
+
+  pagination:
+    prev: { x: 40%, y: 44% }
+    indicator: { x: 42%, y: 44% }
+    next: { x: 44%, y: 44% }
+    expand: { x: 50%, y: 44% }
+
+# =============================================================================
+# CANVAS TOOLBAR (y: ~46%)
+# =============================================================================
+canvas_toolbar:
+  memos_tab:
+    x: 3%
+    y: 46%
+    description: "Memos tab - handwritten notes"
+
+  tasks_tab:
+    x: 9%
+    y: 46%
+    description: "Tasks tab - checkbox list"
+
+  pen_style:
+    x: 13%
+    y: 46%
+    description: "Pen style selector"
+
+  pen_size:
+    x: 17%
+    y: 46%
+    description: "Pen size (shows current: 5px)"
+
+  eraser:
+    x: 21%
+    y: 46%
+    description: "Eraser tool"
+
+  lasso_select:
+    x: 25%
+    y: 46%
+    description: "Lasso selection tool"
+
+  image_insert:
+    x: 28%
+    y: 46%
+    description: "Insert image"
+
+  ai_tools:
+    x: 31%
+    y: 46%
+    description: "AI tools (OCR, summarize)"
+
+  text_tool:
+    x: 35%
+    y: 46%
+    description: "Text annotation tool"
+
+  undo:
+    x: 38%
+    y: 46%
+    description: "Undo last action"
+
+  redo:
+    x: 41%
+    y: 46%
+    description: "Redo action"
+
+  prev_page:
+    x: 44%
+    y: 46%
+    description: "Previous page"
+
+  page_indicator:
+    x: 47%
+    y: 46%
+    description: "Current page (e.g., 1/1)"
+
+  next_page:
+    x: 49%
+    y: 46%
+    description: "Next page"
+
+  menu:
+    x: 51%
+    y: 46%
+    description: "Overflow menu"
+
+# =============================================================================
+# CANVAS AREA (y: 48-100%)
+# =============================================================================
+canvas:
+  # For drawing tests - center of canvas
+  center: { x: 27%, y: 72% }
+  top_left: { x: 5%, y: 50% }
+  top_right: { x: 50%, y: 50% }
+  bottom_left: { x: 5%, y: 95% }
+  bottom_right: { x: 50%, y: 95% }
+
+  # Task rows (when in Tasks tab)
+  # Each task row is ~6% height
+  tasks:
+    row_1: { x: 27%, y: 52% }
+    row_2: { x: 27%, y: 58% }
+    row_3: { x: 27%, y: 64% }
+    row_4: { x: 27%, y: 70% }
+    row_5: { x: 27%, y: 76% }
+    row_6: { x: 27%, y: 82% }
+    row_7: { x: 27%, y: 88% }
+    row_8: { x: 27%, y: 94% }
+
+    # Task checkbox column (left side)
+    checkbox_x: 3%
+
+    # Task control column (right side) - 130dp width
+    control_x: 48%
+
+# =============================================================================
+# DIALOGS & POPUPS (centered overlays)
+# =============================================================================
+dialogs:
+  # Standard dialog buttons (bottom of dialog)
+  cancel: { x: 35%, y: 60% }
+  confirm: { x: 50%, y: 60% }
+
+  # Preferences dialog
+  preferences:
+    close: { x: 48%, y: 20% }
+    general_tab: { x: 25%, y: 25% }
+    sync_tab: { x: 35%, y: 25% }
+    premium_tab: { x: 45%, y: 25% }
+
+  # Month picker (dropdown)
+  month_picker:
+    january: { x: 8%, y: 8% }
+    february: { x: 8%, y: 12% }
+    march: { x: 8%, y: 16% }
+    april: { x: 8%, y: 20% }
+    may: { x: 8%, y: 24% }
+    june: { x: 8%, y: 28% }
+    july: { x: 8%, y: 32% }
+    august: { x: 8%, y: 36% }
+    september: { x: 8%, y: 40% }
+    october: { x: 8%, y: 44% }
+    november: { x: 8%, y: 48% }
+    december: { x: 8%, y: 52% }
+
+# =============================================================================
+# BOOX NOTES DIALOG (needs calibration)
+# =============================================================================
+boox_notes_dialog:
+  # TODO: Calibrate when dialog is open
+  close: { x: 48%, y: 15% }
+  search: { x: 27%, y: 20% }
+  note_list:
+    row_1: { x: 27%, y: 28% }
+    row_2: { x: 27%, y: 34% }
+    row_3: { x: 27%, y: 40% }
+  bulk_assign_button: { x: 40%, y: 75% }
+
+# =============================================================================
+# GESTURES
+# =============================================================================
+gestures:
+  # Swipe patterns for common actions
+  scroll_down:
+    start: { x: 27%, y: 70% }
+    end: { x: 27%, y: 40% }
+    duration_ms: 300
+
+  scroll_up:
+    start: { x: 27%, y: 40% }
+    end: { x: 27%, y: 70% }
+    duration_ms: 300
+
+  # Drawing a simple line
+  draw_horizontal:
+    start: { x: 10%, y: 72% }
+    end: { x: 45%, y: 72% }
+    duration_ms: 500
+
+  draw_vertical:
+    start: { x: 27%, y: 55% }
+    end: { x: 27%, y: 90% }
+    duration_ms: 500

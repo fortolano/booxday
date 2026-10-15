@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-01-06T18:12:16.559593",
+  "files": {
+    "ocr_texts": "tools\\test_data_generator\\fixtures\\semantic_test\\ocr_texts.json",
+    "calendar_events": "tools\\test_data_generator\\fixtures\\semantic_test\\calendar_events.json",
+    "relationships": "tools\\test_data_generator\\fixtures\\semantic_test\\relationships.json"
+  },
+  "stats": {
+    "ocr_count": 1000,
+    "event_count": 500,
+    "relationship_count": 500,
+    "local_event_count": 0
+  }
+}

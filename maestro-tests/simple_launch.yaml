@@ -1,0 +1,21 @@
+appId: com.boox.day
+---
+# Simple test: Launch app and verify it loads
+
+- launchApp:
+    clearState: false
+
+# Wait for app to fully load (adjust if needed)
+- extendedWaitUntil:
+    visible: ".*"
+    timeout: 10000
+
+# Take a screenshot to verify state
+- takeScreenshot: screenshots/01_app_launched
+
+# Try to detect if UI is visible by looking for any element
+- runFlow:
+    when:
+      visible: ".*"
+    commands:
+      - takeScreenshot: screenshots/02_ui_visible

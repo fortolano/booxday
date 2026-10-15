@@ -1,0 +1,13 @@
+appId: com.boox.day
+---
+# Reusable flow: Open Settings dialog
+# Coordinates from ui_map.yaml: toolbar.settings (96%, 3%)
+# Settings gear icon is at far right of top toolbar
+
+- tapOn:
+    point: "96%,3%"
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "2000"

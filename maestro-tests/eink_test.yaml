@@ -1,0 +1,42 @@
+appId: com.boox.day
+---
+# E-ink aware test with proper delays for display refresh
+
+- launchApp
+
+# Wait for app to be visible
+- extendedWaitUntil:
+    visible: ".*"
+    timeout: 5000
+
+# Delay for e-ink refresh
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "2000"
+
+- takeScreenshot: 01_after_launch
+
+# Tap on calendar area (left 40% of screen)
+- tapOn:
+    point: "20%,50%"
+
+# Delay for e-ink refresh
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+
+- takeScreenshot: 02_after_calendar_tap
+
+# Try tapping Tasks tab area (bottom right)
+- tapOn:
+    point: "85%,95%"
+
+# Delay for e-ink refresh
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+
+- takeScreenshot: 03_after_tasks_tap

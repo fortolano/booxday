@@ -1,0 +1,195 @@
+{
+  "domain": "TRAVEL",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "flight",
+      "airline",
+      "airport",
+      "boarding-pass",
+      "hotel",
+      "airbnb",
+      "vrbo",
+      "reservation",
+      "booking",
+      "confirmation",
+      "passport",
+      "visa",
+      "customs",
+      "immigration",
+      "security-check",
+      "itinerary",
+      "destination",
+      "vacation",
+      "trip",
+      "getaway",
+      "layover",
+      "connecting-flight",
+      "nonstop",
+      "direct-flight",
+      "terminal",
+      "gate",
+      "baggage-claim",
+      "checked-bag",
+      "carry-on",
+      "first-class",
+      "business-class",
+      "economy",
+      "upgrade",
+      "miles",
+      "frequent-flyer",
+      "loyalty-program",
+      "elite-status",
+      "lounge-access"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "travel",
+      "journey",
+      "tour",
+      "cruise",
+      "expedition",
+      "safari",
+      "luggage",
+      "baggage",
+      "suitcase",
+      "packing",
+      "travel-bag",
+      "backpack",
+      "train",
+      "rental",
+      "uber",
+      "lyft",
+      "taxi",
+      "shuttle",
+      "ticket",
+      "departure",
+      "arrival",
+      "delay",
+      "cancelled",
+      "rescheduled",
+      "hostel",
+      "resort",
+      "motel",
+      "bed-and-breakfast",
+      "travel-insurance",
+      "trip-protection",
+      "cancellation-policy",
+      "concierge",
+      "room-service",
+      "amenities",
+      "check-in",
+      "check-out",
+      "exchange-rate",
+      "currency",
+      "foreign-currency",
+      "travel-card",
+      "travel-agent",
+      "tour-guide",
+      "tour-package",
+      "all-inclusive",
+      "road-trip",
+      "camping",
+      "glamping",
+      "motorhome",
+      "boarding"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "visit",
+      "explore",
+      "adventure",
+      "discover",
+      "sightsee",
+      "wander",
+      "beach",
+      "mountain",
+      "city",
+      "country",
+      "island",
+      "countryside",
+      "guide",
+      "directions",
+      "navigate",
+      "location",
+      "souvenir",
+      "photo",
+      "selfie",
+      "memory",
+      "experience",
+      "bucket-list",
+      "weather",
+      "climate",
+      "season",
+      "summer",
+      "winter",
+      "spring"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:flight|hotel|car|airbnb)\\s+(?:booking|reservation|confirmation)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:departure|arrival)\\s+(?:time|date|gate|terminal)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:round|one-way)\\s+trip",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:check-in|check-out)\\s+(?:time|date)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:travel|trip)\\s+(?:itinerary|plan|planning)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:passport|visa)\\s+(?:renewal|application|expiration)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:luggage|baggage)\\s+(?:allowance|weight|fee)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:flight|travel)\\s+(?:delay|cancellation|insurance)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:road|weekend|business)\\s+trip",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:rental|hire)\\s+car",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:frequent|loyalty)\\s+(?:flyer|miles|points)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:airport|hotel|car)\\s+(?:pickup|transfer|shuttle)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:exchange|currency)\\s+rate",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:all-inclusive|package)\\s+(?:deal|vacation|resort)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:packing|travel)\\s+(?:list|checklist|essentials)",
+      "weight": 4.0
+    }
+  ]
+}

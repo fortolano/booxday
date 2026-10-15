@@ -1,0 +1,120 @@
+{
+  "intent": "CAMPAIGN_NOTES",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "campaign",
+      "marketing-campaign",
+      "ad-campaign",
+      "launch-campaign",
+      "influencer-campaign",
+      "brand-campaign",
+      "awareness-campaign",
+      "email-campaign",
+      "drip-campaign",
+      "promotional-campaign",
+      "campaign-plan",
+      "campaign-brief",
+      "campaign-strategy",
+      "campaign-launch"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "target-audience",
+      "messaging",
+      "creative-brief",
+      "ad-copy",
+      "landing-page",
+      "conversion-funnel",
+      "a-b-test",
+      "budget-allocation",
+      "media-buy",
+      "campaign-timeline",
+      "campaign-asset",
+      "campaign-creative",
+      "campaign-goal",
+      "campaign-kpi",
+      "campaign-metric",
+      "impression",
+      "click-through",
+      "conversion-rate",
+      "roas",
+      "ad-spend",
+      "media-plan",
+      "channel-mix",
+      "retargeting",
+      "lookalike-audience",
+      "campaign-performance"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "launch",
+      "promote",
+      "advertise",
+      "target",
+      "audience",
+      "marketing",
+      "creative",
+      "copy",
+      "asset",
+      "channel",
+      "reach",
+      "click",
+      "convert"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:marketing|ad|brand|launch)\\s+campaign",
+      "weight": 5.0
+    },
+    {
+      "pattern": "campaign\\s+(?:plan|brief|strategy|goal)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:email|drip|influencer)\\s+campaign",
+      "weight": 4.5
+    },
+    {
+      "pattern": "target\\s+audience",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:creative|campaign)\\s+brief",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:ad|landing)\\s+(?:copy|page)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:a/b|split)\\s+test",
+      "weight": 4.0
+    },
+    {
+      "pattern": "campaign\\s+(?:kpi|metric|performance|timeline)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:cpc|cpm|roas|roi)\\s+(?:target|goal)?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:media|budget)\\s+(?:plan|allocation|buy)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "conversion\\s+(?:funnel|rate)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:retarget|lookalike)(?:ing)?\\s+(?:audience|ad)?",
+      "weight": 4.0
+    }
+  ]
+}

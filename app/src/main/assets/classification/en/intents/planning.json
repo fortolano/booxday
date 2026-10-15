@@ -1,0 +1,143 @@
+{
+  "intent": "PLANNING",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "plan",
+      "planning",
+      "roadmap",
+      "timeline",
+      "schedule",
+      "calendar",
+      "agenda",
+      "milestone",
+      "phase",
+      "stage",
+      "sprint",
+      "iteration",
+      "release",
+      "launch",
+      "rollout",
+      "gantt",
+      "project-plan",
+      "work-plan",
+      "action-plan",
+      "implementation"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "step",
+      "steps",
+      "next",
+      "then",
+      "before",
+      "after",
+      "sequence",
+      "prepare",
+      "preparation",
+      "organize",
+      "coordination",
+      "dependency",
+      "dependencies",
+      "prerequisite",
+      "blocker",
+      "deliverable",
+      "deliverables",
+      "output",
+      "outcome",
+      "result",
+      "resource",
+      "allocation",
+      "itinerary",
+      "vacation",
+      "booking",
+      "bookings",
+      "hotel",
+      "assignment",
+      "responsibility",
+      "estimate",
+      "estimation",
+      "duration",
+      "effort",
+      "capacity",
+      "priority",
+      "prioritize",
+      "prioritization",
+      "urgency",
+      "importance"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "order",
+      "arrange",
+      "structure",
+      "outline",
+      "draft",
+      "task",
+      "tasks",
+      "items",
+      "start",
+      "begin",
+      "finish",
+      "complete"
+    ]
+  },
+  "structureBoosts": {
+    "NUMBERED_LIST": 2.5,
+    "BULLET_LIST": 1.5
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:plan|planning)\\s+(?:for|to|session|document)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:timeline|schedule|roadmap)\\s+(?:for|of)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:phase|milestone|deliverable|sprint)\\s+\\d+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:by|before|deadline)\\s+(?:end\\s+of)?",
+      "weight": 3.0
+    },
+    {
+      "pattern": "(?:step|stage)\\s+(?:\\d+|one|two|three)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:project|work|action)\\s+plan",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:start|begin|kick[- ]?off)\\s+(?:date|time)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:end|finish|completion)\\s+(?:date|time)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:depends|dependent)\\s+on",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:priority|high|medium|low)\\s+(?:priority)?",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:week|month|quarter)\\s+(?:\\d+|one|two)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:resource|capacity)\\s+(?:plan|allocation)",
+      "weight": 4.0
+    }
+  ]
+}

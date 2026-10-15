@@ -1,0 +1,185 @@
+<resources>
+    <string name="app_name" translatable="false">BooxDay</string>
+
+    <!-- About Dialog -->
+    <string name="about_tagline">The calendar your Boox tablet deserves</string>
+
+    <!-- About - Our Story -->
+    <string name="about_story_title">Our Story</string>
+    <string name="about_story_content">BooxDay started with a simple wish: a calendar that truly belongs on an e-ink device. We fell in love with Boox tablets — the paper-like display, the wacom-grade stylus — but kept reaching for our phones to manage schedules. That didn\'t feel right.\n\nAfter waiting for a solution that never came, we built what we wished existed: a planner designed for e-ink with stylus-optimized UI, zero animations, and handwriting integration. This is the first calendar with native Boox SDK integration and the first to integrate with Boox Notes.</string>
+
+    <!-- About - Our Philosophy -->
+    <string name="about_philosophy_title">Our Philosophy</string>
+    <string name="about_philosophy_content">BooxDay is built by a solo developer as a labor of love, and is now free and open source. The author uses BooxDay every single day — juggling life as a professional, student, husband, father, and community contributor.\n\nOne rule from the start: no calendar without stylus support. The paper-like writing experience is why we buy e-ink tablets.\n\nWe believe exceptional hardware deserves equally exceptional software built with genuine care for users. We\'re fans first, developers second. Every feature asks one question: \"Does this make the Boox experience better?\"</string>
+
+    <!-- About - Features -->
+    <string name="about_features_title">Features</string>
+    <string name="about_feature_1">Designed for e-ink</string>
+    <string name="about_feature_2">Optimized for Boox devices</string>
+    <string name="about_feature_3">Full stylus support</string>
+    <string name="about_feature_4">First-ever Boox Notes integration</string>
+    <string name="about_feature_5">Google &amp; Outlook Calendar sync</string>
+    <string name="about_feature_6">Dual canvas: Memos + Tasks</string>
+    <string name="about_feature_7">AI voice-to-event &amp; voice-to-task</string>
+    <string name="about_feature_8">Smart task priorities &amp; organization</string>
+    <string name="about_feature_9">AI translation &amp; summarization</string>
+    <string name="about_feature_10">Standalone mode — no account required</string>
+
+    <!-- About - Open source -->
+    <string name="about_open_source_title">Free and Open Source</string>
+    <string name="about_open_source_content">BooxDay is free software under the GNU General Public License, version 3 (GPL-3.0). You may use it, study how it works, change it and share it, for free.\n\nIf you share the app or a changed version of it, you must share its full source code under the same license. Nobody may turn it into a closed, proprietary product.\n\nBooxDay began as a fork of Notable (olup and contributors), also licensed under GPL-3.0.\n\nBooxDay comes as is: there is no support service and no warranty of any kind. See the license for the full terms. The project is still being improved, and new versions are published on GitHub.</string>
+    <string name="about_link_source">Source Code</string>
+    <string name="about_link_releases">Download the App</string>
+    <string name="about_link_issues">Report a Bug</string>
+    <string name="about_link_license">License (GPL-3.0)</string>
+    <string name="about_link_notable">Notable, the Original Project</string>
+
+    <!-- About - Privacy -->
+    <string name="about_privacy_title">Your Data</string>
+    <string name="about_privacy_content">Your memos, tasks and calendar are stored on this tablet. BooxDay has no server and sends nothing to its developer.\n\nThe app goes online to download Google\'s handwriting model (recognition then runs on the tablet) and for what you turn on: calendar sync talks directly to Google or Microsoft, Drive backup goes to your own Google Drive, and AI features send only what you ask them to process to OpenRouter, using your own key.</string>
+
+    <!-- About - Legal Disclaimer -->
+    <string name="about_legal_title">Legal Notice</string>
+    <string name="about_legal_content">BooxDay is an independent, third-party application created by an individual developer. This application is NOT affiliated with, endorsed by, sponsored by, licensed by, or in any way officially connected with Onyx International Inc., its subsidiaries, or affiliates.\n\nThe names \"Boox\", \"Onyx\", and any related logos, product names, and trademarks are the exclusive property of Onyx International Inc. All other trademarks, service marks, trade names, and intellectual property referenced herein belong to their respective owners.\n\nThis application utilizes the publicly available Onyx Boox SDK in accordance with its terms. The use of the SDK does not imply any partnership, endorsement, or affiliation with Onyx International Inc.\n\nThis application is also NOT affiliated with, endorsed by, or sponsored by Google LLC. \"Google\", \"Google Calendar\", and related trademarks are the property of Google LLC. Calendar synchronization features use the Google Calendar API in accordance with Google\'s Terms of Service.\n\nThis application uses third-party AI services, including both free and paid AI models. Some free AI models may use user data for training purposes, in accordance with their respective providers\' policies. By using AI features in this application, you acknowledge and accept the data practices of these AI service providers. The developer and this application are not liable for any data shared with or processed by third-party AI providers. Users are responsible for understanding and accepting the risks associated with AI service usage.\n\nTHIS SOFTWARE IS PROVIDED \"AS IS\" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE DEVELOPER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.</string>
+    <string name="about_copyright">© 2024–2026 Flavio Ortolano. Licensed under GPL-3.0.</string>
+
+    <string name="home_quick_pages">Quick pages</string>
+    <string name="home_notebooks">Notebooks</string>
+    <string name="home_add_new_folder">Add new folder</string>
+    <string name="home_new_folder">New Folder</string>
+    <string name="home_view_name">Library</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_tab_general_name">General</string>
+    <string name="settings_tab_gestures_name">Gestures</string>
+    <string name="settings_tab_debug_name" translatable="false">Debug</string>
+    <string name="default_page_background_template">Default Page Background Template</string>
+    <string name="blank_page">Blank page</string>
+    <string name="dot_grid">Dot grid</string>
+    <string name="lines">Lines</string>
+    <string name="small_squares_grid">Small squares grid</string>
+    <string name="hexagon_grid">Hexagon grid</string>
+    <string name="use_onyx_neotools_may_cause_crashes">Use Onyx NeoTools (may cause crashes)</string>
+    <string name="enable_scribble_to_erase">Enable scribble-to-erase (scribble out your mistakes to erase them)</string>
+    <string name="enable_smooth_scrolling">Enable smooth scrolling</string>
+    <string name="continuous_zoom">Continuous Zoom</string>
+    <string name="continuous_stroke_slider">Continuous Stroke Slider</string>
+    <string name="monochrome_mode">Monochrome mode</string>
+    <string name="paginate_pdf">Paginate PDF</string>
+    <string name="preview_pdf_pagination">Preview PDF Pagination</string>
+    <string name="app_new_version">It seems a new version of BooxDay is available!</string>
+    <string name="app_see_release">See release in browser</string>
+    <string name="app_latest_version">You are on the latest version.</string>
+    <string name="app_check_updates">Check for newer version</string>
+    <string name="gestures_double_tap_action">Double Tap Action</string>
+    <string name="gestures_two_finger_tap_action">Two Finger Tap Action</string>
+    <string name="gestures_swipe_left_action">Swipe Left Action</string>
+    <string name="gestures_swipe_right_action">Swipe Right Action</string>
+    <string name="gestures_two_finger_swipe_left_action">Two Finger Swipe Left Action</string>
+    <string name="gestures_two_finger_swipe_right_action">Two Finger Swipe Right Action</string>
+    <string name="work_in_progress">(work in progress)</string>
+    <string name="toolbar_position_top">Top</string>
+    <string name="toolbar_position_bottom">Bottom</string>
+    <string name="sponsor_button_text">Sponsor</string>
+    <string name="gesture_action_undo">Undo</string>
+    <string name="gesture_action_redo">Redo</string>
+    <string name="gesture_action_previous_page">Previous Page</string>
+    <string name="gesture_action_next_page">Next Page</string>
+    <string name="gesture_action_toggle_pen_eraser">Toggle Pen / Eraser</string>
+    <string name="gesture_action_toggle_zen_mode">Toggle Zen Mode</string>
+    <string name="details_notebook_title">Title:</string>
+    <string name="details_notebook_default_background_template">Default Background Template</string>
+    <string name="details_notebook_pages">Pages: %1$d</string>
+    <string name="details_notebook_in_folder">"In Folder: "</string>
+    <string name="details_notebook_created">Created: %1$s</string>
+    <string name="details_notebook_last_updated">Last Updated: %1$s</string>
+    <string name="details_notebook_buttons_delete">Delete</string>
+    <string name="details_notebook_buttons_move">Move</string>
+    <string name="details_notebook_buttons_export">Export</string>
+    <string name="details_notebook_buttons_copy">Copy</string>
+    <string name="details_notebook_linked_to">Linked to: %1$s</string>
+    <!-- Welcome Screen - Header -->
+    <string name="welcome_view_title">Welcome to BooxDay</string>
+    <string name="welcome_view_subtitle">Your AI-powered e-ink planner.\nBuilt exclusively for Boox tablets.</string>
+
+    <!-- Welcome Screen - AI Chief of Staff Highlight -->
+    <string name="welcome_view_ai_highlight_title">Your Personal AI Chief of Staff</string>
+    <string name="welcome_view_ai_feature_1">SemanticGenius reads your handwriting and links notes to calendar events automatically</string>
+    <string name="welcome_view_ai_feature_2">Smart Suggestions based on your schedule, preferences, and what you\'ve written</string>
+    <string name="welcome_view_ai_feature_3">Daily and Weekly AI summaries to keep you on track</string>
+
+    <!-- Welcome Screen - Permission Card (kept for potential future use) -->
+    <string name="welcome_view_permission_needed">One Quick Step</string>
+    <string name="welcome_view_permission_needed_desc">BooxDay needs storage access to save your handwritten notes and sync your calendar data.</string>
+    <string name="welcome_view_permissions_button">Enable Storage Access</string>
+    <string name="welcome_view_permission_ready">You\'re All Set!</string>
+    <string name="welcome_view_permission_ready_desc">Storage access granted. You\'re ready to go.</string>
+    <string name="welcome_view_continue">Get Started</string>
+    <string name="welcome_view_complete_setup_first">Enable Storage Access First</string>
+
+    <!-- Welcome Screen - Tip Card -->
+    <string name="welcome_view_tip_title">Pro Tip: Prevent App Freezing</string>
+    <string name="welcome_view_tip_desc">Long-press the BooxDay icon on your home screen and select \"Unfreeze app\" for the best experience.</string>
+
+    <!-- Welcome Screen - Features (short titles for chips) -->
+    <string name="welcome_view_feature_calendar_title">Calendar Sync</string>
+    <string name="welcome_view_feature_stylus_title">Stylus Writing</string>
+    <string name="welcome_view_feature_tabs_title">Memos + Tasks</string>
+    <string name="welcome_view_feature_voice_title">Voice Input</string>
+    <string name="welcome_view_feature_ai_title">AI Conversion</string>
+    <string name="welcome_view_feature_boox_notes_title">Boox Notes</string>
+    <string name="welcome_view_feature_smart_tasks_title">Smart Mapping</string>
+
+    <string name="export_pages">Export Pages</string>
+    <string name="export_page_to">Export page to %1$s</string>
+    <string name="exporting_the_page_to">Exporting the page to %1$s…</string>
+
+    <string name="export_book_to">Export book to %1$s</string>
+    <string name="exporting_the_book_to">Exporting the book to %1$s…</string>
+    <string name="clean_all_strokes">Clear all pages</string>
+    <string name="cleared_all_strokes">Cleared all pages</string>
+    <string name="change_background">Change Background</string>
+    <string name="bug_report">Bug Report</string>
+    <string name="choose_pdf_background">Choose PDF background</string>
+    <plurals name="pdf_has_pages">
+        <item quantity="one">PDF has %1$d page</item>
+        <item quantity="other">PDF has %1$d pages</item>
+    </plurals>
+    <string name="repeat_background">Repeat background</string>
+    <string name="choose_native_template">Choose Native Template</string>
+    <string name="select_pdf_page">Select PDF Page</string>
+    <string name="page_number">Page number</string>
+    <string name="observe_pdf">Observe PDF</string>
+    <string name="current_page">Current Page</string>
+    <string name="toolbar_scribble_to_erase_two_lined_short">Scribble\nto Erase</string>
+
+    <!-- Task Export Dialog -->
+    <string name="export_tasks_title">Export Tasks</string>
+    <string name="export_tasks_button">Export Tasks</string>
+    <string name="export_section_scope">What to export</string>
+    <string name="export_section_format">Format</string>
+    <string name="export_section_format_hint">CSV can be pasted directly into spreadsheets</string>
+    <string name="export_section_destination">Destination</string>
+    <string name="export_scope_current_page">This Page</string>
+    <string name="export_scope_today">Today</string>
+    <string name="export_scope_this_month">This Month</string>
+    <string name="export_scope_all">All Tasks</string>
+    <string name="export_format_text">Text</string>
+    <string name="export_format_text_desc">Human-readable list</string>
+    <string name="export_format_csv">CSV</string>
+    <string name="export_format_csv_desc">For spreadsheets</string>
+    <string name="export_action_clipboard">Clipboard</string>
+    <string name="export_action_clipboard_desc">Copy text to paste</string>
+    <string name="export_action_share">Share File</string>
+    <string name="export_action_share_desc">Send .txt or .csv</string>
+    <string name="export_preview_template">%1$d tasks from %2$s, formatted as %3$s</string>
+    <string name="export_tasks_count">(%1$d)</string>
+    <string name="export_loading_placeholder">—</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Task Export Accessibility -->
+    <string name="export_icon_text_format">Text format</string>
+    <string name="export_icon_csv_format">CSV format</string>
+    <string name="export_icon_clipboard">Copy to clipboard</string>
+    <string name="export_icon_share">Share file externally</string>
+
+</resources>

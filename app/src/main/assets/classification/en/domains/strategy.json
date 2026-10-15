@@ -1,0 +1,206 @@
+{
+  "domain": "STRATEGY",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "strategy",
+      "strategic",
+      "roadmap",
+      "multi-year-plan",
+      "long-term",
+      "swot",
+      "swot-analysis",
+      "pest-analysis",
+      "pestle",
+      "porters-five-forces",
+      "competitive-landscape",
+      "competitive-analysis",
+      "competitor-analysis",
+      "market-positioning",
+      "moat",
+      "blue-ocean",
+      "red-ocean",
+      "strategic-initiative",
+      "strategic-priority",
+      "north-star-metric",
+      "vision-statement",
+      "mission-statement",
+      "value-proposition",
+      "strategic-planning",
+      "strategic-review",
+      "strategy-offsite",
+      "balanced-scorecard",
+      "strategy-map",
+      "cascading-goals",
+      "competitive-advantage",
+      "sustainable-advantage",
+      "core-competency",
+      "growth-strategy",
+      "market-expansion",
+      "diversification-strategy",
+      "market-penetration",
+      "market-development",
+      "product-development",
+      "vertical-integration",
+      "horizontal-integration",
+      "acquisition-strategy",
+      "cost-leadership",
+      "differentiation-focus",
+      "niche-strategy"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "okrs",
+      "kpis",
+      "objective",
+      "key-result",
+      "metric",
+      "target",
+      "annual-planning",
+      "quarterly-planning",
+      "planning-cycle",
+      "scenario-planning",
+      "contingency",
+      "risk-assessment",
+      "trade-off",
+      "resource-prioritization",
+      "portfolio",
+      "investment-thesis",
+      "bcg-matrix",
+      "ge-matrix",
+      "ansoff-matrix",
+      "value-chain",
+      "stakeholder-analysis",
+      "stakeholder-mapping",
+      "influence-mapping",
+      "industry-analysis",
+      "market-analysis",
+      "trend-analysis",
+      "opportunity-assessment",
+      "threat-assessment",
+      "gap-analysis",
+      "strategic-alignment",
+      "organizational-alignment",
+      "cross-functional",
+      "resource-allocation",
+      "budgeting",
+      "forecasting",
+      "projection",
+      "benchmark",
+      "benchmarking",
+      "best-practice",
+      "leading-indicator",
+      "lagging-indicator",
+      "dashboard",
+      "scorecard",
+      "metrics-review",
+      "differentiation"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "plan",
+      "goal",
+      "priority",
+      "initiative",
+      "program",
+      "project",
+      "milestone",
+      "timeline",
+      "horizon",
+      "phase",
+      "stage",
+      "track",
+      "vision",
+      "mission",
+      "outcome",
+      "result",
+      "impact",
+      "analysis",
+      "assessment",
+      "review",
+      "audit",
+      "evaluation",
+      "decision",
+      "choice",
+      "option",
+      "alternative",
+      "recommendation",
+      "short-term",
+      "medium-term",
+      "immediate",
+      "future",
+      "growth",
+      "scale",
+      "expand",
+      "optimize",
+      "transform",
+      "innovate"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "strategic\\s+(?:planning|review|initiative|priority)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:annual|quarterly|multi-year)\\s+planning",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:swot|pest|pestle|competitive)\\s+analysis",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:okr|kpi)\\s+(?:review|setting|cascade)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "planning\\s+(?:offsite|session|workshop)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:market|competitive|industry)\\s+(?:analysis|landscape)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:north|north-star)\\s+metric",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:growth|expansion|diversification)\\s+strategy",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:vision|mission)\\s+statement",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:core|competitive)\\s+(?:competency|advantage)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:resource|budget)\\s+(?:allocation|prioritization)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:scenario|contingency)\\s+planning",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:gap|stakeholder)\\s+analysis",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:balanced|strategy)\\s+(?:scorecard|map)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:long|short|medium)-term\\s+(?:plan|goal|strategy)",
+      "weight": 4.0
+    }
+  ]
+}

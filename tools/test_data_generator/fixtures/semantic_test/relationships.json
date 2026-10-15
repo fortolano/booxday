@@ -1,0 +1,5633 @@
+{
+  "generated_at": "2026-01-06T18:03:44.853952",
+  "total_count": 500,
+  "by_type": {
+    "high_match": {
+      "count": 200,
+      "expected_affinity_range": [
+        0.6,
+        0.85
+      ],
+      "relationships": [
+        {
+          "ocrId": "MEMO_2026-01-22_660340_page1",
+          "eventId": "evt_a9f9cf0d0ba9",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-23_954281_page1",
+          "eventId": "evt_141d99d802c5",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_830732_page1",
+          "eventId": "evt_cf7e2aa4c556",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-20_411980_page1",
+          "eventId": "evt_8b4c7fca84cb",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-28_572030_page1",
+          "eventId": "evt_3a380c9f88dd",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_942747_page1",
+          "eventId": "evt_775cb00e6ae0",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-25_723620_page1",
+          "eventId": "evt_d776dda834a4",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-18_045708_page1",
+          "eventId": "evt_c05743a51c97",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-05_809807_page1",
+          "eventId": "evt_054d188c0799",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-27_852110_page1",
+          "eventId": "evt_00537d111202",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-23_060114_page1",
+          "eventId": "evt_5a71c2971723",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-20_698227_page1",
+          "eventId": "evt_75f575dadda9",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-16_891287_page1",
+          "eventId": "evt_4918a2ee098c",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-30_644190_page1",
+          "eventId": "evt_1616b19a9da0",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-18_631899_page1",
+          "eventId": "evt_ef418f8bf856",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_715088_page1",
+          "eventId": "evt_c2a2b88b967c",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-23_845319_page1",
+          "eventId": "evt_9dc5d5cb63ba",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-27_129007_page1",
+          "eventId": "evt_afaae9488c76",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-04_912633_page1",
+          "eventId": "evt_4427da999f1e",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-14_232020_page1",
+          "eventId": "evt_62611368753d",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-01_088200_page1",
+          "eventId": "evt_a54a54666244",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-15_184513_page1",
+          "eventId": "evt_16e561e668e3",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-17_498641_page1",
+          "eventId": "evt_e4c16923e5f5",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_963549_page1",
+          "eventId": "evt_238700079a9c",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-20_234769_page1",
+          "eventId": "evt_8a0846b48ec7",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-21_288040_page1",
+          "eventId": "evt_df3fe56bdac9",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-11_590492_page1",
+          "eventId": "evt_3462e18a54db",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-14_739497_page1",
+          "eventId": "evt_3af278264a4c",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-30_579717_page1",
+          "eventId": "evt_fca89ba7e33d",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-19_355318_page1",
+          "eventId": "evt_764ac4e7cb8e",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-10_993981_page1",
+          "eventId": "evt_faca614cef5f",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-25_092615_page1",
+          "eventId": "evt_abb5bbb99cf6",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-18_807042_page1",
+          "eventId": "evt_5dd803f500c3",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-13_144101_page1",
+          "eventId": "evt_9c6b027cbf5a",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-04_661426_page1",
+          "eventId": "evt_294a8f95a6d2",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-18_590448_page1",
+          "eventId": "evt_95783df97905",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-02_181271_page1",
+          "eventId": "evt_0e8b4600c85a",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_926138_page1",
+          "eventId": "evt_fdef1491c85b",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_363275_page1",
+          "eventId": "evt_af7e2b2a77e6",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-02_811595_page1",
+          "eventId": "evt_a5a7ca7ae736",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_013728_page1",
+          "eventId": "evt_8cd6f8338624",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-02_822702_page1",
+          "eventId": "evt_4fd81b14e3ff",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-10_310555_page1",
+          "eventId": "evt_745de693b2c1",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_447062_page1",
+          "eventId": "evt_2446ea31beed",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-13_576668_page1",
+          "eventId": "evt_4e689188c5ca",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-01_949377_page1",
+          "eventId": "evt_7581f03b02ef",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-13_210684_page1",
+          "eventId": "evt_3a423503f4be",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_696055_page1",
+          "eventId": "evt_cfa7aeb2bc17",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-27_094916_page1",
+          "eventId": "evt_92c5bc510032",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_229860_page1",
+          "eventId": "evt_0d74cb73681c",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-02_290980_page1",
+          "eventId": "evt_03e47726d185",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-30_639381_page1",
+          "eventId": "evt_5bda02ea3890",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-07_290015_page1",
+          "eventId": "evt_7e4be4cb4706",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-19_060692_page1",
+          "eventId": "evt_a8f533130ba6",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_248666_page1",
+          "eventId": "evt_bff137aa00ed",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_930774_page1",
+          "eventId": "evt_7615d5cd66e8",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-11_256502_page1",
+          "eventId": "evt_e59a3af6da09",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_018996_page1",
+          "eventId": "evt_de96b0c17e4b",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-14_879644_page1",
+          "eventId": "evt_43f34b0afb22",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-03_248343_page1",
+          "eventId": "evt_e698eb651bce",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_196661_page1",
+          "eventId": "evt_ac5091a32885",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-23_949100_page1",
+          "eventId": "evt_10849be77a33",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-22_984253_page1",
+          "eventId": "evt_d4b327f8a27a",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-19_156677_page1",
+          "eventId": "evt_c533ff1f1c81",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-23_242407_page1",
+          "eventId": "evt_91f5c3552c2e",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_467457_page1",
+          "eventId": "evt_a261e550d429",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_648788_page1",
+          "eventId": "evt_f7e7a01de553",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-16_950477_page1",
+          "eventId": "evt_f46a1d650848",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-11_083139_page1",
+          "eventId": "evt_34b6392e06b8",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-28_745707_page1",
+          "eventId": "evt_1d9ad22ce9f9",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-07_643689_page1",
+          "eventId": "evt_8f53ad870f7a",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-19_576964_page1",
+          "eventId": "evt_5f71e8c0878c",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-22_624037_page1",
+          "eventId": "evt_a0a0c21d8938",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-08_356254_page1",
+          "eventId": "evt_efc6af42206b",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_193852_page1",
+          "eventId": "evt_2cdb15f6d221",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_899007_page1",
+          "eventId": "evt_85fdea5f2fbc",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-28_749400_page1",
+          "eventId": "evt_8bb41ab13dc2",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-10_897504_page1",
+          "eventId": "evt_b75b68f56a6f",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-04_192821_page1",
+          "eventId": "evt_94bc00e9126a",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-27_938790_page1",
+          "eventId": "evt_69076bf0f81f",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-16_991727_page1",
+          "eventId": "evt_d91400486bc5",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_118673_page1",
+          "eventId": "evt_8bff2cc4ab3e",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-31_040298_page1",
+          "eventId": "evt_44407396d2c5",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-29_191092_page1",
+          "eventId": "evt_a390dc2c34ba",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-02_030527_page1",
+          "eventId": "evt_a5afde14d089",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-07_444927_page1",
+          "eventId": "evt_34355676ccc7",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-11_356706_page1",
+          "eventId": "evt_ea825151fe53",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-26_451197_page1",
+          "eventId": "evt_0a0069e7cd17",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_532397_page1",
+          "eventId": "evt_f0148b12ca47",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-15_530030_page1",
+          "eventId": "evt_bb80ab8626a4",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-04_494501_page1",
+          "eventId": "evt_d4c087a25bd8",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_772300_page1",
+          "eventId": "evt_424986411bb1",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-08_286628_page1",
+          "eventId": "evt_c49a4f9f9956",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-18_993596_page1",
+          "eventId": "evt_073b87b9bc0b",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-31_210187_page1",
+          "eventId": "evt_b9cbee1127f1",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-07_883971_page1",
+          "eventId": "evt_4f900e3533a2",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_646653_page1",
+          "eventId": "evt_7f918fa63027",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-27_248630_page1",
+          "eventId": "evt_a84f0c3b81e5",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-19_984957_page1",
+          "eventId": "evt_b331588d2141",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-28_749624_page1",
+          "eventId": "evt_59718ac7925d",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-29_412726_page1",
+          "eventId": "evt_c7c717b5a62f",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-08_858669_page1",
+          "eventId": "evt_3bb843e33252",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-11_185229_page1",
+          "eventId": "evt_108df31ca27d",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-11_907407_page1",
+          "eventId": "evt_837df230a25a",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-18_446599_page1",
+          "eventId": "evt_81f0dde2a7d9",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-28_260910_page1",
+          "eventId": "evt_f204fa78f1e5",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_116483_page1",
+          "eventId": "evt_94e284f1fb05",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-04_164469_page1",
+          "eventId": "evt_c31d69e995b5",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-28_043957_page1",
+          "eventId": "evt_5bcda5093c86",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-13_087276_page1",
+          "eventId": "evt_cbf5c68e08e2",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_379570_page1",
+          "eventId": "evt_3a81a0ddf419",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-31_128846_page1",
+          "eventId": "evt_63e60f88468f",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-09_532585_page1",
+          "eventId": "evt_152eed350f04",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_713619_page1",
+          "eventId": "evt_de2e7136bbf3",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_508771_page1",
+          "eventId": "evt_176c5f35912d",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_232085_page1",
+          "eventId": "evt_d8df2869247c",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-14_570881_page1",
+          "eventId": "evt_d23614aba99b",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-28_992909_page1",
+          "eventId": "evt_79721dbd49c2",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-02_765968_page1",
+          "eventId": "evt_0ff8d11df4cf",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-30_313696_page1",
+          "eventId": "evt_0936e37ca710",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-15_983783_page1",
+          "eventId": "evt_a9b06a3d1c35",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_468257_page1",
+          "eventId": "evt_1ba05f41d4f7",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-23_616014_page1",
+          "eventId": "evt_e4174be21b65",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-11_469383_page1",
+          "eventId": "evt_cdca5877e003",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_007697_page1",
+          "eventId": "evt_6b8307e49dae",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-01_817466_page1",
+          "eventId": "evt_1548046fbf65",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-07_070049_page1",
+          "eventId": "evt_de1b6cf2de2b",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-13_240085_page1",
+          "eventId": "evt_3292a1b64d51",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_133768_page1",
+          "eventId": "evt_53bf0bd425e6",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-06_866709_page1",
+          "eventId": "evt_ae7500cc453b",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_948890_page1",
+          "eventId": "evt_4cf2c8d76762",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_360656_page1",
+          "eventId": "evt_69cbf727c292",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-06_841053_page1",
+          "eventId": "evt_ef69a851f223",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-26_999401_page1",
+          "eventId": "evt_3f02a5ebb9c5",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-04_558726_page1",
+          "eventId": "evt_8fa49bf97056",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_713037_page1",
+          "eventId": "evt_876fabd18701",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-13_920576_page1",
+          "eventId": "evt_c16d44a9f432",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-27_687303_page1",
+          "eventId": "evt_b12bbdc1ce2f",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-02_716511_page1",
+          "eventId": "evt_39e4d91d36d9",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_535787_page1",
+          "eventId": "evt_e0a883aa865e",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-18_651112_page1",
+          "eventId": "evt_07639a478d31",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_079737_page1",
+          "eventId": "evt_aac379daf0f4",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_047755_page1",
+          "eventId": "evt_1cbdee7e030c",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-02_158989_page1",
+          "eventId": "evt_06916cd2df12",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-29_734410_page1",
+          "eventId": "evt_fd0ee9d597df",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-20_362460_page1",
+          "eventId": "evt_b02012dc1769",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-20_667236_page1",
+          "eventId": "evt_23051c3884b6",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-27_082119_page1",
+          "eventId": "evt_57c3fa4dfc22",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-08_729004_page1",
+          "eventId": "evt_ce2dc6f41e1e",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-15_313320_page1",
+          "eventId": "evt_522476057422",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-15_630881_page1",
+          "eventId": "evt_d49d9220b38e",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-16_539980_page1",
+          "eventId": "evt_5464d96515ff",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-06_074813_page1",
+          "eventId": "evt_059291555e3d",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-20_330601_page1",
+          "eventId": "evt_6bba7330143a",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-28_589208_page1",
+          "eventId": "evt_89500291ba51",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_123112_page1",
+          "eventId": "evt_7a20e7f734ed",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-10_246873_page1",
+          "eventId": "evt_7032b1f29b43",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-30_396549_page1",
+          "eventId": "evt_7139413cf77d",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-20_544725_page1",
+          "eventId": "evt_353cf9e6d8bb",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-22_925982_page1",
+          "eventId": "evt_f7a4b65f6dde",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-29_291125_page1",
+          "eventId": "evt_14126d49f09a",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-05_803310_page1",
+          "eventId": "evt_9669845d6a67",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_791570_page1",
+          "eventId": "evt_2e61e6b861dc",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-13_523983_page1",
+          "eventId": "evt_030491ded879",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-16_785727_page1",
+          "eventId": "evt_7b59d194acd9",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-14_765821_page1",
+          "eventId": "evt_a392729edc66",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-06_058974_page1",
+          "eventId": "evt_89615877cebf",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-03_266013_page1",
+          "eventId": "evt_1fd20b364d3a",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-08_163269_page1",
+          "eventId": "evt_8d732d7e3c3d",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-04_150697_page1",
+          "eventId": "evt_5ba2561bf24a",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_216045_page1",
+          "eventId": "evt_fc0376010154",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_837896_page1",
+          "eventId": "evt_6456bba37f34",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-19_232607_page1",
+          "eventId": "evt_edd5b57bd52b",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-21_414998_page1",
+          "eventId": "evt_526d2fce410d",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-12_411113_page1",
+          "eventId": "evt_14576360903e",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_050786_page1",
+          "eventId": "evt_d16008c14f28",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-13_852889_page1",
+          "eventId": "evt_c816772bac14",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-04_419496_page1",
+          "eventId": "evt_26ad21222987",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_001452_page1",
+          "eventId": "evt_7db22ae4d67c",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-13_750137_page1",
+          "eventId": "evt_4ec26f0e0810",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-24_836063_page1",
+          "eventId": "evt_a17f964ca13d",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-24_025552_page1",
+          "eventId": "evt_c6f227e163bb",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-11_627645_page1",
+          "eventId": "evt_1c7bdbfdb6b2",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-10_068344_page1",
+          "eventId": "evt_f82f29e0108f",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_528221_page1",
+          "eventId": "evt_ce9b544c0a8d",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-27_633385_page1",
+          "eventId": "evt_f63bfba32d38",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_699315_page1",
+          "eventId": "evt_e0eb77739648",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_368622_page1",
+          "eventId": "evt_97348cc34109",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-01_864777_page1",
+          "eventId": "evt_bad1486647cc",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_472795_page1",
+          "eventId": "evt_3bfbfc70f99a",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_998531_page1",
+          "eventId": "evt_4b7ad006fdf0",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-04_536302_page1",
+          "eventId": "evt_a6f4b709ccdd",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-04_462708_page1",
+          "eventId": "evt_51e0281216c1",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-25_178420_page1",
+          "eventId": "evt_a4029283b735",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_321012_page1",
+          "eventId": "evt_0d6cd1fa91fe",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_935109_page1",
+          "eventId": "evt_0ef83784467f",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-25_104527_page1",
+          "eventId": "evt_e8da474112b7",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-11_322519_page1",
+          "eventId": "evt_35280e2e8495",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-27_260076_page1",
+          "eventId": "evt_130d22d1d5d1",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-13_582965_page1",
+          "eventId": "evt_711441c87ac1",
+          "expectedAffinityMin": 0.45,
+          "expectedAffinityMax": 0.85,
+          "relationshipType": "HIGH_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD",
+            "TEMPORAL",
+            "ORG"
+          ]
+        }
+      ]
+    },
+    "medium_match": {
+      "count": 100,
+      "expected_affinity_range": [
+        0.25,
+        0.5
+      ],
+      "relationships": [
+        {
+          "ocrId": "MEMO_2025-12-19_613298_page1",
+          "eventId": "evt_251a1ad557c4",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-01_267925_page1",
+          "eventId": "evt_1f53f81fcc1f",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-13_626684_page1",
+          "eventId": "evt_a43352bc0697",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-27_509137_page1",
+          "eventId": "evt_ad5e2de808e1",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-04_372513_page1",
+          "eventId": "evt_20bcbf577082",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-06_576352_page1",
+          "eventId": "evt_05f3d8b77bf2",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-20_483583_page1",
+          "eventId": "evt_45264bcde68e",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-24_193419_page1",
+          "eventId": "evt_a154d920aa3f",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-02_149097_page1",
+          "eventId": "evt_52eb660f2d43",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-08_396180_page1",
+          "eventId": "evt_3f52ae6dd6d3",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-31_864472_page1",
+          "eventId": "evt_5226bb9d45dd",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-14_484812_page1",
+          "eventId": "evt_5adf1edcce12",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_342036_page1",
+          "eventId": "evt_42f8738f1cb0",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-12_341250_page1",
+          "eventId": "evt_fb2125873748",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-05_763019_page1",
+          "eventId": "evt_d83f5544e613",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-01_956565_page1",
+          "eventId": "evt_b3949178d75b",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-14_552799_page1",
+          "eventId": "evt_630529c523a5",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-15_644264_page1",
+          "eventId": "evt_9b1c9123bcfb",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-14_676450_page1",
+          "eventId": "evt_913e71f75b04",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-18_804037_page1",
+          "eventId": "evt_19fc5886a582",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-27_208578_page1",
+          "eventId": "evt_95f0298115e0",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-08_158555_page1",
+          "eventId": "evt_2f1fb8ff2635",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-22_880421_page1",
+          "eventId": "evt_886b14c2ca7f",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-06_535926_page1",
+          "eventId": "evt_36c6aa0890dc",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-19_706437_page1",
+          "eventId": "evt_f8ca5b5a3f90",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-30_333454_page1",
+          "eventId": "evt_7217a0c57ca1",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-30_288261_page1",
+          "eventId": "evt_3ea0b88219d4",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-27_078199_page1",
+          "eventId": "evt_7ec9faa58f1d",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-29_640868_page1",
+          "eventId": "evt_2b7ed4c9b80d",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-09_877683_page1",
+          "eventId": "evt_445f3370106c",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-29_574228_page1",
+          "eventId": "evt_c217c0ebcf71",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_821578_page1",
+          "eventId": "evt_9d25260fa76c",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-09_942252_page1",
+          "eventId": "evt_ba50f278b038",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-09_856082_page1",
+          "eventId": "evt_74887233b515",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-19_406995_page1",
+          "eventId": "evt_e0419e8f70d7",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-04_186681_page1",
+          "eventId": "evt_77c90b7a5ef6",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-02_104192_page1",
+          "eventId": "evt_334a10ff1501",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-20_681846_page1",
+          "eventId": "evt_7c75c7b14ad1",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-14_754484_page1",
+          "eventId": "evt_f8c563d558ff",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-08_966182_page1",
+          "eventId": "evt_65e282b79f87",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-06_961437_page1",
+          "eventId": "evt_f277126669bd",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-08_698432_page1",
+          "eventId": "evt_80eef3f5c5e2",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-28_348660_page1",
+          "eventId": "evt_3f6f0bfb31d1",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-20_327947_page1",
+          "eventId": "evt_bc202e679ecf",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-16_008517_page1",
+          "eventId": "evt_132ed398ee28",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_141373_page1",
+          "eventId": "evt_94286deac01c",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_532130_page1",
+          "eventId": "evt_1e8d4e1a103c",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-20_734507_page1",
+          "eventId": "evt_761011fd3956",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-19_885484_page1",
+          "eventId": "evt_f2ccb4024d36",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-04_089375_page1",
+          "eventId": "evt_0a8e0c874aef",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_927618_page1",
+          "eventId": "evt_a590dddaaf56",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-22_525702_page1",
+          "eventId": "evt_9975577440a9",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-28_528925_page1",
+          "eventId": "evt_306ad27afceb",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_129795_page1",
+          "eventId": "evt_6d202f5daefb",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-21_286247_page1",
+          "eventId": "evt_0baed264ddb3",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-28_276029_page1",
+          "eventId": "evt_add5c24ad4be",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-19_840270_page1",
+          "eventId": "evt_3ad77fc9c2ad",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-03_256211_page1",
+          "eventId": "evt_5ff25324c567",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_458628_page1",
+          "eventId": "evt_70739c29f89d",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-03_043920_page1",
+          "eventId": "evt_133932a3df3d",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-22_924284_page1",
+          "eventId": "evt_04afd75ac1b6",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-25_525948_page1",
+          "eventId": "evt_84c425cbe6df",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-13_711920_page1",
+          "eventId": "evt_328f790851c7",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-28_471815_page1",
+          "eventId": "evt_6be451e423ff",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-14_647220_page1",
+          "eventId": "evt_065df0b4668f",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-05_259989_page1",
+          "eventId": "evt_5eeb313011c0",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-09_919617_page1",
+          "eventId": "evt_1a2be120ea87",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-07_533174_page1",
+          "eventId": "evt_fe78b014a9cf",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-11_565331_page1",
+          "eventId": "evt_91e165a93b6e",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-19_230082_page1",
+          "eventId": "evt_b8ae6a9b59a1",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_878128_page1",
+          "eventId": "evt_da348726e18b",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-02_021511_page1",
+          "eventId": "evt_b00bae109fa8",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_745288_page1",
+          "eventId": "evt_5a86c3cb34c7",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-11_900645_page1",
+          "eventId": "evt_43e6e9dc91ab",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-29_399034_page1",
+          "eventId": "evt_f10f2945d84b",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-26_088733_page1",
+          "eventId": "evt_39dd66b80fa2",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-31_372571_page1",
+          "eventId": "evt_08c9fc7e1279",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-31_612426_page1",
+          "eventId": "evt_4db6aa6ffa03",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-20_093948_page1",
+          "eventId": "evt_ea2dbfcbf276",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_395699_page1",
+          "eventId": "evt_8e1754a2b820",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-27_042352_page1",
+          "eventId": "evt_ea76ac7ab10e",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-26_657922_page1",
+          "eventId": "evt_aa8fd63b7610",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-31_408955_page1",
+          "eventId": "evt_0d111ef1d6b3",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-21_363455_page1",
+          "eventId": "evt_83997aa13df6",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-02_695024_page1",
+          "eventId": "evt_7973ea99ce79",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-19_485177_page1",
+          "eventId": "evt_92b24ab0b047",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-19_436822_page1",
+          "eventId": "evt_dfad0702207e",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_128307_page1",
+          "eventId": "evt_c3db55241b1d",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_895149_page1",
+          "eventId": "evt_3933eb28a2a7",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2025-12-21_254279_page1",
+          "eventId": "evt_ccfef8ffcaac",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-23_093999_page1",
+          "eventId": "evt_d7132cfebd2a",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_140410_page1",
+          "eventId": "evt_610cb8c35295",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-28_490430_page1",
+          "eventId": "evt_40695b739b27",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-01_958182_page1",
+          "eventId": "evt_3c06e6c9f205",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-30_663260_page1",
+          "eventId": "evt_ab8e33684c0b",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_130069_page1",
+          "eventId": "evt_633c0c03d311",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN_SIBLING",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-08_353121_page1",
+          "eventId": "evt_dc6e2f36a340",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-02-03_879644_page1",
+          "eventId": "evt_7bcbe3d4a1c1",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-10_552441_page1",
+          "eventId": "evt_6b91d2b6083d",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_898023_page1",
+          "eventId": "evt_c1fe774eea94",
+          "expectedAffinityMin": 0.18,
+          "expectedAffinityMax": 0.5,
+          "relationshipType": "MEDIUM_MATCH",
+          "matchReasons": [
+            "DOMAIN",
+            "PERSON",
+            "KEYWORD"
+          ]
+        }
+      ]
+    },
+    "low_match": {
+      "count": 200,
+      "expected_affinity_range": [
+        0.0,
+        0.2
+      ],
+      "relationships": [
+        {
+          "ocrId": "MEMO_2026-01-11_134174_page1",
+          "eventId": "evt_8a51219617ea",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-10_410499_page1",
+          "eventId": "evt_1e7dca573763",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-03_872806_page1",
+          "eventId": "evt_64d6c37b3d39",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-29_519477_page1",
+          "eventId": "evt_8ea9552b4ba9",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-21_216622_page1",
+          "eventId": "evt_2c58545ecd00",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-22_497606_page1",
+          "eventId": "evt_42b931e7fb24",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-03_603388_page1",
+          "eventId": "evt_6ae5c460368e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-21_265268_page1",
+          "eventId": "evt_90166a88f52d",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-27_627689_page1",
+          "eventId": "evt_c4b34d0f68b8",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_130245_page1",
+          "eventId": "evt_6f29e5ea0b22",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-18_000429_page1",
+          "eventId": "evt_1627de65c0c4",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-11_628258_page1",
+          "eventId": "evt_4eac163ffee9",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-25_939932_page1",
+          "eventId": "evt_b47b703edb7e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-08_612390_page1",
+          "eventId": "evt_29f95294dae5",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-29_138752_page1",
+          "eventId": "evt_e95934c93dc8",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-14_171874_page1",
+          "eventId": "evt_c5ad529e340e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-14_670381_page1",
+          "eventId": "evt_0f82400b8124",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-22_408591_page1",
+          "eventId": "evt_5d8005ce2dd1",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-19_752789_page1",
+          "eventId": "evt_6a0c3f779372",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-11_535851_page1",
+          "eventId": "evt_4b4cbc117d5c",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-20_137255_page1",
+          "eventId": "evt_32b6a557857f",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-10_150623_page1",
+          "eventId": "evt_c2929d738fef",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-09_783838_page1",
+          "eventId": "evt_54c5db1dc8c2",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-22_361922_page1",
+          "eventId": "evt_42c6231a67b5",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-07_074344_page1",
+          "eventId": "evt_f70e1b981260",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-14_305711_page1",
+          "eventId": "evt_77c8eb6fe233",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_754843_page1",
+          "eventId": "evt_a823d2a81588",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_154099_page1",
+          "eventId": "evt_49f0673516ae",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-25_934502_page1",
+          "eventId": "evt_0b96ff599153",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-01_368368_page1",
+          "eventId": "evt_f4d005c33812",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_527519_page1",
+          "eventId": "evt_93a2d8fba7ff",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-13_803712_page1",
+          "eventId": "evt_285731154d7d",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-23_633692_page1",
+          "eventId": "evt_492f71ca2441",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-29_329639_page1",
+          "eventId": "evt_f5c28c8bacb5",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-23_919460_page1",
+          "eventId": "evt_d5b3b14150b0",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-20_509753_page1",
+          "eventId": "evt_604b15f534ee",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_052809_page1",
+          "eventId": "evt_2608cc40162d",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_762281_page1",
+          "eventId": "evt_69c872d026e0",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-20_748048_page1",
+          "eventId": "evt_6f4b84d26264",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-11_215866_page1",
+          "eventId": "evt_3e2d96bb4bca",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-23_249080_page1",
+          "eventId": "evt_4d5fca62eb2f",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_403510_page1",
+          "eventId": "evt_df9d2ea6571e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-17_552824_page1",
+          "eventId": "evt_a7d76c21e2a0",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-02_624887_page1",
+          "eventId": "evt_d5a82fa4d8d9",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-21_218708_page1",
+          "eventId": "evt_6b5c1d465fc1",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-02_624085_page1",
+          "eventId": "evt_a8e61b4df12d",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_362652_page1",
+          "eventId": "evt_d22f475f552a",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_411328_page1",
+          "eventId": "evt_9d4acb3a2a15",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-30_675852_page1",
+          "eventId": "evt_793d76bafa52",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-11_336466_page1",
+          "eventId": "evt_a72573a64bf0",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_330200_page1",
+          "eventId": "evt_a4c74e54976d",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-11_035082_page1",
+          "eventId": "evt_413a946be76b",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-03_608322_page1",
+          "eventId": "evt_54b241dd4106",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_575125_page1",
+          "eventId": "evt_ea09a7675e43",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-10_191124_page1",
+          "eventId": "evt_0d8cabbfd73e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_537942_page1",
+          "eventId": "evt_4c12b962c639",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_563313_page1",
+          "eventId": "evt_f1a38624bcb1",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-11_351870_page1",
+          "eventId": "evt_1f871089a040",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-16_321528_page1",
+          "eventId": "evt_5a384ed017aa",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-06_364356_page1",
+          "eventId": "evt_163ca2014747",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-07_843188_page1",
+          "eventId": "evt_57ff6f7c0785",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_026657_page1",
+          "eventId": "evt_f61d3df90952",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_820666_page1",
+          "eventId": "evt_fbb35194e310",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-20_158923_page1",
+          "eventId": "evt_c19e57dc1ffe",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_530900_page1",
+          "eventId": "evt_0cde4cb3967c",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-11_177797_page1",
+          "eventId": "evt_e17a33de5562",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-30_998211_page1",
+          "eventId": "evt_cf3f4c7a98a3",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_404304_page1",
+          "eventId": "evt_73bde36e5f77",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-07_148646_page1",
+          "eventId": "evt_1481b07e5d80",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-19_954117_page1",
+          "eventId": "evt_41dc0d69cc94",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-27_572650_page1",
+          "eventId": "evt_6c2b741c6855",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-08_925461_page1",
+          "eventId": "evt_c28d73623611",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_155738_page1",
+          "eventId": "evt_51e38068654b",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-07_117581_page1",
+          "eventId": "evt_7bc438643dd3",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_412126_page1",
+          "eventId": "evt_b8b1f2e8e954",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_769093_page1",
+          "eventId": "evt_093527c42035",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-30_464533_page1",
+          "eventId": "evt_db74b459ad03",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-27_903789_page1",
+          "eventId": "evt_470d19c952db",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-21_383702_page1",
+          "eventId": "evt_669af925f3bf",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-22_120534_page1",
+          "eventId": "evt_6bd59c3363f5",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-09_454316_page1",
+          "eventId": "evt_1a604afdfb2a",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-04_434418_page1",
+          "eventId": "evt_fa75cbe822ae",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-14_522269_page1",
+          "eventId": "evt_84c46b864889",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_858351_page1",
+          "eventId": "evt_e119ca46ee04",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-14_386047_page1",
+          "eventId": "evt_6422e4f88f2b",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-05_878118_page1",
+          "eventId": "evt_5d2d985c4a74",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-04_844886_page1",
+          "eventId": "evt_de72637c04a3",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-25_635119_page1",
+          "eventId": "evt_bf1f7f40a8f2",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_668435_page1",
+          "eventId": "evt_c983183c1dd6",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_610073_page1",
+          "eventId": "evt_482ac6a5b4ca",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-09_831829_page1",
+          "eventId": "evt_d8ce8dc4047b",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_080084_page1",
+          "eventId": "evt_3e1b22ba2e66",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-04_667731_page1",
+          "eventId": "evt_245b9e2e49e8",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-17_331949_page1",
+          "eventId": "evt_6b9c68844c2a",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_174234_page1",
+          "eventId": "evt_bca6c278e273",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-31_431885_page1",
+          "eventId": "evt_fc5fcf19cb4b",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-28_252069_page1",
+          "eventId": "evt_bd57840f4572",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-30_214243_page1",
+          "eventId": "evt_5ba1628d1baf",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-16_350463_page1",
+          "eventId": "evt_4a26bd341dad",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-14_121078_page1",
+          "eventId": "evt_4a81708ff2a7",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-25_351593_page1",
+          "eventId": "evt_7abe4d793a24",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-02_681833_page1",
+          "eventId": "evt_35109825cf5d",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-15_647065_page1",
+          "eventId": "evt_4ff78f616f8b",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-23_243619_page1",
+          "eventId": "evt_93663608d7d4",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-19_333934_page1",
+          "eventId": "evt_9f9558c5b009",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-29_084070_page1",
+          "eventId": "evt_2095f214293a",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-12_116179_page1",
+          "eventId": "evt_629fa4dfd54e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-16_732575_page1",
+          "eventId": "evt_e92e59c8eaf9",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_668572_page1",
+          "eventId": "evt_25fa8fb74548",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-30_494472_page1",
+          "eventId": "evt_45e69a02c88f",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_545431_page1",
+          "eventId": "evt_171c3ed72dbc",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-21_943373_page1",
+          "eventId": "evt_fa433fa580d4",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-21_340124_page1",
+          "eventId": "evt_afd9b9602319",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-13_053558_page1",
+          "eventId": "evt_8cd3ec264a39",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-07_051590_page1",
+          "eventId": "evt_bdd2de82517a",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-06_000358_page1",
+          "eventId": "evt_81e920433ef0",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-12_582451_page1",
+          "eventId": "evt_310c5d08ead8",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-01_264654_page1",
+          "eventId": "evt_da5a83fb9909",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_988369_page1",
+          "eventId": "evt_a766f86915cc",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-09_689720_page1",
+          "eventId": "evt_ae560f7474f5",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-10_497216_page1",
+          "eventId": "evt_0a3d9a49582d",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-15_731208_page1",
+          "eventId": "evt_761b7ea2e623",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-17_227903_page1",
+          "eventId": "evt_911739b08c65",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-21_802381_page1",
+          "eventId": "evt_5419f9cb4e18",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-22_461478_page1",
+          "eventId": "evt_bb0b4ab345b2",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-28_346316_page1",
+          "eventId": "evt_3636c9a956f7",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-15_966285_page1",
+          "eventId": "evt_cdd54203949c",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-21_409253_page1",
+          "eventId": "evt_a5dd18032877",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-18_438807_page1",
+          "eventId": "evt_4dc25926e07a",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-28_791337_page1",
+          "eventId": "evt_8a8947cf9904",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-28_444560_page1",
+          "eventId": "evt_e5a14ba43e61",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-19_633051_page1",
+          "eventId": "evt_1815dced5c0b",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_742378_page1",
+          "eventId": "evt_7599112264e4",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_050258_page1",
+          "eventId": "evt_53cfcd4579b6",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-18_123215_page1",
+          "eventId": "evt_aed9ed3d68e0",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-25_546301_page1",
+          "eventId": "evt_bdcd9a88a14b",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-15_556401_page1",
+          "eventId": "evt_0181060a6681",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_113468_page1",
+          "eventId": "evt_be33a812d6e9",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-07_388229_page1",
+          "eventId": "evt_6090973cc53c",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_772173_page1",
+          "eventId": "evt_cb3c6f49c9da",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-10_551918_page1",
+          "eventId": "evt_94c2e1a460c4",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-08_020805_page1",
+          "eventId": "evt_243958453364",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_901819_page1",
+          "eventId": "evt_a427b0a6c544",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-27_778830_page1",
+          "eventId": "evt_09f2030de27f",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-27_191525_page1",
+          "eventId": "evt_1b02cb2fa42f",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-25_442727_page1",
+          "eventId": "evt_fe78bafd45bb",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-11_103057_page1",
+          "eventId": "evt_c2b363f7d20e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-13_103850_page1",
+          "eventId": "evt_13faa90ff892",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-26_366699_page1",
+          "eventId": "evt_70e09cf87e9f",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_009097_page1",
+          "eventId": "evt_1a529b3100fe",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-05_141770_page1",
+          "eventId": "evt_dd4fe0c9cd90",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-17_438823_page1",
+          "eventId": "evt_5f3d92dcbbb9",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-21_970724_page1",
+          "eventId": "evt_ee5e6d437037",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-21_929550_page1",
+          "eventId": "evt_095a517635ed",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-06_568057_page1",
+          "eventId": "evt_004b42b8db99",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-04_809025_page1",
+          "eventId": "evt_046c678b1aa6",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-13_028527_page1",
+          "eventId": "evt_a3aa52fed37c",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-01_883593_page1",
+          "eventId": "evt_fd789e680870",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-17_080183_page1",
+          "eventId": "evt_9da689b9fcdd",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-18_369696_page1",
+          "eventId": "evt_6fd4f09e87ce",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_606617_page1",
+          "eventId": "evt_749d21741bed",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_563033_page1",
+          "eventId": "evt_f84a95993d29",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-25_743894_page1",
+          "eventId": "evt_fc32f62abc6e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-09_241960_page1",
+          "eventId": "evt_b217b0e0e511",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-07_683462_page1",
+          "eventId": "evt_b13cee07a22f",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-16_226435_page1",
+          "eventId": "evt_4749cee2eae5",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_610169_page1",
+          "eventId": "evt_fd66bebadb00",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-20_044513_page1",
+          "eventId": "evt_41cf06b31838",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-06_402390_page1",
+          "eventId": "evt_0749f4d685e3",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_209665_page1",
+          "eventId": "evt_836723325f4e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-11_174991_page1",
+          "eventId": "evt_942919fba5c4",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-10_487351_page1",
+          "eventId": "evt_4c18d5bfa39e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-18_735624_page1",
+          "eventId": "evt_105a84b4c43e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-20_587818_page1",
+          "eventId": "evt_171167081096",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-05_187258_page1",
+          "eventId": "evt_66c3e7b878a2",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-09_744677_page1",
+          "eventId": "evt_b128a78f890b",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-24_081648_page1",
+          "eventId": "evt_a8e6e6524f90",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-13_204980_page1",
+          "eventId": "evt_5f75d342b247",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-13_457797_page1",
+          "eventId": "evt_eb006e9290a0",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-05_106967_page1",
+          "eventId": "evt_4e89e9b9d0c1",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-27_726485_page1",
+          "eventId": "evt_feaba9fe2b6f",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-18_340166_page1",
+          "eventId": "evt_d0a9d9ea0b39",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-11_055047_page1",
+          "eventId": "evt_09026b1d4780",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-02_353350_page1",
+          "eventId": "evt_b368a5030c0d",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-21_303186_page1",
+          "eventId": "evt_3e50c751a4d3",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-24_990276_page1",
+          "eventId": "evt_120364e19002",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-28_128872_page1",
+          "eventId": "evt_8c9c3f51d454",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-02-02_333461_page1",
+          "eventId": "evt_b3aac25d0f2f",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-16_323608_page1",
+          "eventId": "evt_ee5221f9263a",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-12_579113_page1",
+          "eventId": "evt_ab9e2cc8c80b",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-13_565563_page1",
+          "eventId": "evt_d0f643b0d4c5",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-27_710516_page1",
+          "eventId": "evt_4445ad3c6a65",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-31_244245_page1",
+          "eventId": "evt_4c85f5c6571d",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-18_112043_page1",
+          "eventId": "evt_0b56b10f9095",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-25_107042_page1",
+          "eventId": "evt_10b902be71d4",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-20_232620_page1",
+          "eventId": "evt_0c69cd50fc46",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-16_965988_page1",
+          "eventId": "evt_bc342d21104e",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-30_590561_page1",
+          "eventId": "evt_0699e1daa50a",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2025-12-28_515028_page1",
+          "eventId": "evt_95a2009bc186",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        },
+        {
+          "ocrId": "MEMO_2026-01-03_639331_page1",
+          "eventId": "evt_b7a3f1f4ec57",
+          "expectedAffinityMin": 0.0,
+          "expectedAffinityMax": 0.22,
+          "relationshipType": "LOW_MATCH",
+          "matchReasons": []
+        }
+      ]
+    }
+  }
+}

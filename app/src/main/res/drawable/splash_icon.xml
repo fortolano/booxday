@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Splash screen icon - 10% larger than launcher icon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Calendar group - scaled 90% around center (45, 49) -->
+    <group
+        android:scaleX="0.9"
+        android:scaleY="0.9"
+        android:pivotX="45"
+        android:pivotY="49">
+
+        <!-- Calendar body -->
+        <path
+            android:fillColor="#000000"
+            android:pathData="M20,34 L20,72 Q20,76 24,76 L66,76 Q70,76 70,72 L70,34 Q70,30 66,30 L24,30 Q20,30 20,34 Z" />
+
+        <!-- Calendar header bar -->
+        <path
+            android:fillColor="#222222"
+            android:pathData="M20,30 Q20,26 24,26 L66,26 Q70,26 70,30 L70,38 L20,38 Z" />
+
+        <!-- Calendar binding rings (left) -->
+        <path
+            android:fillColor="#000000"
+            android:strokeColor="#000000"
+            android:strokeWidth="3"
+            android:pathData="M32,22 L32,30" />
+
+        <!-- Calendar binding rings (right) -->
+        <path
+            android:fillColor="#000000"
+            android:strokeColor="#000000"
+            android:strokeWidth="3"
+            android:pathData="M58,22 L58,30" />
+
+        <!-- White hole dots on header bar -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M32,32 m-2.5,0 a2.5,2.5 0 1,1 5,0 a2.5,2.5 0 1,1 -5,0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M58,32 m-2.5,0 a2.5,2.5 0 1,1 5,0 a2.5,2.5 0 1,1 -5,0" />
+
+        <!-- Calendar inner white area -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M24,42 L66,42 L66,72 L24,72 Z" />
+
+        <!-- Calendar grid - simplified 3x3 -->
+        <!-- Horizontal lines -->
+        <path
+            android:strokeColor="#000000"
+            android:strokeWidth="1.5"
+            android:pathData="M24,52 L66,52" />
+        <path
+            android:strokeColor="#000000"
+            android:strokeWidth="1.5"
+            android:pathData="M24,62 L66,62" />
+
+        <!-- Vertical lines -->
+        <path
+            android:strokeColor="#000000"
+            android:strokeWidth="1.5"
+            android:pathData="M38,42 L38,72" />
+        <path
+            android:strokeColor="#000000"
+            android:strokeWidth="1.5"
+            android:pathData="M52,42 L52,72" />
+
+        <!-- Painted day square - second row, first column (below upper-left) -->
+        <path
+            android:fillColor="#000000"
+            android:pathData="M24,52 L38,52 L38,62 L24,62 Z" />
+
+    </group>
+
+    <!-- Cloud group - Material Design cloud, increased size -->
+    <group
+        android:scaleX="0.063"
+        android:scaleY="0.063"
+        android:pivotX="0"
+        android:pivotY="0"
+        android:translateX="29"
+        android:translateY="37">
+
+        <!-- Cloud outline (black) -->
+        <path
+            android:fillColor="#000000"
+            android:pathData="M260,780Q177.08,780 118.54,722.38Q60,664.77 60,581.85Q60,508.46 107,451.31Q154,394.15 226.92,383.69Q246.15,294 317.12,237Q388.08,180 480,180Q588.54,180 664.27,255.73Q740,331.46 740,440L740,460L752.31,460Q815.54,464.92 857.77,510.85Q900,556.77 900,620Q900,686.92 853.46,733.46Q806.92,780 740,780L260,780ZM260,720L740,720Q782,720 811,691Q840,662 840,620Q840,578 811,549Q782,520 740,520L680,520L680,440Q680,357 621.5,298.5Q563,240 480,240Q397,240 338.5,298.5Q280,357 280,440L280,440L260,440Q202,440 161,481Q120,522 120,580Q120,638 161,679Q202,720 260,720Z"/>
+
+        <!-- Cloud inner fill (white) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M260,720L740,720Q782,720 811,691Q840,662 840,620Q840,578 811,549Q782,520 740,520L680,520L680,440Q680,357 621.5,298.5Q563,240 480,240Q397,240 338.5,298.5Q280,357 280,440L260,440Q202,440 161,481Q120,522 120,580Q120,638 161,679Q202,720 260,720Z"/>
+
+    </group>
+
+    <!-- SYNC ARROWS - new circular design, reduced 30% -->
+    <group
+        android:scaleX="0.025"
+        android:scaleY="0.025"
+        android:pivotX="0"
+        android:pivotY="0"
+        android:translateX="47"
+        android:translateY="57">
+        <path
+            android:fillColor="#000000"
+            android:pathData="M216.62,710.61Q175.54,663.77 152.77,604.46Q130,545.15 130,480Q130,332.69 235.77,231.35Q341.54,130 490,130L490,60L663.46,190L490,320L490,250Q391.69,250 320.85,316.61Q250,383.23 250,480Q250,525.62 266.73,566Q283.46,606.38 313.08,637.92L216.62,710.61ZM470,900L296.54,770L470,640L470,710Q568.31,710 639.15,643.39Q710,576.77 710,480Q710,434.38 693.27,393.81Q676.54,353.23 646.92,321.69L743.38,249Q784.46,295.85 807.23,355.15Q830,414.46 830,480Q830,627.31 724.23,728.65Q618.46,830 470,830L470,900Z"/>
+    </group>
+
+</vector>

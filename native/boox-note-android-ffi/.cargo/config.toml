@@ -1,0 +1,8 @@
+[target.aarch64-linux-android]
+linker = "C:/Users/fort/AppData/Local/Android/Sdk/ndk/android-ndk-r26d/toolchains/llvm/prebuilt/windows-x86_64/bin/aarch64-linux-android21-clang.cmd"
+ar = "C:/Users/fort/AppData/Local/Android/Sdk/ndk/android-ndk-r26d/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-ar.exe"
+rustflags = ["-C", "link-arg=-z", "-C", "link-arg=max-page-size=16384"]
+
+[env]
+CC_aarch64-linux-android = "C:/Users/fort/AppData/Local/Android/Sdk/ndk/android-ndk-r26d/toolchains/llvm/prebuilt/windows-x86_64/bin/aarch64-linux-android21-clang.cmd"
+AR_aarch64-linux-android = "C:/Users/fort/AppData/Local/Android/Sdk/ndk/android-ndk-r26d/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-ar.exe"

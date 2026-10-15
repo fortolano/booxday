@@ -1,0 +1,385 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.google.devtools.ksp'
+    id 'kotlin-parcelize'
+    // REMOVED: google-services plugin - Firebase not used in codebase
+    // id 'com.google.gms.google-services'
+    id 'org.jetbrains.kotlin.plugin.compose'
+
+    id 'org.jetbrains.kotlin.plugin.serialization'
+}
+
+// Load keystore properties from file (for local builds)
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+
+android {
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.boox.day"
+        minSdk 29
+        targetSdk 35
+
+        versionCode 30
+        versionName '1.0.30'
+        if (project.hasProperty('IS_NEXT') && project.IS_NEXT.toBoolean()) {
+            def timestamp = new Date().format('dd.MM.YYYY-HH:mm')
+            versionName = "${versionName}-next-${timestamp}"
+        }
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables {
+            useSupportLibrary true
+        }
+        // Only include arm64-v8a native libraries (Boox tablets are all arm64)
+        // This reduces APK size by ~90MB by excluding x86, x86_64, armeabi-v7a
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+        ksp {
+            arg('room.schemaLocation', "$projectDir/schemas")
+        }
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments = ["room.schemaLocation":
+                                     "$projectDir/schemas".toString()]
+            }
+        }
+    }
+
+    signingConfigs {
+        debug {
+            if (System.getenv("STORE_FILE") != null) {
+                storeFile file(System.getenv("STORE_FILE"))
+                storePassword System.getenv("STORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+                v1SigningEnabled true
+                v2SigningEnabled true
+            } else if (keystoreProperties['storeFile'] != null) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                v1SigningEnabled true
+                v2SigningEnabled true
+            } else {
+                println "No signing config found, skipping release signing..."
+            }
+        }
+        release {
+            if (System.getenv("STORE_FILE") != null) {
+                storeFile file(System.getenv("STORE_FILE"))
+                storePassword System.getenv("STORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+                v1SigningEnabled true
+                v2SigningEnabled true
+            } else if (keystoreProperties['storeFile'] != null) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                v1SigningEnabled true
+                v2SigningEnabled true
+            } else {
+                println "No signing config found, skipping release signing..."
+            }
+        }
+
+    }
+
+    // Hide dependency metadata from Google Play to avoid HiddenApiBypass detection
+    // The Onyx SDK requires hidden API access for e-ink display control (TouchHelper, EpdController)
+    // Reference: https://github.com/LSPosed/AndroidHiddenApiBypass#google-play
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField("boolean", "IS_NEXT", IS_NEXT)
+            // No OpenRouter key in the APK (Oct 2026): AI runs only on the user's own key, entered in AI Settings
+            // No Cloud Vision key in the APK (Oct 2026): search indexing reads pages with AI on the user's own OpenRouter key
+            // Apply signing config if available (env var or keystore.properties)
+            if (System.getenv("STORE_FILE") != null || keystoreProperties['storeFile'] != null) {
+                signingConfig signingConfigs.release
+            }
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField("boolean", "IS_NEXT", IS_NEXT)
+            // No OpenRouter key in the APK (Oct 2026): AI runs only on the user's own key, entered in AI Settings
+            // No Cloud Vision key in the APK (Oct 2026): search indexing reads pages with AI on the user's own OpenRouter key
+            // Apply signing config if available (env var or keystore.properties)
+            if (System.getenv("STORE_FILE") != null || keystoreProperties['storeFile'] != null) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+        // Compile lambdas as classes (the Kotlin 1.x way) instead of invokedynamic. With indy,
+        // MainScreen's root composable lambda becomes one static method taking ~200 captured
+        // values (439 registers); D8's register allocation for that method produced code ART
+        // rejects (VerifyError "type Conflict ... if-eqz" on launch, Oct 2026). As a class,
+        // captures are fields loaded on demand. No behaviour change.
+        freeCompilerArgs += ['-Xlambdas=class']
+    }
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion compose_version
+    }
+    packagingOptions {
+
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+            excludes += 'META-INF/DEPENDENCIES'
+            excludes += 'META-INF/LICENSE'
+            excludes += 'META-INF/LICENSE.txt'
+            excludes += 'META-INF/license.txt'
+            excludes += 'META-INF/NOTICE'
+            excludes += 'META-INF/NOTICE.txt'
+            excludes += 'META-INF/notice.txt'
+        }
+        jniLibs {
+            pickFirsts += ['**/*.so']
+        }
+    }
+    namespace 'com.boox.day'
+    sourceSets {
+        androidTest.assets.srcDirs += files("$projectDir/schemas".toString())
+    }
+    lint {
+        baseline = file("lint-baseline.xml")
+        checkReleaseBuilds true
+        abortOnError false
+    }
+    testOptions {
+        unitTests {
+            returnDefaultValues = true
+        }
+    }
+}
+
+dependencies {
+
+    implementation 'androidx.core:core-ktx:1.17.0'
+    implementation 'androidx.core:core-splashscreen:1.0.1'
+    implementation "androidx.compose.ui:ui:$compose_version"
+    implementation "androidx.compose.material:material:$compose_version"
+    implementation "androidx.compose.ui:ui-tooling-preview:$compose_version"
+    implementation "androidx.compose.material:material-icons-extended:1.7.8"
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.10.0'
+    implementation 'androidx.activity:activity-compose:1.12.0'
+    // REMOVED: fragment-ktx - not used (pure Compose app, no Fragments)
+    // implementation 'androidx.fragment:fragment-ktx:1.8.9'
+
+    //implementation fileTree(dir: 'libs', include: ['*.aar'])
+    implementation('com.onyx.android.sdk:onyxsdk-device:1.3.1.3') {
+        exclude group: 'com.android.support', module: 'support-compat'
+    }
+    // newest: 1.5.0.4, can't update, as onyxsdk-geometry is not available.
+    implementation('com.onyx.android.sdk:onyxsdk-pen:1.4.12.1') {
+        exclude group: 'com.android.support', module: 'support-compat'
+        exclude group: 'com.android.support', module: 'appcompat-v7'
+    }
+
+    implementation('com.onyx.android.sdk:onyxsdk-base:1.8.2.1') {
+        exclude group: 'com.android.support', module: 'support-compat'
+        exclude group: 'com.android.support', module: 'appcompat-v7'
+    }
+
+    // Temporary (?) fix for https://github.com/gaborauth/toolsboox-android/issues/305
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1") // required by onyx sdk
+
+    // used in RawInputManager.
+    implementation group: 'io.reactivex.rxjava2', name: 'rxjava', version: '2.2.21'
+    implementation group: 'io.reactivex.rxjava2', name: 'rxandroid', version: '2.1.1'
+
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
+    androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_version"
+    debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
+    debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_version"
+    implementation "androidx.compose.runtime:runtime-livedata:$compose_version"
+    implementation "androidx.compose.runtime:runtime:$compose_version"
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0'
+    // Entitlement system: ISO 8601 timestamp parsing for trial dates, key expiry
+    implementation 'org.jetbrains.kotlinx:kotlinx-datetime:0.5.0'
+
+    implementation "androidx.navigation:navigation-compose:2.9.6"
+
+    def room_version = "2.8.4"
+
+    implementation "androidx.room:room-runtime:$room_version"
+    implementation "androidx.room:room-ktx:$room_version"
+    annotationProcessor "androidx.room:room-compiler:$room_version"
+    ksp "androidx.room:room-compiler:$room_version"
+
+    // For testing:
+    implementation "androidx.room:room-testing-android:$room_version"
+    testImplementation "androidx.room:room-testing:$room_version"
+    testImplementation "androidx.arch.core:core-testing:2.2.0"
+
+    implementation "io.coil-kt:coil-compose:2.7.0"
+
+
+    implementation 'com.aventrix.jnanoid:jnanoid:2.0.0'
+
+    // REMOVED: Firebase - not used anywhere in codebase
+    // implementation platform('com.google.firebase:firebase-bom:33.16.0')
+    // implementation 'com.google.firebase:firebase-analytics-ktx'
+
+    // REMOVED: ML Kit Text Recognition - replaced by Cloud Vision API for unified OCR pipeline
+    // implementation 'com.google.mlkit:text-recognition:16.0.1'
+
+    // ML Kit Digital Ink Recognition - used for Tasks handwriting recognition
+    // Note: This is different from text-recognition (OCR). Digital Ink works with stroke data
+    // directly, providing better accuracy for handwritten task content.
+    implementation 'com.google.mlkit:digital-ink-recognition:19.0.0'
+
+    // Kotlin Coroutines Play Services - provides await() for Google Play Services Tasks
+    // Required for ML Kit Digital Ink async API
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2'
+
+    // Google Calendar API & Authentication
+    implementation 'com.google.android.gms:play-services-auth:21.3.0'
+    implementation 'com.google.api-client:google-api-client-android:2.2.0'
+    implementation('com.google.apis:google-api-services-calendar:v3-rev20231123-2.0.0') {
+        exclude group: 'org.apache.httpcomponents'
+    }
+    // Google Drive API for cloud backup
+    implementation('com.google.apis:google-api-services-drive:v3-rev20231128-2.0.0') {
+        exclude group: 'org.apache.httpcomponents'
+    }
+    implementation 'com.google.http-client:google-http-client-gson:1.43.3'
+
+    // Encrypted credential storage
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+
+    // WorkManager for background sync
+    def work_version = "2.10.1"
+    implementation "androidx.work:work-runtime-ktx:$work_version"
+
+    implementation 'br.com.devsrsouza.compose.icons.android:feather:1.0.0'
+    // REMOVED: klaxon - not used anywhere in codebase (using kotlinx-serialization instead)
+    // implementation "com.beust:klaxon:5.6"
+
+    //noinspection GradleDynamicVersion
+
+    // For xopp file format
+    implementation("org.apache.commons:commons-compress:1.28.0") // GZip support
+    // LZ4 support. Phase 3 (Oct 2026): maintained fork (org.lz4 1.8.0 has CVE-2025-12183 and
+    // CVE-2025-66566); same net.jpountz.lz4 API and block format
+    implementation("at.yawk.lz4:lz4-java:1.10.1")
+    implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0"
+
+    // for PDF support:
+    implementation("com.artifex.mupdf:fitz:1.26.10")
+
+    // OpenRouter API for AI features
+    implementation "com.squareup.retrofit2:retrofit:2.9.0"
+    implementation "com.squareup.retrofit2:converter-gson:2.9.0"
+    implementation "com.squareup.okhttp3:okhttp:4.11.0"
+    implementation "com.squareup.okhttp3:logging-interceptor:4.11.0"
+    implementation "com.google.code.gson:gson:2.10.1"
+
+    // Markwon for markdown rendering (AI text output)
+    implementation "io.noties.markwon:core:4.6.2"
+
+    // MSAL for Microsoft Outlook/Office365 authentication
+    // Phase 3 (Oct 2026): pinned (was 5.+, which resolved to 5.10.2)
+    implementation("com.microsoft.identity.client:msal:5.10.2") {
+        exclude group: 'com.microsoft.device.display', module: 'display-mask'
+    }
+
+
+    // implementation 'org.joda:joda-convert:3.0.1'
+    // optional dependency of joda-convert:
+    // implementation 'org.threeten:threetenbp:1.7.2'
+}
+
+tasks.register('printVersionName') {
+    println android.defaultConfig.versionName
+}
+
+// Dictionary validation task for SemanticGenius classification system
+// Validates JSON dictionary files before build to catch issues early
+tasks.register('validateDictionaries', Exec) {
+    description = 'Validate SemanticGenius classification dictionaries'
+    group = 'verification'
+
+    workingDir = rootProject.projectDir
+
+    // Use python3 on Unix, python on Windows
+    def pythonCmd = System.getProperty('os.name').toLowerCase().contains('windows') ? 'python' : 'python3'
+
+    commandLine pythonCmd,
+        'tools/dictionary_validator/validate_dictionaries.py',
+        '--dictionaries', 'app/src/main/assets/classification/en',
+        '--fail-on-error'
+
+    // Allow task to fail if validation fails
+    ignoreExitValue = false
+}
+
+tasks.register('validateAndroidListCompatibility') {
+    description = 'Block Android-incompatible List convenience APIs in app source'
+    group = 'verification'
+
+    def forbiddenListApiPattern = ~/\b(removeFirst|removeLast|getFirst|getLast|addFirst|addLast)\s*\(/
+
+    doLast {
+        def violations = []
+
+        fileTree('src/main/java').matching {
+            include '**/*.kt'
+            include '**/*.java'
+        }.each { File sourceFile ->
+            sourceFile.eachLine('UTF-8') { line, lineNumber ->
+                def trimmed = line.trim()
+                if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
+                    return
+                }
+
+                def matcher = line =~ forbiddenListApiPattern
+                if (matcher.find()) {
+                    violations << "${project.relativePath(sourceFile)}:${lineNumber}: ${matcher.group(1)}() is not safe for Android minSdk 29. Use index-based list access instead."
+                }
+            }
+        }
+
+        if (!violations.isEmpty()) {
+            throw new GradleException(
+                "Forbidden Android-incompatible list APIs found:\n" + violations.join('\n')
+            )
+        }
+    }
+}
+
+// Make preBuild depend on verification tasks
+// This ensures dictionaries and Android API guards are validated before every build
+tasks.named('preBuild').configure {
+    dependsOn 'validateDictionaries'
+    dependsOn 'validateAndroidListCompatibility'
+}

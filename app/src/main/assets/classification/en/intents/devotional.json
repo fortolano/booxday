@@ -1,0 +1,146 @@
+{
+  "intent": "DEVOTIONAL",
+  "displayName": "Devotional / Spiritual",
+  "description": "Prayer journals, spiritual reflections, devotional notes, faith journaling",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "devotional",
+      "devotion",
+      "quiet-time",
+      "prayer-journal",
+      "prayer-request",
+      "prayer-list",
+      "answered-prayer",
+      "scripture-reading",
+      "bible-study",
+      "daily-reading",
+      "meditation",
+      "spiritual-reflection",
+      "faith-journal",
+      "gratitude-to-god",
+      "thankful-for",
+      "blessed",
+      "daily-devotion",
+      "morning-devotion",
+      "evening-devotion",
+      "devotional-time"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "prayer",
+      "pray",
+      "praying",
+      "prayed",
+      "lord",
+      "jesus",
+      "christ",
+      "holy-spirit",
+      "faith",
+      "believe",
+      "trust",
+      "hope",
+      "bible",
+      "scripture",
+      "verse",
+      "psalm",
+      "proverb",
+      "worship",
+      "praise",
+      "thanksgiving",
+      "gratitude",
+      "forgiveness",
+      "grace",
+      "mercy",
+      "salvation",
+      "church",
+      "fellowship",
+      "sermon-notes",
+      "sunday",
+      "confession",
+      "repentance",
+      "guidance",
+      "wisdom",
+      "spiritual-growth",
+      "walk-with-god",
+      "relationship-with-god",
+      "testimony",
+      "witness",
+      "disciple",
+      "discipleship",
+      "sanctification",
+      "righteousness",
+      "holy",
+      "blessing",
+      "intercession",
+      "supplication",
+      "adoration"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "spiritual",
+      "religious",
+      "sacred",
+      "divine",
+      "heavenly",
+      "soul",
+      "spirit",
+      "eternal",
+      "belief"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:dear|heavenly)\\s+(?:god|lord|father)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "prayer\\s+(?:request|list|journal|time)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:thank|praise)\\s+(?:god|the\\s+lord|you\\s+lord)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:bible|scripture)\\s+(?:reading|study|verse)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:quiet|devotional)\\s+time",
+      "weight": 5.0
+    },
+    {
+      "pattern": "answered\\s+prayer",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:psalm|proverb|verse)\\s+\\d+",
+      "weight": 4.5
+    },
+    {
+      "pattern": "in\\s+jesus(?:'|')?\\s*name",
+      "weight": 5.0
+    },
+    {
+      "pattern": "amen",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:morning|evening|daily)\\s+(?:devotion|prayer|reading)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:spiritual|faith)\\s+(?:growth|journey|reflection)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:lord|god)\\s+(?:spoke|revealed|showed|taught)",
+      "weight": 4.5
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "intent": "JOURNAL",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "journal",
+      "diary",
+      "reflection",
+      "reflections",
+      "grateful",
+      "gratitude",
+      "thankful",
+      "today",
+      "yesterday",
+      "morning",
+      "evening",
+      "journaling",
+      "daily-journal",
+      "gratitude-journal",
+      "morning-pages"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "feeling",
+      "felt",
+      "thought",
+      "experience",
+      "happened",
+      "remember",
+      "memories",
+      "moment",
+      "emotion",
+      "mood",
+      "mindset",
+      "self-reflection",
+      "introspection",
+      "personal-growth",
+      "mindfulness",
+      "meditation",
+      "affirmation",
+      "intention",
+      "dream",
+      "nightmare",
+      "highlight",
+      "lowlight",
+      "struggle",
+      "challenge",
+      "lesson",
+      "gratitude-list",
+      "brain-dump",
+      "free-write"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "life",
+      "personal",
+      "write",
+      "express",
+      "share",
+      "record",
+      "capture",
+      "entry",
+      "page",
+      "process",
+      "release",
+      "reflect"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:dear|today)\\s+(?:diary|journal)?",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:i\\s+feel|feeling|felt)\\s+(?:like|so|very)?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:today|yesterday|this\\s+(?:morning|evening))",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:grateful|thankful)\\s+(?:for|that)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:gratitude|daily|morning)\\s+(?:journal|entry|pages)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:self[\\s-])?reflection",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:highlight|lowlight|win|struggle)\\s+(?:of|today|this)?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "i\\s+(?:learned|realized|noticed|discovered)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:brain|thought)\\s+dump",
+      "weight": 4.0
+    },
+    {
+      "pattern": "free[\\s-]?writ(?:e|ing)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:mood|energy|mindset)\\s+(?:today|check|tracker)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:intention|affirmation)\\s+(?:for|today)",
+      "weight": 4.0
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "intent": "TALKING_POINTS",
+  "displayName": "Talking Points",
+  "description": "Presentation talking points, speech notes, key messages",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "talking-points",
+      "talking-point",
+      "key-messages",
+      "main-points",
+      "presentation-notes",
+      "speech-notes",
+      "remarks",
+      "script",
+      "opening",
+      "closing",
+      "transition",
+      "key-points",
+      "key-topics",
+      "bullet-points",
+      "speaker-notes",
+      "presenter-notes",
+      "pitch-points",
+      "elevator-pitch"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "emphasize",
+      "highlight",
+      "mention",
+      "stress",
+      "focus-on",
+      "underscore",
+      "audience",
+      "stakeholders",
+      "attendees",
+      "listeners",
+      "viewers",
+      "slide",
+      "slides",
+      "visual",
+      "visuals",
+      "demo",
+      "demonstration",
+      "example",
+      "examples",
+      "story",
+      "anecdote",
+      "illustration",
+      "introduce",
+      "introduce-with",
+      "conclude",
+      "conclude-with",
+      "segue",
+      "bridge",
+      "hook",
+      "call-to-action",
+      "takeaway",
+      "takeaways",
+      "memorable",
+      "quotable",
+      "soundbite",
+      "message",
+      "messaging",
+      "value-proposition",
+      "benefit",
+      "feature",
+      "differentiator"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "tell",
+      "present",
+      "share",
+      "communicate",
+      "convey",
+      "deliver",
+      "speak",
+      "address",
+      "discuss",
+      "cover",
+      "touch-on"
+    ]
+  },
+  "structureBoosts": {
+    "BULLET_LIST": 2.5,
+    "NUMBERED_LIST": 2.0
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:talking|key|main|bullet)\\s+points?",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:mention|discuss|bring\\s+up)\\s+(?:that|the)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:important|key|remember)\\s+to\\s+(?:highlight|mention|emphasize)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "[-•]\\s+(?:mention|discuss|highlight|emphasize)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:speaker|presenter|presentation)\\s+notes",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:opening|closing|transition)\\s+(?:remarks|statement|line)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:call\\s+to\\s+action|cta|takeaway)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:key|main)\\s+(?:message|takeaway|point)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:elevator|sales)\\s+pitch",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:don't\\s+forget|remember)\\s+to\\s+(?:mention|say)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:start|open|begin)\\s+(?:with|by)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:end|close|finish)\\s+(?:with|by)",
+      "weight": 4.0
+    }
+  ]
+}

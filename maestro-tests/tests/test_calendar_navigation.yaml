@@ -1,0 +1,57 @@
+appId: com.boox.day
+---
+# Test: Calendar Navigation
+# Verifies month navigation and day selection
+
+- launchApp
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "4000"
+
+- takeScreenshot: calendar/01_initial
+
+# Navigate to previous month
+- tapOn:
+    point: "2%,4%"  # toolbar.back_arrow (y=4% is below status bar)
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+
+- takeScreenshot: calendar/02_prev_month
+
+# Navigate to next month (back to current)
+- tapOn:
+    point: "17%,4%"  # toolbar.forward_arrow (y=4% is below status bar)
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+
+- takeScreenshot: calendar/03_next_month
+
+# Select a specific day (row 2, wednesday)
+- tapOn:
+    point: "16%,14%"  # calendar.grid row_2, col_wed
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+
+- takeScreenshot: calendar/04_day_selected
+
+# Jump to today
+- tapOn:
+    point: "26%,4%"  # toolbar.today_button (y=4% is below status bar)
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+
+- takeScreenshot: calendar/05_back_to_today

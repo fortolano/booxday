@@ -1,0 +1,124 @@
+{
+  "intent": "CLASSROOM_MGMT",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "attendance",
+      "seating-chart",
+      "seating-arrangement",
+      "behavior-plan",
+      "behavior-contract",
+      "behavior-log",
+      "classroom-procedures",
+      "classroom-rules",
+      "expectations",
+      "discipline",
+      "referral",
+      "detention",
+      "consequence",
+      "classroom-management"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "tardy",
+      "absent",
+      "excused",
+      "unexcused",
+      "transition",
+      "routine",
+      "positive-reinforcement",
+      "reward-system",
+      "clip-chart",
+      "behavior-intervention",
+      "de-escalation",
+      "redirection",
+      "hall-pass",
+      "restroom",
+      "dismissal",
+      "morning-meeting",
+      "class-meeting",
+      "pbis",
+      "positive-behavior",
+      "behavior-tracker",
+      "behavior-chart",
+      "classroom-culture",
+      "restorative-practice",
+      "restorative-circle",
+      "conflict-resolution",
+      "social-emotional",
+      "check-in"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "behavior",
+      "procedure",
+      "rule",
+      "manage",
+      "class",
+      "student",
+      "disruptive",
+      "on-task",
+      "off-task",
+      "focus",
+      "attention",
+      "quiet",
+      "listen",
+      "respect",
+      "safe"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "seating\\s+(?:chart|arrangement|assignment)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "behavior\\s+(?:plan|log|note|chart|tracker)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "classroom\\s+(?:procedure|rule|management|expectation)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "attendance\\s+(?:for|record|list)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:tardy|absent|late)\\s+(?:student|today|again)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:positive|negative)\\s+(?:reinforcement|consequence)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:referral|detention|consequence)\\s+(?:for|today)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:morning|class)\\s+meeting",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:restorative|sel|social[\\s-]emotional)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:reward|clip|behavior)\\s+(?:system|chart)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:de-escalation|redirection|intervention)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:pbis|positive\\s+behavior)",
+      "weight": 4.5
+    }
+  ]
+}

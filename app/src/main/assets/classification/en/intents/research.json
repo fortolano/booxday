@@ -1,0 +1,187 @@
+{
+  "intent": "RESEARCH",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "research",
+      "investigate",
+      "explore",
+      "study",
+      "analysis",
+      "findings",
+      "discovery",
+      "evidence",
+      "hypothesis",
+      "experiment",
+      "data",
+      "research-notes",
+      "literature-review",
+      "research-question",
+      "grant-proposal",
+      "irb",
+      "irb-approval",
+      "conference-paper",
+      "journal-article",
+      "peer-reviewed",
+      "impact-factor",
+      "systematic-review",
+      "meta-analysis"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "source",
+      "article",
+      "paper",
+      "survey",
+      "interview",
+      "observation",
+      "sample",
+      "method",
+      "conclusion",
+      "result",
+      "insight",
+      "citation",
+      "reference",
+      "bibliography",
+      "peer-review",
+      "journal",
+      "publication",
+      "methodology",
+      "qualitative",
+      "quantitative",
+      "primary-source",
+      "secondary-source",
+      "data-collection",
+      "data-analysis",
+      "variable",
+      "control-group",
+      "correlation",
+      "causation",
+      "validity",
+      "reliability",
+      "h-index",
+      "citation-count",
+      "google-scholar",
+      "arxiv",
+      "preprint",
+      "manuscript",
+      "reviewer",
+      "revision",
+      "resubmit",
+      "camera-ready",
+      "proceedings",
+      "poster-session",
+      "call-for-papers",
+      "research-funding",
+      "funding-agency",
+      "co-investigator",
+      "principal-investigator"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "learn",
+      "discover",
+      "understand",
+      "examine",
+      "analyze",
+      "review",
+      "read",
+      "document",
+      "record",
+      "observe",
+      "measure",
+      "test",
+      "verify"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:research|study)\\s+(?:on|about|notes|question)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:finding|result|conclusion)s?\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:hypothesis|theory|evidence)\\s+(?:that|for|about)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:source|data)\\s+(?:from|collection|analysis)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "literature\\s+review",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:primary|secondary)\\s+source",
+      "weight": 4.0
+    },
+    {
+      "pattern": "research\\s+(?:method|methodology|design)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:qualitative|quantitative)\\s+(?:research|data|analysis)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:peer[\\s-]review|journal|publication)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:data|evidence)\\s+(?:suggests|shows|indicates)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:correlation|causation)\\s+(?:between|with)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:validity|reliability)\\s+(?:of|check)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:paper|manuscript)\\s+(?:submission|revision|review)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:reviewer|editor)\\s+(?:comments|feedback|response)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:grant|funding)\\s+(?:proposal|application|agency)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:conference|poster)\\s+(?:presentation|submission|abstract)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:irb|ethics)\\s+(?:approval|review|submission)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:principal|co-)\\s*investigator",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:impact|citation)\\s+(?:factor|count|index)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:systematic|meta)[\\s-](?:review|analysis)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "call\\s+for\\s+(?:papers|abstracts|proposals)",
+      "weight": 4.5
+    }
+  ]
+}

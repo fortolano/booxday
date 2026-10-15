@@ -1,0 +1,123 @@
+{
+  "intent": "PARENT_COMM",
+  "displayName": "Parent Communication",
+  "description": "Parent conferences, progress reports, communication logs",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "parent-conference",
+      "parent-teacher-conference",
+      "parent-meeting",
+      "parent-communication",
+      "parent-contact",
+      "progress-report",
+      "report-card",
+      "interim-report",
+      "parent-email",
+      "parent-phone-call",
+      "family-engagement",
+      "parent-notification",
+      "family-communication"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "conference-notes",
+      "conference-summary",
+      "home-communication",
+      "newsletter",
+      "weekly-update",
+      "behavior-report",
+      "academic-update",
+      "concern",
+      "guardian",
+      "caregiver",
+      "family-contact",
+      "open-house",
+      "back-to-school-night",
+      "curriculum-night",
+      "parent-portal",
+      "gradebook-access",
+      "communication-log",
+      "phone-log",
+      "email-log",
+      "parent-volunteer",
+      "parent-involvement",
+      "home-visit",
+      "translation",
+      "interpreter",
+      "bilingual-communication",
+      "parent-survey"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "parent",
+      "conference",
+      "communicate",
+      "contact",
+      "family",
+      "home",
+      "update",
+      "report",
+      "share",
+      "inform",
+      "discuss",
+      "notify",
+      "invite",
+      "involve"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "parent(?:[\\s-]teacher)?\\s+conference",
+      "weight": 5.0
+    },
+    {
+      "pattern": "parent\\s+(?:meeting|contact|communication|notification)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "progress\\s+report",
+      "weight": 4.5
+    },
+    {
+      "pattern": "report\\s+card",
+      "weight": 4.5
+    },
+    {
+      "pattern": "family\\s+(?:meeting|contact|engagement|communication)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:conference|communication)\\s+(?:notes|log|summary)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:weekly|monthly|daily)\\s+(?:update|newsletter)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:open\\s+house|back[\\s-]to[\\s-]school|curriculum)\\s+night",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:parent|guardian)\\s+(?:email|phone|call|contact)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:behavior|academic)\\s+(?:report|update|concern)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:pto|pta|parent\\s+volunteer)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:translation|interpreter|bilingual)\\s+(?:service|support)?",
+      "weight": 4.0
+    }
+  ]
+}

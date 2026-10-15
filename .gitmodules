@@ -1,0 +1,3 @@
+[submodule "native/boox-note-parser"]
+	path = native/boox-note-parser
+	url = https://github.com/hhornbacher/boox-note-parser

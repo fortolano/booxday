@@ -1,0 +1,177 @@
+{
+  "domain": "SHOPPING",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "amazon",
+      "walmart",
+      "target",
+      "costco",
+      "sams-club",
+      "ebay",
+      "etsy",
+      "shopify",
+      "wayfair",
+      "best-buy",
+      "home-depot",
+      "checkout",
+      "cart",
+      "save-for-later",
+      "coupon",
+      "discount",
+      "promo",
+      "promo-code",
+      "voucher",
+      "sale",
+      "clearance",
+      "deal",
+      "flash-sale",
+      "black-friday",
+      "cyber-monday",
+      "price-match",
+      "price-drop",
+      "price-alert",
+      "comparison-shopping"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "purchase",
+      "order",
+      "shop",
+      "shopping",
+      "store",
+      "mall",
+      "outlet",
+      "marketplace",
+      "retailer",
+      "online",
+      "in-store",
+      "curbside",
+      "delivery",
+      "return",
+      "refund",
+      "exchange",
+      "receipt",
+      "warranty",
+      "supplies",
+      "essentials",
+      "household",
+      "pantry",
+      "shipping",
+      "tracking",
+      "shipped",
+      "delivered",
+      "estimated",
+      "payment",
+      "credit-card",
+      "debit",
+      "paypal",
+      "apple-pay",
+      "size",
+      "color",
+      "quantity",
+      "variant",
+      "option",
+      "review",
+      "rating",
+      "stars",
+      "feedback",
+      "seller",
+      "subscribe",
+      "auto-ship",
+      "replenish",
+      "reorder"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "pick",
+      "product",
+      "brand",
+      "goods",
+      "merchandise",
+      "budget",
+      "spend",
+      "save",
+      "search",
+      "browse",
+      "filter",
+      "sort",
+      "compare",
+      "used",
+      "refurbished",
+      "open-box",
+      "condition",
+      "stock",
+      "available",
+      "sold-out",
+      "back-order",
+      "notify"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:shopping|grocery|to-buy)\\s+list",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:add|added)\\s+to\\s+cart",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:free|express|same-day|next-day)\\s+(?:shipping|delivery)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:promo|coupon|discount)\\s+code",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:order|package)\\s+(?:tracking|status|confirmation)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:return|exchange)\\s+(?:policy|window|item)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:price|deal)\\s+(?:match|comparison|alert)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:out-of|back-in|in)\\s+stock",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:subscribe|auto)\\s+(?:and-save|ship|delivery)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:curbside|store)\\s+pickup",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:black|cyber)\\s+(?:friday|monday)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:flash|clearance|annual)\\s+sale",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:wish|shopping|buy)\\s+list",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:payment|checkout)\\s+(?:method|process|issue)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:customer|product)\\s+(?:review|rating)",
+      "weight": 3.5
+    }
+  ]
+}

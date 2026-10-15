@@ -1,0 +1,121 @@
+{
+  "intent": "COURSE_PLANNING",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "course-schedule",
+      "class-schedule",
+      "semester-schedule",
+      "degree-requirements",
+      "graduation-requirements",
+      "credits-needed",
+      "registration",
+      "course-registration",
+      "add-drop",
+      "prerequisite",
+      "corequisite",
+      "required-course",
+      "academic-plan",
+      "degree-plan"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "major",
+      "minor",
+      "concentration",
+      "elective",
+      "credit-hours",
+      "credits",
+      "units",
+      "advisor",
+      "academic-advisor",
+      "degree-audit",
+      "four-year-plan",
+      "graduation-plan",
+      "course-catalog",
+      "waitlist",
+      "full-class",
+      "section",
+      "enrollment",
+      "open-seats",
+      "closed-section",
+      "gen-ed",
+      "general-education",
+      "core-requirement",
+      "distribution-requirement",
+      "transfer-credit",
+      "ap-credit",
+      "summer-session",
+      "winter-session"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "course",
+      "class",
+      "schedule",
+      "register",
+      "enroll",
+      "plan",
+      "credit",
+      "degree",
+      "semester",
+      "quarter",
+      "term",
+      "session"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:course|class|semester)\\s+schedule",
+      "weight": 5.0
+    },
+    {
+      "pattern": "degree\\s+(?:requirements|audit|plan)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "credits?\\s+(?:needed|required|remaining|hours)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "register\\s+(?:for|classes)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:prerequisite|corequisite|required)\\s+(?:course|class)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:academic|faculty)\\s+advisor",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:add|drop)\\s+(?:class|course|deadline)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:four|4)[\\s-]year\\s+plan",
+      "weight": 4.5
+    },
+    {
+      "pattern": "graduation\\s+(?:requirements|plan|date)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:gen[\\s-]ed|general\\s+education|core)\\s+(?:requirement|course)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:waitlist|full\\s+class|open\\s+seats)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:transfer|ap)\\s+credit",
+      "weight": 4.0
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "intent": "METRICS_TRACKING",
+  "displayName": "Metrics Tracking",
+  "description": "OKRs, KPIs, metrics tracking",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "okrs",
+      "kpis",
+      "key-result",
+      "objective-and-key-result",
+      "north-star-metric",
+      "lagging-indicator",
+      "leading-indicator",
+      "performance-metric",
+      "success-metric",
+      "health-metric",
+      "key-performance-indicator",
+      "balanced-scorecard"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "metric",
+      "metrics",
+      "dau",
+      "ltv",
+      "cac",
+      "target",
+      "benchmark",
+      "baseline",
+      "tracking",
+      "dashboard",
+      "scorecard",
+      "quarterly-review",
+      "goal-tracking",
+      "progress-report",
+      "metric-review",
+      "performance-review",
+      "actual-vs-target",
+      "variance",
+      "trend",
+      "analysis",
+      "forecast",
+      "retention",
+      "recurring",
+      "projections",
+      "pipeline",
+      "arr",
+      "survey",
+      "promoter",
+      "analytics",
+      "data-driven",
+      "measurement",
+      "monitoring",
+      "reporting",
+      "weekly-metric",
+      "monthly-metric",
+      "quarterly-metric",
+      "metric-owner",
+      "metric-definition",
+      "metric-threshold"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "measure",
+      "track",
+      "goal",
+      "progress",
+      "result",
+      "score",
+      "performance",
+      "indicator",
+      "objective",
+      "outcome",
+      "data",
+      "number",
+      "value",
+      "rate"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "okr(?:s)?",
+      "weight": 5.0
+    },
+    {
+      "pattern": "kpi(?:s)?",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:key|north[\\s-]star)\\s+(?:result|metric)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "metric\\s+(?:tracking|review|dashboard)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:goal|progress)\\s+tracking",
+      "weight": 4.5
+    },
+    {
+      "pattern": "\\d+%\\s+(?:target|goal|achieved)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:leading|lagging)\\s+indicator",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:actual|target)\\s+vs\\s+(?:actual|target)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:balanced|metric)\\s+scorecard",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:quarterly|monthly|weekly)\\s+(?:metric|review)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "performance\\s+(?:metric|indicator|measure)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:data|metric)[\\s-]driven",
+      "weight": 4.0
+    }
+  ]
+}

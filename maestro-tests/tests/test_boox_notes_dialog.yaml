@@ -1,0 +1,31 @@
+appId: com.boox.day
+---
+# Test: Boox Notes Dialog
+# Verifies the Boox Notes integration dialog opens and displays notes
+
+- launchApp
+
+# Wait for app to fully load
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "4000"
+
+- takeScreenshot: boox_notes/01_initial
+
+# Open Boox Notes dialog
+- runFlow: ../flows/open_boox_notes.yaml
+
+- takeScreenshot: boox_notes/02_dialog_open
+
+# Verify dialog appeared (check for expected text)
+# Note: assertVisible may not work on Boox, use screenshot comparison instead
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "500"
+
+# Close dialog
+- runFlow: ../flows/close_dialog.yaml
+
+- takeScreenshot: boox_notes/03_dialog_closed

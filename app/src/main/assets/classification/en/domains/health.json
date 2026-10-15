@@ -1,0 +1,208 @@
+{
+  "domain": "HEALTH",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "doctor",
+      "physician",
+      "hospital",
+      "clinic",
+      "urgent-care",
+      "diagnosis",
+      "prescription",
+      "medication",
+      "medicine",
+      "dosage",
+      "symptom",
+      "treatment",
+      "surgery",
+      "therapy",
+      "procedure",
+      "blood-test",
+      "cholesterol",
+      "diabetes",
+      "hypertension",
+      "blood-pressure",
+      "vaccine",
+      "immunization",
+      "checkup",
+      "screening",
+      "physical",
+      "specialist",
+      "dermatologist",
+      "cardiologist",
+      "neurologist",
+      "psychiatrist",
+      "dentist",
+      "optometrist",
+      "pediatrician",
+      "obgyn",
+      "orthopedic",
+      "lab-results",
+      "x-ray",
+      "ct-scan",
+      "ultrasound"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "health",
+      "medical",
+      "patient",
+      "appointment",
+      "referral",
+      "exercise",
+      "workout",
+      "fitness",
+      "cardio",
+      "strength",
+      "gym",
+      "basketball",
+      "soccer",
+      "tennis",
+      "running",
+      "jogging",
+      "swimming",
+      "cycling",
+      "diet",
+      "nutrition",
+      "calories",
+      "weight",
+      "macros",
+      "sleep",
+      "stress",
+      "mental-health",
+      "anxiety",
+      "depression",
+      "vitamin",
+      "supplement",
+      "pharmacy",
+      "refill",
+      "insurance",
+      "copay",
+      "deductible",
+      "coverage",
+      "claim",
+      "recovery",
+      "rehabilitation",
+      "physical-therapy",
+      "wellness",
+      "preventive",
+      "routine",
+      "annual",
+      "allergy",
+      "infection",
+      "inflammation",
+      "chronic",
+      "acute",
+      "headache",
+      "migraine",
+      "backache",
+      "joint-pain",
+      "arthritis"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "body",
+      "pain",
+      "tired",
+      "sick",
+      "healthy",
+      "fever",
+      "walk",
+      "swim",
+      "yoga",
+      "stretch",
+      "lift",
+      "rest",
+      "relax",
+      "hydrate",
+      "water",
+      "breathing",
+      "heart",
+      "lung",
+      "liver",
+      "kidney",
+      "brain",
+      "spine",
+      "pill",
+      "tablet",
+      "capsule",
+      "injection",
+      "nurse",
+      "technician",
+      "receptionist",
+      "waiting-room",
+      "test",
+      "result",
+      "report",
+      "record",
+      "chart"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:blood|lab)\\s+(?:test|work|results)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:doctor|dentist|physician|specialist)\\s+appointment",
+      "weight": 4.0
+    },
+    {
+      "pattern": "mg\\s+(?:daily|twice|three|once)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:heart|blood)\\s+(?:rate|pressure)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:annual|routine)\\s+(?:checkup|physical|exam)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:prescription|medication)\\s+(?:refill|renewal)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:physical|occupational)\\s+therapy",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:mental|emotional)\\s+health",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:gym|workout)\\s+(?:session|routine|plan)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:diet|nutrition|meal)\\s+(?:plan|tracking)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:sleep|rest)\\s+(?:schedule|tracking|quality)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:weight|body)\\s+(?:loss|gain|tracking)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:vaccine|immunization|booster)\\s+(?:shot|appointment)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:x[\\-\\s]?ray|mri|ct)\\s+(?:scan|appointment|results)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:insurance|copay|coverage)\\s+(?:claim|question)",
+      "weight": 3.5
+    }
+  ]
+}

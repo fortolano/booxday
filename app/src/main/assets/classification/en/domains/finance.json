@@ -1,0 +1,236 @@
+{
+  "domain": "FINANCE",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "investment",
+      "portfolio",
+      "stock",
+      "bond",
+      "mutual-fund",
+      "dividend",
+      "interest",
+      "compound",
+      "401k",
+      "roth",
+      "sep-ira",
+      "mortgage",
+      "refinance",
+      "amortization",
+      "escrow",
+      "deduction",
+      "deductions",
+      "refund",
+      "w-2",
+      "1099",
+      "w-4",
+      "budget",
+      "savings",
+      "retirement",
+      "wealth",
+      "net-worth",
+      "capital-gains",
+      "depreciation",
+      "appreciation",
+      "equity",
+      "hedge-fund",
+      "index-fund",
+      "reit",
+      "annuity",
+      "pension",
+      "asset-allocation",
+      "diversification",
+      "rebalancing",
+      "financial-advisor",
+      "fiduciary",
+      "broker",
+      "custodian",
+      "yield",
+      "cagr",
+      "cryptocurrency",
+      "bitcoin",
+      "ethereum",
+      "blockchain",
+      "defi",
+      "certified-financial-planner"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "money",
+      "bank",
+      "account",
+      "balance",
+      "transfer",
+      "expense",
+      "income",
+      "salary",
+      "paycheck",
+      "wage",
+      "bill",
+      "payment",
+      "invoice",
+      "receipt",
+      "statement",
+      "credit",
+      "debit",
+      "loan",
+      "debt",
+      "liability",
+      "checking",
+      "savings-account",
+      "money-market",
+      "certificate",
+      "credit-card",
+      "debit-card",
+      "credit-score",
+      "fico",
+      "auto-loan",
+      "student-loan",
+      "personal-loan",
+      "heloc",
+      "insurance",
+      "premium",
+      "deductible",
+      "coverage",
+      "policy",
+      "tax",
+      "rent",
+      "utilities",
+      "property-tax",
+      "income-tax",
+      "sales-tax",
+      "estate-tax",
+      "accountant",
+      "bookkeeper",
+      "auditor",
+      "tax-preparer",
+      "spreadsheet",
+      "ledger",
+      "journal",
+      "reconciliation",
+      "gross",
+      "withholding",
+      "garnishment",
+      "reimbursement",
+      "emergency-fund",
+      "sinking-fund",
+      "inflation",
+      "deflation",
+      "recession",
+      "bull-market",
+      "bear-market",
+      "brokerage",
+      "vanguard",
+      "fidelity",
+      "schwab",
+      "robinhood"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "cost",
+      "price",
+      "spend",
+      "save",
+      "earn",
+      "cash",
+      "check",
+      "dollar",
+      "euro",
+      "pound",
+      "quarter",
+      "annual",
+      "monthly",
+      "weekly",
+      "biweekly",
+      "collect",
+      "charge",
+      "fine",
+      "profit",
+      "loss",
+      "revenue",
+      "break-even",
+      "margin",
+      "calculate",
+      "estimate",
+      "project",
+      "forecast",
+      "track",
+      "subscribe",
+      "cancel",
+      "renew",
+      "automatic",
+      "recurring",
+      "split",
+      "share",
+      "contribute",
+      "withdraw",
+      "deposit"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:checking|savings|money-market)\\s+account",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:credit|debit)\\s+card",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:auto|car|home|student|personal)\\s+loan",
+      "weight": 4.0
+    },
+    {
+      "pattern": "monthly\\s+(?:budget|expenses|payment|statement)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:401k|ira|roth|retirement)\\s+(?:contribution|withdrawal|rollover)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:tax|income|property)\\s+(?:return|refund|deduction|bracket)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:stock|bond|etf|mutual-fund)\\s+(?:purchase|sale|dividend)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:credit|fico)\\s+score",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:net|gross)\\s+(?:income|pay|worth)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:emergency|sinking)\\s+fund",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:capital|short-term|long-term)\\s+gains",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:financial|retirement)\\s+(?:plan|planning|goal)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:mortgage|refinance)\\s+(?:rate|payment|application)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:bill|expense)\\s+(?:tracking|management)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:asset|portfolio)\\s+(?:allocation|diversification)",
+      "weight": 4.5
+    }
+  ]
+}

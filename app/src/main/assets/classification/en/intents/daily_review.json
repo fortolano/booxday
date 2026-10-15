@@ -1,0 +1,133 @@
+{
+  "intent": "DAILY_REVIEW",
+  "displayName": "Daily Review",
+  "description": "Daily reflections, end-of-day reviews, morning planning, productivity reviews",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "daily-review",
+      "daily-reflection",
+      "end-of-day",
+      "eod-review",
+      "morning-review",
+      "evening-review",
+      "daily-planning",
+      "daily-debrief",
+      "day-review",
+      "review-day",
+      "daily-retrospective",
+      "daily-standup",
+      "shutdown-routine",
+      "startup-routine",
+      "morning-planning",
+      "evening-planning",
+      "daily-wins",
+      "daily-gratitude"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "what-went-well",
+      "what-to-improve",
+      "lessons-learned",
+      "accomplishments",
+      "completed-today",
+      "tomorrow-priorities",
+      "tomorrow-plan",
+      "top-3",
+      "big-3",
+      "most-important-task",
+      "mit",
+      "energy-level",
+      "mood-check",
+      "productivity-score",
+      "focus-score",
+      "wins",
+      "challenges",
+      "blockers",
+      "gratitude-list",
+      "highlight",
+      "lowlight",
+      "reflection-prompt",
+      "journal-prompt",
+      "brain-dump",
+      "mind-sweep",
+      "inbox-zero",
+      "task-completion",
+      "progress-check"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "today",
+      "tomorrow",
+      "review",
+      "reflect",
+      "plan",
+      "done",
+      "completed",
+      "achieved",
+      "accomplished",
+      "learned",
+      "grateful",
+      "thankful",
+      "improve",
+      "better",
+      "focus",
+      "energy",
+      "mood"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:daily|end[\\s-]of[\\s-]day|eod|morning|evening)\\s+(?:review|reflection|planning)",
+      "weight": 5.5
+    },
+    {
+      "pattern": "what\\s+(?:went\\s+well|worked|didn't\\s+work|to\\s+improve)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:today's?|tomorrow's?)\\s+(?:priorities|plan|focus|goals|tasks)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:top|big)\\s+(?:3|three)\\s+(?:priorities|tasks|goals)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:most\\s+important|mit|key)\\s+(?:task|tasks|priority)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:wins|accomplishments|completed)\\s+(?:today|this\\s+day)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:grateful|thankful)\\s+(?:for|today)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:shutdown|startup|wind[\\s-]down)\\s+(?:routine|ritual|checklist)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:energy|mood|focus)\\s+(?:level|check|score|rating)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:lessons|things)\\s+(?:learned|to\\s+remember)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:highlight|lowlight|peak|pit)\\s+(?:of\\s+)?(?:the\\s+)?day",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:brain|mind)\\s+(?:dump|sweep|clear)",
+      "weight": 4.5
+    }
+  ]
+}

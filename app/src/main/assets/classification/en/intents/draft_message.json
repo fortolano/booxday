@@ -1,0 +1,132 @@
+{
+  "intent": "DRAFT_MESSAGE",
+  "displayName": "Draft Message",
+  "description": "Email drafts, message composition, correspondence",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "draft",
+      "draft-email",
+      "draft-message",
+      "compose",
+      "write-to",
+      "email-to",
+      "message-to",
+      "reply-to",
+      "respond-to",
+      "letter-to",
+      "note-to",
+      "correspondence",
+      "email-draft",
+      "message-draft",
+      "outgoing-message",
+      "send-to",
+      "write-back"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "dear",
+      "hello",
+      "greetings",
+      "regards",
+      "sincerely",
+      "best",
+      "thanks",
+      "thank-you",
+      "cheers",
+      "warmly",
+      "respectfully",
+      "subject",
+      "subject-line",
+      "attached",
+      "attachment",
+      "following-up",
+      "per-our",
+      "please",
+      "kindly",
+      "appreciate",
+      "apologize",
+      "confirm",
+      "acknowledge",
+      "inquire",
+      "request",
+      "inform",
+      "notify",
+      "update",
+      "reminder",
+      "introduction",
+      "signature",
+      "sign-off",
+      "closing",
+      "opening",
+      "salutation"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "send",
+      "email",
+      "message",
+      "letter",
+      "write",
+      "reply",
+      "respond",
+      "forward",
+      "communicate",
+      "reach-out"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:draft|compose)\\s+(?:email|message|reply|letter)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:dear|hi|hello)\\s+[A-Z][a-z]+",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:subject|re|fwd)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:send|reply|respond)\\s+(?:to|about|regarding)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:following\\s+up|per\\s+our)\\s+(?:on|conversation)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:please\\s+)?(?:find|see)\\s+attached",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:best|kind|warm)\\s+regards",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:thank\\s+you|thanks)\\s+(?:for|in\\s+advance)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:i\\s+am|i'm)\\s+(?:writing|reaching\\s+out)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:let\\s+me|please)\\s+know\\s+if",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:sincerely|respectfully|cheers)\\s*,",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:email|write|message)\\s+(?:to|back)\\s+[A-Z]",
+      "weight": 4.5
+    }
+  ]
+}

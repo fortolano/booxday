@@ -1,0 +1,23 @@
+appId: com.boox.day
+---
+# Test: Tab Switching
+# Verifies switching between Memos and Tasks tabs
+
+- launchApp
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "4000"
+
+- takeScreenshot: tabs/01_initial_memos
+
+# Switch to Tasks
+- runFlow: ../flows/switch_to_tasks.yaml
+
+- takeScreenshot: tabs/02_tasks_tab
+
+# Switch back to Memos
+- runFlow: ../flows/switch_to_memos.yaml
+
+- takeScreenshot: tabs/03_back_to_memos

@@ -1,0 +1,145 @@
+{
+  "intent": "PEOPLE_MANAGEMENT",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "1-on-1",
+      "one-on-one",
+      "one-to-one",
+      "performance-review",
+      "performance-evaluation",
+      "annual-review",
+      "feedback",
+      "coaching",
+      "mentoring",
+      "mentor",
+      "mentee",
+      "development-plan",
+      "career-development",
+      "growth-plan",
+      "hire",
+      "hiring",
+      "interview",
+      "candidate",
+      "recruiting",
+      "performance-improvement",
+      "corrective-action"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "team-member",
+      "direct-report",
+      "employee",
+      "reportee",
+      "promotion",
+      "raise",
+      "compensation",
+      "salary",
+      "bonus",
+      "onboarding",
+      "offboarding",
+      "transition",
+      "handoff",
+      "handover",
+      "okr",
+      "okrs",
+      "skills",
+      "competency",
+      "competencies",
+      "strength",
+      "weakness",
+      "recognition",
+      "appreciation",
+      "kudos",
+      "praise",
+      "achievement",
+      "engagement",
+      "morale",
+      "motivation",
+      "satisfaction",
+      "retention",
+      "training",
+      "learning",
+      "development",
+      "upskill",
+      "reskill"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "team",
+      "staff",
+      "people",
+      "teams",
+      "microsoft",
+      "human-resources",
+      "hr",
+      "manager",
+      "lead",
+      "supervisor",
+      "report",
+      "reports",
+      "performance",
+      "review",
+      "manage",
+      "support",
+      "help",
+      "guide",
+      "advise",
+      "counsel"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:1[:\\-x]1|one[\\s-]on[\\s-]one|1-on-1)\\s+(?:with|notes|meeting)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:performance|feedback|annual)\\s+(?:review|evaluation|discussion)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:career|development|growth)\\s+(?:plan|goal|conversation|path)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:team|direct\\s+report)\\s+(?:update|check[\\s-]?in|meeting)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:hire|hiring|recruiting)\\s+(?:for|decision|process)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:interview|candidate)\\s+(?:feedback|notes|debrief)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:onboarding|offboarding)\\s+(?:plan|checklist)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:promotion|raise|compensation)\\s+(?:discussion|review)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:pip|performance-improvement)\\s+(?:plan|meeting)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:skills|competency)\\s+(?:gap|assessment|development)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:coaching|mentoring)\\s+(?:session|notes|plan)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:team|employee)\\s+(?:engagement|satisfaction|morale)",
+      "weight": 4.0
+    }
+  ]
+}

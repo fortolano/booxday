@@ -1,0 +1,154 @@
+{
+  "intent": "STUDENT_RECORD",
+  "displayName": "Student Records",
+  "description": "Individual student observations, anecdotal records, progress tracking",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "anecdotal-record",
+      "anecdotal-notes",
+      "student-observation",
+      "running-record",
+      "student-notes",
+      "student-file",
+      "student-concern",
+      "student-issue",
+      "student-behavior",
+      "student-profile",
+      "cumulative-file",
+      "cumulative-record",
+      "student-portfolio",
+      "observation-notes",
+      "behavioral-observation",
+      "academic-observation",
+      "progress-notes",
+      "student-data",
+      "student-information",
+      "individual-student"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "observation",
+      "observe",
+      "observed",
+      "noting",
+      "noted",
+      "documented",
+      "strength",
+      "weakness",
+      "area-of-growth",
+      "needs-improvement",
+      "intervention",
+      "academic-concern",
+      "social-emotional",
+      "counselor-referral",
+      "guidance-referral",
+      "support-team",
+      "at-risk",
+      "struggling",
+      "excelling",
+      "gifted",
+      "talented",
+      "special-needs",
+      "learning-difference",
+      "accommodation",
+      "behavior-log",
+      "incident-report",
+      "discipline-record",
+      "attendance-record",
+      "tardiness",
+      "absences",
+      "participation",
+      "work-habits",
+      "study-skills",
+      "organization",
+      "time-management",
+      "peer-interaction",
+      "social-skills",
+      "communication-skills",
+      "self-regulation",
+      "attention",
+      "focus",
+      "motivation",
+      "engagement",
+      "reading-level",
+      "math-level",
+      "grade-level",
+      "below-grade-level",
+      "on-grade-level",
+      "above-grade-level",
+      "benchmark",
+      "assessment-data"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "student",
+      "record",
+      "concern",
+      "issue",
+      "track",
+      "progress",
+      "growth",
+      "development",
+      "behavior",
+      "academic",
+      "social",
+      "emotional",
+      "support"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "anecdotal\\s+(?:record|note|observation)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "student\\s+(?:observation|concern|note|profile|file)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:observed|noted|documented)\\s+(?:that|during|while)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:running|cumulative)\\s+record",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:behavioral|academic)\\s+(?:observation|concern|issue)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:at[\\s-]risk|struggling|excelling)\\s+(?:student|in)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:area|need)\\s+(?:of|for)\\s+(?:growth|improvement)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:counselor|guidance|sst)\\s+referral",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:social[\\s-]emotional|sel)\\s+(?:skills|concern|development)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:reading|math|grade)\\s+level",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:below|on|above)\\s+grade\\s+level",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:behavior|incident|discipline)\\s+(?:log|report|record)",
+      "weight": 4.5
+    }
+  ]
+}

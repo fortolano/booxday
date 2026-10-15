@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Android Auto Backup / device transfer rules (Android 12+); same rules as backup_rules.xml.
+   Phase 3 (Oct 2026): encrypted preferences and API keys stay on the device, page previews
+   (rebuilt from the strokes) are left out.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="boox_day_google_auth.xml" />
+        <exclude domain="sharedpref" path="api_key_prefs.xml" />
+        <exclude domain="sharedpref" path="user_api_key_encrypted.xml" />
+        <exclude domain="file" path="pages/previews/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="boox_day_google_auth.xml" />
+        <exclude domain="sharedpref" path="api_key_prefs.xml" />
+        <exclude domain="sharedpref" path="user_api_key_encrypted.xml" />
+        <exclude domain="file" path="pages/previews/" />
+    </device-transfer>
+</data-extraction-rules>

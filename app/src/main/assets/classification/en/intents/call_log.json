@@ -1,0 +1,151 @@
+{
+  "intent": "CALL_LOG",
+  "displayName": "Call Log",
+  "description": "Phone call records, conversation notes, call tracking",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "call-log",
+      "phone-log",
+      "call-notes",
+      "call-record",
+      "call-summary",
+      "phone-call",
+      "video-call",
+      "conference-call",
+      "zoom-call",
+      "teams-call",
+      "called",
+      "call-with",
+      "spoke-with",
+      "talked-to",
+      "dialed",
+      "voicemail",
+      "callback",
+      "missed-call",
+      "returned-call",
+      "incoming-call",
+      "outgoing-call",
+      "scheduled-call",
+      "follow-up-call"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "conversation",
+      "discussed",
+      "mentioned",
+      "covered",
+      "follow-up",
+      "left-message",
+      "on-the-phone",
+      "dial-in",
+      "call-back",
+      "caller",
+      "callee",
+      "participant",
+      "attendee",
+      "dial-in-number",
+      "meeting-id",
+      "call-duration",
+      "call-time",
+      "call-date",
+      "transferred",
+      "put-on-hold",
+      "hold",
+      "muted",
+      "unmuted",
+      "screen-share",
+      "screen-sharing",
+      "recording",
+      "recorded",
+      "action-items",
+      "next-steps",
+      "agreed-to",
+      "decided",
+      "follow-up-needed",
+      "will-call-back",
+      "to-discuss",
+      "cold-call",
+      "warm-call",
+      "sales-call",
+      "support-call",
+      "client-call",
+      "customer-call",
+      "team-call",
+      "check-in-call",
+      "one-on-one",
+      "1on1",
+      "standup",
+      "sync-call"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "phone",
+      "call",
+      "ring",
+      "connect",
+      "speak",
+      "talk",
+      "discuss",
+      "contact",
+      "reach",
+      "message",
+      "audio",
+      "video"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:call|phone)\\s+(?:log|notes|summary|record)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:spoke|talked|called|met)\\s+with",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:discussed|conversation|talked)\\s+(?:about|regarding)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "follow[\\s-]?up\\s+(?:call|on|with)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:conference|video|zoom|teams)\\s+call",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:missed|returned|incoming|outgoing)\\s+call",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:left|got|received)\\s+(?:a\\s+)?(?:message|voicemail)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "call\\s+(?:at|on|scheduled|duration)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:will|need\\s+to)\\s+(?:call|call\\s+back)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:client|customer|sales|support)\\s+call",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:action\\s+items|next\\s+steps)\\s+from\\s+call",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:1[\\s-]?on[\\s-]?1|one[\\s-]?on[\\s-]?one)\\s+(?:call|with)?",
+      "weight": 4.5
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+appId: com.boox.day
+---
+# Try higher x% for Tasks tab
+
+- launchApp
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "8000"
+
+- takeScreenshot: verify2/01_initial
+
+# Try 10% for Tasks
+- tapOn:
+    point: "10%,46%"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "2000"
+
+- takeScreenshot: verify2/02_tasks_10pct

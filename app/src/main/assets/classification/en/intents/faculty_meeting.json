@@ -1,0 +1,124 @@
+{
+  "intent": "FACULTY_MEETING",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "faculty-meeting",
+      "staff-meeting",
+      "department-meeting",
+      "professional-learning-community",
+      "plc",
+      "data-team",
+      "professional-development",
+      "inservice",
+      "workshop",
+      "committee-meeting",
+      "grade-level-meeting",
+      "team-meeting",
+      "faculty-pd"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "department",
+      "grade-level-team",
+      "content-team",
+      "collaboration",
+      "collaborative-planning",
+      "common-planning",
+      "data-analysis",
+      "data-dive",
+      "student-data",
+      "school-improvement",
+      "action-plan",
+      "instructional-rounds",
+      "peer-observation",
+      "coaching",
+      "mentor",
+      "mentee",
+      "new-teacher",
+      "teacher-evaluation",
+      "observation-feedback",
+      "walkthrough",
+      "best-practice",
+      "strategy-share",
+      "protocol",
+      "norms",
+      "agenda",
+      "minutes",
+      "action-item"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "meeting",
+      "faculty",
+      "staff",
+      "team",
+      "collaborate",
+      "share",
+      "discuss",
+      "plan",
+      "review",
+      "analyze",
+      "develop",
+      "improve",
+      "training",
+      "learning",
+      "professional",
+      "development"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:faculty|staff|department)\\s+meeting",
+      "weight": 5.0
+    },
+    {
+      "pattern": "plc\\s+(?:meeting|notes|agenda|team)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:grade\\s+level|content|team)\\s+meeting",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:pd|professional\\s+development)\\s+(?:session|day|on)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:data|student)\\s+(?:team|analysis|dive|meeting)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:collaborative|common)\\s+planning",
+      "weight": 4.5
+    },
+    {
+      "pattern": "school\\s+improvement\\s+(?:plan|team|goal)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:peer|instructional)\\s+(?:observation|rounds)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:new\\s+teacher|mentor|mentee)\\s+(?:meeting|training)?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:inservice|workshop)\\s+(?:day|on|training)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:teacher|staff)\\s+(?:evaluation|observation)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:best|effective)\\s+practice",
+      "weight": 4.0
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "client_id": "723224a4-8f7d-4eb7-84d8-f0d38b470ba2",
+  "authorization_user_agent": "DEFAULT",
+  "redirect_uri": "msal723224a4-8f7d-4eb7-84d8-f0d38b470ba2://auth",
+  "broker_redirect_uri_registered": false,
+  "account_mode": "MULTIPLE",
+  "authorities": [
+    {
+      "type": "AAD",
+      "authority_url": "https://login.microsoftonline.com/consumers",
+      "default": true
+    },
+    {
+      "type": "AAD",
+      "authority_url": "https://login.microsoftonline.com/organizations"
+    }
+  ]
+}

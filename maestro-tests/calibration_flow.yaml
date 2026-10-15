@@ -1,0 +1,169 @@
+appId: com.boox.day
+---
+# Calibration Flow - Screenshots every UI state for coordinate mapping
+# Run this when UI changes to update ui_map.yaml
+# Note: Maestro requires integer percentages
+#
+# COORDINATE REFERENCE (updated 2025-12-31 from UI hierarchy):
+# - Status bar: y=0-2% (DO NOT tap here)
+# - Top toolbar: y=3% (icon centers at ~72px)
+# - Top toolbar spans FULL WIDTH: x=4% to x=96%
+# - Drawing toolbar: y=46%
+#
+# TOP TOOLBAR (y=3%):
+#   back(<)=4%, month=14%, forward(>)=25%, voice=32%, today=44%,
+#   add(+)=51%, sync=59%, refresh=66%, streak=88%, settings=96%
+#
+# DRAWING TOOLBAR (y=46%):
+#   memos=3%, tasks=9%, pen=13%, size=17%, eraser=21%,
+#   lasso/actions=25%, insert/add=28%, ai=31%, boox_notes=35%,
+#   undo=38%, redo=41%, prev=44%, pages=47%, next=49%, menu=51%
+
+- launchApp
+
+# Wait for full app load
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "5000"
+
+- takeScreenshot: calibration/01_main_screen
+
+# ============================================================================
+# CALENDAR NAVIGATION
+# ============================================================================
+
+# Open month picker (month/year label at x=14%, y=3%)
+- tapOn:
+    point: "14%,3%"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: calibration/02_month_picker
+
+# Close month picker by tapping on canvas area
+- tapOn:
+    point: "27%,70%"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+
+# ============================================================================
+# TAB SWITCHING (Drawing toolbar y=46%)
+# ============================================================================
+
+# Switch to Tasks tab (x=9%, y=46%)
+- tapOn:
+    point: "9%,46%"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: calibration/03_tasks_tab
+
+# Switch back to Memos tab (x=3%, y=46%)
+- tapOn:
+    point: "3%,46%"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: calibration/04_memos_tab
+
+# ============================================================================
+# SETTINGS DIALOG (gear icon at x=96%, y=3%)
+# ============================================================================
+
+- tapOn:
+    point: "96%,3%"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "2000"
+- takeScreenshot: calibration/05_settings_dialog
+
+# Close settings
+- back
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1000"
+
+# GUARD: Re-launch app in case back exited it
+- launchApp:
+    clearState: false
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+
+# ============================================================================
+# BOOX NOTES DIALOG (B icon on drawing toolbar at x=35%, y=46%)
+# ============================================================================
+
+- tapOn:
+    point: "35%,46%"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "2000"
+- takeScreenshot: calibration/06_boox_notes_dialog
+
+# Close Boox Notes
+- back
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1000"
+
+# GUARD: Re-launch app in case back exited it
+- launchApp:
+    clearState: false
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+
+# ============================================================================
+# DAY NAVIGATION
+# ============================================================================
+
+# Navigate to different day (row 2, column 1 of calendar grid)
+- tapOn:
+    point: "4%,14%"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: calibration/07_different_day
+
+# ============================================================================
+# ADD EVENT DIALOG (+ button at x=51%, y=3%)
+# ============================================================================
+
+- tapOn:
+    point: "51%,3%"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "2000"
+- takeScreenshot: calibration/08_add_event_dialog
+
+# Close add event dialog
+- back
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1000"
+
+# GUARD: Re-launch app in case back exited it
+- launchApp:
+    clearState: false
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+
+- takeScreenshot: calibration/09_final_state

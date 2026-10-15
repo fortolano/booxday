@@ -1,0 +1,142 @@
+{
+  "intent": "STUDY_PLAN",
+  "displayName": "Study Plan",
+  "description": "Exam prep, study schedules, review plans",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "study-plan",
+      "study-schedule",
+      "study-guide",
+      "exam-prep",
+      "test-prep",
+      "finals-prep",
+      "review-session",
+      "review-plan",
+      "study-session",
+      "flash-cards",
+      "flashcards",
+      "practice-test",
+      "practice-problems",
+      "spaced-repetition",
+      "active-recall",
+      "anki",
+      "quizlet",
+      "study-calendar",
+      "study-tracker",
+      "study-goals"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "study-for",
+      "prepare-for-exam",
+      "cram",
+      "review",
+      "memorize",
+      "practice",
+      "quiz-myself",
+      "self-test",
+      "study-group",
+      "study-partner",
+      "study-time",
+      "pomodoro",
+      "study-break",
+      "study-spot",
+      "study-notes",
+      "review-notes",
+      "lecture-notes",
+      "textbook",
+      "exam",
+      "midterm",
+      "finals",
+      "chapter",
+      "chapters",
+      "past-exams",
+      "practice-questions",
+      "study-materials",
+      "study-resources",
+      "interleaving",
+      "feynman-technique",
+      "summarize",
+      "outline",
+      "concept-map",
+      "mind-map",
+      "study-strategy",
+      "test-strategy",
+      "study-room",
+      "library",
+      "quiet-space",
+      "study-playlist"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "study",
+      "prepare",
+      "learn",
+      "understand",
+      "retain",
+      "remember",
+      "recall",
+      "focus",
+      "concentrate",
+      "master",
+      "absorb",
+      "read",
+      "highlight"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "study\\s+(?:for|plan|guide|schedule|session)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:exam|test|finals)\\s+prep(?:aration)?",
+      "weight": 5.0
+    },
+    {
+      "pattern": "flash\\s*cards?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "practice\\s+(?:test|problems|questions|exam)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:spaced|active)\\s+(?:repetition|recall)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "study\\s+(?:group|partner|buddy)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "review\\s+(?:session|notes|material)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:pomodoro|focus)\\s+(?:timer|session|technique)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:anki|quizlet|flashcard)\\s+(?:deck|set|cards)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:memorize|remember|recall)\\s+(?:for|by)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:cram|cramming)\\s+(?:for|session)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:past|previous|old)\\s+(?:exams|tests|papers)",
+      "weight": 4.5
+    }
+  ]
+}

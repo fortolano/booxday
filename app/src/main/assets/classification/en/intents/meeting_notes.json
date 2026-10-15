@@ -1,0 +1,52 @@
+{
+  "intent": "MEETING_NOTES",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "attendees", "participants", "present", "absent", "apologies",
+      "minutes", "meeting-minutes", "discussed", "discussion",
+      "decision", "decisions", "action", "action-items", "actions",
+      "follow-up", "follow-ups", "agenda", "topics", "agenda-items",
+      "chairperson", "facilitator", "notetaker", "scribe", "recorder"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "meeting", "call", "sync", "standup", "stand-up", "huddle",
+      "weekly", "kickoff", "all-hands", "townhall",
+      "presenter", "notes", "summary", "recap", "takeaways",
+      "agreed", "consensus", "resolved", "concluded", "determined",
+      "raised", "brought-up", "mentioned", "highlighted", "emphasized",
+      "next-steps", "owners", "due-date", "deadline", "timeline",
+      "deferred", "tabled", "postponed", "parked", "backlog"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "discuss", "review", "update", "share", "report",
+      "reviewed",
+      "status", "progress", "blockers", "issues", "concerns",
+      "questions", "feedback", "input", "comments", "remarks"
+    ]
+  },
+  "structureBoosts": {
+    "BULLET_LIST": 2.0,
+    "NUMBERED_LIST": 1.5
+  },
+  "phrasePatterns": [
+    { "pattern": "(?:meeting|call|sync)\\s+(?:notes|summary|minutes|recap)", "weight": 4.5 },
+    { "pattern": "(?:attendee|participant)s?\\s*:", "weight": 4.0 },
+    { "pattern": "action\\s+items?\\s*:", "weight": 4.5 },
+    { "pattern": "(?:discussed|reviewed|decided|agreed)", "weight": 3.0 },
+    { "pattern": "(?:present|absent|apologies)\\s*:", "weight": 4.0 },
+    { "pattern": "(?:next|follow[- ]up)\\s+(?:steps|actions)", "weight": 4.0 },
+    { "pattern": "(?:key|main)\\s+(?:takeaways|decisions|points)", "weight": 4.0 },
+    { "pattern": "(?:owner|assigned|responsible)\\s*:", "weight": 4.0 },
+    { "pattern": "(?:due|deadline|by)\\s+(?:date)?\\s*:", "weight": 3.5 },
+    { "pattern": "(?:standup|stand-up|huddle|sync)\\s+notes", "weight": 4.0 },
+    { "pattern": "(?:agenda|topics?)\\s+(?:items?|covered)", "weight": 4.0 },
+    { "pattern": "(?:raised|brought\\s+up|discussed)\\s+(?:by|that)", "weight": 3.5 }
+  ]
+}

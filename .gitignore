@@ -1,0 +1,93 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+.kotlin/
+local.properties
+nul
+
+# Claude Code local settings
+.claude/
+
+# Server files (don't belong in Android project)
+*.php
+
+# Signing keys - NEVER commit these
+keystore.properties
+*.jks
+*.keystore
+
+# Release signing
+keystore.properties
+*.jks
+*.keystore
+
+# Fresh personal-repo cleanup
+.git_original*/
+.idea/
+.kotlin/
+app/build/
+build/
+
+# Local credentials and service configs
+client_secret_*.json
+app/google-services.json
+upload_cert.der
+
+# Old release/CI automation tied to the commercial app
+.github/
+.github/workflows/
+docs/implementation_plans/archived/
+docs/marketing/
+docs/PLAY_STORE_LISTING.md
+docs/SERVER_SYNC_GOOGLE_WORKSPACE_INSTRUCTIONS.md
+
+# Generated build/package artifacts
+*.apk
+*.aab
+app/release/
+artifacts/
+backups/
+backup_*/
+*_old.kt
+*.backup
+*.bak
+*.flick_fix_working
+*.flick_backup
+
+# Local caches, temp data, and generated auth extraction output
+.tmp_gmsauth/
+__pycache__/
+*.pyc
+tmp/
+temp_*
+*.db
+*.db-shm
+*.db-wal
+*-shm
+*-wal
+*.tar.gz
+
+# Local screenshots and UI calibration captures
+screenshots/
+measure/
+tap_launch/
+calibration/
+/app_icon.png
+/boox_metrics.png
+/june28_page.png
+/screenshot*.png
+/search_*.png
+/ss_*.png
+maestro-tests/**/*.png
+maestro-tests/**/*.PNG

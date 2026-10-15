@@ -1,0 +1,12 @@
+appId: com.boox.day
+---
+# Reusable flow: Switch to Memos tab
+# Coordinates from ui_map.yaml: canvas_toolbar.memos_tab
+
+- tapOn:
+    point: "3%,46%"
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"

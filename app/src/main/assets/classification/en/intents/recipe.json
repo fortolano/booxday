@@ -1,0 +1,119 @@
+{
+  "intent": "RECIPE",
+  "displayName": "Recipe",
+  "description": "Cooking recipes with ingredients and instructions",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "recipe",
+      "ingredients",
+      "instructions",
+      "directions",
+      "prep time",
+      "cook time",
+      "total time",
+      "servings",
+      "preheat",
+      "bake at",
+      "cook until",
+      "let rest",
+      "yield",
+      "makes",
+      "serves"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "tablespoon",
+      "tbsp",
+      "teaspoon",
+      "cups",
+      "ounce",
+      "pound",
+      "gram",
+      "liter",
+      "pinch",
+      "dash",
+      "to taste",
+      "as needed",
+      "stir",
+      "combine",
+      "pour",
+      "fold",
+      "chop",
+      "dice",
+      "mince",
+      "slice",
+      "grate",
+      "shred",
+      "whisk",
+      "beat",
+      "blend",
+      "puree",
+      "knead",
+      "sauté",
+      "simmer",
+      "boil",
+      "roast",
+      "bake",
+      "broil",
+      "medium heat",
+      "high heat",
+      "low heat",
+      "until golden",
+      "until tender",
+      "until done"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "cook",
+      "heat",
+      "serve"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:prep|cook|total)\\s+time",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:serves?|servings?|yield|makes)\\s*:?\\s*\\d+",
+      "weight": 5.0
+    },
+    {
+      "pattern": "preheat\\s+(?:oven|to)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "\\d+\\s*(?:cup|tbsp|tsp|oz|lb|g)s?\\s+(?:of\\s+)?\\w+",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:1\\/2|1\\/4|3\\/4|1\\/3|2\\/3)\\s+(?:cup|tsp|tbsp)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:step|directions?)\\s*:?\\s*\\d+",
+      "weight": 4.5
+    },
+    {
+      "pattern": "ingredients\\s*:",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:bake|cook|roast)\\s+(?:for\\s+)?\\d+\\s*(?:min|minutes|hour)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:medium|high|low)\\s+heat",
+      "weight": 4.0
+    },
+    {
+      "pattern": "until\\s+(?:golden|brown|tender|done|crispy)",
+      "weight": 4.0
+    }
+  ]
+}

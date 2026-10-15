@@ -1,0 +1,218 @@
+{
+  "domain": "ENTREPRENEURSHIP",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "startup",
+      "founder",
+      "co-founder",
+      "entrepreneur",
+      "solopreneur",
+      "venture",
+      "bootstrap",
+      "bootstrapped",
+      "seed-round",
+      "series-a",
+      "series-b",
+      "series-c",
+      "venture-capital",
+      "angel-investor",
+      "accelerator",
+      "incubator",
+      "y-combinator",
+      "techstars",
+      "pitch-deck",
+      "term-sheet",
+      "pre-seed",
+      "late-stage",
+      "growth-stage",
+      "unicorn",
+      "decacorn",
+      "cap-table",
+      "safe-note",
+      "convertible-note",
+      "priced-round",
+      "anti-dilution",
+      "liquidation-preference",
+      "drag-along",
+      "tag-along",
+      "board-seat",
+      "voting-rights",
+      "pro-rata",
+      "preemptive-rights",
+      "lead-investor",
+      "follow-on",
+      "down-round",
+      "up-round",
+      "bridge-round",
+      "exit",
+      "acquisition",
+      "acqui-hire",
+      "spac",
+      "direct-listing",
+      "due-diligence",
+      "data-room",
+      "definitive-agreement"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "product-market-fit",
+      "minimum-viable-product",
+      "pivot",
+      "iteration",
+      "validation",
+      "customer-discovery",
+      "problem-solution-fit",
+      "runway",
+      "burn-rate",
+      "equity",
+      "vesting",
+      "dilution",
+      "valuation",
+      "pre-money",
+      "post-money",
+      "safe",
+      "lean-startup",
+      "agile",
+      "scrum",
+      "sprint",
+      "hypothesis",
+      "customer-segment",
+      "early-adopter",
+      "beachhead-market",
+      "tam-sam-som",
+      "unit-economics",
+      "payback-period",
+      "gross-margin",
+      "churn",
+      "retention",
+      "cohort-analysis",
+      "growth-hacking",
+      "viral-coefficient",
+      "k-factor",
+      "network-effect",
+      "freemium",
+      "subscription",
+      "saas",
+      "marketplace",
+      "pitch",
+      "demo-day",
+      "investor-meeting",
+      "cold-email",
+      "warm-intro",
+      "advisor",
+      "mentor",
+      "board-member",
+      "investor-update",
+      "kpi-dashboard"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "idea",
+      "launch",
+      "build",
+      "ship",
+      "scale",
+      "grow",
+      "traction",
+      "users",
+      "customers",
+      "revenue",
+      "funding",
+      "raise",
+      "invest",
+      "market",
+      "opportunity",
+      "problem",
+      "solution",
+      "value",
+      "growth",
+      "team",
+      "hire",
+      "culture",
+      "remote",
+      "distributed",
+      "product",
+      "feature",
+      "roadmap",
+      "backlog",
+      "release",
+      "experiment",
+      "test",
+      "learn",
+      "iterate",
+      "fail-fast",
+      "hustle",
+      "grind",
+      "side-project",
+      "weekend-project",
+      "passion-project"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "startup\\s+(?:idea|founder|pitch|funding)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:seed|pre-seed|series\\s*[abc])\\s+(?:round|funding|raise)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "product[- ]market\\s+fit",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:angel|vc|venture)\\s+(?:investor|capital|funding)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:pitch|investor)\\s+(?:deck|meeting|update)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:burn|growth)\\s+rate",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:cap|term)\\s+(?:table|sheet)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:minimum|lean)\\s+(?:viable|startup)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:customer|market)\\s+(?:discovery|validation)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:early|growth)\\s+(?:stage|adopter)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:exit|acquisition)\\s+(?:strategy|opportunity)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:demo|launch)\\s+day",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:unit|startup)\\s+economics",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:equity|stock)\\s+(?:vesting|options)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:due|investor)\\s+diligence",
+      "weight": 4.0
+    }
+  ]
+}

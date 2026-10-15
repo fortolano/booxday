@@ -1,0 +1,92 @@
+appId: com.boox.day
+---
+# Systematic grid test - map actual tap positions
+# Test top toolbar at y=40 with x from 50 to 900 in steps
+
+- launchApp
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "8000"
+
+- takeScreenshot: grid/00_baseline
+
+# Test x=50, y=40 (should be back arrow area?)
+- tapOn:
+    point: "50,40"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: grid/01_x50_y40
+- back
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1000"
+
+# Test x=200, y=40
+- tapOn:
+    point: "200,40"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: grid/02_x200_y40
+- back
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1000"
+
+# Test x=350, y=40
+- tapOn:
+    point: "350,40"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: grid/03_x350_y40
+- back
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1000"
+
+# Test x=500, y=40
+- tapOn:
+    point: "500,40"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: grid/04_x500_y40
+- back
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1000"
+
+# Test x=650, y=40
+- tapOn:
+    point: "650,40"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: grid/05_x650_y40
+- back
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1000"
+
+# Test x=800, y=40
+- tapOn:
+    point: "800,40"
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: grid/06_x800_y40

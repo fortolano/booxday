@@ -1,0 +1,143 @@
+{
+  "intent": "FOCUS_SESSION",
+  "displayName": "Focus Session",
+  "description": "Deep work sessions, time blocking, focused work periods, pomodoro tracking",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "focus-session",
+      "deep-work",
+      "time-block",
+      "time-blocking",
+      "focus-block",
+      "work-session",
+      "pomodoro",
+      "pomodoros",
+      "tomato-timer",
+      "focus-time",
+      "concentration",
+      "distraction-free",
+      "do-not-disturb",
+      "dnd",
+      "flow-state",
+      "deep-focus",
+      "focused-work",
+      "maker-time",
+      "heads-down"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "25-minute",
+      "50-minute",
+      "90-minute",
+      "focus-sprint",
+      "work-sprint",
+      "productivity-block",
+      "calendar-block",
+      "blocked-time",
+      "protected-time",
+      "uninterrupted",
+      "no-meetings",
+      "meeting-free",
+      "focus-mode",
+      "work-mode",
+      "break-time",
+      "short-break",
+      "long-break",
+      "rest-period",
+      "timer",
+      "countdown",
+      "session-complete",
+      "session-goal",
+      "focus-goal",
+      "single-task",
+      "monotask",
+      "batch-work",
+      "task-batching",
+      "energy-peak",
+      "peak-hours",
+      "biological-prime-time"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "focus",
+      "session",
+      "block",
+      "work",
+      "start",
+      "stop",
+      "pause",
+      "resume",
+      "complete",
+      "finished",
+      "minutes",
+      "hours",
+      "break",
+      "rest",
+      "concentrate",
+      "attention"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:focus|deep\\s+work|work)\\s+session",
+      "weight": 5.5
+    },
+    {
+      "pattern": "time[\\s-]block(?:ing)?\\s+(?:for|schedule|calendar)",
+      "weight": 5.5
+    },
+    {
+      "pattern": "pomodoro\\s+(?:session|timer|technique|method)",
+      "weight": 5.5
+    },
+    {
+      "pattern": "(?:25|50|90)[\\s-]minute\\s+(?:session|block|sprint|focus)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:distraction|interruption)[\\s-]free\\s+(?:time|work|session)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:flow|focus)\\s+state",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:blocked|protected)\\s+(?:time|calendar|hours)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:no|meeting)[\\s-](?:meetings|free)\\s+(?:day|time|block)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:maker|manager)\\s+(?:time|schedule|mode)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:heads|head)[\\s-]down\\s+(?:time|work|mode)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:single|mono)[\\s-]?task(?:ing)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:peak|prime)\\s+(?:hours|time|energy|productivity)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:task|work)\\s+(?:batching|batch)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "do\\s+not\\s+disturb",
+      "weight": 4.5
+    }
+  ]
+}

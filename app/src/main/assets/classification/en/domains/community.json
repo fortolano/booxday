@@ -1,0 +1,176 @@
+{
+  "domain": "COMMUNITY",
+  "displayName": "Community & Civic",
+  "description": "HOA, volunteering, local government, neighborhood activities, civic engagement",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "homeowners-association",
+      "neighborhood-association",
+      "city-council",
+      "town-hall",
+      "local-government",
+      "municipal",
+      "volunteer",
+      "volunteering",
+      "community-service",
+      "service-project",
+      "neighborhood-watch",
+      "block-party",
+      "community-event",
+      "civic-duty",
+      "town-meeting",
+      "public-hearing",
+      "board-meeting",
+      "zoning",
+      "ordinance",
+      "bylaws",
+      "cc&r",
+      "commissioner",
+      "mayor",
+      "alderman",
+      "council-member"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "neighbor",
+      "neighborhood",
+      "community-center",
+      "recreation-center",
+      "dues",
+      "assessment",
+      "violation",
+      "complaint",
+      "fine",
+      "annual-meeting",
+      "election",
+      "board",
+      "committee",
+      "president",
+      "common-area",
+      "shared-space",
+      "amenities",
+      "pool",
+      "clubhouse",
+      "charity",
+      "donation-drive",
+      "food-bank",
+      "homeless-shelter",
+      "scout",
+      "scouts",
+      "troop",
+      "rotary",
+      "lions-club",
+      "kiwanis",
+      "parent-teacher",
+      "school-board",
+      "superintendent",
+      "petition",
+      "ballot",
+      "vote",
+      "referendum",
+      "measure",
+      "cleanup",
+      "beautification",
+      "landscaping",
+      "maintenance-fee",
+      "newsletter",
+      "announcement",
+      "notice",
+      "bulletin",
+      "posting"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "community",
+      "local",
+      "civic",
+      "public",
+      "resident",
+      "citizen",
+      "participate",
+      "attend",
+      "join",
+      "serve",
+      "help",
+      "contribute",
+      "meeting",
+      "event",
+      "gathering",
+      "activity",
+      "program",
+      "area",
+      "district",
+      "ward",
+      "precinct",
+      "zone",
+      "region"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "hoa\\s+(?:meeting|board|dues|violation|fee)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "homeowners?\\s+association",
+      "weight": 5.0
+    },
+    {
+      "pattern": "neighborhood\\s+(?:watch|meeting|association|event)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "community\\s+(?:service|event|center|meeting|volunteer)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "volunteer\\s+(?:at|for|hours|work|opportunity)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "town\\s+(?:hall|meeting|council)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "city\\s+council",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:annual|board|hoa)\\s+meeting",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:block|neighborhood)\\s+party",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:charity|donation|food)\\s+drive",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:scout|troop)\\s+(?:meeting|event|activity)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:pta|school-board)\\s+meeting",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:local|municipal)\\s+(?:election|government|ordinance)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:common|shared)\\s+(?:area|space|amenity)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:public|town)\\s+hearing",
+      "weight": 4.5
+    }
+  ]
+}

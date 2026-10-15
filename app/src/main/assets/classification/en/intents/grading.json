@@ -1,0 +1,141 @@
+{
+  "intent": "GRADING",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "rubric",
+      "grading-rubric",
+      "scoring-guide",
+      "grade-book",
+      "gradebook",
+      "grade-tracking",
+      "formative-assessment",
+      "summative-assessment",
+      "benchmark-assessment",
+      "diagnostic-assessment",
+      "holistic-rubric",
+      "analytic-rubric",
+      "performance-level",
+      "achievement-level",
+      "grade-calculation",
+      "weighted-grade",
+      "final-grade"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "grading",
+      "grade",
+      "score",
+      "points",
+      "feedback",
+      "proficient",
+      "developing",
+      "exceeds",
+      "meets-expectations",
+      "criterion",
+      "criteria",
+      "mastery",
+      "standards-based",
+      "weighted",
+      "participation-grade",
+      "essay",
+      "essays",
+      "persuasive",
+      "formative",
+      "blueprint",
+      "extra-credit",
+      "letter-grade",
+      "pass-fail",
+      "percentage-grade",
+      "curve",
+      "bell-curve",
+      "drop-lowest",
+      "late-penalty",
+      "late-work",
+      "incomplete",
+      "missing-work",
+      "makeup-work",
+      "resubmit",
+      "revision",
+      "peer-feedback",
+      "self-assessment",
+      "written-feedback",
+      "grade-report",
+      "progress-report",
+      "interim-grade",
+      "marking-period",
+      "quarter-grade"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "assess",
+      "evaluate",
+      "mark",
+      "rate",
+      "rank",
+      "check",
+      "correct",
+      "review",
+      "comment",
+      "annotate",
+      "highlight",
+      "record",
+      "enter",
+      "submit"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "grading\\s+rubric",
+      "weight": 5.0
+    },
+    {
+      "pattern": "grade\\s*book",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:formative|summative|benchmark|diagnostic)\\s+assessment",
+      "weight": 4.5
+    },
+    {
+      "pattern": "\\d+\\s*(?:points|pts|percent|%)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:letter|final|weighted|quarter)\\s+grade",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:scoring|grading)\\s+(?:guide|scale|criteria)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:peer|self|written)\\s+(?:feedback|assessment)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:late|missing|incomplete)\\s+(?:work|assignment)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:extra|bonus)\\s+(?:credit|points)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:progress|grade)\\s+report",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:meets|exceeds|below)\\s+(?:expectations|standard)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "standards[\\s-]based\\s+grading",
+      "weight": 4.5
+    }
+  ]
+}

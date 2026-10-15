@@ -1,0 +1,39 @@
+appId: com.boox.day
+---
+# Test: Navigate calendar and switch tabs
+
+- launchApp:
+    clearState: false
+
+# Wait for app to load
+- extendedWaitUntil:
+    visible: ".*"
+    timeout: 10000
+
+- takeScreenshot: screenshots/01_initial_state
+
+# Tap on calendar area (left side, approximate center of calendar)
+# Calendar is roughly 40% width, so tap around 20% from left
+- tapOn:
+    point: "20%,40%"
+
+- takeScreenshot: screenshots/02_after_calendar_tap
+
+# Small delay for e-ink refresh
+- swipe:
+    start: "50%,50%"
+    end: "50%,50%"
+    duration: 100
+
+# Tap on Tasks tab (bottom right area of canvas)
+# Canvas is 60% right side, tabs are at bottom
+- tapOn:
+    point: "85%,95%"
+
+- takeScreenshot: screenshots/03_after_tab_tap
+
+# Tap on Memos tab
+- tapOn:
+    point: "70%,95%"
+
+- takeScreenshot: screenshots/04_back_to_memos

@@ -1,0 +1,339 @@
+package com.boox.day.data.db
+
+import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import android.util.Log
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.TypeConverter
+import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.boox.day.BuildConfig
+import com.boox.day.data.getDbDir
+import com.boox.day.data.db.MIGRATION_9_10
+import com.boox.day.data.db.MIGRATION_10_11
+import com.boox.day.data.db.MIGRATION_11_12
+import com.boox.day.data.db.MIGRATION_12_13
+import com.boox.day.data.db.MIGRATION_13_14
+import com.boox.day.data.db.MIGRATION_14_15
+import com.boox.day.data.db.MIGRATION_22_23
+import com.boox.day.data.db.MIGRATION_23_24
+import com.boox.day.data.db.MIGRATION_24_25
+import com.boox.day.data.db.MIGRATION_25_26
+import com.boox.day.data.db.MIGRATION_26_27
+import com.boox.day.data.db.MIGRATION_27_28
+import com.boox.day.data.db.MIGRATION_28_29
+import com.boox.day.data.db.MIGRATION_21_22
+import kotlinx.serialization.json.Json
+import java.io.File
+import java.util.Date
+
+private const val CONVERTERS_TAG = "Converters"
+
+class Converters {
+    @TypeConverter
+    fun fromListString(value: List<String>) = Json.encodeToString(value)
+
+    @TypeConverter
+    fun toListString(value: String) = Json.decodeFromString<List<String>>(value)
+
+
+    @TypeConverter
+    fun fromTimestamp(value: Long?): Date? {
+        return value?.let { Date(it) }
+    }
+
+    @TypeConverter
+    fun dateToTimestamp(date: Date?): Long? {
+        return date?.time
+    }
+
+    @TypeConverter
+    fun fromStrokePoints(points: List<StrokePoint>?): ByteArray? {
+        if (points == null) return null
+        // A row whose blob couldn't be decoded must never be written back: its original bytes
+        // stay in the database untouched (they may still be recoverable).
+        check(!points.isUndecodableStrokePoints()) { "Refusing to overwrite an undecodable stroke blob" }
+        return try {
+            val mask = computeStrokeMask(points)
+            encodeStrokePoints(points, mask)
+        } catch (t: Throwable) {
+            Log.e(
+                CONVERTERS_TAG,
+                "STROKE_ENCODE_ERROR|" +
+                    "appVersion=${BuildConfig.VERSION_NAME}|" +
+                    "versionCode=${BuildConfig.VERSION_CODE}|" +
+                    "pointsCount=${points.size}|" +
+                    "exceptionClass=${t.javaClass.name}|" +
+                    "exceptionMessage=${t.message}",
+                t
+            )
+            throw t
+        }
+    }
+
+    @TypeConverter
+    fun toStrokePoints(bytes: ByteArray?): List<StrokePoint>? {
+        if (bytes == null || bytes.isEmpty()) return emptyList()
+        return try {
+            decodeStrokePoints(bytes)
+        } catch (t: Throwable) {
+            Log.e(
+                CONVERTERS_TAG,
+                "STROKE_DECODE_ERROR|" +
+                    "appVersion=${BuildConfig.VERSION_NAME}|" +
+                    "versionCode=${BuildConfig.VERSION_CODE}|" +
+                    "bytesSize=${bytes.size}|" +
+                    "exceptionClass=${t.javaClass.name}|" +
+                    "exceptionMessage=${t.message}",
+                t
+            )
+            // One damaged row must not fail the whole query (page load, backup export):
+            // return the marker instead. Readers skip it; the converter above refuses to store it.
+            UNDECODABLE_STROKE_POINTS
+        }
+    }
+}
+
+
+@Database(
+    entities = [Folder::class, Notebook::class, Page::class, Stroke::class, Image::class, Kv::class, DayPage::class, CalendarEvent::class, TextAnnotation::class, BooxNoteIndex::class, BooxNoteLink::class, BooxNoteSemanticAggregate::class, Task::class, RecurringTaskTemplate::class, RecurringTaskException::class, Attachment::class, LocalEvent::class, LocalCalendar::class, SummaryCache::class, ConnectedAccountEntity::class, CalendarSelectionEntity::class, UnifiedOcrPage::class, UnifiedOcrText::class, EntityCooccurrence::class, UserActivityPattern::class],
+    version = CURRENT_DB_VERSION,  // v29: What's New table dropped (v28: per-task reminder time)
+    exportSchema = true
+)
+@TypeConverters(Converters::class)
+abstract class AppDatabase : RoomDatabase() {
+
+    abstract fun folderDao(): FolderDao
+    abstract fun kvDao(): KvDao
+    abstract fun notebookDao(): NotebookDao
+    abstract fun pageDao(): PageDao
+    abstract fun strokeDao(): StrokeDao
+    abstract fun ImageDao(): ImageDao
+    abstract fun dayPageDao(): DayPageDao
+    abstract fun calendarEventDao(): CalendarEventDao
+    abstract fun textAnnotationDao(): TextAnnotationDao
+    abstract fun booxNoteIndexDao(): BooxNoteIndexDao
+    abstract fun booxNoteLinkDao(): BooxNoteLinkDao
+    abstract fun booxNoteSemanticAggregateDao(): BooxNoteSemanticAggregateDao
+    abstract fun taskDao(): TaskDao
+    abstract fun recurringTaskTemplateDao(): RecurringTaskTemplateDao
+    abstract fun recurringTaskExceptionDao(): RecurringTaskExceptionDao
+    abstract fun attachmentDao(): AttachmentDao
+    abstract fun localEventDao(): LocalEventDao
+    abstract fun localCalendarDao(): LocalCalendarDao
+    abstract fun summaryCacheDao(): SummaryCacheDao
+
+    // Multi-provider calendar sync DAOs (v18+)
+    abstract fun connectedAccountDao(): ConnectedAccountDao
+    abstract fun calendarSelectionDao(): CalendarSelectionDao
+
+    // Unified OCR DAO (v20+)
+    abstract fun unifiedOcrDao(): UnifiedOcrDao
+
+    // Entity Co-occurrence DAO (Phase 5 - SemanticGenius)
+    abstract fun entityCooccurrenceDao(): EntityCooccurrenceDao
+
+    // User Activity Pattern DAO (Phase 6 - SemanticGenius)
+    abstract fun userActivityPatternDao(): UserActivityPatternDao
+
+    companion object {
+        // @Volatile + the re-check inside synchronized below: two threads starting at the same
+        // time (app start-up work, first screen) must never build two database instances.
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+        private const val DB_TAG = "AppDatabase"
+
+        // Migration from v8 to v9: Add linkedEventId column to Page table
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add linkedEventId column with index
+                database.execSQL("ALTER TABLE Page ADD COLUMN linkedEventId TEXT DEFAULT NULL")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_Page_linkedEventId ON Page(linkedEventId)")
+            }
+        }
+
+        /**
+         * Callback to create FTS4 virtual table and sync triggers for OCR text search.
+         *
+         * Uses onOpen (not onCreate) because:
+         * - onCreate only runs on fresh installs
+         * - onOpen runs every time, ensuring FTS table exists
+         * - IF NOT EXISTS makes it idempotent
+         *
+         * FTS4 is used instead of FTS5 because Boox devices run older SQLite versions
+         * that may not support FTS5 reliably.
+         */
+        private val FTS4_CALLBACK = object : RoomDatabase.Callback() {
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                super.onOpen(db)
+                try {
+                    // Create FTS4 virtual table for full-text search on OCR text
+                    // content= links to unified_ocr_text for automatic content sync
+                    db.execSQL("""
+                        CREATE VIRTUAL TABLE IF NOT EXISTS unified_ocr_text_fts
+                        USING fts4(
+                            content="unified_ocr_text",
+                            text,
+                            textNormalized,
+                            synopsis
+                        )
+                    """.trimIndent())
+
+                    // Trigger: After INSERT on unified_ocr_text, insert into FTS
+                    db.execSQL("""
+                        CREATE TRIGGER IF NOT EXISTS unified_ocr_text_fts_ai
+                        AFTER INSERT ON unified_ocr_text BEGIN
+                            INSERT INTO unified_ocr_text_fts(docid, text, textNormalized, synopsis)
+                            VALUES (new.rowid, new.text, new.textNormalized, new.synopsis);
+                        END
+                    """.trimIndent())
+
+                    // Trigger: After DELETE on unified_ocr_text, delete from FTS
+                    db.execSQL("""
+                        CREATE TRIGGER IF NOT EXISTS unified_ocr_text_fts_ad
+                        AFTER DELETE ON unified_ocr_text BEGIN
+                            DELETE FROM unified_ocr_text_fts WHERE docid = old.rowid;
+                        END
+                    """.trimIndent())
+
+                    // Trigger: After UPDATE on unified_ocr_text, update FTS
+                    db.execSQL("""
+                        CREATE TRIGGER IF NOT EXISTS unified_ocr_text_fts_au
+                        AFTER UPDATE ON unified_ocr_text BEGIN
+                            DELETE FROM unified_ocr_text_fts WHERE docid = old.rowid;
+                            INSERT INTO unified_ocr_text_fts(docid, text, textNormalized, synopsis)
+                            VALUES (new.rowid, new.text, new.textNormalized, new.synopsis);
+                        END
+                    """.trimIndent())
+
+                    Log.d("AppDatabase", "FTS4 virtual table and triggers ensured")
+                } catch (e: Exception) {
+                    Log.e("AppDatabase", "Failed to create FTS4 table: ${e.message}", e)
+                }
+            }
+        }
+
+        fun getDatabase(context: Context): AppDatabase {
+            INSTANCE?.let { return it }
+            synchronized(this) {
+                // Another thread may have built it while this one waited for the lock.
+                INSTANCE?.let { return it }
+                run {
+                    val dbDir = getDbDir(context)
+                    val dbFile = File(dbDir, APP_DATABASE_FILE_NAME)
+
+                    resetPrePublicTestDatabaseIfNeeded(dbFile)
+
+                    // Use Room to build the database
+                    //
+                    // ⚠️ WARNING: allowMainThreadQueries() is a technical debt item.
+                    // It allows DB queries on the main thread, which can cause ANRs.
+                    // TODO: Post-launch, convert all DAO functions to suspend and remove this.
+                    // Monitor Play Console for ANR reports - if >0.5%, prioritize fixing.
+                    // Estimated effort: 8-16 hours to refactor all DAO callers.
+                    //
+                    // Every build must fail safely if a migration path is missing — data is
+                    // never silently wiped (see the note at the fallback below).
+                    val builder =
+                        Room.databaseBuilder(context, AppDatabase::class.java, dbFile.absolutePath)
+                            .allowMainThreadQueries()
+                            .addCallback(FTS4_CALLBACK)
+                            .addMigrations(
+                                MIGRATION_8_9,
+                                MIGRATION_9_10,
+                                MIGRATION_10_11,
+                                MIGRATION_11_12,
+                                MIGRATION_12_13,
+                                MIGRATION_13_14,
+                                MIGRATION_14_15,
+                                MIGRATION_15_16,
+                                MIGRATION_16_17,
+                                MIGRATION_17_18,
+                                MIGRATION_20_21,
+                                MIGRATION_21_22,
+                                MIGRATION_22_23,
+                                MIGRATION_23_24,
+                                MIGRATION_24_25,
+                                MIGRATION_25_26,
+                                MIGRATION_26_27,
+                                MIGRATION_27_28,
+                                MIGRATION_28_29
+                            )
+
+                    // No destructive fallback in any build (plan T2, Oct 2026): the real-data
+                    // Go 10.3 runs debug builds, so a missing/failed migration must fail loudly
+                    // instead of silently wiping the database.
+
+                    val database = builder.build()
+                    INSTANCE = database
+                    return database
+                }
+            }
+        }
+
+        /**
+         * Pre-public test builds used schema versions below FIRST_PUBLIC_DB_VERSION.
+         * Those databases are not supported upgrade targets, so wipe them before
+         * Room opens the file and tries to run production migrations.
+         */
+        private fun resetPrePublicTestDatabaseIfNeeded(dbFile: File) {
+            if (!dbFile.exists()) return
+
+            val dbVersion = readDatabaseVersion(dbFile) ?: return
+            if (dbVersion >= FIRST_PUBLIC_DB_VERSION) return
+
+            Log.w(
+                DB_TAG,
+                "Deleting pre-public test database version $dbVersion before Room init"
+            )
+
+            val sidecarFiles = listOf(
+                dbFile,
+                File("${dbFile.absolutePath}-wal"),
+                File("${dbFile.absolutePath}-shm"),
+                File("${dbFile.absolutePath}-journal")
+            )
+
+            sidecarFiles.forEach { file ->
+                if (file.exists() && !file.delete()) {
+                    Log.w(DB_TAG, "Failed to delete legacy database file: ${file.absolutePath}")
+                }
+            }
+        }
+
+        private fun readDatabaseVersion(dbFile: File): Int? {
+            var sqliteDb: SQLiteDatabase? = null
+            return try {
+                sqliteDb = SQLiteDatabase.openDatabase(
+                    dbFile.absolutePath,
+                    null,
+                    SQLiteDatabase.OPEN_READONLY
+                )
+                sqliteDb.version
+            } catch (e: Exception) {
+                Log.w(DB_TAG, "Unable to inspect database version for ${dbFile.absolutePath}", e)
+                null
+            } finally {
+                sqliteDb?.close()
+            }
+        }
+
+        /**
+         * Close the database and clear the instance.
+         * Required before full database restore to release file locks.
+         *
+         * IMPORTANT: After calling this, getDatabase() must be called to
+         * reinitialize the database before any DAO operations.
+         */
+        fun closeDatabase() {
+            synchronized(this) {
+                INSTANCE?.close()
+                INSTANCE = null
+                Log.d(DB_TAG, "Database closed and instance cleared")
+            }
+        }
+    }
+}

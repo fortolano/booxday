@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Android Auto Backup rules (Android 11 and older; Android 12+ uses data_extraction_rules.xml).
+   Phase 3 (Oct 2026):
+   - Encrypted preferences stay on the device: their Keystore key is never backed up, so a
+     restored copy can't be decrypted.
+   - API keys stay on the device.
+   - Page previews are rebuilt from the strokes; leaving them out keeps the backup under
+     Android's 25 MB limit (over it, nothing is backed up).
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="boox_day_google_auth.xml" />
+    <exclude domain="sharedpref" path="api_key_prefs.xml" />
+    <exclude domain="sharedpref" path="user_api_key_encrypted.xml" />
+    <exclude domain="file" path="pages/previews/" />
+</full-backup-content>

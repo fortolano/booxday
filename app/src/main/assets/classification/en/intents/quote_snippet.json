@@ -1,0 +1,133 @@
+{
+  "intent": "QUOTE_SNIPPET",
+  "displayName": "Quote / Snippet",
+  "description": "Quotations, memorable sayings, text excerpts",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "quote",
+      "quoted",
+      "quotation",
+      "quotes",
+      "said",
+      "wrote",
+      "stated",
+      "according-to",
+      "as-stated",
+      "excerpt",
+      "passage",
+      "citation",
+      "attributed",
+      "famous-quote",
+      "inspirational-quote",
+      "memorable-quote",
+      "saying",
+      "proverb",
+      "aphorism"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "author",
+      "speaker",
+      "source",
+      "book",
+      "article",
+      "speech",
+      "interview",
+      "famous",
+      "inspirational",
+      "memorable",
+      "wise",
+      "wisdom",
+      "profound",
+      "insightful",
+      "thought-provoking",
+      "motivational",
+      "encouraging",
+      "attributed-to",
+      "credit",
+      "origin",
+      "original",
+      "context",
+      "snippet",
+      "extract",
+      "text",
+      "words",
+      "phrase",
+      "sentence",
+      "paragraph",
+      "lines",
+      "verse",
+      "lyric",
+      "lyrics",
+      "scripture",
+      "highlight",
+      "highlighted",
+      "notable",
+      "noteworthy",
+      "quotable"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "speaks",
+      "remember",
+      "favorite",
+      "love",
+      "share"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "[\"].*[\"]\\s*[-–—]\\s*[A-Z]",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:quote|saying|proverb)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:as|according\\s+to)\\s+[A-Z][a-z]+\\s+(?:said|wrote|stated)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "[-–—]\\s*[A-Z][a-z]+\\s+[A-Z][a-z]+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:famous|inspirational|motivational)\\s+quote",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:quote|quoted)\\s+(?:from|by)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:he|she|they)\\s+(?:said|wrote|stated)\\s*[,:]?\\s*\"",
+      "weight": 4.5
+    },
+    {
+      "pattern": "\"[^\"]+\"\\s+[-–—]",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:excerpt|passage)\\s+(?:from|of)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:favorite|memorable)\\s+(?:quote|saying|line)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:attributed|credited)\\s+to",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:words\\s+of|wisdom\\s+from)",
+      "weight": 4.5
+    }
+  ]
+}

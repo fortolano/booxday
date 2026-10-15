@@ -1,0 +1,222 @@
+{
+  "domain": "BUSINESS",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "revenue",
+      "profit",
+      "margin",
+      "balance-sheet",
+      "cash-flow",
+      "quarterly-results",
+      "fiscal-year",
+      "earnings",
+      "ebitda",
+      "market-share",
+      "business-model",
+      "customer-acquisition",
+      "churn",
+      "arpu",
+      "quarterly-business-review",
+      "account-planning",
+      "sales-pipeline",
+      "revenue-forecast",
+      "quota-attainment",
+      "deal-review",
+      "win-rate",
+      "enterprise-sales",
+      "strategic-account",
+      "key-account",
+      "named-account",
+      "customer-success",
+      "net-promoter-score",
+      "investor",
+      "valuation",
+      "ltv",
+      "cac",
+      "arr",
+      "roi",
+      "nps",
+      "csat",
+      "customer-health"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "sales",
+      "pipeline",
+      "forecast",
+      "quota",
+      "deal",
+      "contract",
+      "renewal",
+      "partnership",
+      "vendor",
+      "supplier",
+      "procurement",
+      "negotiation",
+      "enterprise",
+      "mid-market",
+      "fortune-500",
+      "market-analysis",
+      "industry",
+      "sector",
+      "vertical",
+      "horizontal",
+      "proposal",
+      "tender",
+      "pricing",
+      "discount",
+      "incentive",
+      "commission",
+      "compensation",
+      "territory",
+      "region",
+      "market",
+      "segment",
+      "target",
+      "conversion",
+      "acquisition",
+      "roadmap",
+      "prioritization",
+      "backlog",
+      "metrics",
+      "onboarding",
+      "implementation",
+      "adoption",
+      "expansion",
+      "upsell",
+      "cross-sell",
+      "renewal-rate",
+      "retention",
+      "growth-rate",
+      "run-rate",
+      "executive-sponsor",
+      "champion",
+      "decision-maker",
+      "influencer",
+      "buyer",
+      "competitive-advantage",
+      "value-proposition",
+      "promoter",
+      "survey"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "client",
+      "customer",
+      "account",
+      "opportunity",
+      "lead",
+      "prospect",
+      "growth",
+      "scale",
+      "expand",
+      "monetize",
+      "commercialize",
+      "launch",
+      "brand",
+      "marketing",
+      "campaign",
+      "awareness",
+      "positioning",
+      "competitor",
+      "benchmark",
+      "analysis",
+      "price",
+      "feature",
+      "option",
+      "product",
+      "trends",
+      "canvas",
+      "model",
+      "homepage",
+      "strategy",
+      "tactics",
+      "demo",
+      "presentation",
+      "pitch",
+      "meeting",
+      "call",
+      "email",
+      "follow-up",
+      "touch-point",
+      "engagement",
+      "relationship",
+      "close",
+      "lost",
+      "qualified",
+      "unqualified",
+      "inbound",
+      "outbound",
+      "referral",
+      "cold-call",
+      "warm-lead"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "quarterly\\s+business\\s+review",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:sales|pipeline)\\s+(?:meeting|review|forecast)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:customer|account)\\s+(?:success|planning|review)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:deal|opportunity)\\s+(?:review|pipeline)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:revenue|sales)\\s+(?:forecast|target|goal)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:enterprise|strategic)\\s+(?:account|client|deal)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:customer|client)\\s+(?:meeting|call|presentation)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:renewal|expansion)\\s+(?:discussion|planning)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:contract|deal)\\s+(?:negotiation|signing)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:market|competitive)\\s+analysis",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:quota|revenue)\\s+(?:attainment|achievement)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:win|loss)\\s+(?:rate|analysis|review)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:proposal|rfp)\\s+(?:response|submission)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:pricing|discount)\\s+(?:approval|discussion)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:partner|vendor)\\s+(?:meeting|review)",
+      "weight": 3.5
+    }
+  ]
+}

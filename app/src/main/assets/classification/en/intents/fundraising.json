@@ -1,0 +1,125 @@
+{
+  "intent": "FUNDRAISING",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "fundraising",
+      "fundraise",
+      "raise-capital",
+      "pitch-deck",
+      "term-sheet",
+      "seed-round",
+      "series-a",
+      "series-b",
+      "series-c",
+      "vc-meeting",
+      "investor-meeting",
+      "funding-round",
+      "capital-raise",
+      "pre-seed",
+      "angel-round",
+      "bridge-round"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "pitch",
+      "pitch-practice",
+      "investor-intro",
+      "warm-intro",
+      "cap-table",
+      "valuation",
+      "dilution",
+      "due-diligence",
+      "data-room",
+      "closing",
+      "angel-investor",
+      "venture-capital",
+      "fund",
+      "partner-meeting",
+      "term-negotiation",
+      "safe",
+      "convertible-note",
+      "equity",
+      "pro-rata",
+      "anti-dilution",
+      "liquidation-preference",
+      "board-seat",
+      "lead-investor",
+      "follow-on",
+      "syndicate",
+      "investor-deck",
+      "financial-model",
+      "projections"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "raise",
+      "invest",
+      "investor",
+      "deck",
+      "round",
+      "capital",
+      "shares",
+      "stake",
+      "money",
+      "financing",
+      "funding",
+      "investment",
+      "backing"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "fundrais(?:e|ing)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "pitch\\s+deck",
+      "weight": 5.0
+    },
+    {
+      "pattern": "investor\\s+(?:meeting|intro|deck|update)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "raise\\s+(?:capital|\\$|money|funding)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "series\\s+[a-d]",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:seed|angel|bridge|pre-seed)\\s+round",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:term|cap)\\s+(?:sheet|table)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "due\\s+diligence",
+      "weight": 4.5
+    },
+    {
+      "pattern": "data\\s+room",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:vc|venture)\\s+(?:meeting|fund|partner)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:safe|convertible)\\s+note",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:warm|cold)\\s+intro",
+      "weight": 4.0
+    }
+  ]
+}

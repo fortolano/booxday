@@ -1,0 +1,120 @@
+{
+  "intent": "WISHLIST",
+  "displayName": "Wishlist",
+  "description": "Wishlists, gift ideas, things to buy, wants",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "wishlist",
+      "wish-list",
+      "want-list",
+      "gift-list",
+      "gift-ideas",
+      "dream-list",
+      "bucket-list",
+      "future-purchase",
+      "want-to-buy",
+      "on-my-list",
+      "dream-item",
+      "wish-for",
+      "shopping-list",
+      "to-buy-list"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "purchase",
+      "acquire",
+      "save-up",
+      "saving-for",
+      "gift-idea",
+      "present-idea",
+      "birthday-gift",
+      "christmas-gift",
+      "holiday-gift",
+      "anniversary-gift",
+      "wedding-gift",
+      "graduation-gift",
+      "affordable",
+      "expensive",
+      "splurge",
+      "treat-myself",
+      "self-gift",
+      "wanting-to-get",
+      "desire",
+      "covet",
+      "dream-of",
+      "dreaming-of",
+      "registry",
+      "amazon-link",
+      "shop-link"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "must-have",
+      "giftable",
+      "buyable"
+    ]
+  },
+  "structureBoosts": {
+    "BULLET_LIST": 2.0,
+    "CHECKBOX_UNCHECKED": 2.5
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:wish|want|gift|shopping|to[\\s-]?buy)\\s*list",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:would\\s+like|hoping\\s+(?:for|to\\s+get)|want\\s+to\\s+(?:get|buy|have))",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:birthday|holiday|christmas|anniversary|wedding|graduation)\\s+(?:list|ideas|gifts?|present)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:gift|present)\\s+(?:idea|suggestion|recommendation)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:save|saving)\\s+(?:up\\s+)?(?:for|to\\s+buy)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:dream|bucket)\\s+list",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:someday|eventually|one\\s+day)\\s+(?:i'll|i\\s+will|want\\s+to|i\\s+want)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:treat|reward)\\s+(?:myself|yourself)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:on\\s+my|add\\s+to|put\\s+on)\\s+(?:wish)?\\s*list",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:if\\s+i|when\\s+i)\\s+(?:had|have)\\s+(?:the\\s+)?(?:money|budget)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:splurge|invest)\\s+(?:on|in)\\s+(?:a|the)?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:registry|amazon|shop(?:ping)?)\\s+(?:link|url|cart)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "things?\\s+(?:i|to)\\s+(?:want|buy|get)",
+      "weight": 4.5
+    }
+  ]
+}

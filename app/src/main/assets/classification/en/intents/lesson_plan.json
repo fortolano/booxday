@@ -1,0 +1,150 @@
+{
+  "intent": "LESSON_PLAN",
+  "displayName": "Lesson Plan",
+  "description": "Lesson plans, learning objectives, activities, pacing guides",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "lesson-plan",
+      "lesson plan",
+      "learning-objective",
+      "learning-target",
+      "essential-question",
+      "pacing-guide",
+      "unit-plan",
+      "bell-ringer",
+      "do-now",
+      "warm-up",
+      "exit-ticket",
+      "i-can-statement",
+      "swbat",
+      "students-will-be-able-to",
+      "backwards-design",
+      "understanding-by-design",
+      "daily-plan",
+      "weekly-plan",
+      "scope-and-sequence",
+      "curriculum-map"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "lesson",
+      "activity",
+      "procedure",
+      "materials",
+      "anticipatory-set",
+      "guided-practice",
+      "independent-practice",
+      "closure",
+      "assessment",
+      "differentiation",
+      "extension",
+      "hook",
+      "mini-lesson",
+      "workshop",
+      "grade",
+      "math",
+      "fractions",
+      "decimals",
+      "group",
+      "instruction",
+      "water",
+      "cycle",
+      "condensation",
+      "scaffolding",
+      "scaffold",
+      "gradual-release",
+      "i-do-we-do-you-do",
+      "think-pair-share",
+      "turn-and-talk",
+      "group-work",
+      "partner-work",
+      "whole-class",
+      "small-group",
+      "station-rotation",
+      "centers",
+      "check-for-understanding",
+      "formative-check",
+      "bloom's-taxonomy",
+      "universal-design",
+      "accommodation",
+      "modification",
+      "enrichment",
+      "remediation",
+      "reteach",
+      "intervention"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "plan",
+      "objective",
+      "teach",
+      "instruct",
+      "engage",
+      "introduce",
+      "review",
+      "practice",
+      "apply",
+      "demonstrate",
+      "model",
+      "explain",
+      "transition",
+      "timing",
+      "pacing"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "lesson\\s+plan(?:ning)?",
+      "weight": 5.0
+    },
+    {
+      "pattern": "learning\\s+(?:objective|target|goal|outcome)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "swbat",
+      "weight": 5.0
+    },
+    {
+      "pattern": "students\\s+will\\s+(?:be\\s+able\\s+to)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "bell\\s+(?:ringer|work)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "exit\\s+(?:ticket|slip)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:do\\s+now|warm[\\s-]?up)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:unit|daily|weekly)\\s+plan",
+      "weight": 4.5
+    },
+    {
+      "pattern": "pacing\\s+(?:guide|calendar)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:guided|independent)\\s+practice",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:i\\s+do|we\\s+do|you\\s+do)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:think[\\s-]pair[\\s-]share|turn[\\s-]and[\\s-]talk)",
+      "weight": 4.0
+    }
+  ]
+}

@@ -1,0 +1,198 @@
+{
+  "domain": "HOME",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "renovation",
+      "remodel",
+      "contractor",
+      "plumber",
+      "plumbing",
+      "electrician",
+      "electrical",
+      "hvac",
+      "roofing",
+      "flooring",
+      "property",
+      "landlord",
+      "tenant",
+      "lease",
+      "appraisal",
+      "closing",
+      "title",
+      "homeowner",
+      "homeownership",
+      "property-tax",
+      "deed",
+      "kitchen-remodel",
+      "bathroom-remodel",
+      "addition",
+      "extension",
+      "permit",
+      "building-code",
+      "general-contractor"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "house",
+      "apartment",
+      "condo",
+      "townhouse",
+      "rent",
+      "rental",
+      "repair",
+      "maintenance",
+      "clean",
+      "cleaning",
+      "deep-clean",
+      "furniture",
+      "appliance",
+      "kitchen",
+      "bathroom",
+      "bedroom",
+      "living-room",
+      "yard",
+      "garden",
+      "lawn",
+      "landscaping",
+      "garage",
+      "driveway",
+      "move",
+      "moving",
+      "packing",
+      "unpacking",
+      "boxes",
+      "storage",
+      "utilities",
+      "electric",
+      "water",
+      "internet",
+      "cable",
+      "decor",
+      "decoration",
+      "interior-design",
+      "paint",
+      "wallpaper",
+      "handyman",
+      "carpenter",
+      "painter",
+      "landscaper",
+      "pest-control",
+      "leak",
+      "clog",
+      "drain",
+      "faucet",
+      "toilet",
+      "sink",
+      "shower",
+      "security",
+      "alarm",
+      "camera",
+      "lock",
+      "doorbell",
+      "smoke-detector",
+      "inspection",
+      "zoning",
+      "mortgage",
+      "escrow"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "home",
+      "room",
+      "door",
+      "window",
+      "wall",
+      "ceiling",
+      "floor",
+      "organize",
+      "declutter",
+      "tidy",
+      "sort",
+      "donate",
+      "dispose",
+      "sell",
+      "upgrade",
+      "replace",
+      "install",
+      "remove",
+      "measure",
+      "plan",
+      "design",
+      "budget",
+      "estimate",
+      "quote",
+      "schedule",
+      "appointment",
+      "call",
+      "book",
+      "hire"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:home|house|kitchen|bathroom)\\s+(?:repair|maintenance|improvement|remodel)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:spring|deep|annual)\\s+cleaning",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:call|schedule|hire)\\s+(?:plumber|electrician|contractor|handyman)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:rent|lease|mortgage)\\s+(?:payment|renewal|agreement)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:move|moving)\\s+(?:in|out|day|company|truck)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:hvac|ac|heater|furnace)\\s+(?:repair|maintenance|replacement)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:lawn|yard|garden)\\s+(?:care|maintenance|work)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:home|property)\\s+(?:inspection|appraisal|insurance)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:interior|home)\\s+(?:design|decor|decoration)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:utility|electric|gas|water)\\s+(?:bill|payment|setup)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:security|alarm|camera)\\s+(?:system|installation)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:fix|repair)\\s+(?:leak|drain|faucet|toilet)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:hoa|landlord|tenant)\\s+(?:meeting|fee|issue)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:pest|termite)\\s+(?:control|inspection|treatment)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:paint|flooring|roofing)\\s+(?:project|estimate|contractor)",
+      "weight": 4.0
+    }
+  ]
+}

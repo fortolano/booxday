@@ -1,0 +1,136 @@
+{
+  "intent": "REFERENCE",
+  "displayName": "Reference",
+  "description": "Reference materials, citations, sources, documentation links",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "reference",
+      "references",
+      "source",
+      "sources",
+      "citation",
+      "citations",
+      "bibliography",
+      "works-cited",
+      "link",
+      "links",
+      "urls",
+      "website",
+      "documentation",
+      "docs",
+      "manual",
+      "see-also",
+      "refer-to",
+      "lookup",
+      "further-reading",
+      "resources"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "book",
+      "article",
+      "paper",
+      "journal",
+      "publication",
+      "resource",
+      "page",
+      "chapter",
+      "section",
+      "volume",
+      "issue",
+      "edition",
+      "author",
+      "publisher",
+      "date",
+      "guide",
+      "handbook",
+      "info",
+      "information",
+      "data",
+      "research",
+      "study",
+      "report",
+      "document",
+      "file",
+      "isbn",
+      "pmid",
+      "arxiv",
+      "accessed",
+      "retrieved",
+      "cited",
+      "footnote",
+      "endnote",
+      "annotation",
+      "appendix",
+      "index",
+      "glossary"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "check",
+      "look-up",
+      "search",
+      "read",
+      "consult",
+      "review",
+      "material",
+      "content",
+      "text"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:reference|citation|source|bibliography)\\s*:",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:isbn|doi|url|pmid|arxiv)\\s*:",
+      "weight": 5.0
+    },
+    {
+      "pattern": "\\(\\d{4}\\)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:et\\s+al|pp?\\.\\s*\\d+)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:see|refer\\s+to)\\s+(?:also|page|chapter|section)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:works?\\s+cited|bibliography|references)\\s*:",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:accessed|retrieved)\\s+(?:on|from)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:vol|volume|issue|edition)\\s*\\.?\\s*\\d+",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:further|additional)\\s+(?:reading|resources|information)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "\\[[\\d]+\\]",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:footnote|endnote)\\s*\\d*\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:author|publisher|year)\\s*:",
+      "weight": 4.0
+    }
+  ]
+}

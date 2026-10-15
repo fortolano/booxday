@@ -1,0 +1,263 @@
+{
+  "domain": "TECH",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "endpoint",
+      "backend",
+      "frontend",
+      "microservice",
+      "database",
+      "nosql",
+      "kubernetes",
+      "docker",
+      "git",
+      "github",
+      "gitlab",
+      "bitbucket",
+      "repository",
+      "deploy",
+      "pipeline",
+      "jenkins",
+      "debug",
+      "crash",
+      "crashes",
+      "stacktrace",
+      "exception",
+      "hotfix",
+      "refactor",
+      "codebase",
+      "architecture",
+      "framework",
+      "pull-request",
+      "code-review",
+      "tech-debt",
+      "sprint-review",
+      "terraform",
+      "ansible",
+      "helm",
+      "dockerfile",
+      "rest-api",
+      "graphql",
+      "grpc",
+      "websocket",
+      "yarn",
+      "gradle",
+      "maven",
+      "webpack",
+      "typescript",
+      "javascript",
+      "python",
+      "kotlin",
+      "java",
+      "rust",
+      "golang"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "code",
+      "coding",
+      "programming",
+      "android",
+      "ios",
+      "iphone",
+      "2fa",
+      "ci",
+      "cd",
+      "repo",
+      "npm",
+      "install",
+      "clone",
+      "dev",
+      "oauth2",
+      "cluster",
+      "configure",
+      "automated",
+      "testing",
+      "developer",
+      "engineer",
+      "keyboard",
+      "shortcut",
+      "shortcuts",
+      "ctrl",
+      "copy",
+      "paste",
+      "undo",
+      "save",
+      "function",
+      "method",
+      "class",
+      "object",
+      "variable",
+      "server",
+      "cloud",
+      "azure",
+      "test",
+      "unit",
+      "integration",
+      "mock",
+      "assert",
+      "branch",
+      "merge",
+      "commit",
+      "pull",
+      "push",
+      "devops",
+      "infrastructure",
+      "monitoring",
+      "neural",
+      "network",
+      "networks",
+      "logging",
+      "prometheus",
+      "grafana",
+      "datadog",
+      "splunk",
+      "kibana",
+      "redis",
+      "mongodb",
+      "postgresql",
+      "mysql",
+      "elasticsearch",
+      "react",
+      "angular",
+      "node",
+      "django",
+      "flask",
+      "spring",
+      "lambda",
+      "dynamodb",
+      "cloudformation",
+      "yaml",
+      "json",
+      "config",
+      "environment",
+      "staging",
+      "production",
+      "sprint",
+      "kanban",
+      "agile",
+      "scrum",
+      "jira",
+      "confluence"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "software",
+      "system",
+      "tool",
+      "script",
+      "build",
+      "release",
+      "version",
+      "update",
+      "error",
+      "warning",
+      "trace",
+      "metrics",
+      "performance",
+      "latency",
+      "throughput",
+      "scalability",
+      "security",
+      "authentication",
+      "authorization",
+      "oauth",
+      "encryption",
+      "password",
+      "https",
+      "cert",
+      "backup",
+      "restore",
+      "migration",
+      "rollback",
+      "feature",
+      "classification",
+      "bugfix",
+      "enhancement",
+      "reproduce",
+      "startup",
+      "ticket",
+      "issue",
+      "standup",
+      "retro",
+      "demo",
+      "planning",
+      "grooming"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "programming\\s+language",
+      "weight": 6.0
+    },
+    {
+      "pattern": "(?:learn|learning|study|studying)\\s+(?:to\\s+)?(?:code|program|programming)",
+      "weight": 5.5
+    },
+    {
+      "pattern": "pull\\s+request",
+      "weight": 4.5
+    },
+    {
+      "pattern": "code\\s+review",
+      "weight": 4.0
+    },
+    {
+      "pattern": "tech\\s+debt",
+      "weight": 4.0
+    },
+    {
+      "pattern": "null\\s+pointer",
+      "weight": 4.0
+    },
+    {
+      "pattern": "stack\\s+(?:overflow|trace)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:api|rest|graphql)\\s+(?:endpoint|call|request)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:ci|cd)\\s+(?:pipeline|build)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:docker|kubernetes|k8s)\\s+(?:container|pod|cluster)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:deploy|deployment)\\s+(?:to|on|pipeline)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:git|github)\\s+(?:push|pull|merge|branch)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:unit|integration|e2e)\\s+test",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:bug|issue)\\s+(?:fix|report|ticket)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:sprint|release)\\s+(?:planning|review)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:aws|gcp|azure)\\s+(?:service|resource)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:database|db)\\s+(?:migration|query|schema)",
+      "weight": 4.0
+    }
+  ]
+}

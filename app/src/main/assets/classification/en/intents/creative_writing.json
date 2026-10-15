@@ -1,0 +1,123 @@
+{
+  "intent": "CREATIVE_WRITING",
+  "displayName": "Creative Writing",
+  "description": "Fiction, stories, poems, scripts, novel drafts, creative prose",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "chapter",
+      "chapter one",
+      "prologue",
+      "epilogue",
+      "draft",
+      "first draft",
+      "rough draft",
+      "manuscript",
+      "novel",
+      "novella",
+      "short story",
+      "flash fiction",
+      "poem",
+      "poetry",
+      "verse",
+      "stanza",
+      "rhyme",
+      "screenplay",
+      "script",
+      "dialogue",
+      "scene",
+      "narrator",
+      "protagonist",
+      "antagonist",
+      "character arc"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "fiction",
+      "nonfiction",
+      "creative nonfiction",
+      "memoir",
+      "plot",
+      "subplot",
+      "conflict",
+      "resolution",
+      "climax",
+      "setting",
+      "world building",
+      "backstory",
+      "flashback",
+      "point of view",
+      "first person",
+      "third person",
+      "monologue",
+      "interior monologue",
+      "genre",
+      "fantasy",
+      "sci-fi",
+      "romance",
+      "mystery",
+      "thriller",
+      "character",
+      "hero",
+      "villain",
+      "sidekick",
+      "beat",
+      "story beat",
+      "word count",
+      "page count",
+      "writing sprint"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "story",
+      "write",
+      "writing"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "chapter\\s+(?:one|\\d+|[ivxlc]+)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:first|rough|final)\\s+draft",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:short\\s+)?story\\s+(?:idea|outline|draft)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:novel|book)\\s+(?:draft|outline|idea)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:poem|poetry)\\s+(?:draft|idea)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "word\\s+count",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:scene|act)\\s+\\d+",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:INT|EXT)\\.",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:he|she|they)\\s+said",
+      "weight": 3.5
+    },
+    {
+      "pattern": "once\\s+upon\\s+a\\s+time",
+      "weight": 5.0
+    }
+  ]
+}

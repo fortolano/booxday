@@ -1,0 +1,136 @@
+{
+  "intent": "BUDGET",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "budget",
+      "forecast",
+      "projection",
+      "allocation",
+      "spending",
+      "income",
+      "revenue",
+      "expenses",
+      "surplus",
+      "deficit",
+      "variance",
+      "budget-plan",
+      "budget-breakdown",
+      "financial-plan",
+      "spending-plan"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "monthly",
+      "quarterly",
+      "annual",
+      "fiscal",
+      "category",
+      "line-item",
+      "planned",
+      "actual",
+      "savings",
+      "investment",
+      "debt",
+      "cost",
+      "expense-category",
+      "budget-category",
+      "budget-tracking",
+      "budget-review",
+      "budget-approval",
+      "budget-request",
+      "rent",
+      "utilities",
+      "breakdown",
+      "operations",
+      "venue",
+      "catering",
+      "renovation",
+      "reallocation",
+      "overspend",
+      "underspend",
+      "budget-variance",
+      "cost-center",
+      "department-budget",
+      "project-budget",
+      "operating-budget",
+      "capital-budget",
+      "discretionary",
+      "fixed-cost",
+      "variable-cost"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "money",
+      "funds",
+      "finance",
+      "financial",
+      "spend",
+      "save",
+      "allocate",
+      "track",
+      "plan",
+      "estimate",
+      "project",
+      "expense"
+    ]
+  },
+  "structureBoosts": {
+    "NUMBERED_LIST": 1.5,
+    "BULLET_LIST": 1.5
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "budget\\s+(?:for|plan|breakdown|review|tracking)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:monthly|annual|quarterly|fiscal)\\s+budget",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:income|expense|spending)\\s+(?:plan|forecast|budget)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:allocate|allocation)\\s+(?:for|to|budget)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "budget\\s+(?:variance|surplus|deficit)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:actual|planned)\\s+(?:vs|versus)\\s+(?:actual|planned)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:operating|capital|project|department)\\s+budget",
+      "weight": 4.5
+    },
+    {
+      "pattern": "cost\\s+(?:center|category|breakdown)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:over|under)spend",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:fixed|variable)\\s+cost",
+      "weight": 4.0
+    },
+    {
+      "pattern": "line\\s+item",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:budget|spending)\\s+(?:limit|cap|ceiling)",
+      "weight": 4.0
+    }
+  ]
+}

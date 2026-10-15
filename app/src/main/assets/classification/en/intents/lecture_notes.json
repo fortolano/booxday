@@ -1,0 +1,135 @@
+{
+  "intent": "LECTURE_NOTES",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "lecture",
+      "professor",
+      "instructor",
+      "class-notes",
+      "today's-lecture",
+      "slides",
+      "presentation",
+      "chapter",
+      "topic",
+      "covered",
+      "explained",
+      "lecture-notes",
+      "lecture-summary",
+      "classroom",
+      "coursework"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "definition",
+      "concept",
+      "theory",
+      "example",
+      "important",
+      "remember",
+      "test",
+      "exam",
+      "key-point",
+      "takeaway",
+      "summary",
+      "formula",
+      "equation",
+      "diagram",
+      "graph",
+      "chart",
+      "figure",
+      "economics",
+      "supply",
+      "demand",
+      "curves",
+      "equilibrium",
+      "professor-said",
+      "instructor-mentioned",
+      "emphasized",
+      "highlighted",
+      "on-the-exam",
+      "study-for",
+      "review-for",
+      "office-hours",
+      "discussion-section",
+      "recitation",
+      "lab-section",
+      "textbook"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "class",
+      "course",
+      "learn",
+      "write",
+      "listen",
+      "understand",
+      "explain",
+      "review",
+      "study",
+      "material",
+      "content",
+      "lesson",
+      "session",
+      "week"
+    ]
+  },
+  "structureBoosts": {
+    "BULLET_LIST": 2.0,
+    "NUMBERED_LIST": 1.5
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:lecture|class)\\s+(?:notes|summary|today)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:professor|instructor|teacher)\\s+(?:said|mentioned|explained)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:key|main|important)\\s+(?:point|concept|takeaway)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:chapter|unit|module|week)\\s+\\d+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:on|for)\\s+(?:the\\s+)?(?:exam|test|midterm|final)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "today(?:'s)?\\s+(?:lecture|class|topic)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:definition|formula|equation)\\s*:",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:will\\s+be|is)\\s+on\\s+(?:the\\s+)?(?:exam|test)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:slide|page)\\s+\\d+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:office|discussion|lab)\\s+(?:hours|section)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:review|study)\\s+(?:for|session|guide)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:emphasized|highlighted|stressed)\\s+(?:that|this)",
+      "weight": 4.0
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "intent": "ADVISING",
+  "displayName": "Academic Advising",
+  "description": "Graduate student advising, thesis guidance, mentorship meetings",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "advising",
+      "advisee",
+      "advisees",
+      "advisor-meeting",
+      "thesis-advisor",
+      "dissertation-advisor",
+      "graduate-advising",
+      "phd-advising",
+      "mentee",
+      "mentorship-meeting",
+      "thesis-progress",
+      "dissertation-progress",
+      "candidacy",
+      "qualifying-exam",
+      "comprehensive-exam",
+      "defense-prep",
+      "committee-meeting",
+      "thesis-committee",
+      "dissertation-committee"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "graduate-student",
+      "phd-student",
+      "masters-student",
+      "doctoral-student",
+      "research-progress",
+      "chapter-review",
+      "draft-feedback",
+      "writing-progress",
+      "research-direction",
+      "career-guidance",
+      "academic-career",
+      "job-market",
+      "postdoc-search",
+      "industry-job",
+      "recommendation-letter",
+      "reference-letter",
+      "publication-strategy",
+      "conference-submission",
+      "research-timeline",
+      "milestone-check",
+      "degree-progress",
+      "coursework-plan",
+      "independent-study",
+      "directed-reading",
+      "research-assistantship",
+      "teaching-assistantship",
+      "funding-status",
+      "stipend"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "student",
+      "meeting",
+      "progress",
+      "guidance",
+      "mentor",
+      "support",
+      "feedback",
+      "discuss",
+      "review",
+      "plan",
+      "goals",
+      "timeline",
+      "deadline",
+      "chapter",
+      "draft"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:advising|advisor)\\s+(?:meeting|session|notes)",
+      "weight": 5.5
+    },
+    {
+      "pattern": "(?:graduate|phd|masters|doctoral)\\s+student\\s+(?:meeting|advising)",
+      "weight": 5.5
+    },
+    {
+      "pattern": "(?:thesis|dissertation)\\s+(?:progress|meeting|feedback|review)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:qualifying|comprehensive|candidacy)\\s+exam\\s+(?:prep|preparation)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:committee|defense)\\s+(?:meeting|preparation|scheduling)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:chapter|draft)\\s+(?:review|feedback|comments)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:research|writing)\\s+progress",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:career|job\\s+market)\\s+(?:advice|guidance|discussion)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:recommendation|reference)\\s+letter",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:postdoc|faculty)\\s+(?:search|application|position)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "degree\\s+(?:progress|timeline|requirements)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:mentee|advisee)\\s+(?:meeting|check-in|progress)",
+      "weight": 5.0
+    }
+  ]
+}

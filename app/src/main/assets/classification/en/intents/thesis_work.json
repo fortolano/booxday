@@ -1,0 +1,130 @@
+{
+  "intent": "THESIS_WORK",
+  "displayName": "Thesis & Research",
+  "description": "Academic writing, research, citations, dissertation",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "thesis",
+      "dissertation",
+      "thesis-defense",
+      "thesis-proposal",
+      "thesis-advisor",
+      "thesis-committee",
+      "thesis-chapter",
+      "literature-review",
+      "lit-review",
+      "research-question",
+      "methodology",
+      "research-design",
+      "findings",
+      "doctoral-thesis",
+      "master's-thesis",
+      "capstone"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "citation",
+      "cite",
+      "reference",
+      "source",
+      "peer-review",
+      "academic-journal",
+      "publication",
+      "chicago-style",
+      "bibliography",
+      "abstract",
+      "introduction",
+      "conclusion",
+      "discussion",
+      "primary-source",
+      "secondary-source",
+      "scholarly",
+      "academic-writing",
+      "research-paper",
+      "dissertation-chapter",
+      "chapter",
+      "data-collection",
+      "data-analysis",
+      "theoretical-framework",
+      "conceptual-framework",
+      "hypothesis",
+      "research-gap",
+      "contribution",
+      "defense-date",
+      "oral-defense"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "research",
+      "paper",
+      "write",
+      "draft",
+      "revise",
+      "edit",
+      "submit",
+      "publish",
+      "academic",
+      "study",
+      "section",
+      "investigate",
+      "analyze",
+      "examine",
+      "explore"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "thesis\\s+(?:chapter|defense|proposal|advisor|committee)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:dissertation|doctoral|master's)\\s+(?:thesis|defense|proposal)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "literature\\s+review",
+      "weight": 5.0
+    },
+    {
+      "pattern": "research\\s+(?:question|design|methodology|gap)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:apa|mla|chicago)\\s+(?:format|style|citation)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:theoretical|conceptual)\\s+framework",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:data|findings)\\s+(?:collection|analysis)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:peer|academic)\\s+(?:review|journal|publication)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:oral|thesis)\\s+defense",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:primary|secondary)\\s+source",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:abstract|introduction|conclusion|discussion)\\s+(?:section|chapter)?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:bibliography|works\\s+cited|references)\\s+(?:page|section)?",
+      "weight": 4.0
+    }
+  ]
+}

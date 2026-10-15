@@ -1,0 +1,25 @@
+appId: com.boox.day
+---
+# Reusable flow: Close current dialog
+# Works for most centered dialogs
+#
+# WARNING: `- back` can exit the app if no dialog is open.
+# After calling this flow, consider adding a launchApp guard:
+#   - launchApp:
+#       clearState: false
+
+- back
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1000"
+
+# GUARD: Re-launch app in case back exited it
+- launchApp:
+    clearState: false
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "500"

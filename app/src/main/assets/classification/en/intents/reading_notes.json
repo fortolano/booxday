@@ -1,0 +1,125 @@
+{
+  "intent": "READING_NOTES",
+  "displayName": "Reading Notes",
+  "description": "Textbook annotations, article summaries, highlights",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "reading-notes",
+      "chapter-notes",
+      "textbook-notes",
+      "annotation",
+      "annotate",
+      "highlight",
+      "margin-notes",
+      "reading-summary",
+      "article-summary",
+      "book-summary",
+      "key-points",
+      "main-ideas",
+      "important-concepts",
+      "book-notes",
+      "study-notes"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "chapter",
+      "page",
+      "paragraph",
+      "section",
+      "reading-assignment",
+      "assigned-reading",
+      "required-reading",
+      "vocabulary",
+      "key-terms",
+      "definition",
+      "quote",
+      "quotation",
+      "passage",
+      "excerpt",
+      "underline",
+      "bookmark",
+      "sticky-note",
+      "marginal-note",
+      "reading-comprehension",
+      "reading-reflection",
+      "author-argument",
+      "main-thesis",
+      "supporting-evidence",
+      "critical-analysis",
+      "takeaway",
+      "insight",
+      "synthesis",
+      "connection"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "read",
+      "reading",
+      "notes",
+      "summary",
+      "book",
+      "article",
+      "text",
+      "understand",
+      "remember",
+      "analyze",
+      "interpret",
+      "extract"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:reading|chapter|textbook|book)\\s+notes",
+      "weight": 5.0
+    },
+    {
+      "pattern": "chapter\\s+\\d+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "page\\s+\\d+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "key\\s+(?:points|terms|concepts|ideas)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:reading|article|book)\\s+summary",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:main|central)\\s+(?:idea|argument|thesis)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:margin|marginal|sticky)\\s+note",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:assigned|required)\\s+reading",
+      "weight": 4.0
+    },
+    {
+      "pattern": "author\\s+(?:argues|claims|states|suggests)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:quote|passage)\\s+(?:from|on\\s+page)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:highlight|underline)\\s+(?:key|important)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:reading|chapter)\\s+(?:reflection|response|analysis)",
+      "weight": 4.5
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="images" path="images/"/>
+    <cache-path name="exports" path="exports/"/>
+    <!-- Attachments (ebooks, PDFs, etc.) from the folders the attachment picker offers.
+         Phase 3 (Oct 2026): no longer the whole of external storage (path="."). -->
+    <external-path name="ksync" path=".ksync/"/>
+    <external-path name="books" path="Books/"/>
+    <external-path name="documents" path="Documents/"/>
+    <external-path name="download" path="Download/"/>
+    <external-path name="shop" path="Shop/"/>
+</paths>

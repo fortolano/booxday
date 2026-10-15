@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-01-06T17:01:01.450989",
+  "files": {
+    "ocr_texts": "fixtures\\quick_test\\quick_test_json\\ocr_texts.json",
+    "calendar_events": "fixtures\\quick_test\\quick_test_json\\calendar_events.json",
+    "relationships": "fixtures\\quick_test\\quick_test_json\\relationships.json"
+  },
+  "stats": {
+    "ocr_count": 10,
+    "event_count": 10,
+    "relationship_count": 10,
+    "local_event_count": 0
+  }
+}

@@ -1,0 +1,193 @@
+{
+  "domain": "LEGAL",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "lawyer",
+      "attorney",
+      "court",
+      "judge",
+      "magistrate",
+      "lawsuit",
+      "litigation",
+      "settlement",
+      "verdict",
+      "judgment",
+      "contract",
+      "agreement",
+      "clause",
+      "terms",
+      "provision",
+      "compliance",
+      "regulation",
+      "statute",
+      "legislation",
+      "plaintiff",
+      "defendant",
+      "counsel",
+      "paralegal",
+      "deposition",
+      "discovery",
+      "subpoena",
+      "affidavit",
+      "arbitration",
+      "mediation",
+      "negotiation",
+      "dispute-resolution",
+      "non-disclosure",
+      "confidentiality",
+      "non-compete",
+      "power-of-attorney",
+      "notarized",
+      "witnessed",
+      "executed"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "legal",
+      "notary",
+      "witness",
+      "document",
+      "documentation",
+      "sign",
+      "signature",
+      "filing",
+      "deadline",
+      "court-date",
+      "patent",
+      "trademark",
+      "copyright",
+      "intellectual-property",
+      "liability",
+      "insurance",
+      "claim",
+      "damages",
+      "compensation",
+      "due-diligence",
+      "audit",
+      "inspection",
+      "review",
+      "approval",
+      "estate",
+      "will",
+      "trust",
+      "probate",
+      "executor",
+      "beneficiary",
+      "criminal",
+      "civil",
+      "felony",
+      "misdemeanor",
+      "violation",
+      "lease",
+      "rental-agreement",
+      "tenancy",
+      "eviction",
+      "termination",
+      "merger",
+      "acquisition",
+      "incorporation",
+      "partnership",
+      "employment-law",
+      "wrongful-termination",
+      "discrimination",
+      "harassment",
+      "testimony"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "rights",
+      "obligation",
+      "policy",
+      "rule",
+      "guideline",
+      "approve",
+      "consent",
+      "waiver",
+      "release",
+      "penalty",
+      "fine",
+      "payment",
+      "party",
+      "parties",
+      "entity",
+      "individual",
+      "corporation",
+      "enforceable",
+      "binding",
+      "valid",
+      "void",
+      "breach"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:legal|contract|document)\\s+(?:review|signing|execution)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:terms|conditions)\\s+(?:of|and|agreement)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "review\\s+(?:contract|agreement|terms|legal)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:non-disclosure|nda|confidentiality)\\s+agreement",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:lawsuit|legal|court)\\s+(?:filing|case|proceedings)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:patent|trademark|copyright)\\s+(?:application|filing|registration)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:estate|will|trust)\\s+(?:planning|document|execution)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:employment|rental|service)\\s+(?:contract|agreement)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:attorney|lawyer|counsel)\\s+(?:meeting|consultation|fee)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:compliance|regulatory)\\s+(?:review|audit|requirement)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:settlement|mediation|arbitration)\\s+(?:agreement|hearing)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:power-of|letter-of)\\s+attorney",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:breach|violation)\\s+(?:of|contract|agreement)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:liability|insurance)\\s+(?:coverage|claim|waiver)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:notarized|witnessed)\\s+(?:document|signature)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:due|legal)\\s+diligence",
+      "weight": 4.0
+    }
+  ]
+}

@@ -1,0 +1,623 @@
+{
+  "version": "2.0",
+  "description": "Generated test cases for SemanticGeniusService affinity testing",
+  "generated_at": "2026-01-06T17:01:12.603967",
+  "test_count": 30,
+  "categories": {
+    "generated_high_match": "Generated pairs with high expected affinity",
+    "generated_medium_match": "Generated pairs with medium expected affinity",
+    "generated_low_match": "Generated pairs with low expected affinity"
+  },
+  "test_cases": [
+    {
+      "id": "GEN_HIGH_MATCH_0000",
+      "category": "generated_high_match",
+      "input": "Notes - 2026-02-02\nParticipants: Sister Clark\n\nTopics discussed:\n- Bishop\n- Bishopric\n- Stake President\n\nAction items:\n- [ ] Sister Clark: Follow up on bishop\n\nDate: 2026-02-02\nNext meeting: next week",
+      "expected_domain": "LDS_LEADERSHIP",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Date night",
+        "description": "Attendees: Sarah Chen, Amber Hill\nOrganization: GlobalTrade Co\nTopics: self-improvement, personal-growth\n\nAgenda:\n1. self-improvement\n2. personal-growth",
+        "day_id": "2026-02-02"
+      },
+      "expected_affinity_range": [
+        0.6,
+        0.85
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD",
+        "TEMPORAL",
+        "ORG"
+      ]
+    },
+    {
+      "id": "GEN_HIGH_MATCH_0001",
+      "category": "generated_high_match",
+      "input": "Notes - 2026-01-08\nParticipants: Ryan Thompson, Christopher Lee\n\nTopics discussed:\n- Endpoint\n- Backend\n- Frontend\n\nAction items:\n- [ ] Ryan Thompson: Follow up on endpoint\n- [ ] Christopher Lee: Follow up on endpoint\n\nDate: 2026-01-08\nNext meeting: next week",
+      "expected_domain": "TECH",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Tax prep appointment",
+        "description": "Attendees: Ashley Garcia, David Kim\nOrganization: Strategic Alliance\nTopics: investment, portfolio\n\nAgenda:\n1. investment\n2. portfolio",
+        "day_id": "2026-01-08"
+      },
+      "expected_affinity_range": [
+        0.6,
+        0.85
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD",
+        "TEMPORAL",
+        "ORG"
+      ]
+    },
+    {
+      "id": "GEN_HIGH_MATCH_0002",
+      "category": "generated_high_match",
+      "input": "Notes - 2026-02-04\nParticipants: Lauren Robinson, Jason Young, Emily Johnson\n\nTopics discussed:\n- Artist\n- Painting\n- Drawing\n\nAction items:\n- [ ] Lauren Robinson: Follow up on artist\n- [ ] Jason Young: Follow up on artist\n\nDate: 2026-02-04\nNext meeting: next week",
+      "expected_domain": "CREATIVE",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Music lesson",
+        "description": "Attendees: Lauren Robinson, Jason Young\nOrganization: Strategic Alliance\nTopics: artist, painting\n\nAgenda:\n1. artist\n2. painting",
+        "day_id": "2026-02-04"
+      },
+      "expected_affinity_range": [
+        0.6,
+        0.85
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD",
+        "TEMPORAL",
+        "ORG"
+      ]
+    },
+    {
+      "id": "GEN_HIGH_MATCH_0003",
+      "category": "generated_high_match",
+      "input": "Notes - 2026-01-08\nParticipants: Ryan Thompson, Christopher Lee\n\nTopics discussed:\n- Endpoint\n- Backend\n- Frontend\n\nAction items:\n- [ ] Ryan Thompson: Follow up on endpoint\n- [ ] Christopher Lee: Follow up on endpoint\n\nDate: 2026-01-08\nNext meeting: next week",
+      "expected_domain": "TECH",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Partner meeting: Growth Ventures",
+        "description": "Attendees: Michael Roberts, Samantha Clark\nOrganization: Growth Ventures\nTopics: revenue, profit\n\nAgenda:\n1. revenue\n2. profit",
+        "day_id": "2026-01-08"
+      },
+      "expected_affinity_range": [
+        0.6,
+        0.85
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD",
+        "TEMPORAL",
+        "ORG"
+      ]
+    },
+    {
+      "id": "GEN_HIGH_MATCH_0004",
+      "category": "generated_high_match",
+      "input": "Notes - 2026-01-27\nParticipants: Matthew Wilson, Elizabeth Martin, Christopher Lee\n\nTopics discussed:\n- Self Improvement\n- Personal Growth\n- Mindset\n\nAction items:\n- [ ] Matthew Wilson: Follow up on self-improvement\n- [ ] Elizabeth Martin: Follow up on self-improvement\n\nDate: 2026-01-27\nNext meeting: next week",
+      "expected_domain": "LIFE",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "House cleaning",
+        "description": "Attendees: Matthew Wilson, Elizabeth Martin\nOrganization: Commerce Group\nTopics: self-improvement, personal-growth\n\nAgenda:\n1. self-improvement\n2. personal-growth",
+        "day_id": "2026-01-27"
+      },
+      "expected_affinity_range": [
+        0.6,
+        0.85
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD",
+        "TEMPORAL",
+        "ORG"
+      ]
+    },
+    {
+      "id": "GEN_HIGH_MATCH_0005",
+      "category": "generated_high_match",
+      "input": "Notes - 2026-01-01\nParticipants: Michael Roberts\n\nTopics discussed:\n- Prayer\n- Pray\n- Praying\n\nAction items:\n- [ ] Michael Roberts: Follow up on prayer\n\nDate: 2026-01-01\nNext meeting: next week",
+      "expected_domain": "SPIRITUAL",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Birthday party",
+        "description": "Attendees: Daniel Thomas, Ryan Thompson\nOrganization: Industry Leaders\nTopics: self-improvement, personal-growth\n\nAgenda:\n1. self-improvement\n2. personal-growth",
+        "day_id": "2026-01-01"
+      },
+      "expected_affinity_range": [
+        0.6,
+        0.85
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD",
+        "TEMPORAL",
+        "ORG"
+      ]
+    },
+    {
+      "id": "GEN_HIGH_MATCH_0006",
+      "category": "generated_high_match",
+      "input": "Notes - 2026-01-28\nParticipants: David Kim, Emily Johnson\n\nTopics discussed:\n- Endpoint\n- Backend\n- Frontend\n\nAction items:\n- [ ] David Kim: Follow up on endpoint\n- [ ] Emily Johnson: Follow up on endpoint\n\nDate: 2026-01-28\nNext meeting: next week",
+      "expected_domain": "TECH",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Student advising - Dr. Martinez",
+        "description": "Attendees: Dr. Martinez, Megan Allen\nOrganization: Graduate Studies\nTopics: exam, midterm\n\nAgenda:\n1. exam\n2. midterm",
+        "day_id": "2026-01-28"
+      },
+      "expected_affinity_range": [
+        0.6,
+        0.85
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD",
+        "TEMPORAL",
+        "ORG"
+      ]
+    },
+    {
+      "id": "GEN_HIGH_MATCH_0007",
+      "category": "generated_high_match",
+      "input": "Notes - 2025-12-17\nParticipants: Elizabeth Martin, Elder Johnson, Nicole White\n\nTopics discussed:\n- Prayer\n- Pray\n- Praying\n\nAction items:\n- [ ] Elizabeth Martin: Follow up on prayer\n- [ ] Elder Johnson: Follow up on prayer\n\nDate: 2025-12-17\nNext meeting: next week",
+      "expected_domain": "SPIRITUAL",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Prayer meeting",
+        "description": "Attendees: Elizabeth Martin, Elder Johnson\nOrganization: Young Women\nTopics: prayer, pray\n\nAgenda:\n1. prayer\n2. pray",
+        "day_id": "2025-12-17"
+      },
+      "expected_affinity_range": [
+        0.6,
+        0.85
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD",
+        "TEMPORAL",
+        "ORG"
+      ]
+    },
+    {
+      "id": "GEN_HIGH_MATCH_0008",
+      "category": "generated_high_match",
+      "input": "Notes - 2026-01-19\nParticipants: Christopher Lee, Sister Davis\n\nTopics discussed:\n- Prayer\n- Pray\n- Praying\n\nAction items:\n- [ ] Christopher Lee: Follow up on prayer\n- [ ] Sister Davis: Follow up on prayer\n\nDate: 2026-01-19\nNext meeting: next week",
+      "expected_domain": "SPIRITUAL",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Research presentation",
+        "description": "Attendees: Rachel Hall, Michelle Davis\nOrganization: Student Affairs\nTopics: exam, midterm\n\nAgenda:\n1. exam\n2. midterm",
+        "day_id": "2026-01-19"
+      },
+      "expected_affinity_range": [
+        0.6,
+        0.85
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD",
+        "TEMPORAL",
+        "ORG"
+      ]
+    },
+    {
+      "id": "GEN_HIGH_MATCH_0009",
+      "category": "generated_high_match",
+      "input": "Notes - 2026-01-02\nParticipants: Lauren Robinson, Michelle Davis, Jessica Williams (DevOps)\n\nTopics discussed:\n- Revenue\n- Profit\n- Margin\n\nAction items:\n- [ ] Lauren Robinson: Follow up on revenue\n- [ ] Michelle Davis: Follow up on revenue\n\nDate: 2026-01-02\nNext meeting: next week",
+      "expected_domain": "BUSINESS",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "QBR with NexGen Tech",
+        "description": "Attendees: Lauren Robinson, Michelle Davis\nOrganization: NexGen Tech\nTopics: revenue, profit\n\nAgenda:\n1. revenue\n2. profit",
+        "day_id": "2026-01-02"
+      },
+      "expected_affinity_range": [
+        0.6,
+        0.85
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD",
+        "TEMPORAL",
+        "ORG"
+      ]
+    },
+    {
+      "id": "GEN_MEDIUM_MATCH_0010",
+      "category": "generated_medium_match",
+      "input": "Notes - 2026-02-02\nParticipants: Sister Clark\n\nTopics discussed:\n- Bishop\n- Bishopric\n- Stake President\n\nAction items:\n- [ ] Sister Clark: Follow up on bishop\n\nDate: 2026-02-02\nNext meeting: next week",
+      "expected_domain": "LDS_LEADERSHIP",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Relief Society meeting",
+        "description": "Attendees: Sister Clark, Elder Thompson\nTopics: bishop\n\nAgenda:\n1. bishop",
+        "day_id": "2026-02-02"
+      },
+      "expected_affinity_range": [
+        0.25,
+        0.5
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD"
+      ]
+    },
+    {
+      "id": "GEN_MEDIUM_MATCH_0011",
+      "category": "generated_medium_match",
+      "input": "Notes - 2026-01-01\nParticipants: Michael Roberts\n\nTopics discussed:\n- Prayer\n- Pray\n- Praying\n\nAction items:\n- [ ] Michael Roberts: Follow up on prayer\n\nDate: 2026-01-01\nNext meeting: next week",
+      "expected_domain": "SPIRITUAL",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Prayer meeting",
+        "description": "Attendees: Michael Roberts, Brother Taylor\nTopics: prayer\n\nAgenda:\n1. prayer",
+        "day_id": "2026-01-01"
+      },
+      "expected_affinity_range": [
+        0.25,
+        0.5
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD"
+      ]
+    },
+    {
+      "id": "GEN_MEDIUM_MATCH_0012",
+      "category": "generated_medium_match",
+      "input": "Notes - 2025-12-22\nParticipants: Kevin Lewis\n\nTopics discussed:\n- Endpoint\n- Backend\n- Frontend\n\nAction items:\n- [ ] Kevin Lewis: Follow up on endpoint\n\nDate: 2025-12-22\nNext meeting: next week",
+      "expected_domain": "TECH",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Code review session",
+        "description": "Attendees: Kevin Lewis, Stephanie Moore\nTopics: endpoint\n\nAgenda:\n1. endpoint",
+        "day_id": "2025-12-22"
+      },
+      "expected_affinity_range": [
+        0.25,
+        0.5
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD"
+      ]
+    },
+    {
+      "id": "GEN_MEDIUM_MATCH_0013",
+      "category": "generated_medium_match",
+      "input": "Notes - 2026-01-28\nParticipants: David Kim, Emily Johnson\n\nTopics discussed:\n- Endpoint\n- Backend\n- Frontend\n\nAction items:\n- [ ] David Kim: Follow up on endpoint\n- [ ] Emily Johnson: Follow up on endpoint\n\nDate: 2026-01-28\nNext meeting: next week",
+      "expected_domain": "TECH",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Personal time",
+        "description": "Attendees: Ashley Garcia, John Smith\nTopics: self-improvement\n\nAgenda:\n1. self-improvement",
+        "day_id": "2026-01-28"
+      },
+      "expected_affinity_range": [
+        0.25,
+        0.5
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD"
+      ]
+    },
+    {
+      "id": "GEN_MEDIUM_MATCH_0014",
+      "category": "generated_medium_match",
+      "input": "Notes - 2026-01-05\nParticipants: Lauren Robinson\n\nTopics discussed:\n- Self Improvement\n- Personal Growth\n- Mindset\n\nAction items:\n- [ ] Lauren Robinson: Follow up on self-improvement\n\nDate: 2026-01-05\nNext meeting: next week",
+      "expected_domain": "LIFE",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Family dinner",
+        "description": "Attendees: Lauren Robinson, Samantha Clark\nTopics: self-improvement\n\nAgenda:\n1. self-improvement",
+        "day_id": "2026-01-05"
+      },
+      "expected_affinity_range": [
+        0.25,
+        0.5
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD"
+      ]
+    },
+    {
+      "id": "GEN_MEDIUM_MATCH_0015",
+      "category": "generated_medium_match",
+      "input": "Notes - 2026-01-30\nParticipants: Jennifer Brown\n\nTopics discussed:\n- Exam\n- Midterm\n- Final Exam\n\nAction items:\n- [ ] Jennifer Brown: Follow up on exam\n\nDate: 2026-01-30\nNext meeting: next week",
+      "expected_domain": "EDUCATION",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Meeting",
+        "description": "Attendees: Jennifer Brown, Jason Young\nTopics: exam\n\nAgenda:\n1. exam",
+        "day_id": "2026-01-30"
+      },
+      "expected_affinity_range": [
+        0.25,
+        0.5
+      ],
+      "match_reasons": [
+        "DOMAIN_SIBLING",
+        "PERSON",
+        "KEYWORD"
+      ]
+    },
+    {
+      "id": "GEN_MEDIUM_MATCH_0016",
+      "category": "generated_medium_match",
+      "input": "Notes - 2025-12-12\nParticipants: Robert Taylor\n\nTopics discussed:\n- Prayer\n- Pray\n- Praying\n\nAction items:\n- [ ] Robert Taylor: Follow up on prayer\n\nDate: 2025-12-12\nNext meeting: next week",
+      "expected_domain": "SPIRITUAL",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Primary meeting",
+        "description": "Attendees: Robert Taylor, Brother Taylor\nTopics: prayer\n\nAgenda:\n1. prayer",
+        "day_id": "2025-12-12"
+      },
+      "expected_affinity_range": [
+        0.25,
+        0.5
+      ],
+      "match_reasons": [
+        "DOMAIN_SIBLING",
+        "PERSON",
+        "KEYWORD"
+      ]
+    },
+    {
+      "id": "GEN_MEDIUM_MATCH_0017",
+      "category": "generated_medium_match",
+      "input": "Notes - 2025-12-29\nParticipants: Matthew Wilson\n\nTopics discussed:\n- Prayer\n- Pray\n- Praying\n\nAction items:\n- [ ] Matthew Wilson: Follow up on prayer\n\nDate: 2025-12-29\nNext meeting: next week",
+      "expected_domain": "SPIRITUAL",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Ministry meeting",
+        "description": "Attendees: Matthew Wilson, Megan Allen\nTopics: prayer\n\nAgenda:\n1. prayer",
+        "day_id": "2025-12-29"
+      },
+      "expected_affinity_range": [
+        0.25,
+        0.5
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD"
+      ]
+    },
+    {
+      "id": "GEN_MEDIUM_MATCH_0018",
+      "category": "generated_medium_match",
+      "input": "Notes - 2025-12-24\nParticipants: Elder Thompson\n\nTopics discussed:\n- Prayer\n- Pray\n- Praying\n\nAction items:\n- [ ] Elder Thompson: Follow up on prayer\n\nDate: 2025-12-24\nNext meeting: next week",
+      "expected_domain": "SPIRITUAL",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Faith discussion",
+        "description": "Attendees: Elder Thompson, Brother Taylor\nTopics: prayer\n\nAgenda:\n1. prayer",
+        "day_id": "2025-12-24"
+      },
+      "expected_affinity_range": [
+        0.25,
+        0.5
+      ],
+      "match_reasons": [
+        "DOMAIN",
+        "PERSON",
+        "KEYWORD"
+      ]
+    },
+    {
+      "id": "GEN_MEDIUM_MATCH_0019",
+      "category": "generated_medium_match",
+      "input": "Notes - 2026-02-05\nParticipants: Elizabeth Martin\n\nTopics discussed:\n- Self Improvement\n- Personal Growth\n- Mindset\n\nAction items:\n- [ ] Elizabeth Martin: Follow up on self-improvement\n\nDate: 2026-02-05\nNext meeting: next week",
+      "expected_domain": "LIFE",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Dentist appointment",
+        "description": "Attendees: Elizabeth Martin, Rachel Hall\nTopics: self-improvement\n\nAgenda:\n1. self-improvement",
+        "day_id": "2026-02-05"
+      },
+      "expected_affinity_range": [
+        0.25,
+        0.5
+      ],
+      "match_reasons": [
+        "DOMAIN_SIBLING",
+        "PERSON",
+        "KEYWORD"
+      ]
+    },
+    {
+      "id": "GEN_LOW_MATCH_0020",
+      "category": "generated_low_match",
+      "input": "Notes - 2026-01-04\nParticipants: Christopher Lee, Kevin Lewis\n\nTopics discussed:\n- Investment\n- Portfolio\n- Stock\n\nAction items:\n- [ ] Christopher Lee: Follow up on investment\n- [ ] Kevin Lewis: Follow up on investment\n\nDate: 2026-01-04\nNext meeting: next week",
+      "expected_domain": "FINANCE",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Dentist appointment",
+        "description": "Attendees: Nurse Anderson, Samantha Clark\nOrganization: City Medical Center\nTopics: doctor, physician, hospital\n\nAgenda:\n1. doctor\n2. physician\n3. hospital",
+        "day_id": "2026-01-04"
+      },
+      "expected_affinity_range": [
+        0.0,
+        0.2
+      ],
+      "match_reasons": []
+    },
+    {
+      "id": "GEN_LOW_MATCH_0021",
+      "category": "generated_low_match",
+      "input": "Notes - 2025-12-16\nParticipants: Joshua Harris, Christopher Lee\n\nTopics discussed:\n- Prayer\n- Pray\n- Praying\n\nAction items:\n- [ ] Joshua Harris: Follow up on prayer\n- [ ] Christopher Lee: Follow up on prayer\n\nDate: 2025-12-16\nNext meeting: next week",
+      "expected_domain": "SPIRITUAL",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Grocery shopping",
+        "description": "Attendees: Heather Wright, Andrew Jackson\nOrganization: Market Leaders\nTopics: self-improvement, personal-growth, mindset\n\nAgenda:\n1. self-improvement\n2. personal-growth\n3. mindset",
+        "day_id": "2025-12-16"
+      },
+      "expected_affinity_range": [
+        0.0,
+        0.2
+      ],
+      "match_reasons": []
+    },
+    {
+      "id": "GEN_LOW_MATCH_0022",
+      "category": "generated_low_match",
+      "input": "Notes - 2026-01-11\nParticipants: Joshua Harris, Jason Young\n\nTopics discussed:\n- Investment\n- Portfolio\n- Stock\n\nAction items:\n- [ ] Joshua Harris: Follow up on investment\n- [ ] Jason Young: Follow up on investment\n\nDate: 2026-01-11\nNext meeting: next week",
+      "expected_domain": "FINANCE",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Ministering interview",
+        "description": "Attendees: Bishop Moore, Brother Wilson\nOrganization: Second Ward\nTopics: bishop, bishopric, stake-president\n\nAgenda:\n1. bishop\n2. bishopric\n3. stake-president",
+        "day_id": "2026-01-11"
+      },
+      "expected_affinity_range": [
+        0.0,
+        0.2
+      ],
+      "match_reasons": []
+    },
+    {
+      "id": "GEN_LOW_MATCH_0023",
+      "category": "generated_low_match",
+      "input": "Notes - 2026-01-28\nParticipants: David Kim, Emily Johnson\n\nTopics discussed:\n- Endpoint\n- Backend\n- Frontend\n\nAction items:\n- [ ] David Kim: Follow up on endpoint\n- [ ] Emily Johnson: Follow up on endpoint\n\nDate: 2026-01-28\nNext meeting: next week",
+      "expected_domain": "TECH",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Prayer meeting",
+        "description": "Attendees: Brother Taylor, Brandon Scott\nOrganization: Young Men\nTopics: prayer, pray, praying\n\nAgenda:\n1. prayer\n2. pray\n3. praying",
+        "day_id": "2026-01-28"
+      },
+      "expected_affinity_range": [
+        0.0,
+        0.2
+      ],
+      "match_reasons": []
+    },
+    {
+      "id": "GEN_LOW_MATCH_0024",
+      "category": "generated_low_match",
+      "input": "Notes - 2026-01-19\nParticipants: Christopher Lee, Sister Davis\n\nTopics discussed:\n- Prayer\n- Pray\n- Praying\n\nAction items:\n- [ ] Christopher Lee: Follow up on prayer\n- [ ] Sister Davis: Follow up on prayer\n\nDate: 2026-01-19\nNext meeting: next week",
+      "expected_domain": "SPIRITUAL",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Deployment planning",
+        "description": "Attendees: Jason Young, Amanda Martinez (Director)\nOrganization: ByteLogic\nTopics: endpoint, backend, frontend\n\nAgenda:\n1. endpoint\n2. backend\n3. frontend",
+        "day_id": "2026-01-19"
+      },
+      "expected_affinity_range": [
+        0.0,
+        0.2
+      ],
+      "match_reasons": []
+    },
+    {
+      "id": "GEN_LOW_MATCH_0025",
+      "category": "generated_low_match",
+      "input": "Notes - 2025-12-20\nParticipants: Brandon Scott, Lauren Robinson\n\nTopics discussed:\n- Artist\n- Painting\n- Drawing\n\nAction items:\n- [ ] Brandon Scott: Follow up on artist\n- [ ] Lauren Robinson: Follow up on artist\n\nDate: 2025-12-20\nNext meeting: next week",
+      "expected_domain": "CREATIVE",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Bible study",
+        "description": "Attendees: Samantha Clark, Sister Davis\nOrganization: Fourth Ward\nTopics: prayer, pray, praying\n\nAgenda:\n1. prayer\n2. pray\n3. praying",
+        "day_id": "2025-12-20"
+      },
+      "expected_affinity_range": [
+        0.0,
+        0.2
+      ],
+      "match_reasons": []
+    },
+    {
+      "id": "GEN_LOW_MATCH_0026",
+      "category": "generated_low_match",
+      "input": "Notes - 2026-01-03\nParticipants: Ashley Garcia, Michael Roberts\n\nTopics discussed:\n- Investment\n- Portfolio\n- Stock\n\nAction items:\n- [ ] Ashley Garcia: Follow up on investment\n- [ ] Michael Roberts: Follow up on investment\n\nDate: 2026-01-03\nNext meeting: next week",
+      "expected_domain": "FINANCE",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Art class",
+        "description": "Attendees: Matthew Wilson, John Smith\nOrganization: Corporate Solutions\nTopics: artist, painting, drawing\n\nAgenda:\n1. artist\n2. painting\n3. drawing",
+        "day_id": "2026-01-03"
+      },
+      "expected_affinity_range": [
+        0.0,
+        0.2
+      ],
+      "match_reasons": []
+    },
+    {
+      "id": "GEN_LOW_MATCH_0027",
+      "category": "generated_low_match",
+      "input": "Notes - 2026-01-17\nParticipants: Michael Roberts, Daniel Thomas\n\nTopics discussed:\n- Artist\n- Painting\n- Drawing\n\nAction items:\n- [ ] Michael Roberts: Follow up on artist\n- [ ] Daniel Thomas: Follow up on artist\n\nDate: 2026-01-17\nNext meeting: next week",
+      "expected_domain": "CREATIVE",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Security review",
+        "description": "Attendees: Kevin Lewis, Stephanie Moore\nOrganization: CodeCraft\nTopics: endpoint, backend, frontend\n\nAgenda:\n1. endpoint\n2. backend\n3. frontend",
+        "day_id": "2026-01-17"
+      },
+      "expected_affinity_range": [
+        0.0,
+        0.2
+      ],
+      "match_reasons": []
+    },
+    {
+      "id": "GEN_LOW_MATCH_0028",
+      "category": "generated_low_match",
+      "input": "Notes - 2026-01-08\nParticipants: Ryan Thompson, Christopher Lee\n\nTopics discussed:\n- Endpoint\n- Backend\n- Frontend\n\nAction items:\n- [ ] Ryan Thompson: Follow up on endpoint\n- [ ] Christopher Lee: Follow up on endpoint\n\nDate: 2026-01-08\nNext meeting: next week",
+      "expected_domain": "TECH",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "QBR with CloudScale",
+        "description": "Attendees: Heather Wright, Amanda Martinez (Director)\nOrganization: CloudScale\nTopics: revenue, profit, margin\n\nAgenda:\n1. revenue\n2. profit\n3. margin",
+        "day_id": "2026-01-08"
+      },
+      "expected_affinity_range": [
+        0.0,
+        0.2
+      ],
+      "match_reasons": []
+    },
+    {
+      "id": "GEN_LOW_MATCH_0029",
+      "category": "generated_low_match",
+      "input": "Notes - 2025-12-13\nParticipants: Sister Davis, Elder Johnson\n\nTopics discussed:\n- Bishop\n- Bishopric\n- Stake President\n\nAction items:\n- [ ] Sister Davis: Follow up on bishop\n- [ ] Elder Johnson: Follow up on bishop\n\nDate: 2025-12-13\nNext meeting: next week",
+      "expected_domain": "LDS_LEADERSHIP",
+      "min_confidence": 0.5,
+      "event_context": {
+        "title": "Samantha Clark - Deal review",
+        "description": "Attendees: Samantha Clark, Sarah Chen\nOrganization: DevOps Pro\nTopics: revenue, profit, margin\n\nAgenda:\n1. revenue\n2. profit\n3. margin",
+        "day_id": "2025-12-13"
+      },
+      "expected_affinity_range": [
+        0.0,
+        0.2
+      ],
+      "match_reasons": []
+    }
+  ]
+}

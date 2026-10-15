@@ -1,0 +1,141 @@
+{
+  "intent": "COMPARISON",
+  "displayName": "Comparison",
+  "description": "Side-by-side comparisons, product evaluations, option analysis",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "compare",
+      "comparison",
+      "versus",
+      "difference",
+      "differences",
+      "similar",
+      "similarities",
+      "alternative",
+      "alternatives",
+      "option-a",
+      "option-b",
+      "choice",
+      "choices",
+      "side-by-side",
+      "head-to-head",
+      "comparison-chart",
+      "comparison-table",
+      "feature-comparison"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "features",
+      "price",
+      "cost",
+      "pricing",
+      "performance",
+      "better",
+      "worse",
+      "same",
+      "different",
+      "prefer",
+      "preference",
+      "recommend",
+      "recommendation",
+      "winner",
+      "loser",
+      "benchmark",
+      "rating",
+      "score",
+      "value",
+      "quality",
+      "specification",
+      "specs",
+      "capability",
+      "capabilities",
+      "functionality",
+      "advantage",
+      "disadvantage",
+      "superior",
+      "inferior",
+      "competitive",
+      "contender",
+      "candidate",
+      "option",
+      "options",
+      "selection",
+      "criteria",
+      "metric",
+      "metrics",
+      "evaluate",
+      "evaluation",
+      "assessment",
+      "analysis"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "between",
+      "both",
+      "either",
+      "compared",
+      "relative",
+      "contrast",
+      "rank",
+      "ranking"
+    ]
+  },
+  "structureBoosts": {
+    "BULLET_LIST": 2.0
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:compare|comparison)\\s+(?:of|between|with)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "\\w+\\s+(?:vs|versus|v\\.)\\s+\\w+",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:pros|cons)\\s+(?:and|of)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:which|what)\\s+(?:is|would\\s+be)\\s+better",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:side[\\s-]by[\\s-]side|head[\\s-]to[\\s-]head)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:option|choice)\\s+(?:a|b|1|2)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:comparison|feature)\\s+(?:chart|table|matrix)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:better|worse)\\s+(?:than|for)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:advantages?|disadvantages?)\\s+(?:of|over)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:differences?|similarities?)\\s+between",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:should\\s+i|should\\s+we)\\s+(?:choose|pick|go\\s+with)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:compared\\s+to|relative\\s+to|versus)",
+      "weight": 4.5
+    }
+  ]
+}

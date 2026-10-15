@@ -1,0 +1,63 @@
+appId: com.boox.day
+---
+# Navigation test with calibrated coordinates
+# Screen: 1860x2480 (from screenshots)
+# Toolbar at ~y=1140 (46% from top)
+# Tasks tab at ~x=390 (21% from left)
+
+- launchApp
+
+# Longer initial delay for app startup
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "4000"
+
+- takeScreenshot: 01_initial
+
+# Tap on a different calendar day (e.g., Dec 30)
+# Calendar grid starts at ~y=370, day 30 is first column
+- tapOn:
+    point: "7%,24%"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+
+- takeScreenshot: 02_different_day
+
+# Tap Tasks tab - it's at approximately x=390, y=1140 in 1860x2480
+# That's about 21%, 46%
+- tapOn:
+    point: "16%,46%"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+
+- takeScreenshot: 03_tasks_tab
+
+# Tap back to Memos tab - at approximately x=130, y=1140
+# That's about 7%, 46%
+- tapOn:
+    point: "5%,46%"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+
+- takeScreenshot: 04_memos_tab
+
+# Navigate to next month
+- tapOn:
+    point: "16%,3%"
+
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "1500"
+
+- takeScreenshot: 05_next_month

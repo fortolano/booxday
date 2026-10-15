@@ -1,0 +1,138 @@
+{
+  "intent": "GOAL_SETTING",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "goal",
+      "goals",
+      "objective",
+      "objectives",
+      "target",
+      "targets",
+      "milestone",
+      "milestones",
+      "kpis",
+      "okrs",
+      "metric",
+      "metrics",
+      "benchmark",
+      "benchmarks",
+      "smart",
+      "measurable",
+      "achievable",
+      "relevant",
+      "time-bound",
+      "north-star",
+      "key-result",
+      "key-results",
+      "success-criteria"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "achieve",
+      "accomplish",
+      "reach",
+      "attain",
+      "progress",
+      "tracking",
+      "track",
+      "monitor",
+      "measure",
+      "deadline",
+      "quarterly",
+      "annual",
+      "monthly",
+      "weekly",
+      "vision",
+      "mission",
+      "aspiration",
+      "ambition",
+      "target-date",
+      "outcome",
+      "deliverable",
+      "result",
+      "impact",
+      "success",
+      "stretch",
+      "stretch-goal",
+      "baseline",
+      "actual",
+      "variance"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "aspire",
+      "plan",
+      "intend",
+      "commit",
+      "priority",
+      "focus",
+      "direction",
+      "purpose",
+      "intent",
+      "improve",
+      "increase",
+      "decrease",
+      "reduce",
+      "grow"
+    ]
+  },
+  "structureBoosts": {
+    "NUMBERED_LIST": 2.0,
+    "BULLET_LIST": 1.5
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:set|setting)\\s+(?:goal|objective|target)s?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:smart|okr|kpi)\\s+(?:goal|objective)s?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:by|before|within)\\s+(?:end\\s+of|next)",
+      "weight": 3.0
+    },
+    {
+      "pattern": "(?:achieve|accomplish|complete|reach)\\s+(?:by|within)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:key|main)\\s+(?:result|objective|goal)s?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:quarterly|annual|monthly|weekly)\\s+(?:goal|objective|target)s?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:success|completion)\\s+(?:criteria|metric)s?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:target|goal)\\s+(?:date|deadline)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:measure|track|monitor)\\s+(?:progress|success)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:baseline|actual|target)\\s+(?:vs|versus|compared)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:stretch|ambitious)\\s+(?:goal|target)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:north|north-star)\\s+(?:metric|goal)",
+      "weight": 4.5
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "intent": "CHEAT_SHEET",
+  "displayName": "Cheat Sheet / Quick Reference",
+  "description": "Quick reference notes, cheat sheets, command references, lookup info",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "cheat-sheet",
+      "cheatsheet",
+      "quick-reference",
+      "reference-card",
+      "command-reference",
+      "keyboard-shortcuts",
+      "hotkeys",
+      "keybindings",
+      "syntax",
+      "syntax-reference",
+      "api-reference",
+      "formula",
+      "formulas",
+      "conversion-chart",
+      "lookup-table",
+      "reference-guide",
+      "quick-guide",
+      "crib-sheet",
+      "study-sheet",
+      "formula-sheet"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "shortcut",
+      "shortcuts",
+      "keyboard",
+      "git",
+      "ctrl",
+      "commit",
+      "status",
+      "stage",
+      "command",
+      "key-binding",
+      "keybind",
+      "how-to",
+      "howto",
+      "remember",
+      "dont-forget",
+      "note-to-self",
+      "format",
+      "pattern",
+      "template",
+      "boilerplate",
+      "common",
+      "frequently-used",
+      "useful",
+      "snippet",
+      "code-snippet",
+      "example",
+      "examples",
+      "tips",
+      "trick",
+      "tricks",
+      "hack",
+      "hacks",
+      "gotcha",
+      "gotchas",
+      "quick-tip",
+      "pro-tip",
+      "protip",
+      "best-practice",
+      "convention",
+      "standard",
+      "rule",
+      "rules",
+      "guideline",
+      "guidelines",
+      "reference",
+      "lookup",
+      "index",
+      "glossary",
+      "vocabulary",
+      "definition",
+      "definitions",
+      "meaning",
+      "meanings",
+      "abbreviation"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "quick",
+      "guide",
+      "sheet",
+      "card",
+      "help",
+      "summary"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "cheat\\s*sheet",
+      "weight": 5.0
+    },
+    {
+      "pattern": "quick\\s+reference",
+      "weight": 5.0
+    },
+    {
+      "pattern": "keyboard\\s+shortcuts?",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:ctrl|cmd|alt|shift)\\s*\\+\\s*\\w",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:how\\s+to|howto)\\s+\\w+",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:remember|don't\\s+forget)\\s*:",
+      "weight": 4.0
+    },
+    {
+      "pattern": "syntax\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:example|usage|format)\\s*:",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:formula|conversion)\\s+(?:sheet|chart|table)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:pro[\\s-]?tip|quick\\s+tip)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:api|command|syntax)\\s+reference",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:common|useful|handy)\\s+(?:commands|shortcuts|tips)",
+      "weight": 4.5
+    }
+  ]
+}

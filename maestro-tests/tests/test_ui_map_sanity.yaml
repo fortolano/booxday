@@ -1,0 +1,224 @@
+appId: com.boox.day
+---
+# UI Map Sanity Test
+#
+# This test taps key coordinates from ui_map.yaml and captures screenshots
+# so you can visually confirm that each coordinate hits the intended UI element.
+#
+# When you update coordinates in ui_map.yaml, you can re-run this test and
+# compare the screenshots under ui_map_sanity/.
+
+- launchApp
+
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "4000"
+
+- takeScreenshot: ui_map_sanity/00_initial
+
+# ============================================================================
+# TOP TOOLBAR COORDINATES
+# Coordinates derived from ui_map.yaml toolbar section
+# ============================================================================
+
+# Back (<)
+- tapOn:
+    point: "4%,3%"        # ui_map.toolbar.back_arrow
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: ui_map_sanity/top_toolbar_back
+
+# Forward (>)
+- tapOn:
+    point: "25%,3%"       # ui_map.toolbar.forward_arrow
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: ui_map_sanity/top_toolbar_forward
+
+# Today button
+- tapOn:
+    point: "44%,3%"       # ui_map.toolbar.today_button
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: ui_map_sanity/top_toolbar_today
+
+# Add event (+)
+- tapOn:
+    point: "51%,3%"       # ui_map.toolbar.add_event
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "2000"
+- takeScreenshot: ui_map_sanity/top_toolbar_add_event
+
+# Close add event dialog (if open)
+- back
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+
+# Task stats (flame icon)
+- tapOn:
+    point: "88%,3%"       # ui_map.toolbar.streak_stats
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "2000"
+- takeScreenshot: ui_map_sanity/top_toolbar_task_stats
+
+# Close streak stats (if it opened a dialog/screen)
+- back
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+
+# Settings gear
+- tapOn:
+    point: "96%,3%"       # ui_map.toolbar.settings
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "2000"
+- takeScreenshot: ui_map_sanity/top_toolbar_settings
+
+# Close settings dialog
+- back
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+
+# Guard: ensure app is still in foreground
+- launchApp:
+    clearState: false
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+
+# ============================================================================
+# MEMOS TOOLBAR COORDINATES
+# Assumes we are on the Memos tab; switches if needed
+# Coordinates from ui_map.yaml memos_toolbar section
+# ============================================================================
+
+# Ensure Memos tab
+- tapOn:
+    point: "3%,46%"       # ui_map.memos_toolbar.memos_tab
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: ui_map_sanity/memos_toolbar_memos_tab
+
+# Tasks tab (from memos toolbar)
+- tapOn:
+    point: "9%,46%"       # ui_map.memos_toolbar.tasks_tab
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: ui_map_sanity/memos_toolbar_tasks_tab
+
+# Switch back to Memos
+- tapOn:
+    point: "3%,46%"       # ui_map.memos_toolbar.memos_tab
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+
+# Undo
+- tapOn:
+    point: "84%,46%"      # ui_map.memos_toolbar.undo
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: ui_map_sanity/memos_toolbar_undo
+
+# Next page (>)
+- tapOn:
+    point: "49%,46%"      # ui_map.memos_toolbar.next_page
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: ui_map_sanity/memos_toolbar_next_page
+
+# Previous page (<)
+- tapOn:
+    point: "44%,46%"      # ui_map.memos_toolbar.prev_page
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: ui_map_sanity/memos_toolbar_prev_page
+
+# ============================================================================
+# TASKS TOOLBAR COORDINATES
+# Switch to Tasks tab and verify key elements
+# Coordinates from ui_map.yaml tasks_toolbar section
+# ============================================================================
+
+# Switch to Tasks tab
+- tapOn:
+    point: "9%,46%"       # ui_map.tasks_toolbar.tasks_tab
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: ui_map_sanity/tasks_toolbar_tasks_tab
+
+# Task actions dropdown
+- tapOn:
+    point: "25%,46%"      # ui_map.tasks_toolbar.task_actions
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "2000"
+- takeScreenshot: ui_map_sanity/tasks_toolbar_task_actions
+
+# Close task actions (back)
+- back
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+
+# Add task
+- tapOn:
+    point: "28%,46%"      # ui_map.tasks_toolbar.add_task
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "2000"
+- takeScreenshot: ui_map_sanity/tasks_toolbar_add_task
+
+# Close any dialog if opened
+- back
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+
+# Undo in Tasks toolbar
+- tapOn:
+    point: "84%,46%"      # ui_map.tasks_toolbar.undo
+- runScript:
+    file: ../delay.js
+    env:
+      DELAY_MS: "1500"
+- takeScreenshot: ui_map_sanity/tasks_toolbar_undo
+
+# Final screenshot
+- takeScreenshot: ui_map_sanity/99_final

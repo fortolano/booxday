@@ -1,0 +1,370 @@
+{
+  "domain": "TEACHING",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "lesson-plan",
+      "learning-objective",
+      "rubric",
+      "grading",
+      "iep",
+      "504",
+      "504-plan",
+      "accommodation",
+      "accommodations",
+      "modification",
+      "parent-conference",
+      "parent-teacher",
+      "progress-report",
+      "swbat",
+      "curriculum",
+      "scope-and-sequence",
+      "pacing-guide",
+      "differentiation",
+      "formative-assessment",
+      "summative-assessment",
+      "bell-ringer",
+      "exit-ticket",
+      "do-now",
+      "warm-up-activity",
+      "classroom-management",
+      "behavior-plan",
+      "seating-chart",
+      "standards",
+      "common-core",
+      "state-standards",
+      "learning-target",
+      "canvas",
+      "blackboard",
+      "moodle",
+      "google-classroom",
+      "turnitin",
+      "gradebook",
+      "powerschool",
+      "schoology",
+      "lecture",
+      "seminar",
+      "recitation",
+      "practicum",
+      "office-hours",
+      "tutorial",
+      "lab-section",
+      "discussion-section",
+      "department",
+      "tenure",
+      "tenure-track",
+      "sabbatical",
+      "grant-writing",
+      "nsf-grant",
+      "nih-grant",
+      "dissertation-committee",
+      "thesis-committee",
+      "qualifying-exam",
+      "comprehensive-exam",
+      "candidacy-exam",
+      "adjunct",
+      "visiting-professor",
+      "emeritus",
+      "academic-senate",
+      "faculty-senate"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "alignment",
+      "teacher",
+      "instructor",
+      "professor",
+      "educator",
+      "backward",
+      "assessment",
+      "attendance",
+      "grade-book",
+      "report-card",
+      "syllabus",
+      "course-outline",
+      "unit-plan",
+      "lesson",
+      "learning",
+      "objective",
+      "objectives",
+      "criteria",
+      "student-work",
+      "student-assessment",
+      "benchmark",
+      "professional-learning-community",
+      "professional-development",
+      "plc",
+      "pbis",
+      "faculty-meeting",
+      "department-meeting",
+      "staff-meeting",
+      "conference",
+      "workshop",
+      "substitute",
+      "sub-plans",
+      "emergency-plans",
+      "scaffolding",
+      "differentiated",
+      "instruction",
+      "strategies",
+      "intervention",
+      "response-to-intervention",
+      "tier-1",
+      "tier-2",
+      "tier-3",
+      "special-education",
+      "sped",
+      "gifted",
+      "enrichment",
+      "remediation",
+      "tutoring",
+      "formative",
+      "exit",
+      "progress",
+      "report",
+      "quiz",
+      "test",
+      "exam",
+      "midterm",
+      "final",
+      "peer-review",
+      "self-assessment",
+      "evaluation",
+      "referral",
+      "blueprint",
+      "management",
+      "seating",
+      "chart",
+      "feedback",
+      "module",
+      "unit",
+      "chapter",
+      "competencies",
+      "prerequisites",
+      "electives",
+      "participation",
+      "behavior",
+      "tardy",
+      "absent",
+      "present",
+      "semester",
+      "trimester",
+      "quarter",
+      "academic-year",
+      "school-year",
+      "finals-week",
+      "spring-break",
+      "winter-break",
+      "summer-break",
+      "credits",
+      "grade-level",
+      "curriculum-committee",
+      "graduate-student",
+      "phd-student",
+      "masters-student",
+      "teaching-assistant",
+      "research-assistant",
+      "postdoc",
+      "postdoctoral",
+      "grant-proposal",
+      "research-grant",
+      "tenure-review",
+      "promotion-review",
+      "course-load",
+      "advisee",
+      "advisees",
+      "co-author",
+      "publication-record"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "teach",
+      "instruct",
+      "educate",
+      "assess",
+      "evaluate",
+      "identify",
+      "details",
+      "class",
+      "classroom",
+      "period",
+      "block",
+      "schedule",
+      "student",
+      "learner",
+      "pupil",
+      "scholar",
+      "homework",
+      "assignment",
+      "project",
+      "essay",
+      "paper",
+      "reading",
+      "writing",
+      "math",
+      "science",
+      "history",
+      "english",
+      "language-arts",
+      "social-studies",
+      "elective",
+      "music",
+      "physical-education",
+      "health",
+      "textbook",
+      "workbook",
+      "handout",
+      "worksheet",
+      "materials",
+      "whiteboard",
+      "smartboard",
+      "projector",
+      "laptop",
+      "chromebook",
+      "principal",
+      "vice-principal",
+      "dean",
+      "counselor",
+      "aide",
+      "school",
+      "district",
+      "board",
+      "superintendent",
+      "administration"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "lesson\\s+plan(?:ning)?",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:iep|504)\\s+(?:meeting|plan|review)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "parent\\s+(?:conference|teacher|meeting)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:grading|scoring)\\s+rubric",
+      "weight": 4.0
+    },
+    {
+      "pattern": "classroom\\s+(?:management|procedures|rules)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "learning\\s+(?:objective|target|outcome)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:scope|pacing)\\s+(?:and sequence|guide)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:faculty|department|staff)\\s+meeting",
+      "weight": 10.0
+    },
+    {
+      "pattern": "(?:formative|summative)\\s+assessment",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:midterm|final)\\s+(?:exam|test|grade)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "report\\s+card(?:s)?",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:student|class)\\s+(?:roster|list)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "curriculum\\s+(?:planning|development|mapping|alignment)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:state|common\\s+core)\\s+standards",
+      "weight": 4.5
+    },
+    {
+      "pattern": "professional\\s+development",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:grade|score)\\s+(?:book|entry|submission)",
+      "weight": 3.5
+    },
+    {
+      "pattern": "(?:unit|lesson)\\s+plan(?:ning)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:behavior|classroom)\\s+(?:intervention|plan)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:special|sped)\\s+education",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:office|tutorial)\\s+hours",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:lab|discussion)\\s+section",
+      "weight": 4.0
+    },
+    {
+      "pattern": "tenure[\\s-](?:track|review|decision|case)",
+      "weight": 5.5
+    },
+    {
+      "pattern": "grant\\s+(?:proposal|writing|application|funding)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:dissertation|thesis)\\s+committee",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:qualifying|comprehensive|candidacy)\\s+exam",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:graduate|phd|masters)\\s+student",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:advising|advisor)\\s+(?:meeting|session|notes)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "course\\s+(?:load|prep|preparation)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "sabbatical\\s+(?:leave|plan|proposal)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:nsf|nih|doe)\\s+(?:grant|proposal|funding)",
+      "weight": 5.5
+    },
+    {
+      "pattern": "(?:journal|paper)\\s+(?:submission|review|revision)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:research|teaching)\\s+assistant",
+      "weight": 4.0
+    }
+  ]
+}

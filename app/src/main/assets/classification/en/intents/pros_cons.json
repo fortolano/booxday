@@ -1,0 +1,130 @@
+{
+  "intent": "PROS_CONS",
+  "displayName": "Pros & Cons",
+  "description": "Pros and cons lists, advantages/disadvantages analysis",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "pros",
+      "cons",
+      "pros-and-cons",
+      "advantages",
+      "disadvantages",
+      "drawbacks",
+      "positives",
+      "negatives",
+      "upsides",
+      "downsides",
+      "merits",
+      "demerits",
+      "trade-off",
+      "tradeoff",
+      "trade-offs",
+      "tradeoffs"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "upside",
+      "downside",
+      "pro-side",
+      "con-side",
+      "pluses",
+      "minuses",
+      "favorable-aspects",
+      "unfavorable-aspects",
+      "positive-aspects",
+      "negative-aspects",
+      "weighing-options",
+      "cost-benefit",
+      "risk-reward",
+      "benefits",
+      "limitations",
+      "plus-points",
+      "minus-points",
+      "pro-points",
+      "con-points"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "swot",
+      "versus",
+      "strengths",
+      "weaknesses",
+      "opportunities",
+      "threats",
+      "compare",
+      "contrast",
+      "analysis",
+      "evaluation"
+    ]
+  },
+  "structureBoosts": {
+    "BULLET_LIST": 2.5
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:pros?|cons?)\\s+(?:and|&|/|vs|:)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:advantages?|disadvantages?)\\s+(?:of|and|include|are|:)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:benefits?|drawbacks?)\\s+(?:of|include|are|:)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:positive|negative)\\s+(?:aspects?|sides?|points?|factors?)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:arguments?|reasons?)\\s+(?:for|against)\\s+(?:and|:)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:strengths?|weaknesses?)\\s+(?:of|include|are|:)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:upsides?|downsides?)\\s+(?:is|of|to|are|:)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:weigh|weighing)\\s+(?:the\\s+)?(?:pros|options|factors|choices)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:trade[\\s-]?offs?|tradeoffs?)\\s+(?:between|is|are|of)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:on\\s+one\\s+hand|on\\s+the\\s+other\\s+hand)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:plus|minus|pro|con)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:for|against)\\s*:\\s*(?:$|\\n)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:good|bad)\\s+(?:things?|aspects?)\\s+(?:about|of)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "cost[\\s-]?benefit\\s+(?:analysis|comparison)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "risk[\\s-]?reward\\s+(?:analysis|ratio)",
+      "weight": 5.0
+    }
+  ]
+}

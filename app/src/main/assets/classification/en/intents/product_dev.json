@@ -1,0 +1,127 @@
+{
+  "intent": "PRODUCT_DEV",
+  "displayName": "Product Development",
+  "description": "Product development, MVP, feature planning",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "minimum-viable-product",
+      "feature-spec",
+      "product-spec",
+      "product-roadmap",
+      "feature-request",
+      "user-story",
+      "acceptance-criteria",
+      "product-requirements",
+      "feature-definition",
+      "product-backlog",
+      "epic",
+      "capability",
+      "product-vision"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "sprint-planning",
+      "backlog",
+      "prioritization",
+      "icebox",
+      "ship",
+      "release",
+      "launch",
+      "beta",
+      "alpha",
+      "dogfood",
+      "feature-flag",
+      "a-b-test",
+      "experiment",
+      "iteration",
+      "agile",
+      "scrum",
+      "kanban",
+      "velocity",
+      "story-points",
+      "spike",
+      "grooming",
+      "refinement",
+      "definition-of-done",
+      "technical-debt",
+      "tech-debt",
+      "prototype",
+      "wireframe",
+      "mockup",
+      "design-review",
+      "ux-review",
+      "qa-testing"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "feature",
+      "build",
+      "product",
+      "develop",
+      "spec",
+      "requirement",
+      "design",
+      "test",
+      "deploy",
+      "iterate",
+      "version",
+      "update",
+      "enhancement"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "mvp",
+      "weight": 5.0
+    },
+    {
+      "pattern": "minimum\\s+viable\\s+product",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:feature|product)\\s+spec(?:ification)?",
+      "weight": 4.5
+    },
+    {
+      "pattern": "product\\s+(?:roadmap|backlog|vision)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "user\\s+stor(?:y|ies)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:sprint|backlog)\\s+(?:planning|grooming|refinement)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "acceptance\\s+criteria",
+      "weight": 4.5
+    },
+    {
+      "pattern": "feature\\s+(?:request|flag|definition)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:alpha|beta)\\s+(?:release|launch|test)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:story|sprint)\\s+points",
+      "weight": 4.0
+    },
+    {
+      "pattern": "definition\\s+of\\s+done",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:tech|technical)\\s+debt",
+      "weight": 4.0
+    }
+  ]
+}

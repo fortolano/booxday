@@ -1,0 +1,125 @@
+{
+  "intent": "STARTUP_IDEAS",
+  "displayName": "Startup Ideas",
+  "description": "Startup ideas, validation, pivots",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "startup-idea",
+      "business-idea",
+      "venture-idea",
+      "pivot",
+      "pivot-to",
+      "problem-worth-solving",
+      "customer-pain",
+      "market-opportunity",
+      "idea-validation",
+      "product-idea",
+      "concept-validation",
+      "mvp-idea",
+      "startup-concept",
+      "venture-concept",
+      "opportunity-assessment"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "validation",
+      "validate",
+      "customer-discovery",
+      "problem-interview",
+      "solution-interview",
+      "landing-page-test",
+      "smoke-test",
+      "idea-stage",
+      "market-research",
+      "competitive-landscape",
+      "target-market",
+      "customer-persona",
+      "pain-point",
+      "problem-statement",
+      "hypothesis",
+      "assumption",
+      "experiment",
+      "test-assumption",
+      "early-adopter",
+      "beachhead-market",
+      "total-addressable-market",
+      "founder-market-fit",
+      "unfair-advantage",
+      "moat",
+      "defensibility"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "idea",
+      "concept",
+      "opportunity",
+      "problem",
+      "solution",
+      "market",
+      "startup",
+      "venture",
+      "potential",
+      "explore",
+      "brainstorm",
+      "assess",
+      "evaluate",
+      "discover",
+      "iterate"
+    ]
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "startup\\s+idea",
+      "weight": 5.0
+    },
+    {
+      "pattern": "business\\s+idea",
+      "weight": 5.0
+    },
+    {
+      "pattern": "pivot\\s+(?:to|from|toward)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "validate\\s+(?:idea|concept|hypothesis)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:customer|problem|solution)\\s+(?:discovery|interview)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "market\\s+opportunity",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:pain|problem)\\s+(?:point|statement|worth)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:tam|sam|som|addressable)\\s+market",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:founder|product)[\\s-]market\\s+fit",
+      "weight": 4.5
+    },
+    {
+      "pattern": "early\\s+adopter",
+      "weight": 4.0
+    },
+    {
+      "pattern": "idea\\s+(?:stage|validation|brainstorm)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:test|validate)\\s+(?:assumption|hypothesis)",
+      "weight": 4.0
+    }
+  ]
+}

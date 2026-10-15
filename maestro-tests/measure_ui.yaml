@@ -1,0 +1,13 @@
+appId: com.boox.day
+---
+# Measurement flow - just launch and wait for full load
+
+- launchApp
+
+# Very long wait to ensure full load past splash screen
+- runScript:
+    file: delay.js
+    env:
+      DELAY_MS: "8000"
+
+- takeScreenshot: measure/main_ui

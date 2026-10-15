@@ -1,0 +1,4148 @@
+{
+  "version": "2.0",
+  "description": "Enterprise-grade golden test cases for SemanticGenius classification system",
+  "created": "2026-01-04",
+  "test_count": 310,
+  "categories": {
+    "domain_positive": "Tests that each domain is correctly identified",
+    "domain_negative": "Tests to prevent false positives",
+    "intent_positive": "Tests that each intent is correctly identified",
+    "regression": "Regression tests for known issues",
+    "ambiguous": "Tests for ambiguous term resolution",
+    "lds_specific": "LDS church leadership specific tests",
+    "education_specific": "Education/teaching specific tests",
+    "business_specific": "Business/management specific tests",
+    "structure_detection": "Tests for document structure detection"
+  },
+  "test_cases": [
+    {
+      "id": "DOM_WORK_001",
+      "category": "domain_positive",
+      "input": "Weekly standup with the team to discuss Q4 roadmap",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "MEETING_NOTES"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_WORK_002",
+      "category": "domain_positive",
+      "input": "1:1 with Flavio on Microsoft Teams to discuss OKRs",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "PEOPLE_MANAGEMENT"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_WORK_003",
+      "category": "domain_positive",
+      "input": "Performance review and promotion discussion with HR",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "PEOPLE_MANAGEMENT"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_WORK_004",
+      "category": "domain_positive",
+      "input": "Sprint planning meeting for next iteration",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "PLANNING"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_WORK_005",
+      "category": "domain_positive",
+      "input": "Retrospective: what went well, what to improve",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "ACTION_REVIEW"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_WORK_006",
+      "category": "domain_positive",
+      "input": "All-hands meeting agenda and company updates",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "MEETING_NOTES"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_WORK_007",
+      "category": "domain_positive",
+      "input": "Team sync on project deliverables and blockers",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "MEETING_NOTES"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_WORK_008",
+      "category": "domain_positive",
+      "input": "Action items from yesterday's leadership meeting",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "ACTION_REVIEW"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_TECH_001",
+      "category": "domain_positive",
+      "input": "Debug the API endpoint returning 500 errors",
+      "expected_domain": "TECH",
+      "expected_intents": [
+        "TROUBLESHOOTING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_TECH_002",
+      "category": "domain_positive",
+      "input": "Refactor the authentication module to use OAuth2",
+      "expected_domain": "TECH",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_TECH_003",
+      "category": "domain_positive",
+      "input": "Code review for the new payment integration PR",
+      "expected_domain": "TECH",
+      "expected_intents": [
+        "ACTION_REVIEW"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_TECH_004",
+      "category": "domain_positive",
+      "input": "Deploy new microservice to production kubernetes cluster",
+      "expected_domain": "TECH",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_TECH_005",
+      "category": "domain_positive",
+      "input": "Configure CI/CD pipeline for automated testing",
+      "expected_domain": "TECH",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_HEALTH_001",
+      "category": "domain_positive",
+      "input": "Doctor appointment for annual checkup",
+      "expected_domain": "HEALTH",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOM_HEALTH_002",
+      "category": "domain_positive",
+      "input": "Gym workout: 30 min cardio, 20 min weights",
+      "expected_domain": "HEALTH",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOM_HEALTH_003",
+      "category": "domain_positive",
+      "input": "Track daily calories and macros for diet",
+      "expected_domain": "HEALTH",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOM_HEALTH_004",
+      "category": "domain_positive",
+      "input": "Physical therapy exercises for knee recovery",
+      "expected_domain": "HEALTH",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOM_FINANCE_001",
+      "category": "domain_positive",
+      "input": "Review Q3 investment portfolio performance",
+      "expected_domain": "FINANCE",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOM_FINANCE_002",
+      "category": "domain_positive",
+      "input": "Calculate mortgage payment for new house",
+      "expected_domain": "FINANCE",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOM_FINANCE_003",
+      "category": "domain_positive",
+      "input": "Tax deductions to claim for home office",
+      "expected_domain": "FINANCE",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOM_SPIRITUAL_001",
+      "category": "domain_positive",
+      "input": "Sunday worship service and Bible study",
+      "expected_domain": "SPIRITUAL",
+      "expected_intents": [
+        "DEVOTIONAL"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "LDS_LEADERSHIP"
+      ]
+    },
+    {
+      "id": "DOM_SPIRITUAL_002",
+      "category": "domain_positive",
+      "input": "Morning meditation and prayer journaling",
+      "expected_domain": "SPIRITUAL",
+      "expected_intents": [
+        "DEVOTIONAL"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LDS_LEADERSHIP"
+      ]
+    },
+    {
+      "id": "DOM_SPIRITUAL_003",
+      "category": "domain_positive",
+      "input": "Scripture reading from Proverbs chapter 3",
+      "expected_domain": "SPIRITUAL",
+      "expected_intents": [
+        "DEVOTIONAL"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "LDS_LEADERSHIP"
+      ]
+    },
+    {
+      "id": "DOM_FAMILY_001",
+      "category": "domain_positive",
+      "input": "Kids' soccer practice pickup at 4pm",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "DOM_FAMILY_002",
+      "category": "domain_positive",
+      "input": "Family dinner with grandparents this weekend",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "DOM_FAMILY_003",
+      "category": "domain_positive",
+      "input": "Plan summer vacation with the kids",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "PLANNING"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "DOM_SOCIAL_001",
+      "category": "domain_positive",
+      "input": "Birthday party at Jake's house Saturday night",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "DOM_SOCIAL_002",
+      "category": "domain_positive",
+      "input": "Happy hour with college friends downtown",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "DOM_TRAVEL_001",
+      "category": "domain_positive",
+      "input": "Flight to San Francisco, boarding at gate B12",
+      "expected_domain": "TRAVEL",
+      "expected_intents": [],
+      "min_confidence": 0.7
+    },
+    {
+      "id": "DOM_TRAVEL_002",
+      "category": "domain_positive",
+      "input": "Hotel reservation at Marriott for conference",
+      "expected_domain": "TRAVEL",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOM_SHOPPING_001",
+      "category": "domain_positive",
+      "input": "Grocery store: milk, eggs, bread, vegetables",
+      "expected_domain": "SHOPPING",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "HOME",
+        "FOOD"
+      ]
+    },
+    {
+      "id": "DOM_SHOPPING_002",
+      "category": "domain_positive",
+      "input": "Black Friday deals on Amazon for electronics",
+      "expected_domain": "SHOPPING",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "HOME",
+        "FOOD"
+      ]
+    },
+    {
+      "id": "DOM_HOME_001",
+      "category": "domain_positive",
+      "input": "Plumber coming to fix bathroom leak",
+      "expected_domain": "HOME",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "DOM_HOME_002",
+      "category": "domain_positive",
+      "input": "Deep clean kitchen and organize pantry",
+      "expected_domain": "HOME",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "DOM_CREATIVE_001",
+      "category": "domain_positive",
+      "input": "Work on watercolor painting for art show",
+      "expected_domain": "CREATIVE",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "WRITING"
+      ]
+    },
+    {
+      "id": "DOM_CREATIVE_002",
+      "category": "domain_positive",
+      "input": "Practice guitar and write new song lyrics",
+      "expected_domain": "CREATIVE",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "WRITING"
+      ]
+    },
+    {
+      "id": "DOM_LEGAL_001",
+      "category": "domain_positive",
+      "input": "Review contract terms with attorney",
+      "expected_domain": "LEGAL",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOM_PET_001",
+      "category": "domain_positive",
+      "input": "Vet appointment for dog vaccinations",
+      "expected_domain": "PET",
+      "expected_intents": [],
+      "min_confidence": 0.7
+    },
+    {
+      "id": "DOM_STUDENT_001",
+      "category": "domain_positive",
+      "input": "Study for midterm exam, chapters 5-8",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "STUDY_PLAN"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "DOM_STUDENT_002",
+      "category": "domain_positive",
+      "input": "Research paper due Friday on climate change",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "THESIS_WORK"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "DOM_STUDENT_003",
+      "category": "domain_positive",
+      "input": "GPA calculation for scholarship application",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "DOM_TEACHING_001",
+      "category": "domain_positive",
+      "input": "Prepare lesson plan for tomorrow's class",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "LESSON_PLAN"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "DOM_TEACHING_002",
+      "category": "domain_positive",
+      "input": "Grade student essays using the rubric",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "GRADING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "DOM_TEACHING_003",
+      "category": "domain_positive",
+      "input": "Parent-teacher conference notes for Johnny",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "PARENT_COMM"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "DOM_BUSINESS_001",
+      "category": "domain_positive",
+      "input": "Quarterly investor update on company valuation",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "DOM_BUSINESS_002",
+      "category": "domain_positive",
+      "input": "Sales pipeline review and forecast",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "METRICS_TRACKING"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "DOM_ENTREPRENEURSHIP_001",
+      "category": "domain_positive",
+      "input": "Startup pitch deck for seed funding round",
+      "expected_domain": "ENTREPRENEURSHIP",
+      "expected_intents": [
+        "FUNDRAISING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "STRATEGY"
+      ]
+    },
+    {
+      "id": "DOM_ENTREPRENEURSHIP_002",
+      "category": "domain_positive",
+      "input": "MVP feature prioritization for beta launch",
+      "expected_domain": "ENTREPRENEURSHIP",
+      "expected_intents": [
+        "PRODUCT_DEV"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "STRATEGY"
+      ]
+    },
+    {
+      "id": "DOM_MANAGEMENT_001",
+      "category": "domain_positive",
+      "input": "Quarterly performance reviews for direct reports",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "PEOPLE_MANAGEMENT"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "PROFESSIONAL",
+        "BUSINESS"
+      ]
+    },
+    {
+      "id": "DOM_MANAGEMENT_002",
+      "category": "domain_positive",
+      "input": "Hiring interview questions for senior developer",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "PEOPLE_MANAGEMENT"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "PROFESSIONAL",
+        "BUSINESS"
+      ]
+    },
+    {
+      "id": "DOM_STRATEGY_001",
+      "category": "domain_positive",
+      "input": "Strategic planning session for market expansion",
+      "expected_domain": "STRATEGY",
+      "expected_intents": [
+        "STRATEGY_PLANNING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_STRATEGY_002",
+      "category": "domain_positive",
+      "input": "SWOT analysis for new product launch",
+      "expected_domain": "STRATEGY",
+      "expected_intents": [
+        "STRATEGY_PLANNING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "DOM_FOOD_001",
+      "category": "domain_positive",
+      "input": "Recipe: chocolate chip cookies with vanilla extract",
+      "expected_domain": "FOOD",
+      "expected_intents": [
+        "RECIPE"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SHOPPING",
+        "HOME"
+      ]
+    },
+    {
+      "id": "DOM_FOOD_002",
+      "category": "domain_positive",
+      "input": "Meal prep for the week: chicken, rice, vegetables",
+      "expected_domain": "FOOD",
+      "expected_intents": [
+        "RECIPE"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "SHOPPING",
+        "HOME"
+      ]
+    },
+    {
+      "id": "DOM_COMMUNITY_001",
+      "category": "domain_positive",
+      "input": "Neighborhood association meeting about park cleanup",
+      "expected_domain": "COMMUNITY",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOM_SOCIALMEDIA_001",
+      "category": "domain_positive",
+      "input": "Instagram content calendar: post schedule and hashtags",
+      "expected_domain": "SOCIAL_MEDIA",
+      "expected_intents": [
+        "CONTENT_PLAN"
+      ],
+      "min_confidence": 0.7
+    },
+    {
+      "id": "DOM_SOCIALMEDIA_002",
+      "category": "domain_positive",
+      "input": "TikTok engagement metrics and follower growth",
+      "expected_domain": "SOCIAL_MEDIA",
+      "expected_intents": [
+        "SOCIAL_ANALYTICS"
+      ],
+      "min_confidence": 0.7
+    },
+    {
+      "id": "LDS_001",
+      "category": "lds_specific",
+      "input": "Ward council meeting to discuss ministering assignments",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_COUNCIL"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_002",
+      "category": "lds_specific",
+      "input": "Tithing settlement appointment with bishop",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_FINANCIAL"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_003",
+      "category": "lds_specific",
+      "input": "Temple recommend interview with stake president",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_INTERVIEW"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_004",
+      "category": "lds_specific",
+      "input": "Young Women mutual activity planning",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_YOUTH_ACTIVITY"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_005",
+      "category": "lds_specific",
+      "input": "Come Follow Me lesson preparation for Sunday School",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_006",
+      "category": "lds_specific",
+      "input": "Relief Society presidency meeting agenda",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_COUNCIL"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_007",
+      "category": "lds_specific",
+      "input": "Elders quorum ministering companionship assignments",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MINISTERING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_008",
+      "category": "lds_specific",
+      "input": "Primary singing time songs and activities",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_009",
+      "category": "lds_specific",
+      "input": "Bishopric meeting to discuss new calling recommendations",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_CALLING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_010",
+      "category": "lds_specific",
+      "input": "Stake conference preparations and speaker assignments",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_011",
+      "category": "lds_specific",
+      "input": "Fast offering collection and distribution needs",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_FINANCIAL"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_012",
+      "category": "lds_specific",
+      "input": "Youth temple trip planning and worthiness interviews",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_YOUTH_ACTIVITY"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_013",
+      "category": "lds_specific",
+      "input": "Family history indexing activity for youth",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MEMBER_CARE"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_014",
+      "category": "lds_specific",
+      "input": "Bishop's storehouse order for family in need",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MEMBER_CARE"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_015",
+      "category": "lds_specific",
+      "input": "Sacrament meeting program and speaker schedule",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_016",
+      "category": "lds_specific",
+      "input": "Ward mission leader coordination with missionaries",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_CALLING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_017",
+      "category": "lds_specific",
+      "input": "Children and Youth goal setting with parents",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_YOUTH_ACTIVITY"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_018",
+      "category": "lds_specific",
+      "input": "Priesthood executive committee agenda items",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_COUNCIL"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_019",
+      "category": "lds_specific",
+      "input": "Quarterly ministering interview progress report",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MINISTERING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_020",
+      "category": "lds_specific",
+      "input": "Young Men camp planning and permission slips",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_YOUTH_ACTIVITY"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_021",
+      "category": "lds_specific",
+      "input": "New member welcome and fellowship assignments",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MEMBER_CARE"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_022",
+      "category": "lds_specific",
+      "input": "Seminary teacher lesson preparation for this week",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_023",
+      "category": "lds_specific",
+      "input": "Ward budget allocations for activities and programs",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_FINANCIAL"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_024",
+      "category": "lds_specific",
+      "input": "High council visit and training this Sunday",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_COUNCIL"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_025",
+      "category": "lds_specific",
+      "input": "Ministering sister visit to check on family needs",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MINISTERING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_026",
+      "category": "lds_specific",
+      "input": "Gospel principles class discussion questions",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_027",
+      "category": "lds_specific",
+      "input": "Ward clerk financial report for month end",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_FINANCIAL"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_028",
+      "category": "lds_specific",
+      "input": "Personal priesthood interview notes with elder",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_INTERVIEW"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_029",
+      "category": "lds_specific",
+      "input": "Trek preparation committee assignments",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_YOUTH_ACTIVITY"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_030",
+      "category": "lds_specific",
+      "input": "Family home evening lesson ideas for children",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "EDU_001",
+      "category": "education_specific",
+      "input": "Lesson plan: Grade 5 Math fractions and decimals",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "LESSON_PLAN"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_002",
+      "category": "education_specific",
+      "input": "Student IEP goals progress monitoring data",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "IEP_504"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_003",
+      "category": "education_specific",
+      "input": "Parent-teacher conference schedule for fall semester",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "PARENT_COMM"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_004",
+      "category": "education_specific",
+      "input": "Curriculum alignment with state standards",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "CURRICULUM_DEV"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_005",
+      "category": "education_specific",
+      "input": "Faculty PLC meeting notes on intervention strategies",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "FACULTY_MEETING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_006",
+      "category": "education_specific",
+      "input": "Lab report: photosynthesis experiment results",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "LAB_NOTES"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_007",
+      "category": "education_specific",
+      "input": "Thesis chapter 3 methodology section draft",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "THESIS_WORK"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_008",
+      "category": "education_specific",
+      "input": "Study schedule for finals week exams",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "STUDY_PLAN"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_009",
+      "category": "education_specific",
+      "input": "Lecture notes: Economics 101 supply and demand",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "LECTURE_NOTES"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_010",
+      "category": "education_specific",
+      "input": "Grading rubric for persuasive essay assignment",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "GRADING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_011",
+      "category": "education_specific",
+      "input": "504 plan accommodations for testing anxiety",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "IEP_504"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_012",
+      "category": "education_specific",
+      "input": "Student anecdotal record for behavior observation",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "STUDENT_RECORD"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_013",
+      "category": "education_specific",
+      "input": "Professional development workshop on differentiation",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "FACULTY_MEETING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_014",
+      "category": "education_specific",
+      "input": "Classroom management seating chart adjustments",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "CLASSROOM_MGMT"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_015",
+      "category": "education_specific",
+      "input": "Homework assignment due dates and submission",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "ASSIGNMENT_WORK"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_016",
+      "category": "education_specific",
+      "input": "Reading notes: To Kill a Mockingbird themes",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "READING_NOTES"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_017",
+      "category": "education_specific",
+      "input": "Course planning for next semester registration",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "COURSE_PLANNING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_018",
+      "category": "education_specific",
+      "input": "Scope and sequence for AP History curriculum",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "CURRICULUM_DEV"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_019",
+      "category": "education_specific",
+      "input": "Progress report comments for report cards",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "PARENT_COMM"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_020",
+      "category": "education_specific",
+      "input": "Department meeting agenda for curriculum review",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "FACULTY_MEETING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_021",
+      "category": "education_specific",
+      "input": "Literature review for dissertation chapter 2",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "THESIS_WORK"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_022",
+      "category": "education_specific",
+      "input": "Lab safety protocol and equipment checklist",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "LAB_NOTES"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_023",
+      "category": "education_specific",
+      "input": "Midterm exam study guide chapters 1-6",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "STUDY_PLAN"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_024",
+      "category": "education_specific",
+      "input": "Standards-based grading assessment criteria",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "GRADING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_025",
+      "category": "education_specific",
+      "input": "Special education referral and evaluation process",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "IEP_504"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "BIZ_001",
+      "category": "business_specific",
+      "input": "Q4 revenue forecast and pipeline analysis",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "METRICS_TRACKING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "BIZ_002",
+      "category": "business_specific",
+      "input": "Stakeholder update presentation for board meeting",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "STAKEHOLDER_UPDATE"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "BIZ_003",
+      "category": "business_specific",
+      "input": "Business model canvas for new product line",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "BUSINESS_MODEL"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "BIZ_004",
+      "category": "business_specific",
+      "input": "Marketing campaign ROI and conversion metrics",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "CAMPAIGN_NOTES"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "BIZ_005",
+      "category": "business_specific",
+      "input": "Product roadmap prioritization and feature backlog",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "PRODUCT_DEV"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "BIZ_006",
+      "category": "business_specific",
+      "input": "Seed round pitch deck and investor meeting prep",
+      "expected_domain": "ENTREPRENEURSHIP",
+      "expected_intents": [
+        "FUNDRAISING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "STRATEGY"
+      ]
+    },
+    {
+      "id": "BIZ_007",
+      "category": "business_specific",
+      "input": "Startup idea validation and market research",
+      "expected_domain": "ENTREPRENEURSHIP",
+      "expected_intents": [
+        "STARTUP_IDEAS"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "STRATEGY"
+      ]
+    },
+    {
+      "id": "BIZ_008",
+      "category": "business_specific",
+      "input": "Strategic planning offsite agenda and goals",
+      "expected_domain": "STRATEGY",
+      "expected_intents": [
+        "STRATEGY_PLANNING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "BIZ_009",
+      "category": "business_specific",
+      "input": "Customer acquisition cost analysis and LTV",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "METRICS_TRACKING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "BIZ_010",
+      "category": "business_specific",
+      "input": "Annual budget planning and resource allocation",
+      "expected_domain": "FINANCE",
+      "expected_intents": [
+        "BUDGET"
+      ],
+      "min_confidence": 0.8
+    },
+    {
+      "id": "BIZ_011",
+      "category": "business_specific",
+      "input": "Executive summary for quarterly business review",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "STAKEHOLDER_UPDATE"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "PROFESSIONAL",
+        "BUSINESS"
+      ]
+    },
+    {
+      "id": "BIZ_012",
+      "category": "business_specific",
+      "input": "Competitive analysis and market positioning",
+      "expected_domain": "STRATEGY",
+      "expected_intents": [
+        "STRATEGY_PLANNING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "BIZ_013",
+      "category": "business_specific",
+      "input": "OKR setting for engineering team Q1",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "GOAL_SETTING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "PROFESSIONAL",
+        "BUSINESS"
+      ]
+    },
+    {
+      "id": "BIZ_014",
+      "category": "business_specific",
+      "input": "Leadership development program feedback",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "LEADERSHIP_NOTES"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "PROFESSIONAL",
+        "BUSINESS"
+      ]
+    },
+    {
+      "id": "BIZ_015",
+      "category": "business_specific",
+      "input": "Series A due diligence document preparation",
+      "expected_domain": "ENTREPRENEURSHIP",
+      "expected_intents": [
+        "FUNDRAISING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "STRATEGY"
+      ]
+    },
+    {
+      "id": "INT_TODO_001",
+      "category": "intent_positive",
+      "input": "[ ] Buy groceries\n[ ] Call mom\n[x] Pay bills",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "TODO_LIST"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "INT_TODO_002",
+      "category": "intent_positive",
+      "input": "Tasks for today:\n- Finish report\n- Email client\n- Review PR",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "TODO_LIST"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_MEETING_001",
+      "category": "intent_positive",
+      "input": "Meeting Notes - Project Kickoff\nAttendees: John, Sarah, Mike\nAction items: finalize timeline",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "MEETING_NOTES"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_MEETING_002",
+      "category": "intent_positive",
+      "input": "Weekly sync notes:\n- Discussed blockers\n- Reviewed sprint progress\n- Next steps: deploy by Friday",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "MEETING_NOTES"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_JOURNAL_001",
+      "category": "intent_positive",
+      "input": "Today I feel grateful for my family. The morning was peaceful.",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "JOURNAL"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "INT_JOURNAL_002",
+      "category": "intent_positive",
+      "input": "Reflections on the week: learned a lot about patience and perseverance.",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "JOURNAL"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "INT_RESEARCH_001",
+      "category": "intent_positive",
+      "input": "Research findings: neural networks perform best for image classification tasks",
+      "expected_domain": "TECH",
+      "expected_intents": [
+        "RESEARCH"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_RESEARCH_002",
+      "category": "intent_positive",
+      "input": "Literature review: summarizing key papers on machine learning",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "RESEARCH"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "INT_BRAINSTORM_001",
+      "category": "intent_positive",
+      "input": "Brainstorming session:\n- New product features\n- Marketing approaches\n- Partnership opportunities",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "BRAINSTORM"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_BRAINSTORM_002",
+      "category": "intent_positive",
+      "input": "Ideas for blog posts:\n1. Productivity tips\n2. Remote work tools\n3. Team collaboration",
+      "expected_domain": "CREATIVE",
+      "expected_intents": [
+        "BRAINSTORM"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "WRITING"
+      ]
+    },
+    {
+      "id": "INT_PROSCONS_001",
+      "category": "intent_positive",
+      "input": "Pros: better salary, remote work\nCons: longer commute, less PTO",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "PROS_CONS"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_PROSCONS_002",
+      "category": "intent_positive",
+      "input": "Advantages of option A:\n- Lower cost\n- Faster delivery\nDisadvantages:\n- Less features",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "PROS_CONS"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_BUDGET_001",
+      "category": "intent_positive",
+      "input": "Monthly Budget\nRent: $1500\nUtilities: $200\nGroceries: $400",
+      "expected_domain": "FINANCE",
+      "expected_intents": [
+        "BUDGET"
+      ],
+      "min_confidence": 0.7
+    },
+    {
+      "id": "INT_BUDGET_002",
+      "category": "intent_positive",
+      "input": "Project budget breakdown:\n- Development: $50k\n- Marketing: $20k\n- Operations: $10k",
+      "expected_domain": "FINANCE",
+      "expected_intents": [
+        "BUDGET"
+      ],
+      "min_confidence": 0.7
+    },
+    {
+      "id": "INT_GOAL_001",
+      "category": "intent_positive",
+      "input": "Goals for Q1: Achieve 20% revenue growth by March",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "GOAL_SETTING"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_GOAL_002",
+      "category": "intent_positive",
+      "input": "Personal goals:\n- Exercise 3x per week\n- Read 12 books this year\n- Learn Spanish",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "GOAL_SETTING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "INT_INSTRUCTIONS_001",
+      "category": "intent_positive",
+      "input": "Step 1: Preheat oven to 350F\nStep 2: Mix ingredients\nStep 3: Bake for 25 minutes",
+      "expected_domain": "FOOD",
+      "expected_intents": [
+        "INSTRUCTIONS",
+        "RECIPE"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "SHOPPING",
+        "HOME"
+      ]
+    },
+    {
+      "id": "INT_INSTRUCTIONS_002",
+      "category": "intent_positive",
+      "input": "How to set up the project:\n1. Clone the repo\n2. Run npm install\n3. Start dev server",
+      "expected_domain": "TECH",
+      "expected_intents": [
+        "INSTRUCTIONS"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_STUDY_001",
+      "category": "intent_positive",
+      "input": "Study plan for finals:\n- Review chapters 1-5 Monday\n- Practice problems Tuesday",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "STUDY_PLAN"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "INT_EXPENSE_001",
+      "category": "intent_positive",
+      "input": "Expense Log:\n$45.67 - Uber to airport\n$12.50 - Lunch\n$89.00 - Client dinner",
+      "expected_domain": "FINANCE",
+      "expected_intents": [
+        "EXPENSE_LOG"
+      ],
+      "min_confidence": 0.7
+    },
+    {
+      "id": "INT_TROUBLESHOOT_001",
+      "category": "intent_positive",
+      "input": "Issue: App crashes on startup\nTried: clearing cache, reinstalling\nSolution: update to latest version",
+      "expected_domain": "TECH",
+      "expected_intents": [
+        "TROUBLESHOOTING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_TROUBLESHOOT_002",
+      "category": "intent_positive",
+      "input": "Bug report:\nSteps to reproduce: 1. Click login 2. Enter wrong password\nExpected: error message\nActual: crash",
+      "expected_domain": "TECH",
+      "expected_intents": [
+        "TROUBLESHOOTING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_DEVOTIONAL_001",
+      "category": "intent_positive",
+      "input": "Morning devotional: Read Psalm 23, prayer for guidance and peace",
+      "expected_domain": "SPIRITUAL",
+      "expected_intents": [
+        "DEVOTIONAL"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "LDS_LEADERSHIP"
+      ]
+    },
+    {
+      "id": "INT_DEVOTIONAL_002",
+      "category": "intent_positive",
+      "input": "Prayer journal:\nThank God for: family, health, job\nPrayer requests: wisdom, patience",
+      "expected_domain": "SPIRITUAL",
+      "expected_intents": [
+        "DEVOTIONAL"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "LDS_LEADERSHIP"
+      ]
+    },
+    {
+      "id": "INT_LESSON_001",
+      "category": "intent_positive",
+      "input": "Lesson Plan - Grade 5 Math\nObjective: Understand fractions\nActivities: visual aids, group work",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "LESSON_PLAN"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "INT_COMPARISON_001",
+      "category": "intent_positive",
+      "input": "iPhone vs Android comparison:\niPhone: better ecosystem\nAndroid: more customization",
+      "expected_domain": "TECH",
+      "expected_intents": [
+        "COMPARISON"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_PLANNING_001",
+      "category": "intent_positive",
+      "input": "Project Timeline:\nPhase 1: Research (Week 1-2)\nPhase 2: Development (Week 3-6)",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "PLANNING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_CONTACT_001",
+      "category": "intent_positive",
+      "input": "Contact Info:\nJohn Smith\nEmail: john@company.com\nPhone: 555-123-4567",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "CONTACT_INFO"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_CALLLOG_001",
+      "category": "intent_positive",
+      "input": "Call with Sarah - discussed project timeline, she mentioned budget concerns",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "CALL_LOG"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_CALLLOG_002",
+      "category": "intent_positive",
+      "input": "Phone call notes:\nSpoke with client about contract renewal\nFollow-up needed by Friday",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "CALL_LOG"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_TALKINGPOINTS_001",
+      "category": "intent_positive",
+      "input": "Talking Points for Board Meeting:\n- Q3 revenue exceeded targets\n- New product launch timeline",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "TALKING_POINTS"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_TALKINGPOINTS_002",
+      "category": "intent_positive",
+      "input": "Key messages for presentation:\n1. Market opportunity\n2. Our solution\n3. Competitive advantage",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "TALKING_POINTS"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_QUOTE_001",
+      "category": "intent_positive",
+      "input": "\"The only way to do great work is to love what you do.\" - Steve Jobs",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "QUOTE_SNIPPET"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "INT_DRAFT_001",
+      "category": "intent_positive",
+      "input": "Draft email to client:\nSubject: Project Update\nDear Mr. Smith, I wanted to update you on...",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "DRAFT_MESSAGE"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_DRAFT_002",
+      "category": "intent_positive",
+      "input": "Reply to Sarah:\nHi Sarah, Thanks for your message. I'll get back to you by...",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "DRAFT_MESSAGE"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_REFERENCE_001",
+      "category": "intent_positive",
+      "input": "Reference: Smith, J. (2023). Machine Learning Basics. pp. 45-67. ISBN: 978-0123456789",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "REFERENCE"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "INT_REFERENCE_002",
+      "category": "intent_positive",
+      "input": "Sources:\n- Wikipedia: Machine Learning\n- Stanford CS229 lecture notes\n- Deep Learning book by Goodfellow",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "REFERENCE"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "INT_WISHLIST_001",
+      "category": "intent_positive",
+      "input": "Christmas Wishlist:\n- New headphones\n- Book: Atomic Habits\n- Coffee subscription",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "WISHLIST"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "INT_WISHLIST_002",
+      "category": "intent_positive",
+      "input": "Birthday gift ideas:\n1. Smart watch\n2. Kindle\n3. Running shoes",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "WISHLIST"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "INT_ACTION_001",
+      "category": "intent_positive",
+      "input": "Action Items:\n1. John to send proposal by Friday\n2. Sarah to schedule follow-up",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "ACTION_REVIEW"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_LECTURE_001",
+      "category": "intent_positive",
+      "input": "Lecture Notes - Economics 101\nProfessor mentioned supply and demand curves\nKey concept: market equilibrium",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "LECTURE_NOTES"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "INT_LEADERSHIP_001",
+      "category": "intent_positive",
+      "input": "Leadership session notes: discussed team dynamics, conflict resolution strategies",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "LEADERSHIP_NOTES"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "PROFESSIONAL",
+        "BUSINESS"
+      ]
+    },
+    {
+      "id": "INT_PEOPLE_001",
+      "category": "intent_positive",
+      "input": "1:1 with direct report - career development discussion, feedback on recent project",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "PEOPLE_MANAGEMENT"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_RECIPE_001",
+      "category": "intent_positive",
+      "input": "Recipe: Banana Bread\nIngredients: 3 bananas, 2 cups flour, 1 cup sugar\nPrep time: 15 min\nBake at 350F for 60 min",
+      "expected_domain": "FOOD",
+      "expected_intents": [
+        "RECIPE"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SHOPPING",
+        "HOME"
+      ]
+    },
+    {
+      "id": "INT_RECIPE_002",
+      "category": "intent_positive",
+      "input": "Chicken stir fry:\n- 1 lb chicken breast\n- 2 tbsp soy sauce\n- Vegetables\nCook on medium-high heat for 8 min",
+      "expected_domain": "FOOD",
+      "expected_intents": [
+        "RECIPE"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SHOPPING",
+        "HOME"
+      ]
+    },
+    {
+      "id": "INT_PACKING_001",
+      "category": "intent_positive",
+      "input": "Packing list for Hawaii trip:\n- Sunscreen\n- Swimsuit\n- Sandals\n- Chargers\n- Passport",
+      "expected_domain": "TRAVEL",
+      "expected_intents": [
+        "PACKING_LIST"
+      ],
+      "min_confidence": 0.8
+    },
+    {
+      "id": "INT_PACKING_002",
+      "category": "intent_positive",
+      "input": "Things to pack:\n[ ] Toiletries\n[ ] Clothes for 5 days\n[ ] Laptop\n[ ] Camera",
+      "expected_domain": "TRAVEL",
+      "expected_intents": [
+        "PACKING_LIST"
+      ],
+      "min_confidence": 0.7
+    },
+    {
+      "id": "INT_TRANSCRIPT_001",
+      "category": "intent_positive",
+      "input": "[00:01:30] Speaker 1: Welcome to today's meeting\n[00:01:45] Speaker 2: Thanks for having me\n[00:02:00] Speaker 1: Let's discuss the agenda",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "TRANSCRIPT"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_TRANSCRIPT_002",
+      "category": "intent_positive",
+      "input": "Interview transcript:\nQ: What is your experience with Python?\nA: I've been using Python for 5 years...",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "TRANSCRIPT"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "PROFESSIONAL",
+        "BUSINESS"
+      ]
+    },
+    {
+      "id": "INT_CREATIVE_001",
+      "category": "intent_positive",
+      "input": "Chapter 1: The Beginning\n\nIt was a dark and stormy night when Sarah first arrived...",
+      "expected_domain": "CREATIVE",
+      "expected_intents": [
+        "CREATIVE_WRITING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "WRITING"
+      ]
+    },
+    {
+      "id": "INT_CREATIVE_002",
+      "category": "intent_positive",
+      "input": "Novel draft - first chapter\nProtagonist: John, 35, detective\nSetting: New York, 1920s",
+      "expected_domain": "CREATIVE",
+      "expected_intents": [
+        "CREATIVE_WRITING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "WRITING"
+      ]
+    },
+    {
+      "id": "INT_CHEATSHEET_001",
+      "category": "intent_positive",
+      "input": "Git cheat sheet:\ngit status - check changes\ngit add . - stage all\ngit commit -m \"msg\" - commit",
+      "expected_domain": "TECH",
+      "expected_intents": [
+        "CHEAT_SHEET"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "INT_CHEATSHEET_002",
+      "category": "intent_positive",
+      "input": "Keyboard shortcuts:\nCtrl+C - copy\nCtrl+V - paste\nCtrl+Z - undo\nCtrl+S - save",
+      "expected_domain": "TECH",
+      "expected_intents": [
+        "CHEAT_SHEET"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "REG_001",
+      "category": "regression",
+      "input": "I need to learn Python programming",
+      "expected_domain": "TECH",
+      "not_expected_domain": "SHOPPING",
+      "expected_intents": [],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "REG_002",
+      "category": "regression",
+      "input": "1:1 with Flavio on Microsoft Teams",
+      "expected_domain": "PROFESSIONAL",
+      "not_expected_domain": "SHOPPING",
+      "expected_intents": [
+        "PEOPLE_MANAGEMENT"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "REG_003",
+      "category": "regression",
+      "input": "I want to improve my fitness routine",
+      "expected_domain": "HEALTH",
+      "not_expected_domain": "SHOPPING",
+      "expected_intents": [],
+      "min_confidence": 0.5
+    },
+    {
+      "id": "REG_004",
+      "category": "regression",
+      "input": "Get the latest updates from the team",
+      "expected_domain": "PROFESSIONAL",
+      "not_expected_domain": "SHOPPING",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "REG_005",
+      "category": "regression",
+      "input": "Make a presentation for the client meeting",
+      "expected_domain": "PROFESSIONAL",
+      "not_expected_domain": "CREATIVE",
+      "expected_intents": [],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "REG_006",
+      "category": "regression",
+      "input": "See doctor about back pain",
+      "expected_domain": "HEALTH",
+      "not_expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.5
+    },
+    {
+      "id": "REG_007",
+      "category": "regression",
+      "input": "Think about career goals for next year",
+      "expected_domain": "LIFE",
+      "not_expected_domain": "SHOPPING",
+      "expected_intents": [
+        "GOAL_SETTING"
+      ],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "REG_008",
+      "category": "regression",
+      "input": "Feel like starting a new hobby",
+      "expected_domain": "LIFE",
+      "not_expected_domain": "SHOPPING",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "REG_009",
+      "category": "regression",
+      "input": "Do the weekly report for management",
+      "expected_domain": "PROFESSIONAL",
+      "not_expected_domain": "SHOPPING",
+      "expected_intents": [],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "REG_010",
+      "category": "regression",
+      "input": "Go to the conference next month",
+      "expected_domain": "PROFESSIONAL",
+      "not_expected_domain": "SHOPPING",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "REG_011",
+      "category": "regression",
+      "input": "Buffer",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.3,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "REG_012",
+      "category": "regression",
+      "input": "Lunch",
+      "expected_domain": "FOOD",
+      "expected_intents": [],
+      "min_confidence": 0.3,
+      "acceptable_domains": [
+        "SHOPPING",
+        "HOME"
+      ]
+    },
+    {
+      "id": "REG_013",
+      "category": "regression",
+      "input": "Meeting",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [],
+      "min_confidence": 0.3,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "NEG_WORK_001",
+      "category": "domain_negative",
+      "input": "Workout at the gym after work",
+      "expected_domain": "HEALTH",
+      "not_expected_domain": "PROFESSIONAL",
+      "expected_intents": [],
+      "min_confidence": 0.5
+    },
+    {
+      "id": "NEG_TECH_001",
+      "category": "domain_negative",
+      "input": "Technical difficulties with the baby monitor",
+      "expected_domain": "HOME",
+      "not_expected_domain": "TECH",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "NEG_SPIRITUAL_001",
+      "category": "domain_negative",
+      "input": "Holy cow, that presentation was amazing!",
+      "expected_domain": "PROFESSIONAL",
+      "not_expected_domain": "SPIRITUAL",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "NEG_FINANCE_001",
+      "category": "domain_negative",
+      "input": "Bank on the team to deliver on time",
+      "expected_domain": "PROFESSIONAL",
+      "not_expected_domain": "FINANCE",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "NEG_LDS_001",
+      "category": "domain_negative",
+      "input": "Called my mom yesterday about dinner",
+      "not_expected_domain": "LDS_LEADERSHIP",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "NEG_LDS_002",
+      "category": "domain_negative",
+      "input": "Ward off the cold with vitamin C",
+      "not_expected_domain": "LDS_LEADERSHIP",
+      "expected_domain": "HEALTH",
+      "expected_intents": [],
+      "min_confidence": 0.4
+    },
+    {
+      "id": "NEG_TEACHING_001",
+      "category": "domain_negative",
+      "input": "Learning a new programming language",
+      "not_expected_domain": "TEACHING",
+      "expected_domain": "TECH",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "NEG_STUDENT_001",
+      "category": "domain_negative",
+      "input": "Study the market trends for our product",
+      "not_expected_domain": "EDUCATION",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "AMB_MEETING_001",
+      "category": "ambiguous",
+      "input": "Meeting at church about volunteer schedule",
+      "expected_domain": "SPIRITUAL",
+      "expected_intents": [
+        "MEETING_NOTES"
+      ],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "LDS_LEADERSHIP"
+      ]
+    },
+    {
+      "id": "AMB_PROJECT_001",
+      "category": "ambiguous",
+      "input": "School project due next week on climate change",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "ASSIGNMENT_WORK"
+      ],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "AMB_BUDGET_001",
+      "category": "ambiguous",
+      "input": "Wedding budget: venue $5000, catering $3000",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "BUDGET"
+      ],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "AMB_TEAM_001",
+      "category": "ambiguous",
+      "input": "Team practice schedule for basketball tournament",
+      "expected_domain": "HEALTH",
+      "expected_intents": [],
+      "min_confidence": 0.4
+    },
+    {
+      "id": "AMB_DEADLINE_001",
+      "category": "ambiguous",
+      "input": "Thesis deadline approaching, need to finish chapter 4",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "THESIS_WORK"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "AMB_APPOINTMENT_001",
+      "category": "ambiguous",
+      "input": "Appointment with financial advisor about retirement planning",
+      "expected_domain": "FINANCE",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "AMB_REVIEW_001",
+      "category": "ambiguous",
+      "input": "Review notes for tomorrow's exam on organic chemistry",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "STUDY_PLAN"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "AMB_CALL_001",
+      "category": "ambiguous",
+      "input": "Call mom about Thanksgiving dinner plans",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "AMB_TRAINING_001",
+      "category": "ambiguous",
+      "input": "Training session on new sales software",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "AMB_PLAN_001",
+      "category": "ambiguous",
+      "input": "Meal plan for the week: healthy dinners, low carb",
+      "expected_domain": "HEALTH",
+      "expected_intents": [
+        "PLANNING"
+      ],
+      "min_confidence": 0.5
+    },
+    {
+      "id": "AMB_LDS_001",
+      "category": "ambiguous",
+      "input": "Council meeting at the office",
+      "expected_domain": "PROFESSIONAL",
+      "not_expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "MEETING_NOTES"
+      ],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "AMB_LDS_002",
+      "category": "ambiguous",
+      "input": "Primary concern is meeting the deadline",
+      "expected_domain": "PROFESSIONAL",
+      "not_expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "AMB_TEMPLE_001",
+      "category": "ambiguous",
+      "input": "Temple of Doom movie night",
+      "not_expected_domain": "SPIRITUAL",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "AMB_TEACHING_001",
+      "category": "ambiguous",
+      "input": "Teaching the team new agile practices",
+      "expected_domain": "PROFESSIONAL",
+      "not_expected_domain": "TEACHING",
+      "expected_intents": [],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "STRUCT_CHECKBOX_001",
+      "category": "structure_detection",
+      "input": "- [x] Completed task\n- [ ] Pending task\n- [ ] Another task",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "TODO_LIST"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "STRUCT_NUMBERED_001",
+      "category": "structure_detection",
+      "input": "1. First step in the process\n2. Second step to follow\n3. Final step to complete",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "INSTRUCTIONS"
+      ],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "STRUCT_BULLET_001",
+      "category": "structure_detection",
+      "input": "Key points:\n\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a2 Revenue increased 15%\n\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a2 Customer satisfaction up\n\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a2 New product launched",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "TALKING_POINTS"
+      ],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "STRUCT_HEADER_001",
+      "category": "structure_detection",
+      "input": "# Meeting Notes\n## Attendees\nJohn, Sarah\n## Action Items\n- Follow up with client",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "MEETING_NOTES"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "STRUCT_CODE_001",
+      "category": "structure_detection",
+      "input": "```python\ndef hello_world():\n    print('Hello, World!')\n```",
+      "expected_domain": "TECH",
+      "expected_intents": [
+        "CHEAT_SHEET"
+      ],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "STRUCT_TABLE_001",
+      "category": "structure_detection",
+      "input": "| Feature | Option A | Option B |\n|---------|----------|----------|\n| Price | $100 | $150 |",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "COMPARISON"
+      ],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "LDS_PHRASE_001",
+      "category": "lds_specific",
+      "input": "Brother Johnson was sustained as the new ward mission leader",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_CALLING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_PHRASE_002",
+      "category": "lds_specific",
+      "input": "Sister Davis will be released from her calling in Primary",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_CALLING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_PHRASE_003",
+      "category": "lds_specific",
+      "input": "Temple trip Saturday - bring recommend and white clothes",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_YOUTH_ACTIVITY"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_PHRASE_004",
+      "category": "lds_specific",
+      "input": "Fast Sunday testimonies and sacrament meeting program",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_PHRASE_005",
+      "category": "lds_specific",
+      "input": "Ward welfare needs assessment and bishop storehouse order",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MEMBER_CARE"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_PHRASE_006",
+      "category": "lds_specific",
+      "input": "Girls camp testimony meeting and spiritual thought",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_YOUTH_ACTIVITY"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_PHRASE_007",
+      "category": "lds_specific",
+      "input": "Discuss the atonement in next week's Come Follow Me lesson",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_PHRASE_008",
+      "category": "lds_specific",
+      "input": "Priesthood blessing request for sick family member",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MEMBER_CARE"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_PHRASE_009",
+      "category": "lds_specific",
+      "input": "Ward activity committee planning Christmas party",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_YOUTH_ACTIVITY"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_PHRASE_010",
+      "category": "lds_specific",
+      "input": "Missionaries reporting on area book contacts",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MEMBER_CARE"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "EDU_PHRASE_001",
+      "category": "education_specific",
+      "input": "Differentiated instruction strategies for diverse learners",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "LESSON_PLAN"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_PHRASE_002",
+      "category": "education_specific",
+      "input": "Formative assessment exit ticket results",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "GRADING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_PHRASE_003",
+      "category": "education_specific",
+      "input": "Behavior intervention plan implementation notes",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "IEP_504"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_PHRASE_004",
+      "category": "education_specific",
+      "input": "RTI Tier 2 intervention progress monitoring",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "IEP_504"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_PHRASE_005",
+      "category": "education_specific",
+      "input": "Dissertation committee feedback on methodology chapter",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "THESIS_WORK"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_PHRASE_006",
+      "category": "education_specific",
+      "input": "Lab safety quiz and equipment orientation",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "LAB_NOTES"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_PHRASE_007",
+      "category": "education_specific",
+      "input": "PBIS positive behavior reward system",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "CLASSROOM_MGMT"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_PHRASE_008",
+      "category": "education_specific",
+      "input": "Student learning objectives and success criteria",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "LESSON_PLAN"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "EDU_PHRASE_009",
+      "category": "education_specific",
+      "input": "Annotated bibliography for research paper",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [
+        "REFERENCE"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "EDU_PHRASE_010",
+      "category": "education_specific",
+      "input": "Backward design unit planning template",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "CURRICULUM_DEV"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "BIZ_PHRASE_001",
+      "category": "business_specific",
+      "input": "Churn rate analysis and customer retention strategies",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "METRICS_TRACKING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "BIZ_PHRASE_002",
+      "category": "business_specific",
+      "input": "Go-to-market strategy for product launch",
+      "expected_domain": "STRATEGY",
+      "expected_intents": [
+        "STRATEGY_PLANNING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "BIZ_PHRASE_003",
+      "category": "business_specific",
+      "input": "Investor term sheet negotiation points",
+      "expected_domain": "ENTREPRENEURSHIP",
+      "expected_intents": [
+        "FUNDRAISING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "STRATEGY"
+      ]
+    },
+    {
+      "id": "BIZ_PHRASE_004",
+      "category": "business_specific",
+      "input": "Customer journey mapping and touchpoint analysis",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "PRODUCT_DEV"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "BIZ_PHRASE_005",
+      "category": "business_specific",
+      "input": "Monthly recurring revenue growth projections",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "METRICS_TRACKING"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "BIZ_PHRASE_006",
+      "category": "business_specific",
+      "input": "Value proposition canvas workshop",
+      "expected_domain": "ENTREPRENEURSHIP",
+      "expected_intents": [
+        "BUSINESS_MODEL"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "STRATEGY"
+      ]
+    },
+    {
+      "id": "BIZ_PHRASE_007",
+      "category": "business_specific",
+      "input": "360-degree feedback review for leadership team",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "PEOPLE_MANAGEMENT"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "PROFESSIONAL",
+        "BUSINESS"
+      ]
+    },
+    {
+      "id": "BIZ_PHRASE_008",
+      "category": "business_specific",
+      "input": "A/B testing results for homepage conversion",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "METRICS_TRACKING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "BIZ_PHRASE_009",
+      "category": "business_specific",
+      "input": "Agile sprint retrospective action items",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "ACTION_REVIEW"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "BIZ_PHRASE_010",
+      "category": "business_specific",
+      "input": "Net promoter score survey analysis",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "METRICS_TRACKING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "MULTIDOM_001",
+      "category": "ambiguous",
+      "input": "Budget meeting with the bishop about ward activities",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_FINANCIAL"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "MULTIDOM_002",
+      "category": "ambiguous",
+      "input": "Study group for Sunday School lesson preparation",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "MULTIDOM_003",
+      "category": "ambiguous",
+      "input": "Grading papers for my Sunday School class",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "GRADING"
+      ],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "MULTIDOM_004",
+      "category": "ambiguous",
+      "input": "Planning the youth conference service project",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_YOUTH_ACTIVITY"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "MULTIDOM_005",
+      "category": "ambiguous",
+      "input": "Expense report for business trip to temple open house",
+      "expected_domain": "FINANCE",
+      "expected_intents": [
+        "EXPENSE_LOG"
+      ],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "LONG_001",
+      "category": "domain_positive",
+      "input": "Today's sprint planning meeting covered several important topics. We reviewed the backlog, estimated story points for new features, and assigned tasks to team members. Key decisions include prioritizing the payment integration and deferring the analytics dashboard. Follow-up items: John will create the tech spec, Sarah will update the design mockups, and Mike will set up the test environment.",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "MEETING_NOTES"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "LONG_002",
+      "category": "lds_specific",
+      "input": "Ward council meeting agenda items: 1. Opening prayer by Brother Smith. 2. Ministering report from Relief Society and Elders Quorum. 3. Discussion of upcoming youth conference logistics. 4. Welfare needs assessment for three families. 5. Budget review with ward clerk. 6. Assignment coordination for sacrament meeting. Closing prayer by Sister Johnson.",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_COUNCIL"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LONG_003",
+      "category": "education_specific",
+      "input": "Lesson plan for 5th grade science: Objective - Students will understand the water cycle. Materials needed: diagram poster, cups, ice, heat lamp. Introduction (10 min): Review previous lesson on states of matter. Direct instruction (15 min): Explain evaporation, condensation, precipitation. Activity (20 min): Small group experiment demonstrating condensation. Assessment: Exit ticket with 3 questions about water cycle stages.",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "LESSON_PLAN"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "LONG_004",
+      "category": "business_specific",
+      "input": "Q3 investor update: Revenue reached $2.4M, up 35% YoY. Customer acquisition cost decreased to $45 from $62. Churn rate improved to 3.2%. Product highlights include launch of mobile app and API v2. Hiring update: Added 5 engineers and 2 sales reps. Q4 priorities: enterprise sales push, Series B preparation, and platform stability improvements. Key risks: competitive pressure from BigTech and potential recession impact on SMB customers.",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "STAKEHOLDER_UPDATE"
+      ],
+      "min_confidence": 0.8,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "CONTEXT_LDS_001",
+      "category": "lds_specific",
+      "input": "President Nelson spoke about covenants and temples",
+      "expected_domain": "SPIRITUAL",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "LDS_LEADERSHIP"
+      ]
+    },
+    {
+      "id": "CONTEXT_LDS_002",
+      "category": "lds_specific",
+      "input": "Handbook updates on ministering assignments",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MINISTERING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "CONTEXT_EDU_001",
+      "category": "education_specific",
+      "input": "SWBAT identify main idea and supporting details",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "LESSON_PLAN"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "CONTEXT_EDU_002",
+      "category": "education_specific",
+      "input": "Standards-aligned assessment blueprint",
+      "expected_domain": "TEACHING",
+      "expected_intents": [
+        "GRADING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "EDUCATION",
+        "EDUCATION"
+      ]
+    },
+    {
+      "id": "CONTEXT_BIZ_001",
+      "category": "business_specific",
+      "input": "ARR crossed $1M milestone this quarter",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "METRICS_TRACKING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "CONTEXT_BIZ_002",
+      "category": "business_specific",
+      "input": "CAC:LTV ratio is now 1:4",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "METRICS_TRACKING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "ADD_001",
+      "category": "intent_positive",
+      "input": "Content calendar for January:\nWeek 1: New Year goals post\nWeek 2: Product feature highlight\nWeek 3: Customer testimonial\nWeek 4: Industry trends",
+      "expected_domain": "SOCIAL_MEDIA",
+      "expected_intents": [
+        "CONTENT_PLAN"
+      ],
+      "min_confidence": 0.7
+    },
+    {
+      "id": "ADD_002",
+      "category": "intent_positive",
+      "input": "Campaign performance:\nImpressions: 50,000\nClicks: 2,500\nCTR: 5%\nConversions: 125\nCPA: $40",
+      "expected_domain": "SOCIAL_MEDIA",
+      "expected_intents": [
+        "SOCIAL_ANALYTICS"
+      ],
+      "min_confidence": 0.7
+    },
+    {
+      "id": "ADD_003",
+      "category": "intent_positive",
+      "input": "Strategy document:\nVision: Market leader in 3 years\nMission: Democratize AI for SMBs\nKey initiatives: Product expansion, Enterprise sales, International growth",
+      "expected_domain": "STRATEGY",
+      "expected_intents": [
+        "STRATEGY_PLANNING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "ADD_004",
+      "category": "intent_positive",
+      "input": "Product requirements document:\nFeature: User authentication\nUser story: As a user, I want to securely log in\nAcceptance criteria: OAuth support, 2FA option, password reset",
+      "expected_domain": "TECH",
+      "expected_intents": [
+        "PRODUCT_DEV"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "ADD_005",
+      "category": "intent_positive",
+      "input": "Startup idea validation:\nProblem: Small businesses struggle with invoicing\nSolution: AI-powered invoice automation\nTarget market: 10M US small businesses\nRevenue model: SaaS subscription $29/month",
+      "expected_domain": "ENTREPRENEURSHIP",
+      "expected_intents": [
+        "STARTUP_IDEAS"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "STRATEGY"
+      ]
+    },
+    {
+      "id": "ADD_006",
+      "category": "intent_positive",
+      "input": "Pitch deck outline:\n1. Problem\n2. Solution\n3. Market size\n4. Business model\n5. Traction\n6. Team\n7. Ask",
+      "expected_domain": "ENTREPRENEURSHIP",
+      "expected_intents": [
+        "FUNDRAISING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "STRATEGY"
+      ]
+    },
+    {
+      "id": "ADD_007",
+      "category": "intent_positive",
+      "input": "Business model canvas:\nValue prop: Save time on invoicing\nCustomer segments: Freelancers, SMBs\nChannels: Direct sales, Partnerships\nRevenue streams: Subscription, Premium features",
+      "expected_domain": "ENTREPRENEURSHIP",
+      "expected_intents": [
+        "BUSINESS_MODEL"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "STRATEGY"
+      ]
+    },
+    {
+      "id": "ADD_008",
+      "category": "intent_positive",
+      "input": "Stakeholder email:\nSubject: Weekly project update\nDear team, Here's the progress report for this week...\nKey achievements:\n- Completed design phase\n- Started development sprint",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "STAKEHOLDER_UPDATE"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "ADD_009",
+      "category": "intent_positive",
+      "input": "Metrics dashboard review:\nDAU: 15,000 (up 12%)\nSession duration: 4.5 min\nRetention D7: 35%\nRevenue: $45K",
+      "expected_domain": "BUSINESS",
+      "expected_intents": [
+        "METRICS_TRACKING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "ENTREPRENEURSHIP",
+        "PROFESSIONAL",
+        "FINANCE"
+      ]
+    },
+    {
+      "id": "ADD_010",
+      "category": "intent_positive",
+      "input": "Leadership meeting notes:\nDiscussed team restructuring\nDecided on new reporting lines\nAction: HR to communicate changes by Friday",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "LEADERSHIP_NOTES"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "PROFESSIONAL",
+        "PROFESSIONAL",
+        "BUSINESS"
+      ]
+    },
+    {
+      "id": "DOMAIN_FULL_001",
+      "category": "domain_positive",
+      "input": "Personal development goals for this year",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "GOAL_SETTING"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "DOMAIN_FULL_002",
+      "category": "domain_positive",
+      "input": "School administration policy updates",
+      "expected_domain": "EDUCATION",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "EDUCATION",
+        "TEACHING"
+      ]
+    },
+    {
+      "id": "DOMAIN_FULL_003",
+      "category": "domain_positive",
+      "input": "Writing the first draft of my novel",
+      "expected_domain": "WRITING",
+      "expected_intents": [
+        "CREATIVE_WRITING"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "CREATIVE"
+      ]
+    },
+    {
+      "id": "DOMAIN_FULL_004",
+      "category": "domain_positive",
+      "input": "Community volunteer coordination meeting",
+      "expected_domain": "COMMUNITY",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOMAIN_FULL_005",
+      "category": "domain_positive",
+      "input": "Apartment maintenance request for leaky faucet",
+      "expected_domain": "HOME",
+      "expected_intents": [],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "DOMAIN_FULL_006",
+      "category": "domain_positive",
+      "input": "Pet grooming appointment for fluffy",
+      "expected_domain": "PET",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "DOMAIN_FULL_008",
+      "category": "domain_positive",
+      "input": "Legal consultation about trademark filing",
+      "expected_domain": "LEGAL",
+      "expected_intents": [],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "MIX_001",
+      "category": "domain_positive",
+      "input": "Prepare dinner recipe for family gathering",
+      "expected_domain": "FOOD",
+      "expected_intents": [
+        "RECIPE"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "SHOPPING",
+        "HOME"
+      ]
+    },
+    {
+      "id": "MIX_002",
+      "category": "domain_positive",
+      "input": "Create Instagram story for product launch",
+      "expected_domain": "SOCIAL_MEDIA",
+      "expected_intents": [
+        "CONTENT_PLAN"
+      ],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "MIX_003",
+      "category": "domain_positive",
+      "input": "Track daily medication and symptoms",
+      "expected_domain": "HEALTH",
+      "expected_intents": [
+        "JOURNAL"
+      ],
+      "min_confidence": 0.5
+    },
+    {
+      "id": "MIX_004",
+      "category": "domain_positive",
+      "input": "Budget planning for home renovation",
+      "expected_domain": "HOME",
+      "expected_intents": [
+        "BUDGET"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "MIX_005",
+      "category": "domain_positive",
+      "input": "Road trip itinerary with hotel bookings",
+      "expected_domain": "TRAVEL",
+      "expected_intents": [
+        "PLANNING"
+      ],
+      "min_confidence": 0.6
+    },
+    {
+      "id": "MIX_007",
+      "category": "domain_positive",
+      "input": "Wedding guest list and seating chart",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "PLANNING"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "MIX_008",
+      "category": "domain_positive",
+      "input": "Garden planting schedule for spring",
+      "expected_domain": "HOME",
+      "expected_intents": [
+        "PLANNING"
+      ],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "MIX_009",
+      "category": "domain_positive",
+      "input": "Music playlist for party",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "LIFE",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "MIX_010",
+      "category": "domain_positive",
+      "input": "Photography session booking confirmation",
+      "expected_domain": "CREATIVE",
+      "expected_intents": [],
+      "min_confidence": 0.5,
+      "acceptable_domains": [
+        "WRITING"
+      ]
+    },
+    {
+      "id": "EDGE_001",
+      "category": "regression",
+      "input": "",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.0,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "EDGE_002",
+      "category": "regression",
+      "input": "a",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.0,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "EDGE_003",
+      "category": "regression",
+      "input": "123",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.0,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "EDGE_004",
+      "category": "regression",
+      "input": "...",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.0,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "EDGE_005",
+      "category": "regression",
+      "input": "Meeting meeting meeting",
+      "expected_domain": "PROFESSIONAL",
+      "expected_intents": [
+        "MEETING_NOTES"
+      ],
+      "min_confidence": 0.4,
+      "acceptable_domains": [
+        "BUSINESS",
+        "PROFESSIONAL",
+        "PROFESSIONAL"
+      ]
+    },
+    {
+      "id": "EDGE_006",
+      "category": "regression",
+      "input": "TODO",
+      "expected_domain": "LIFE",
+      "expected_intents": [
+        "TODO_LIST"
+      ],
+      "min_confidence": 0.3,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "EDGE_007",
+      "category": "regression",
+      "input": "???",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.0,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "EDGE_008",
+      "category": "regression",
+      "input": "The quick brown fox jumps over the lazy dog",
+      "expected_domain": "LIFE",
+      "expected_intents": [],
+      "min_confidence": 0.2,
+      "acceptable_domains": [
+        "LIFE",
+        "HEALTH",
+        "LIFE"
+      ]
+    },
+    {
+      "id": "LDS_FULL_001",
+      "category": "lds_specific",
+      "input": "Sunday School class president calling",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_CALLING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_FULL_002",
+      "category": "lds_specific",
+      "input": "Youth baptisms for the dead at temple",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_YOUTH_ACTIVITY"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_FULL_003",
+      "category": "lds_specific",
+      "input": "Visiting teaching now called ministering",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MINISTERING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_FULL_004",
+      "category": "lds_specific",
+      "input": "General conference talk summary notes",
+      "expected_domain": "SPIRITUAL",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "LDS_LEADERSHIP"
+      ]
+    },
+    {
+      "id": "LDS_FULL_005",
+      "category": "lds_specific",
+      "input": "Ward clerk MLS system entry",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_FINANCIAL"
+      ],
+      "min_confidence": 0.6,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_FULL_006",
+      "category": "lds_specific",
+      "input": "Laurels class activity night planning",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_YOUTH_ACTIVITY"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_FULL_007",
+      "category": "lds_specific",
+      "input": "Mission prep class curriculum",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_LESSON_PREP"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_FULL_008",
+      "category": "lds_specific",
+      "input": "Welfare assistance request form",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_MEMBER_CARE"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_FULL_009",
+      "category": "lds_specific",
+      "input": "Stake auxiliary training meeting",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_COUNCIL"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    },
+    {
+      "id": "LDS_FULL_010",
+      "category": "lds_specific",
+      "input": "Deacon quorum advisor calling interview",
+      "expected_domain": "LDS_LEADERSHIP",
+      "expected_intents": [
+        "LDS_CALLING"
+      ],
+      "min_confidence": 0.7,
+      "acceptable_domains": [
+        "SPIRITUAL"
+      ]
+    }
+  ]
+}

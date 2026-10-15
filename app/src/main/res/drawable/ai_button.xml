@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+
+    <!-- Letter A -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M9,18 L5.5,18 L4,14 L9,6 L14,14 L12.5,18 L9,18 L9,16 L11,16 L9,11 L7,16 L9,16 Z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M6.5,13 L11.5,13 L10.5,11 L7.5,11 Z" />
+
+    <!-- Letter I (vertical bar) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M16,7 L18,7 L18,18 L16,18 Z" />
+
+    <!-- Dot on the I -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M17,5.5 m-1.2,0 a1.2,1.2 0 1,1 2.4,0 a1.2,1.2 0 1,1 -2.4,0" />
+
+    <!-- Pencil body (diagonal) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M15,16 L16.5,14.5 L21,19 L19.5,20.5 Z" />
+
+    <!-- Pencil tip -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M21,19 L23,21 L21.5,22.5 L19.5,20.5 Z" />
+
+    <!-- Pencil eraser -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M14.5,14.5 L16,13 L17.5,14.5 L16,16 Z" />
+
+</vector>

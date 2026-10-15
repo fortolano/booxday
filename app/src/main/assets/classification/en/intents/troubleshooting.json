@@ -1,0 +1,157 @@
+{
+  "intent": "TROUBLESHOOTING",
+  "displayName": "Troubleshooting",
+  "description": "Bug fixes, debugging notes, problem resolution",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "troubleshoot",
+      "troubleshooting",
+      "debug",
+      "debugging",
+      "fixing",
+      "error",
+      "errors",
+      "issue",
+      "issues",
+      "problem",
+      "problems",
+      "bugs",
+      "broken",
+      "not-working",
+      "failed",
+      "failure",
+      "crash",
+      "crashed",
+      "malfunction",
+      "glitch",
+      "defect",
+      "root-cause"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "cause",
+      "root-cause-analysis",
+      "symptom",
+      "symptoms",
+      "solution",
+      "solutions",
+      "workaround",
+      "workarounds",
+      "patch",
+      "hotfix",
+      "resolve",
+      "resolved",
+      "investigate",
+      "investigation",
+      "reproduce",
+      "reproducible",
+      "steps-to-reproduce",
+      "endpoint",
+      "cache",
+      "login",
+      "latest",
+      "version",
+      "logs",
+      "log-file",
+      "stack-trace",
+      "stacktrace",
+      "exception",
+      "error-message",
+      "error-code",
+      "status-code",
+      "timeout",
+      "null",
+      "undefined",
+      "memory-leak",
+      "performance-issue",
+      "slow",
+      "unresponsive",
+      "freeze",
+      "frozen",
+      "hang",
+      "hanging",
+      "regression",
+      "rollback",
+      "revert",
+      "temporary-fix",
+      "permanent-fix"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "check",
+      "test",
+      "verify",
+      "confirm",
+      "attempt",
+      "restart",
+      "reboot",
+      "reset",
+      "clear",
+      "refresh",
+      "update",
+      "reinstall",
+      "reinstalling",
+      "click",
+      "tried",
+      "returning"
+    ]
+  },
+  "structureBoosts": {
+    "NUMBERED_LIST": 2.0
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:troubleshoot|debug)(?:ing)?\\s+(?:steps?|notes?|guide)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:issue|problem|error|bug)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:tried|attempted|solution|workaround)\\s*:",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:fix|resolve|workaround)\\s+(?:for|by|with)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:root\\s+cause|cause)\\s*:",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:steps\\s+to\\s+reproduce|repro\\s+steps)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:error|exception|stack)\\s+(?:message|trace|log)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:not\\s+working|doesn't\\s+work|won't\\s+work)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:have\\s+you|did\\s+you)\\s+(?:try|check|verify)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:fixed|resolved|solved)\\s+(?:by|with|after)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:when|after|before)\\s+(?:this|the)\\s+(?:error|issue|problem)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:crash|hang|freeze)\\s+(?:on|when|after|during)",
+      "weight": 4.5
+    }
+  ]
+}

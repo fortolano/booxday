@@ -1,0 +1,128 @@
+{
+  "intent": "ACTION_REVIEW",
+  "tierA": {
+    "weight": 4.0,
+    "terms": [
+      "retrospective",
+      "retro",
+      "review",
+      "debrief",
+      "lessons-learned",
+      "post-mortem",
+      "after-action",
+      "what-worked",
+      "what-didn't",
+      "improvements",
+      "action-review",
+      "sprint-retro",
+      "project-retrospective"
+    ]
+  },
+  "tierB": {
+    "weight": 2.5,
+    "terms": [
+      "feedback",
+      "reflection",
+      "analysis",
+      "outcome",
+      "success",
+      "failure",
+      "mistake",
+      "next-time",
+      "going-forward",
+      "action-items",
+      "keep-doing",
+      "stop-doing",
+      "start-doing",
+      "went-well",
+      "needs-improvement",
+      "takeaway",
+      "insight",
+      "root-cause",
+      "blameless",
+      "continuous-improvement",
+      "kaizen",
+      "five-whys",
+      "learnings",
+      "observation",
+      "recommendation",
+      "follow-up-action",
+      "improvement-area"
+    ]
+  },
+  "tierC": {
+    "weight": 1.0,
+    "terms": [
+      "learned",
+      "better",
+      "change",
+      "improve",
+      "went",
+      "well",
+      "reflect",
+      "assess",
+      "evaluate",
+      "discuss",
+      "share",
+      "identify",
+      "address",
+      "prevent",
+      "repeat",
+      "avoid"
+    ]
+  },
+  "structureBoosts": {
+    "BULLET_LIST": 2.0,
+    "NUMBERED_LIST": 1.5
+  },
+  "phrasePatterns": [
+    {
+      "pattern": "(?:action|sprint|project)\\s+(?:review|retro(?:spective)?)",
+      "weight": 5.0
+    },
+    {
+      "pattern": "(?:post[\\s-]?mortem|after[\\s-]action)\\s+(?:review)?",
+      "weight": 5.0
+    },
+    {
+      "pattern": "lessons?\\s+learned",
+      "weight": 5.0
+    },
+    {
+      "pattern": "what\\s+(?:went\\s+)?(?:well|worked|didn't)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:keep|stop|start)\\s+doing",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:next|going)\\s+(?:time|forward)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:root\\s+cause|five\\s+whys)",
+      "weight": 4.5
+    },
+    {
+      "pattern": "continuous\\s+improvement",
+      "weight": 4.5
+    },
+    {
+      "pattern": "(?:improvement|action)\\s+(?:area|item)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:success|failure)\\s+(?:factor|point|reason)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:key|main)\\s+(?:takeaway|learning|insight)",
+      "weight": 4.0
+    },
+    {
+      "pattern": "(?:blameless|blame[\\s-]free)\\s+(?:retro|review)?",
+      "weight": 4.5
+    }
+  ]
+}
