@@ -1324,158 +1324,72 @@ object EInkTheme {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // BOOX NOTES DIALOG (Dec 2025)
+    // BOOX NOTES DIALOG (redesigned Oct 2026)
     //
-    // Enhanced notes dialog with smart grouping, suggestion chips, and search.
+    // One surface below the top bar: Day / All notes lists, a note pane where the page is the
+    // largest element, and Smart Link suggestions shown in place. Black and white only; on narrow
+    // screens only sizes change, never the structure.
     // ═══════════════════════════════════════════════════════════════════════════
 
-    /** Boox Notes dialog - full-featured note management */
+    /** Boox Notes dialog */
     object BooxNotes {
-        // Dialog sizing (large overlay) - increased by ~45px total for quick link space
-        val dialogWidthFraction = 0.97f
-        val dialogHeightFraction = 0.80f
-        val dialogVerticalOffset = (-10).dp   // Move dialog 20px higher on screen
+        // Surface: full width, from just below the month bar (~52 dp) to the bottom edge
+        const val surfaceWidthFraction = 0.97f
+        val surfaceTopInset = 52.dp
+        val surfaceBottomInset = Global.paddingMedium
+        val surfacePadding: Dp get() = if (LayoutProfiles.isNarrowScreen) Global.paddingMedium else Global.padding
 
-        // Event dropdown positioning
-        val eventDropdownOffset = 78.dp       // Push dropdown below its header
-        val eventDropdownMaxHeight = 230.dp   // Scrollable dropdown max height
-        val eventDropdownBorderColor = Color.Black
+        // Header: title, Day | All notes, date control, close
+        val titleFontSize = Typography.titleLarge
+        val headerSpacing = Global.paddingMedium
+        val segmentFontSize = Typography.bodyLarge
 
-        // Date selector dropdown (header) positioning
-        val dateSelectorDropdownOffsetY = 310  // IntOffset Y pixels - push below header
-        val dateSelectorDropdownWidth = 260.dp // Width to fit "Select date with Notes" on one line
+        // Columns: note list | note pane (narrow screens give the list a little more room)
+        val listPaneFraction: Float get() = if (LayoutProfiles.isNarrowScreen) 0.42f else 0.36f
+        val paneGap = Global.padding
 
-        // Master-detail layout (list pane + detail pane)
-        val listPaneWeight = 0.40f           // Left: notes list (40%)
-        val detailPaneWeight = 0.60f         // Right: note preview (60%)
-        val detailPaneWeightWider = 0.62f    // Right: +20px wider for note render area
+        // Note rows: title, one meta line, state only when there is something to act on
+        val rowPadding = 10.dp
+        val rowSpacing = 6.dp
+        val rowBorderWidth = Global.borderWidth
+        val rowBorderColor = Colors.borderStrong
+        val rowSelectedBorderWidth = 2.dp
+        val rowSelectedBorderColor = Colors.primary
+        val rowTitleFontSize = Typography.bodyLarge
+        val rowMetaFontSize = Typography.bodyMedium
+        val rowMetaColor = Colors.darkGray
+        val rowStateFontSize = Typography.bodySmall
+        val rowStateIconSize = 14.dp
+        val monthHeaderFontSize = Typography.bodyMedium
 
-        // Filter button ("View Unlinked")
-        val filterButtonFontSize = 13.5.sp   // 0.5sp smaller than bodyMedium (14sp)
+        // Note pane
+        val paneTitleFontSize = Typography.titleMedium
+        val paneMetaFontSize = Typography.bodyMedium
+        val linkRowPadding = Global.paddingMedium
+        val pageAspectRatio = 0.75f          // BOOX page, 3:4
+        val pageBorderWidth = 2.dp
 
-        // Chevron navigation (prev/next note)
-        val chevronSize = 36.dp              // Touch-friendly chevron button
-        val chevronIconSize = 28.dp          // Icon inside chevron
+        // Page chevrons (sizes unchanged from the previous dialog; see DIALOG_RULEBOOK)
+        val chevronSize = 36.dp
+        val chevronIconSize = 28.dp
         val chevronIconColor = Colors.primary
         val chevronIconColorDisabled = Colors.lightGray
 
-        // Header
-        val headerHeight = 48.dp
-        val headerFontSize = Typography.titleMedium
-        val headerColor = Colors.primary
+        // Smart Link suggestion cards
+        val cardPadding = Global.paddingMedium
+        val cardSpacing = Global.paddingMedium
+        val cardThumbWidth = 62.dp
+        val cardThumbHeight = 82.dp
+        val cardStrongBorderWidth = 2.dp
+        val cardBorderWidth = Global.borderWidth
+        val labelFontSize = Typography.bodySmall
 
-        // Search bar
-        val searchBarHeight = 40.dp
-        val searchBarBackground = Colors.offWhite
-        val searchBarBorderWidth = 1.dp
-        val searchBarBorderColor = Colors.darkGray
-        val searchBarFontSize = Typography.bodyMedium
-        val searchBarHintColor = Colors.gray
-        val searchIconSize = 20.dp
+        // Event picker panel
+        val pickerTimeColumnWidth = 84.dp
+        val pickerMaxHeight = 560.dp
 
-        // Filter chips
-        val filterChipHeight = 28.dp
-        val filterChipPaddingH = 10.dp
-        val filterChipFontSize = Typography.labelMedium
-        val filterChipBackground = Colors.background
-        val filterChipSelectedBackground = Colors.primary
-        val filterChipBorderWidth = 1.dp
-        val filterChipBorderColor = Colors.darkGray
-        val filterChipTextColor = Colors.primary
-        val filterChipSelectedTextColor = Colors.background
-        val filterChipSpacing = 6.dp
-
-        // Section headers (Needs Attention, Linked Notes, General Notes)
-        val sectionHeaderHeight = 36.dp
-        val sectionHeaderFontSize = Typography.titleSmall
-        val sectionHeaderColor = Colors.darkGray
-        val sectionHeaderBackground = Colors.offWhite
-        val sectionHeaderPadding = 12.dp
-
-        // Note cards
-        val noteCardHeight = 72.dp
-        val noteCardPadding = 10.dp
-        val noteCardSpacing = 6.dp
-        val noteCardBorderWidth = 1.dp
-        val noteCardBorderColor = Colors.borderStrong  // Kaleid 3 visible
-        val noteCardSelectedBorderColor = Colors.primary
-        val noteCardSelectedBorderWidth = 2.dp
-        val noteCardBackground = Colors.background
-        val noteCardSelectedBackground = Colors.offWhite
-
-        // Note card content
-        val noteTitleFontSize = Typography.bodyMedium
-        val noteTitleColor = Colors.primary
-        val noteMetaFontSize = Typography.bodySmall
-        val noteMetaColor = Colors.darkGray
-        val noteTimestampFontSize = Typography.labelSmall
-        val noteTimestampColor = Colors.gray
-
-        // Thumbnail in note card
-        val thumbnailSize = 52.dp
-        val thumbnailBorderWidth = 1.dp
-        val thumbnailBorderColor = Colors.dividerHairline  // Small element, subtle OK
-
-        // Status indicators
-        val statusDotSize = 8.dp
-        val statusAttentionColor = Color(0xFFE57373)  // Soft red - needs attention
-        val statusLinkedColor = Color(0xFF81C784)     // Soft green - linked
-        val statusGeneralColor = Colors.gray          // Gray - general note
-
-        // Suggestion chips (inside note cards)
-        val suggestionChipHeight = 28.dp
-        val suggestionChipPaddingH = 10.dp
-        val suggestionChipFontSize = Typography.labelSmall
-        val suggestionChipBackground = Colors.offWhite
-        val suggestionChipBorderWidth = 1.dp
-        val suggestionChipBorderColor = Colors.darkGray
-        val suggestionChipTextColor = Colors.darkGray
-        val suggestionChipSpacing = 6.dp
-
-        // Accept/Dismiss buttons on suggestions
-        val suggestionButtonSize = 24.dp
-        val suggestionAcceptColor = Color(0xFF4CAF50)  // Green check
-        val suggestionDismissColor = Color(0xFFE57373) // Red X
-
-        // Confidence badge
-        val confidenceBadgeHeight = 20.dp
-        val confidenceBadgePaddingH = 6.dp
-        val confidenceBadgeFontSize = Typography.labelSmall
-        val confidenceHighBackground = Color(0xFF81C784)
-        val confidenceHighTextColor = Colors.background
-        val confidenceMediumBackground = Color(0xFFFFD54F)
-        val confidenceMediumTextColor = Colors.primary
-        val confidenceLowBackground = Color(0xFFE57373)
-        val confidenceLowTextColor = Colors.background
-
-        // Preview pane (right side)
-        val previewPaneWidthFraction = 0.55f
-        val previewTitleFontSize = Typography.titleSmall
-        val previewTitleColor = Colors.primary
-        val previewMetaFontSize = Typography.bodySmall
-        val previewMetaColor = Colors.darkGray
-
-        // Match reasons display
-        val matchReasonChipHeight = 24.dp
-        val matchReasonChipPaddingH = 8.dp
-        val matchReasonChipFontSize = Typography.labelSmall
-        val matchReasonChipBackground = Colors.offWhite
-        val matchReasonChipTextColor = Colors.darkGray
-
-        // Empty states
-        val emptyStateIconSize = 48.dp
-        val emptyStateFontSize = Typography.bodyMedium
-        val emptyStateColor = Colors.gray
-
-        // Attention count badge (in header)
-        val attentionBadgeSize = 22.dp
-        val attentionBadgeFontSize = Typography.labelSmall
-        val attentionBadgeBackground = Color(0xFFE57373)
-        val attentionBadgeTextColor = Colors.background
-
-        // Attention indicator (shown next to notes needing user review)
-        val attentionIconSize = 16.dp
-        val attentionIconColor = Colors.darkGray  // Grayscale-friendly
+        // Progress bar: outlined track, black fill (no grey fills on e-ink)
+        val progressHeight = 10.dp
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

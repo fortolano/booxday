@@ -377,12 +377,12 @@ private fun BooxNoteRow(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Tune,
-                        contentDescription = "Manage note linking",
+                        contentDescription = "Link this note to an event",
                         tint = EInkTheme.Colors.primary,
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "Manage",
+                        text = "Link…",
                         fontSize = EInkTheme.Typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         color = EInkTheme.Colors.primary

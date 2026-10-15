@@ -66,6 +66,9 @@ import com.boox.day.ocr.UnifiedOcrIdleProcessor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.boox.day.ui.components.EInkToggle
+import com.boox.day.ui.components.EinkSecondaryButton
+import com.boox.day.ui.noRippleClickable
+import androidx.compose.material.icons.filled.Close
 import com.boox.day.ui.components.SettingCard
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
@@ -198,19 +201,17 @@ fun BooxNotesSettingsDialog(
                         )
                     }
 
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.height(EInkTheme.Button.height),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = EInkTheme.Button.textColor
-                        ),
-                        border = BorderStroke(EInkTheme.Button.borderWidth, EInkTheme.Button.borderColor),
-                        shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
+                    Box(
+                        modifier = Modifier
+                            .size(EInkTheme.Global.touchTarget)
+                            .noRippleClickable(onClick = onDismiss),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Close",
-                            fontSize = EInkTheme.Typography.button,
-                            fontWeight = FontWeight.Medium
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            modifier = Modifier.size(28.dp),
+                            tint = EInkTheme.Colors.primary
                         )
                     }
                 }
@@ -228,9 +229,9 @@ fun BooxNotesSettingsDialog(
 
                 // Boox Notes baseline card (always included)
                 SettingCard(
-                    title = "Boox Notes (Included)",
+                    title = "Boox Notes",
                     description = if (hasPermission) {
-                        "Linked notes are available and continuously discovered"
+                        "Your Boox notes show up on the days you wrote them"
                     } else {
                         "Requires 'All Files Access' permission"
                     }
@@ -250,7 +251,8 @@ fun BooxNotesSettingsDialog(
                             fontSize = EInkTheme.Typography.bodyMedium,
                             color = EInkTheme.Colors.darkGray
                         )
-                        OutlinedButton(
+                        EinkSecondaryButton(
+                            text = if (hasPermission) "Scan Now" else "Grant Access",
                             onClick = {
                                 if (!hasPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                                     try {
@@ -273,20 +275,8 @@ fun BooxNotesSettingsDialog(
                                     onScanNeeded?.invoke()
                                 }
                             },
-                            enabled = !GlobalAppSettings.isBooxNotesScanning,
-                            modifier = Modifier.height(EInkTheme.Button.height),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = EInkTheme.Button.textColor
-                            ),
-                            border = BorderStroke(EInkTheme.Button.borderWidth, EInkTheme.Button.borderColor),
-                            shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                        ) {
-                            Text(
-                                text = if (hasPermission) "Scan Now" else "Grant Access",
-                                fontSize = EInkTheme.Typography.button,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                            enabled = !GlobalAppSettings.isBooxNotesScanning
+                        )
                     }
                 }
 
@@ -422,7 +412,9 @@ fun BooxNotesSettingsDialog(
                             Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
                             // Action button
-                            OutlinedButton(
+                            ActionButton(
+                                text = "Open Permission Settings",
+                                modifier = Modifier.fillMaxWidth(),
                                 onClick = {
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                                         try {
@@ -442,23 +434,8 @@ fun BooxNotesSettingsDialog(
                                             }
                                         }
                                     }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    backgroundColor = EInkTheme.Colors.primary,
-                                    contentColor = Color.White
-                                ),
-                                border = BorderStroke(EInkTheme.Button.borderWidth, EInkTheme.Colors.primary),
-                                shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                            ) {
-                                Text(
-                                    text = "Open Permission Settings",
-                                    fontSize = EInkTheme.Typography.button,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                                }
+                            )
                         }
                     }
                 }
@@ -528,68 +505,7 @@ fun BooxNotesSettingsDialog(
                     }
                 }
 
-                // Success status
-                if (hasPermission && !GlobalAppSettings.isBooxNotesScanning && GlobalAppSettings.isBooxNotesReady) {
-                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = EInkTheme.Colors.offWhite,
-                        border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.borderStrong),
-                        elevation = 0.dp,
-                        shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(EInkTheme.Global.paddingMedium),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Success",
-                                modifier = Modifier.size(20.dp),
-                                tint = EInkTheme.Colors.primary
-                            )
-                            Text(
-                                text = "Boox Notes integration is active",
-                                fontSize = EInkTheme.Typography.bodyMedium,
-                                color = EInkTheme.Colors.primary
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                // Info card about what Boox Notes does
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    backgroundColor = EInkTheme.Colors.offWhite,
-                    border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.borderStrong),
-                    elevation = 0.dp,
-                    shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(EInkTheme.Global.paddingMedium)
-                    ) {
-                        Text(
-                            text = "What can you do with Boox Notes?",
-                            fontSize = EInkTheme.Typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = EInkTheme.Colors.primary
-                        )
-                        Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
-                        Text(
-                            text = "View notes from Boox Notes app\nLink notes to calendar events\nOpen notes directly in Boox Notes\nSmart suggestions for note-event links",
-                            fontSize = EInkTheme.Preferences.explanationFontSize,
-                            color = EInkTheme.Colors.darkGray
-                        )
-                    }
-                }
-
-                // OCR Indexing Section (paid SemanticGenius layer)
+                // Handwriting reading (pages read by AI on the user's OpenRouter key)
                 Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
                 OcrSettingsSection(
                     onIndexNow = onIndexNow,
@@ -667,7 +583,7 @@ private fun OcrSettingsSection(
             tint = EInkTheme.Colors.primary
         )
         Text(
-            text = "SemanticGenius™",
+            text = "Handwriting reading",
             fontSize = EInkTheme.Preferences.sectionHeaderFontSize,
             fontWeight = FontWeight.SemiBold,
             color = EInkTheme.Colors.primary
@@ -677,7 +593,7 @@ private fun OcrSettingsSection(
     Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
 
     Text(
-        text = "Your handwriting, understood. Our 12-step semantic engine extracts meaning, classifies domains, detects intent, and links entities — turning ink into searchable intelligence.",
+        text = "BooxDay reads your handwritten pages with AI, so you can search them and Smart Link can match notes by what they say.",
         fontSize = EInkTheme.Preferences.explanationFontSize,
         color = EInkTheme.Colors.darkGray
     )
@@ -776,7 +692,8 @@ private fun OcrSettingsSection(
         ) {
             Text(
                 text = when {
-                    isStandaloneWithoutOcrKey -> "Needs API Key"
+                    isStandaloneWithoutOcrKey && ocrSettings.enabled -> "On, waiting for a key"
+                    isStandaloneWithoutOcrKey -> "Off, needs a key"
                     ocrSettings.enabled -> "Enabled"
                     else -> "Disabled"
                 },
@@ -839,13 +756,13 @@ private fun OcrSettingsSection(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${loadedOcrStats.booxNotesScanned} pg.",
+                        text = "${loadedOcrStats.booxNotesScanned}",
                         fontSize = EInkTheme.Preferences.cardTitleFontSize,
                         fontWeight = FontWeight.SemiBold,
                         color = EInkTheme.Colors.darkGray
                     )
                     Text(
-                        text = "Notes",
+                        text = "Note pages read",
                         fontSize = EInkTheme.Preferences.subLabelFontSize,
                         color = EInkTheme.Colors.gray
                     )
@@ -861,13 +778,13 @@ private fun OcrSettingsSection(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${loadedOcrStats.memosScanned} pg.",
+                        text = "${loadedOcrStats.memosScanned}",
                         fontSize = EInkTheme.Preferences.cardTitleFontSize,
                         fontWeight = FontWeight.SemiBold,
                         color = EInkTheme.Colors.darkGray
                     )
                     Text(
-                        text = "Memos",
+                        text = "Memo pages read",
                         fontSize = EInkTheme.Preferences.subLabelFontSize,
                         color = EInkTheme.Colors.gray
                     )
@@ -883,13 +800,13 @@ private fun OcrSettingsSection(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${loadedOcrStats.tasksScanned} pg.",
+                        text = "${loadedOcrStats.tasksScanned}",
                         fontSize = EInkTheme.Preferences.cardTitleFontSize,
                         fontWeight = FontWeight.SemiBold,
                         color = EInkTheme.Colors.darkGray
                     )
                     Text(
-                        text = "Tasks",
+                        text = "Task pages read",
                         fontSize = EInkTheme.Preferences.subLabelFontSize,
                         color = EInkTheme.Colors.gray
                     )
@@ -907,13 +824,13 @@ private fun OcrSettingsSection(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "${loadedOcrStats.totalIndexed} pg.",
+                        text = "${loadedOcrStats.totalIndexed}",
                         fontSize = EInkTheme.Typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = EInkTheme.Colors.darkGray
                     )
                     Text(
-                        text = "Indexed Pages",
+                        text = "Pages read",
                         fontSize = EInkTheme.Preferences.infoLabelFontSize,
                         color = EInkTheme.Colors.gray
                     )
@@ -921,13 +838,13 @@ private fun OcrSettingsSection(
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "${loadedOcrStats.totalPending} queued",
+                        text = "${loadedOcrStats.totalPending}",
                         fontSize = EInkTheme.Typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = EInkTheme.Colors.darkGray
                     )
                     Text(
-                        text = "Pending Queue",
+                        text = "Waiting",
                         fontSize = EInkTheme.Preferences.infoLabelFontSize,
                         color = EInkTheme.Colors.gray
                     )
@@ -935,13 +852,13 @@ private fun OcrSettingsSection(
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "${loadedOcrStats.totalFailed} failed",
+                        text = "${loadedOcrStats.totalFailed}",
                         fontSize = EInkTheme.Typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = EInkTheme.Colors.darkGray
                     )
                     Text(
-                        text = "OCR Errors",
+                        text = "Failed",
                         fontSize = EInkTheme.Preferences.infoLabelFontSize,
                         color = EInkTheme.Colors.gray
                     )
@@ -970,90 +887,22 @@ private fun OcrSettingsSection(
         ) {
             // Index Now button
             if (onIndexNow != null) {
-                OutlinedButton(
+                EinkSecondaryButton(
+                    text = if (isProcessing) "Indexing…" else "Index Now",
                     onClick = { if (!isProcessing) onIndexNow() },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(40.dp),
                     enabled = !isProcessing && indexingControlsEnabled,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        backgroundColor = if (!indexingControlsEnabled || isProcessing) {
-                            EInkTheme.Colors.offWhite
-                        } else {
-                            Color.White
-                        },
-                        contentColor = EInkTheme.Colors.primary,
-                        disabledContentColor = EInkTheme.Colors.darkGray
-                    ),
-                    border = BorderStroke(
-                        EInkTheme.Button.borderWidth,
-                        if (!indexingControlsEnabled || isProcessing) {
-                            EInkTheme.Colors.lightGray
-                        } else {
-                            EInkTheme.Colors.primary
-                        }
-                    ),
-                    shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                ) {
-                    if (isProcessing) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = EInkTheme.Colors.gray,
-                                strokeWidth = 2.dp
-                            )
-                            Text(
-                                text = "Indexing...",
-                                fontSize = EInkTheme.Typography.button,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    } else {
-                        Text(
-                            text = "Index Now",
-                            fontSize = EInkTheme.Typography.button,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
+                    modifier = Modifier.weight(1f)
+                )
             }
 
-            // Clear Index button (destructive action - uses darkGray for e-ink)
+            // Clear Index button (asks first)
             if (onClearIndex != null) {
-                OutlinedButton(
+                EinkSecondaryButton(
+                    text = "Clear Index",
                     onClick = { if (!isProcessing) showClearIndexConfirmation = true },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(40.dp),
                     enabled = !isProcessing && indexingControlsEnabled,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        backgroundColor = if (!indexingControlsEnabled || isProcessing) {
-                            EInkTheme.Colors.offWhite
-                        } else {
-                            Color.White
-                        },
-                        contentColor = EInkTheme.Colors.darkGray,
-                        disabledContentColor = EInkTheme.Colors.darkGray
-                    ),
-                    border = BorderStroke(
-                        EInkTheme.Button.borderWidth,
-                        if (!indexingControlsEnabled || isProcessing) {
-                            EInkTheme.Colors.lightGray
-                        } else {
-                            EInkTheme.Colors.darkGray
-                        }
-                    ),
-                    shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                ) {
-                    Text(
-                        text = "Clear Index",
-                        fontSize = EInkTheme.Typography.button,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -1177,44 +1026,9 @@ private fun ClearIndexConfirmationPopup(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
                 ) {
-                    // Cancel button
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(EInkTheme.Button.height),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = EInkTheme.Colors.primary
-                        ),
-                        border = BorderStroke(EInkTheme.Button.borderWidth, EInkTheme.Colors.primary),
-                        shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                    ) {
-                        Text(
-                            text = "Keep Index",
-                            fontSize = EInkTheme.Typography.button,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    // Confirm button (destructive)
-                    OutlinedButton(
-                        onClick = onConfirm,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(EInkTheme.Button.height),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            backgroundColor = EInkTheme.Colors.primary,
-                            contentColor = EInkTheme.Colors.background
-                        ),
-                        border = BorderStroke(EInkTheme.Button.borderWidth, EInkTheme.Colors.primary),
-                        shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                    ) {
-                        Text(
-                            text = "Clear Index",
-                            fontSize = EInkTheme.Typography.button,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    EinkSecondaryButton(text = "Cancel", onClick = onDismiss, modifier = Modifier.weight(1f))
+                    // The confirmation's only action, so it may sit on the right (DIALOG_RULEBOOK rule 5)
+                    ActionButton(text = "Clear Index", onClick = onConfirm, modifier = Modifier.weight(1f))
                 }
             }
         }
