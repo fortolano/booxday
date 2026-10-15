@@ -8,6 +8,7 @@ import com.boox.day.booxnotes.BooxNoteIndexer
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.db.UnifiedOcrRepository
 import com.boox.day.ocr.model.OcrSource
+import com.boox.day.security.UserOpenRouterKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,13 +63,33 @@ class UnifiedOcrIdleProcessor(private val context: Context) {
         const val DEFAULT_MAX_PAGES_PER_IDLE_SESSION = 2
 
         /**
-         * Battery (Oct 2026): after an idle pass finds nothing to process, idle passes rest until
-         * the user is active again or this much time has passed. MainScreen calls tryProcessIfIdle()
-         * every 2 s while the user is idle, and each pass rebuilt the whole queue (every indexed
-         * Boox note + one DB query per page) and rewrote it to SharedPreferences. A memo the user
-         * just wrote is still indexed in the next idle period; "Index now" (processNow) never waits.
+         * Battery (Oct 2026): after an idle pass can do no work, idle passes rest until the user is
+         * active again or this much time has passed. MainScreen calls tryProcessIfIdle() every 2 s
+         * while the user is idle. "No work" is an empty queue (each pass rebuilt the whole queue and
+         * rewrote it to SharedPreferences), or pages that all wait for an OpenRouter key or AI budget
+         * (BUDGET_EXHAUSTED): without a key the pass restarted every 2 s, flipping processingState
+         * (two MainScreen recompositions) and re-running the backfill check each time. A memo the
+         * user just wrote is still indexed in the next idle period; "Index now" (processNow) never
+         * waits, and saving a key ends a rest that was waiting for one.
          */
-        const val EMPTY_QUEUE_BACKOFF_MS = 10 * 60_000L
+        const val NO_WORK_BACKOFF_MS = 10 * 60_000L
+
+        /**
+         * Whether an idle pass should rest instead of running: the last pass found no work, the user
+         * has not been active since, and [NO_WORK_BACKOFF_MS] has not passed. A rest that was only
+         * waiting for a key ends as soon as a key is saved.
+         */
+        internal fun shouldRest(
+            noWorkPassAtMs: Long,
+            lastUserActivityMs: Long,
+            nowMs: Long,
+            waitingForKey: Boolean,
+            hasKeyNow: Boolean
+        ): Boolean {
+            if (noWorkPassAtMs <= lastUserActivityMs) return false
+            if (nowMs - noWorkPassAtMs >= NO_WORK_BACKOFF_MS) return false
+            return !(waitingForKey && hasKeyNow)
+        }
 
         // Note: MIN_FREE_MEMORY_MB and MIN_BATTERY_PERCENT come from the local OCR config
         // (OcrQuotaConfig.minFreeMemoryMb and OcrQuotaConfig.minBatteryPercent)
@@ -93,9 +114,13 @@ class UnifiedOcrIdleProcessor(private val context: Context) {
     @Volatile
     private var shouldAbort = false
 
-    /** When the last pass found nothing to process (0 = never); see EMPTY_QUEUE_BACKOFF_MS. */
+    /** When the last pass found no work it could do (0 = never); see NO_WORK_BACKOFF_MS. */
     @Volatile
-    private var lastEmptyPassAtMs = 0L
+    private var lastNoWorkPassAtMs = 0L
+
+    /** That pass stopped because there is no OpenRouter key, so saving a key ends the rest. */
+    @Volatile
+    private var noWorkPassWaitingForKey = false
 
     private val _processingState = MutableStateFlow<ProcessingState?>(null)
     val processingState: StateFlow<ProcessingState?> = _processingState.asStateFlow()
@@ -135,10 +160,16 @@ class UnifiedOcrIdleProcessor(private val context: Context) {
      * @return true if processing started, false if conditions not met
      */
     suspend fun tryProcessIfIdle(lastUserActivityMs: Long): Boolean {
-        // Battery: a pass in this idle period already found nothing to process - rest instead of
-        // rebuilding the queue every 2 s
-        val emptyAt = lastEmptyPassAtMs
-        if (emptyAt > lastUserActivityMs && System.currentTimeMillis() - emptyAt < EMPTY_QUEUE_BACKOFF_MS) {
+        // Battery: a pass in this idle period already found no work - rest instead of starting
+        // another pass every 2 s
+        if (shouldRest(
+                noWorkPassAtMs = lastNoWorkPassAtMs,
+                lastUserActivityMs = lastUserActivityMs,
+                nowMs = System.currentTimeMillis(),
+                waitingForKey = noWorkPassWaitingForKey,
+                hasKeyNow = UserOpenRouterKey.hasKey
+            )
+        ) {
             return false
         }
 
@@ -287,7 +318,8 @@ class UnifiedOcrIdleProcessor(private val context: Context) {
 
             if (queue.isEmpty()) {
                 Log.d(TAG, "Queue is empty - nothing to process")
-                lastEmptyPassAtMs = System.currentTimeMillis()
+                noWorkPassWaitingForKey = false
+                lastNoWorkPassAtMs = System.currentTimeMillis()
                 if (!quotaManager.isBackfillBudgetComplete()) {
                     checkAndTriggerAutoLink()
                 }
@@ -388,6 +420,9 @@ class UnifiedOcrIdleProcessor(private val context: Context) {
                         }
                         UnifiedOcrPipeline.ProcessResult.BUDGET_EXHAUSTED -> {
                             Log.d(TAG, "Stopping queue processing: budget exhausted while processing ${item.sourceType}/${item.sourceId}/${item.pageId}")
+                            // Battery: the next pages wait for the same key or budget - rest like an empty pass
+                            noWorkPassWaitingForKey = !UserOpenRouterKey.hasKey
+                            lastNoWorkPassAtMs = System.currentTimeMillis()
                             break
                         }
                     }
