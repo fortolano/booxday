@@ -172,12 +172,23 @@ class AiRequestBuilder {
         return AiRequest(
             model = model,
             messages = messages.toList(),
-            config = config ?: model.defaultConfig,
+            config = withUserOutputLimit(config ?: model.defaultConfig),
             jsonOutput = jsonOutput,
             jsonSchema = jsonSchema,
             enableReasoning = enableReasoning,
             zeroDataRetention = zeroDataRetention
         )
+    }
+
+    /**
+     * A model the user picked (Oct 2026): its output limit is the user's, unless the feature asks
+     * for more (agentic planning asks for 8,192), so a low setting can't cut a feature's answer.
+     */
+    private fun withUserOutputLimit(config: AiConfig): AiConfig {
+        val picked = (model as? AiModel.Custom)?.takeIf { it.userChoice } ?: return config
+        val userLimit = picked.defaultConfig.maxTokens ?: return config
+        val requested = config.maxTokens
+        return if (requested == null || requested < userLimit) config.copy(maxTokens = userLimit) else config
     }
 }
 

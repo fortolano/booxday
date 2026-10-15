@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import android.util.Base64
 import android.util.Log
 import com.boox.day.api.ModelConfigProvider
-import com.boox.day.api.ai.AiClient
 import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
@@ -174,20 +173,24 @@ object MemoContextExtractor {
 
         val base64 = bitmapToBase64(bitmap)
 
-        // Try up to 2 times (primary + 1 retry on transient errors)
+        // Try up to 2 times (primary + 1 retry on transient errors); each try runs through the
+        // handwriting job's models, so a failing model has a backup (Oct 2026)
         var lastError: String? = null
+        val visionModels = ModelConfigProvider.getVisionFallbackChain()
         for (attempt in 1..2) {
-            val request = aiRequest {
-                model(ModelConfigProvider.getPrimaryVisionModel())
-                systemPrompt(buildOcrSystemPrompt())
-                userMessageWithImage(
-                    text = "Extract all text from this handwritten memo page. Include any action items, names, dates, or topics you find.",
-                    imageBase64 = base64
-                )
-                temperature(0.2f)
+            val response = AiRetryExecutor.executeWithBackup(visionModels) { visionModel ->
+                aiRequest {
+                    model(visionModel)
+                    systemPrompt(buildOcrSystemPrompt())
+                    userMessageWithImage(
+                        text = "Extract all text from this handwritten memo page. Include any action items, names, dates, or topics you find.",
+                        imageBase64 = base64
+                    )
+                    temperature(0.2f)
+                }
             }
 
-            when (val response = AiClient.execute(request)) {
+            when (response) {
                 is AiResponse.Success -> {
                     Log.d(TAG, "OCR success for ${page.date} (attempt $attempt): ${response.data.take(100)}...")
                     return PageOcrResult(
@@ -284,15 +287,17 @@ If the page is blank or has no readable text, respond with: [BLANK PAGE]
      * Use AI to extract structured insights from combined memo text.
      */
     private suspend fun extractInsightsWithAi(combinedText: String): ExtractedInsights {
-        val request = aiRequest {
-            model(ModelConfigProvider.getPrimaryTextModel())
-            systemPrompt(buildInsightsSystemPrompt())
-            userMessage(combinedText)
-            jsonOutput()
-            temperature(0.3f)
+        val response = AiRetryExecutor.executeWithBackup(ModelConfigProvider.getTextFallbackChain()) { textModel ->
+            aiRequest {
+                model(textModel)
+                systemPrompt(buildInsightsSystemPrompt())
+                userMessage(combinedText)
+                jsonOutput()
+                temperature(0.3f)
+            }
         }
 
-        return when (val response = AiClient.execute(request)) {
+        return when (response) {
             is AiResponse.Success -> {
                 try {
                     val cleanJson = JsonExtractor.extract(response.data)

@@ -3,12 +3,12 @@ package com.boox.day.ocr
 import android.graphics.Bitmap
 import android.util.Base64
 import android.util.Log
+import com.boox.day.ai.AiRetryExecutor
 import com.boox.day.ai.JsonExtractor
 import com.boox.day.ai.StructuredOutputSchemas
+import com.boox.day.api.AiJob
+import com.boox.day.api.ModelConfigProvider
 import com.boox.day.api.ReasoningConfig
-import com.boox.day.api.ai.AiCapability
-import com.boox.day.api.ai.AiClient
-import com.boox.day.api.ai.AiConfig
 import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
@@ -31,9 +31,6 @@ class OpenRouterOcrService {
     companion object {
         private const val TAG = "OpenRouterOcrService"
 
-        /** Default model for reading pages (chosen by the 14 Oct 2026 test). */
-        const val INDEXING_MODEL_ID = "google/gemini-3.1-flash-lite"
-
         private const val JPEG_QUALITY = 85
 
         // The app's OCR prompt (AiSummarizationService) plus the language code indexing stores
@@ -50,13 +47,6 @@ RULES:
 - Use [unclear] for unreadable words instead of guessing.
 - Do not summarize, explain, or format beyond the extracted text.
         """.trimIndent()
-
-        private val MODEL = AiModel.Custom(
-            id = INDEXING_MODEL_ID,
-            displayName = "Gemini 3.1 Flash Lite",
-            capabilities = setOf(AiCapability.VISION, AiCapability.JSON_OUTPUT),
-            defaultConfig = AiConfig(temperature = 0f, maxTokens = 3000)
-        )
     }
 
     sealed class Result {
@@ -71,15 +61,27 @@ RULES:
 
     suspend fun recognizeText(bitmap: Bitmap): Result {
         val base64 = withContext(Dispatchers.Default) { encodeJpeg(bitmap) }
-        val request = aiRequest {
-            model(MODEL)
-            systemPrompt(SYSTEM_PROMPT)
-            userMessageWithImage("Read the handwritten text:", base64)
-            jsonSchema("ocr_text", StructuredOutputSchemas.ocrTextWithLanguageSchema)
-            zeroDataRetention()
-        }.copy(overrideReasoning = ReasoningConfig.disabled())
+        // The user's pick for search indexing, then Boox Day's model (Oct 2026); a model without a
+        // zero-data-retention provider fails here and the next one reads the page
+        val models = ModelConfigProvider.getChain(AiJob.SEARCH_INDEXING)
+        val response = AiRetryExecutor.executeWithBackup(models, promptForKey = false) { model ->
+            val request = aiRequest {
+                model(model)
+                systemPrompt(SYSTEM_PROMPT)
+                userMessageWithImage("Read the handwritten text:", base64)
+                jsonSchema("ocr_text", StructuredOutputSchemas.ocrTextWithLanguageSchema)
+                zeroDataRetention()
+            }
+            // Boox Day's model reads with thinking off (not needed to read); a picked model uses
+            // the user's reasoning level
+            if ((model as? AiModel.Custom)?.userChoice == true) {
+                request
+            } else {
+                request.copy(overrideReasoning = ReasoningConfig.disabled())
+            }
+        }
 
-        return when (val response = AiClient.execute(request, promptForKey = false)) {
+        return when (response) {
             is AiResponse.Success -> parse(response.data)
             is AiResponse.Error.NoApiKey -> Result.Paused("no OpenRouter key")
             is AiResponse.Error.KeyRejected -> Result.Paused("OpenRouter key rejected")

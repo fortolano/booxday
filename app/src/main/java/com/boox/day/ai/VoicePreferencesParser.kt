@@ -3,7 +3,6 @@ package com.boox.day.ai
 import android.util.Log
 import com.boox.day.api.ModelConfigProvider
 import com.boox.day.api.ai.AiCapability
-import com.boox.day.api.ai.AiClient
 import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
@@ -47,8 +46,9 @@ object VoicePreferencesParser {
     private fun getReasoningModels(): List<AiModel> =
         ModelConfigProvider.getReasoningFallbackChain()
 
-    private fun getAudioModel(): AiModel =
-        ModelConfigProvider.getPrimaryAudioModel()
+    /** The voice job's models: the user's pick, then Boox Day's choice (a backup since Oct 2026) */
+    private fun getAudioModels(): List<AiModel> =
+        ModelConfigProvider.getAudioFallbackChain()
 
     /**
      * Result of voice preferences parsing.
@@ -154,18 +154,20 @@ object VoicePreferencesParser {
         onStageChange("Listening to you...")
         Log.d(TAG, "Stage 1: Transcribing audio...")
 
-        val transcriptionRequest = aiRequest {
-            model(getAudioModel())
-            systemPrompt(buildTranscriptionSystemPrompt())
-            userMessageWithAudio(
-                text = "Transcribe this audio. The user is describing themselves and their preferences. Return ONLY the transcription, nothing else.",
-                audioBase64 = audioBase64,
-                mimeType = mimeType
-            )
-            temperature(0.2f)
+        val transcriptionResponse = AiRetryExecutor.executeWithBackup(getAudioModels()) { audioModel ->
+            aiRequest {
+                model(audioModel)
+                systemPrompt(buildTranscriptionSystemPrompt())
+                userMessageWithAudio(
+                    text = "Transcribe this audio. The user is describing themselves and their preferences. Return ONLY the transcription, nothing else.",
+                    audioBase64 = audioBase64,
+                    mimeType = mimeType
+                )
+                temperature(0.2f)
+            }
         }
 
-        val rawTranscript = when (val response = AiClient.execute(transcriptionRequest)) {
+        val rawTranscript = when (val response = transcriptionResponse) {
             is AiResponse.Success -> {
                 val transcript = response.data.trim()
                 Log.d(TAG, "Stage 1 complete: Raw transcript = '$transcript'")

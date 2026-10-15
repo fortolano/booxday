@@ -2,9 +2,9 @@ package com.boox.day.speech
 
 import android.content.Context
 import android.util.Log
+import com.boox.day.ai.AiRetryExecutor
 import com.boox.day.api.Modality
 import com.boox.day.api.ModelConfigProvider
-import com.boox.day.api.ai.AiClient
 import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
@@ -416,22 +416,24 @@ class TranscriptionService(
             return TranscriptionResult.Error("No audio recorded")
         }
 
-        // Get audio model from server config (or hardcoded default)
-        val audioModel = ModelConfigProvider.getPrimaryAudioModel()
-        Log.d(TAG, "Transcribing with ${audioModel.id} (${audioBase64.length} chars)")
+        // The voice job's models: the user's pick, then Boox Day's choice (a backup since Oct 2026)
+        val audioModels = ModelConfigProvider.getAudioFallbackChain()
+        Log.d(TAG, "Transcribing with ${audioModels.map { it.id }} (${audioBase64.length} chars)")
 
-        val request = aiRequest {
-            model(audioModel)
-            systemPrompt(TRANSCRIPTION_SYSTEM_PROMPT)
-            userMessageWithAudio(
-                text = "Transcribe this audio accurately. Return ONLY the transcription, nothing else.",
-                audioBase64 = audioBase64,
-                mimeType = "audio/wav"
-            )
-            temperature(0.2f)
+        val response = AiRetryExecutor.executeWithBackup(audioModels) { audioModel ->
+            aiRequest {
+                model(audioModel)
+                systemPrompt(TRANSCRIPTION_SYSTEM_PROMPT)
+                userMessageWithAudio(
+                    text = "Transcribe this audio accurately. Return ONLY the transcription, nothing else.",
+                    audioBase64 = audioBase64,
+                    mimeType = "audio/wav"
+                )
+                temperature(0.2f)
+            }
         }
 
-        return when (val response = AiClient.execute(request)) {
+        return when (response) {
             is AiResponse.Success -> {
                 val text = response.data.trim()
                 Log.d(TAG, "Gemini transcription success: '$text'")

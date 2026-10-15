@@ -2,6 +2,7 @@ package com.boox.day.api.ai
 
 import android.util.Log
 import com.boox.day.api.ExtraBody
+import com.boox.day.api.OpenRouterAccount
 import com.boox.day.api.OpenRouterClient
 import com.boox.day.api.ProviderConfig
 import com.boox.day.api.RawVisionChatRequest
@@ -12,6 +13,7 @@ import com.boox.day.api.createTextMessage
 import com.boox.day.api.createVisionMessage
 import com.boox.day.security.UserOpenRouterKey
 import com.boox.day.ui.AiKeyGate
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -85,13 +87,27 @@ object AiClient {
         if (result is AiResponse.Error.KeyRejected && promptForKey) {
             AiKeyGate.open(AiKeyGate.Reason.KEY_REJECTED)
         }
+        noteCreditState(request.model.id, result)
         return result
+    }
+
+    /**
+     * What a paid model's answer says about the account's credit (Oct 2026): a refusal for credit
+     * makes Boox Day's choice use free models for a while (OpenRouterAccount), an answer ends that.
+     */
+    internal fun noteCreditState(modelId: String, result: AiResponse<String>) {
+        if (OpenRouterAccount.isFreeModel(modelId)) return
+        when {
+            result is AiResponse.Error.OutOfCredit && result.isAccountOutOfCredit ->
+                OpenRouterAccount.onPaidRequestRefused()
+            result is AiResponse.Success -> OpenRouterAccount.onPaidRequestSucceeded()
+        }
     }
 
     /**
      * Handle a successful HTTP response (may still contain API-level errors).
      */
-    private fun handleSuccessResponse(
+    internal fun handleSuccessResponse(
         body: com.boox.day.api.ChatResponse?,
         requestModelId: String
     ): AiResponse<String> {
@@ -121,7 +137,7 @@ object AiClient {
                         retryAfterSeconds = null
                     )
                     401 -> AiResponse.Error.KeyRejected()
-                    402 -> AiResponse.Error.OutOfCredit()
+                    402 -> outOfCredit(body.error)
                     else -> AiResponse.Error.ApiError(
                         code = code,
                         message = message
@@ -132,13 +148,22 @@ object AiClient {
             // Extract content from response
             // GPT-OSS and other reasoning models put output in 'reasoning' field, not 'content'
             else -> {
-                val message = body?.choices?.firstOrNull()?.message
+                val choice = body?.choices?.firstOrNull()
+                val message = choice?.message
                 val content = message?.content
                 val reasoning = message?.reasoning
 
                 // Use content if available, otherwise fall back to reasoning field
                 val actualContent = when {
                     !content.isNullOrBlank() -> content
+                    // Oct 2026: the model spent the whole output limit reasoning. Its reasoning is
+                    // not the answer (it could end up in a note), so the next model is tried.
+                    choice?.finishReason == "length" -> {
+                        Log.w(TAG, "Answer cut off: output limit used up before any answer (${reasoning?.length ?: 0} chars of reasoning)")
+                        return AiResponse.Error.NoContent(
+                            "The answer was cut off: the model used all its output tokens before answering."
+                        )
+                    }
                     !reasoning.isNullOrBlank() -> {
                         Log.d(TAG, "Content was empty, using reasoning field instead (${reasoning.length} chars)")
                         reasoning
@@ -171,9 +196,31 @@ object AiClient {
     }
 
     /**
+     * OpenRouter's 402 with its reason (Oct 2026, OpenRouter docs: limits): no credit, the key's
+     * spending limit, or a request too big for the credit held while requests run.
+     */
+    private fun outOfCredit(error: com.boox.day.api.ApiError?): AiResponse.Error.OutOfCredit {
+        val metadata = error?.metadata
+        return AiResponse.Error.OutOfCredit.from(
+            limitSource = metadata?.get("limit_source") as? String,
+            reason = metadata?.get("reason") as? String
+        )
+    }
+
+    /** The `error` object of an OpenRouter error body, or null when the body is not JSON. */
+    private fun parseErrorBody(errorBody: String?): com.boox.day.api.ApiError? {
+        if (errorBody.isNullOrBlank()) return null
+        return try {
+            Gson().fromJson(errorBody, com.boox.day.api.ChatResponse::class.java)?.error
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
      * Handle HTTP error responses.
      */
-    private fun handleErrorResponse(code: Int, errorBody: String?): AiResponse<String> {
+    internal fun handleErrorResponse(code: Int, errorBody: String?): AiResponse<String> {
         val message = errorBody ?: "Unknown error"
         Log.e(TAG, "HTTP error $code: $message")
 
@@ -187,7 +234,7 @@ object AiClient {
             )
             // The user's own key: rejected, or no credit left on their account
             401 -> AiResponse.Error.KeyRejected()
-            402 -> AiResponse.Error.OutOfCredit()
+            402 -> outOfCredit(parseErrorBody(errorBody))
             403 -> AiResponse.Error.ApiError(
                 code = code,
                 message = "Authentication error: $message"
@@ -202,7 +249,7 @@ object AiClient {
     /**
      * Convert [AiRequest] to OpenRouter API format.
      */
-    private fun buildApiRequest(request: AiRequest): RawVisionChatRequest {
+    internal fun buildApiRequest(request: AiRequest): RawVisionChatRequest {
         // Convert messages to API format
         val messages = request.messages.map { msg ->
             when (msg) {
@@ -215,12 +262,17 @@ object AiClient {
         }
 
         // Build reasoning config at ROOT level
-        // Priority: 1. overrideReasoning (from server config), 2. enableReasoning flag (no model detection)
+        // Priority: 1. overrideReasoning (set by the feature), 2. the user's level for a model they
+        // picked (Oct 2026; none = the model's own default), 3. enableReasoning flag
+        val pickedModel = (request.model as? AiModel.Custom)?.takeIf { it.userChoice }
         val reasoning = when {
-            // Server-provided override takes precedence - trust it completely
             request.overrideReasoning != null -> {
-                Log.d(TAG, "Using overrideReasoning from server config: ${request.overrideReasoning}")
+                Log.d(TAG, "Using overrideReasoning: ${request.overrideReasoning}")
                 request.overrideReasoning
+            }
+            pickedModel != null -> {
+                Log.d(TAG, "Using the reasoning level picked for ${pickedModel.id}: ${pickedModel.reasoning}")
+                pickedModel.reasoning
             }
             // If enableReasoning is set but no override, use enabled() as generic fallback
             // The server config should provide proper params; this is just a safety net

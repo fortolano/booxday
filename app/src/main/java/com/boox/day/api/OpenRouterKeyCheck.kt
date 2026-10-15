@@ -52,7 +52,10 @@ object OpenRouterKeyCheck {
                             limit = data.optDoubleOrNull("limit"),
                             limitRemaining = data.optDoubleOrNull("limit_remaining"),
                             isFreeTier = data.optBoolean("is_free_tier", false)
-                        )
+                        ).also {
+                            // An accepted key is the one AI uses (Save Key keeps it): which models to try
+                            OpenRouterAccount.onKeyChecked(it.isFreeTier, it.limitRemaining)
+                        }
                     }
                 }
             }

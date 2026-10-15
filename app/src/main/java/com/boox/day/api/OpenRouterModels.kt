@@ -226,7 +226,11 @@ data class ApiError(
     val message: String?,
 
     @SerializedName("code")
-    val code: Int?
+    val code: Int?,
+
+    /** Extra detail, e.g. a 402's `limit_source` and `reason` (OpenRouter docs: limits) */
+    @SerializedName("metadata")
+    val metadata: Map<String, Any?>? = null
 )
 
 data class Choice(
