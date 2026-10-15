@@ -23,11 +23,13 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
@@ -159,7 +161,7 @@ fun SettingsMenu(
             SettingsMenuItemWithIcon("Data & Backup", Icons.Default.CloudSync) { onDataBackup() }
             SettingsMenuItemWithIcon(
                 label = "Boox Notes",
-                icon = Icons.AutoMirrored.Filled.MenuBook,
+                icon = painterResource(R.drawable.boox_b_letter),  // Boox "B", as on the Memos toolbar
                 showBadge = !setupChecklist.booxNotesConfigured,
                 onClick = { onBooxNotesSettings() }
             )
@@ -249,6 +251,16 @@ private fun SettingsMenuItemWithIcon(
     enabled: Boolean = true,
     showBadge: Boolean = false,
     onClick: () -> Unit
+) = SettingsMenuItemWithIcon(label, rememberVectorPainter(icon), enabled, showBadge, onClick)
+
+/** Same item with a drawable icon (e.g. the Boox Notes "B", `R.drawable.boox_b_letter`). */
+@Composable
+private fun SettingsMenuItemWithIcon(
+    label: String,
+    icon: Painter,
+    enabled: Boolean = true,
+    showBadge: Boolean = false,
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -264,7 +276,7 @@ private fun SettingsMenuItemWithIcon(
             BadgeDot()
         }
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = null,
             tint = if (enabled) EInkTheme.Colors.darkGray else EInkTheme.Colors.gray,
             modifier = Modifier.size(20.dp)
