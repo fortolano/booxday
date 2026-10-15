@@ -342,6 +342,7 @@ fun CalendarSyncSettingsDialog(
                             SyncSettingsTab.GOOGLE -> GoogleTabContent(
                                 accounts = uiState.googleAccounts,
                                 isLoading = uiState.isLoading,
+                                isConnecting = uiState.isConnectingGoogle,
                                 error = uiState.error,
                                 syncResults = uiState.syncResults,
                                 onSignIn = onGoogleSignIn,
@@ -536,6 +537,7 @@ private fun TabSelector(
 private fun GoogleTabContent(
     accounts: List<MultiAccountSyncViewModel.AccountWithCalendars>,
     isLoading: Boolean,
+    isConnecting: Boolean,
     error: String?,
     syncResults: Map<String, com.boox.day.sync.SyncResult>,
     onSignIn: (AccountType) -> Unit,
@@ -547,7 +549,7 @@ private fun GoogleTabContent(
     onReauth: (accountId: String) -> Unit
 ) {
     // Loading state
-    if (isLoading && accounts.isEmpty()) {
+    if (isLoading && accounts.isEmpty() && !isConnecting) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -589,11 +591,18 @@ private fun GoogleTabContent(
         }
     }
 
+    // Google sign-in in progress: plain text (a spinner ghosts on e-ink)
+    if (isConnecting) {
+        ConnectingMessage(message = "Connecting your Google account\u2026")
+    }
+
     // Accounts list
     if (accounts.isEmpty()) {
-        EmptyStateMessage(
-            message = "No Google accounts connected.\nAdd an account to sync your Google Calendar."
-        )
+        if (!isConnecting) {
+            EmptyStateMessage(
+                message = "No Google accounts connected.\nAdd an account to sync your Google Calendar."
+            )
+        }
     } else {
         accounts.forEach { accountWithCalendars ->
             // Get sync result for this account
@@ -643,8 +652,9 @@ private fun GoogleTabContent(
             hasWorkspaceAccount -> "Account already connected"
             else -> "Google Business Account"
         },
-        personalEnabled = !hasPersonalAccount,
-        workspaceEnabled = !hasWorkspaceAccount,
+        // Off while a sign-in is in progress, so a second tap can't start another one
+        personalEnabled = !hasPersonalAccount && !isConnecting,
+        workspaceEnabled = !hasWorkspaceAccount && !isConnecting,
         // Visual distinction: connected type vs unavailable type
         personalConnected = hasPersonalAccount,
         workspaceConnected = hasWorkspaceAccount
@@ -778,6 +788,24 @@ private fun OutlookTabContent(
 /**
  * Empty state message for when no accounts are connected.
  */
+@Composable
+private fun ConnectingMessage(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(EInkTheme.Global.padding),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            fontSize = EInkTheme.Typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = EInkTheme.Colors.primary,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
 @Composable
 private fun EmptyStateMessage(message: String) {
     Box(

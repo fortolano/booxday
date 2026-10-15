@@ -108,7 +108,13 @@ class MultiAccountSyncViewModel(
         val syncProgress: SyncProgress? = null,
         val syncResults: Map<String, SyncResult> = emptyMap(),
         val error: String? = null,
-        val errorDismissible: Boolean = true
+        val errorDismissible: Boolean = true,
+        /**
+         * Google sign-in in progress (Oct 2026): from the moment it starts until its result is handled.
+         * After the account picker closes, Google keeps working for a few seconds before the result
+         * reaches the app; without this the Google tab showed "No Google accounts connected" meanwhile.
+         */
+        val isConnectingGoogle: Boolean = false
     ) {
         /**
          * All accounts combined.
@@ -267,18 +273,28 @@ class MultiAccountSyncViewModel(
 
         pendingSignInProvider = ProviderId.GOOGLE
         pendingSignInAccountType = accountType
+        _uiState.update { it.copy(isConnectingGoogle = true, error = null) }
 
         // Check if a Google account is already connected. If so, we need to force
         // the account picker by signing out of GoogleSignInClient first.
         // This does NOT invalidate existing account tokens in AccountManager.
         val hasExistingGoogleAccount = _uiState.value.googleAccounts.isNotEmpty()
 
-        return if (hasExistingGoogleAccount) {
-            Log.i(TAG, "Existing Google account found, forcing account picker for new account")
-            googleAuthManager.getSignInIntentForNewAccount()
-        } else {
-            syncManager.getSignInIntent(activity, accountType)
+        val intent = try {
+            if (hasExistingGoogleAccount) {
+                Log.i(TAG, "Existing Google account found, forcing account picker for new account")
+                googleAuthManager.getSignInIntentForNewAccount()
+            } else {
+                syncManager.getSignInIntent(activity, accountType)
+            }
+        } catch (e: Exception) {
+            _uiState.update { it.copy(isConnectingGoogle = false) }
+            throw e
         }
+        if (intent == null) {
+            _uiState.update { it.copy(isConnectingGoogle = false) }
+        }
+        return intent
     }
 
     /**
@@ -288,6 +304,7 @@ class MultiAccountSyncViewModel(
     fun handleGoogleSignInResult(data: Intent?) {
         if (pendingSignInProvider != ProviderId.GOOGLE) {
             Log.w(TAG, "No pending Google sign-in")
+            _uiState.update { it.copy(isConnectingGoogle = false) }
             return
         }
 
@@ -345,6 +362,7 @@ class MultiAccountSyncViewModel(
             } finally {
                 pendingSignInProvider = null
                 pendingSignInAccountType = null
+                _uiState.update { it.copy(isConnectingGoogle = false) }
             }
         }
     }
