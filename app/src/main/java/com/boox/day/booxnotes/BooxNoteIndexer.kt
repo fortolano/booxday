@@ -3712,9 +3712,14 @@ class BooxNoteIndexer(
         linkedCount
     }
 
+    /**
+     * @param userApproved true when the user chose this link (Link, or a confirmed bulk link): it is saved
+     * as a manual link, so later auto-link passes (which only skip manual links) never move or clear it.
+     */
     suspend fun applyCrossDaySuggestion(
         suggestion: CrossDayLinkSuggestion,
-        decisionMode: SmartLinkDecisionMode = SmartLinkDecisionMode.CROSS_DAY_BULK_APPLY
+        decisionMode: SmartLinkDecisionMode = SmartLinkDecisionMode.CROSS_DAY_BULK_APPLY,
+        userApproved: Boolean = false
     ) {
         if (!isSmartLinkRuntimeEnabled()) {
             logSmartLinkRuntimeDisabled("Apply cross-day suggestion for note ${suggestion.note.uniqueId}")
@@ -3730,11 +3735,71 @@ class BooxNoteIndexer(
             matchReasons = suggestion.matchReasons,
             suggestedEventIds = emptyList(),
             needsAttention = false,
-            isManual = false,
+            isManual = userApproved,
             decisionMode = decisionMode,
             engineVersion = SMART_LINK_ENGINE_VERSION,
             dataQualityFlags = suggestion.dataQualityFlags
         )
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SMART LINK SUGGESTIONS (Oct 2026): one engine for every Boox Notes surface
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Link suggestions for the unlinked notes among [notes], best first. The note list, the note pane and
+     * the Suggestions view all use this, so a note gets the same suggestion everywhere: cross-day scoring
+     * within ±[BULK_MODE_SEARCH_DAYS] days, dismissed events left out, Strong (HIGH) and Possible (MEDIUM)
+     * only. Notes without a suggestion are left out of the map.
+     *
+     * @param onProgress share of notes scored so far (0.0 to 1.0)
+     */
+    suspend fun suggestLinks(
+        notes: List<BooxNoteIndex>,
+        onProgress: (Float) -> Unit = {}
+    ): Map<String, List<CrossDayLinkSuggestion>> = withContext(Dispatchers.IO) {
+        if (!isSmartLinkRuntimeEnabled()) {
+            logSmartLinkRuntimeDisabled("Smart Link suggestions")
+            onProgress(1f)
+            return@withContext emptyMap()
+        }
+
+        val linkedNoteIds = noteRepository.getAllLinks()
+            .filter { it.linkedEventId != null }
+            .map { it.noteUniqueId }
+            .toSet()
+        val unlinkedNotes = notes.filter { it.uniqueId !in linkedNoteIds && it.originalDate.isNotBlank() }
+        val noteDates = unlinkedNotes.mapNotNull { runCatching { LocalDate.parse(it.originalDate) }.getOrNull() }
+        if (noteDates.isEmpty()) {
+            onProgress(1f)
+            return@withContext emptyMap()
+        }
+
+        val events = smartLinkEventRepository.getEventsInRange(
+            noteDates.min().minusDays(BULK_MODE_SEARCH_DAYS.toLong()).format(DateTimeFormatter.ISO_LOCAL_DATE),
+            noteDates.max().plusDays(BULK_MODE_SEARCH_DAYS.toLong()).format(DateTimeFormatter.ISO_LOCAL_DATE)
+        )
+        val semanticProfilesCache = mutableMapOf<String, List<SemanticProfile>?>()
+        preloadSemanticProfilesFromAggregates(unlinkedNotes, semanticProfilesCache)
+        val eventProfilesMap = loadEventProfilesBatch(events)
+
+        val suggestions = linkedMapOf<String, List<CrossDayLinkSuggestion>>()
+        unlinkedNotes.forEachIndexed { index, note ->
+            coroutineContext.ensureActive()
+            val noteSuggestions = findCrossDaySuggestionsInternal(
+                note = note,
+                events = events,
+                searchDays = BULK_MODE_SEARCH_DAYS,
+                eventProfilesMap = eventProfilesMap,
+                semanticProfilesCache = semanticProfilesCache
+            ).filter { it.confidence == LinkConfidence.HIGH || it.confidence == LinkConfidence.MEDIUM }
+            if (noteSuggestions.isNotEmpty()) {
+                suggestions[note.uniqueId] = noteSuggestions
+            }
+            onProgress((index + 1).toFloat() / unlinkedNotes.size)
+        }
+        Log.d(TAG, "Smart Link suggestions: ${suggestions.size} of ${unlinkedNotes.size} unlinked notes")
+        suggestions
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

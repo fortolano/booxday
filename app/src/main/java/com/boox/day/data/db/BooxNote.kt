@@ -956,6 +956,19 @@ class BooxNoteRepository(context: Context) {
         linkDao.deleteLinkForNote(noteId)
 
     /**
+     * Puts a note's link back exactly as it was before a change (Undo in the Boox Notes dialog):
+     * [previous] = the link read before the change, or null when the note had none.
+     */
+    suspend fun restoreLink(noteId: String, previous: BooxNoteLink?) {
+        // Delete first: links are keyed by id, not note, so this keeps exactly one row per note
+        linkDao.deleteLinkForNote(noteId)
+        if (previous != null) {
+            linkDao.upsert(previous)
+        }
+        invalidateLinksCache()
+    }
+
+    /**
      * Clear all links (for cleanup/reset).
      */
     suspend fun clearAllLinks() {
