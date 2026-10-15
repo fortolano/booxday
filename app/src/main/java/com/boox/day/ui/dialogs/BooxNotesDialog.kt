@@ -90,7 +90,8 @@ fun BooxNotesDialog(
     onDismiss: () -> Unit,
     onLinkChanged: () -> Unit = {},  // A link changed (refreshes the events panel)
     autoOpenBulkWizard: Boolean = false,  // Open the Smart Link suggestions for all notes right away
-    sourceFilter: CalendarSourceFilter = CalendarSourceFilter()
+    sourceFilter: CalendarSourceFilter = CalendarSourceFilter(),
+    onOpenCalendarAccounts: () -> Unit = {}  // Smart Link found no events: open Calendar Accounts (host closes this dialog)
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -532,6 +533,7 @@ fun BooxNotesDialog(
                                 allJob?.cancel()
                                 showSuggestions = false
                             },
+                            onOpenCalendarAccounts = onOpenCalendarAccounts,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()

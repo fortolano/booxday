@@ -81,6 +81,7 @@ internal fun BooxNotesSuggestionsView(
     onSkip: (SuggestionItem) -> Unit,
     onOpenNote: (BooxNoteIndex) -> Unit,
     onStop: () -> Unit,
+    onOpenCalendarAccounts: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val strongItems = items.filter { it.suggestion.confidence == LinkConfidence.HIGH }
@@ -128,7 +129,7 @@ internal fun BooxNotesSuggestionsView(
         when (content) {
             SuggestionsContent.Checking -> CenterMessage("Checking your calendar…")
 
-            is SuggestionsContent.Blocked -> SmartLinkBlocked(status = content.status, onClose = onBack)
+            is SuggestionsContent.Blocked -> SmartLinkBlocked(status = content.status, onClose = onBack, onOpenCalendarAccounts = onOpenCalendarAccounts)
 
             is SuggestionsContent.Finding -> Column(
                 modifier = Modifier
@@ -393,7 +394,7 @@ private fun BulkLinkConfirm(count: Int, onCancel: () -> Unit, onConfirm: () -> U
 
 /** Why Smart Link can't run, and where to fix it (from the calendar check) */
 @Composable
-private fun SmartLinkBlocked(status: SmartLinkPreflightStatus, onClose: () -> Unit) {
+private fun SmartLinkBlocked(status: SmartLinkPreflightStatus, onClose: () -> Unit, onOpenCalendarAccounts: () -> Unit) {
     val (title, body, hint) = when (status.state) {
         SmartLinkPreflightState.SERVER_SMART_LINK_DISABLED -> Triple(
             "Smart Link is turned off",
@@ -418,14 +419,17 @@ private fun SmartLinkBlocked(status: SmartLinkPreflightStatus, onClose: () -> Un
         SmartLinkPreflightState.ACCOUNTS_CONNECTED_BUT_NO_SYNCED_EVENTS -> Triple(
             "No synced events yet",
             "Your calendar account is connected, but no events have synced yet.",
-            "Settings › Calendar Accounts › sync, and turn on at least one calendar"
+            "Open Calendar Accounts, sync, and turn on at least one calendar"
         )
         else -> Triple(
             "No calendar events",
             "Smart Link matches your Boox Notes to calendar events. Connect a Google or Outlook account, or add events in BooxDay.",
-            "Settings › Calendar Accounts › Add Account"
+            "Open Calendar Accounts and tap Add Account"
         )
     }
+    // Missing or unsynced events are fixed in Calendar Accounts, so take the user straight there
+    val accountsFix = status.state == SmartLinkPreflightState.ACCOUNTS_CONNECTED_BUT_NO_SYNCED_EVENTS ||
+        status.state == SmartLinkPreflightState.NO_ACCOUNTS_NO_EVENTS
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -437,6 +441,14 @@ private fun SmartLinkBlocked(status: SmartLinkPreflightStatus, onClose: () -> Un
         Text(text = body, fontSize = EInkTheme.Typography.bodyLarge, color = EInkTheme.Colors.primary, textAlign = TextAlign.Center)
         Text(text = hint, fontSize = EInkTheme.Typography.bodyMedium, fontWeight = FontWeight.Bold, color = EInkTheme.Colors.darkGray, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-        EinkSecondaryButton(text = "Close", onClick = onClose)
+        if (accountsFix) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                EinkSecondaryButton(text = "Close", onClick = onClose, modifier = Modifier.weight(0.4f))
+                Spacer(modifier = Modifier.weight(0.1f))
+                ActionButton(text = "Open Calendar Accounts", onClick = onOpenCalendarAccounts, modifier = Modifier.weight(0.5f))
+            }
+        } else {
+            EinkSecondaryButton(text = "Close", onClick = onClose)
+        }
     }
 }

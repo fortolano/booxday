@@ -6002,7 +6002,12 @@ fun MainScreen(
                     noteLinkRefreshTrigger++
                 },
                 autoOpenBulkWizard = autoOpenBulkWizard,
-                sourceFilter = sourceFilter
+                sourceFilter = sourceFilter,
+                onOpenCalendarAccounts = {
+                    showBooxNotesDialog = false
+                    autoOpenBulkWizard = false
+                    showMultiProviderSyncDialog = true
+                }
             )
         }
 
