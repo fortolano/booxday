@@ -84,6 +84,20 @@ class UnifiedOcrFtsConsistencyTest {
     }
 
     @Test
+    fun searchFindsPagesStoredWithoutASynopsis() = runBlocking {
+        // storeOcrResult writes synopsis = null when a page has no semantic bundle
+        dao.upsertOcrText(text(OcrSource.MEMO, "Lunch with Mary at noon").copy(synopsis = null))
+        dao.upsertOcrText(text(OcrSource.BOOX_NOTE, "Mary call").copy(synopsis = "Call Mary back"))
+
+        val all = dao.searchText("\"mary\"").associate { it.sourceType to it.snippet }
+        assertEquals("Lunch with <b>Mary</b> at noon", all["MEMO"])
+        assertEquals("Call <b>Mary</b> back", all["BOOX_NOTE"])
+
+        val memos = dao.searchTextByType("\"mary\"", OcrSource.MEMO.name)
+        assertEquals(listOf("Lunch with <b>Mary</b> at noon"), memos.map { it.snippet })
+    }
+
+    @Test
     fun aDatabaseWrittenWithTheOldTriggersIsRepairedOnOpen() = runBlocking {
         // Put back the triggers the app shipped with until Oct 2026 and write the way it did
         sql.execSQL("DROP TRIGGER unified_ocr_text_fts_bd")

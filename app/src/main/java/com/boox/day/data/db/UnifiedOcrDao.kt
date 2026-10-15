@@ -314,7 +314,12 @@ interface UnifiedOcrDao {
             ot.pageId,
             ot.sourceTitle,
             ot.sourceDate,
-            snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 2, 32) as snippet,
+            -- From the synopsis; from the text when the synopsis is NULL (pages stored
+            -- without a semantic bundle), where snippet() returns NULL for a non-null field
+            COALESCE(
+                snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 2, 32),
+                snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 0, 32)
+            ) as snippet,
             0 as score,
             ot.domain,
             ot.wordCount,
@@ -349,7 +354,12 @@ interface UnifiedOcrDao {
             ot.pageId,
             ot.sourceTitle,
             ot.sourceDate,
-            snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 2, 32) as snippet,
+            -- From the synopsis; from the text when the synopsis is NULL (pages stored
+            -- without a semantic bundle), where snippet() returns NULL for a non-null field
+            COALESCE(
+                snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 2, 32),
+                snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 0, 32)
+            ) as snippet,
             0 as score,
             ot.domain,
             ot.wordCount,
