@@ -17,7 +17,7 @@ BooxDay is free and open source under the [GNU General Public License v3.0](LICE
 
 ## Requirements
 
-- An Onyx BOOX tablet running Android 10 or later (tested on the BOOX Go 6 and Go 10.3)
+- An Onyx BOOX tablet running Android 10 or later. It has been tested on Boox Note Air4C, Air5C and Go 10.3, 10.3 gen II Lumi, Go 7 gen II B&W, Go 6 gen II B&W.
 - For AI features: your own OpenRouter API key, entered in Settings > AI Settings
 
 ## Install
