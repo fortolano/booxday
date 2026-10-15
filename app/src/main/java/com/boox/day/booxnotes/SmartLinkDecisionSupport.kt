@@ -44,6 +44,24 @@ internal object SmartLinkDecisionSupport {
         return merged.toList()
     }
 
+    /** Reasons that say the note is ABOUT the event, not just written near its time */
+    private val CONTENT_REASONS = setOf(
+        MatchReason.TITLE_MATCH,
+        MatchReason.SEMANTIC_GROUP_MATCH,
+        MatchReason.SEMANTIC_CONTEXT_MATCH,
+        MatchReason.AI_SUGGESTED_MATCH
+    )
+
+    fun hasContentSignal(reasons: Collection<MatchReason>): Boolean = reasons.any { it in CONTENT_REASONS }
+
+    /**
+     * The confidence a suggestion is SHOWN with. Timing alone ("written during the event") is a
+     * Possible, never a Strong: on a busy day several events fit the time, and "Link N strong…"
+     * links every Strong at once. Auto-link keeps its own thresholds (Oct 2026).
+     */
+    fun suggestionConfidence(confidence: LinkConfidence, reasons: Collection<MatchReason>): LinkConfidence =
+        if (confidence == LinkConfidence.HIGH && !hasContentSignal(reasons)) LinkConfidence.MEDIUM else confidence
+
     fun mergeDataQualityFlags(vararg flagGroups: Collection<SmartLinkDataQualityFlag>): List<SmartLinkDataQualityFlag> {
         val merged = linkedSetOf<SmartLinkDataQualityFlag>()
         flagGroups.forEach { merged.addAll(it) }

@@ -3793,6 +3793,7 @@ class BooxNoteIndexer(
                 eventProfilesMap = eventProfilesMap,
                 semanticProfilesCache = semanticProfilesCache
             ).filter { it.confidence == LinkConfidence.HIGH || it.confidence == LinkConfidence.MEDIUM }
+                .map { it.copy(confidence = SmartLinkDecisionSupport.suggestionConfidence(it.confidence, it.matchReasons)) }
             if (noteSuggestions.isNotEmpty()) {
                 suggestions[note.uniqueId] = noteSuggestions
             }

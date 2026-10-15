@@ -50,6 +50,34 @@ class SmartLinkDecisionSupportTest {
     }
 
     @Test
+    fun `timing-only strong suggestion is shown as possible`() {
+        val timingOnly = listOf(MatchReason.DURING_EVENT, MatchReason.ONLY_EVENT_OF_DAY, MatchReason.LONG_EVENT)
+
+        assertEquals(LinkConfidence.MEDIUM, SmartLinkDecisionSupport.suggestionConfidence(LinkConfidence.HIGH, timingOnly))
+    }
+
+    @Test
+    fun `strong suggestion with a content signal stays strong`() {
+        listOf(
+            MatchReason.TITLE_MATCH,
+            MatchReason.SEMANTIC_GROUP_MATCH,
+            MatchReason.SEMANTIC_CONTEXT_MATCH,
+            MatchReason.AI_SUGGESTED_MATCH
+        ).forEach { content ->
+            assertEquals(
+                LinkConfidence.HIGH,
+                SmartLinkDecisionSupport.suggestionConfidence(LinkConfidence.HIGH, listOf(MatchReason.DURING_EVENT, content))
+            )
+        }
+    }
+
+    @Test
+    fun `possible and weak suggestions are unchanged`() {
+        assertEquals(LinkConfidence.MEDIUM, SmartLinkDecisionSupport.suggestionConfidence(LinkConfidence.MEDIUM, emptyList()))
+        assertEquals(LinkConfidence.LOW, SmartLinkDecisionSupport.suggestionConfidence(LinkConfidence.LOW, listOf(MatchReason.TITLE_MATCH)))
+    }
+
+    @Test
     fun `mergeMatchReasons adds semantic and ai reasons without duplicates`() {
         val merged = SmartLinkDecisionSupport.mergeMatchReasons(
             reasons = listOf(MatchReason.TITLE_MATCH, MatchReason.AI_SUGGESTED_MATCH),
