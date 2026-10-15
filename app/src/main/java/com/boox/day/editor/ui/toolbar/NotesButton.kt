@@ -225,7 +225,7 @@ fun BooxNotesMenuItems(onDone: () -> Unit) {
         Divider(color = EInkTheme.Divider.subtleColor, thickness = EInkTheme.Divider.subtleThickness)
     }
 
-    // Link Notes to Events (opens Boox Notes dialog)
+    // Boox Notes… (opens the Boox Notes dialog; was "Link Notes to Events", Oct 2026)
     // GATED: Only available after backfill completes (or if OCR disabled)
     Row(
         modifier = Modifier
@@ -245,12 +245,12 @@ fun BooxNotesMenuItems(onDone: () -> Unit) {
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.MenuBook,
-            contentDescription = "Link Notes to Events",
+            contentDescription = "Boox Notes",
             modifier = Modifier.size(EInkTheme.MenuItem.iconSize),
             tint = if (smartLinkAvailable) EInkTheme.MenuItem.iconColor else EInkTheme.MenuItem.iconColorDisabled
         )
         Text(
-            text = if (smartLinkAvailable) "Link Notes to Events" else "Link Notes\nIndexing... please wait",
+            text = if (smartLinkAvailable) "Boox Notes…" else "Boox Notes\nReading notes, please wait",
             fontSize = EInkTheme.MenuItem.fontSize,
             color = if (smartLinkAvailable) EInkTheme.MenuItem.textColor else EInkTheme.MenuItem.textColorDisabled
         )
@@ -258,7 +258,7 @@ fun BooxNotesMenuItems(onDone: () -> Unit) {
 
     Divider(color = EInkTheme.Divider.subtleColor, thickness = EInkTheme.Divider.subtleThickness)
 
-    // AI Note Matching (Bulk Smart Link wizard)
+    // Review link suggestions (Smart Link for all notes; was "AI Note Matching": it makes no AI calls)
     // GATED: Only available after backfill completes (or if OCR disabled)
     Row(
         modifier = Modifier
@@ -278,12 +278,12 @@ fun BooxNotesMenuItems(onDone: () -> Unit) {
     ) {
         Icon(
             imageVector = Icons.Default.Link,
-            contentDescription = "AI Note Matching",
+            contentDescription = "Review link suggestions",
             modifier = Modifier.size(EInkTheme.MenuItem.iconSize),
             tint = if (smartLinkAvailable) EInkTheme.MenuItem.iconColor else EInkTheme.MenuItem.iconColorDisabled
         )
         Text(
-            text = if (smartLinkAvailable) "AI Note Matching" else "AI Matching\nIndexing... please wait",
+            text = if (smartLinkAvailable) "Review link suggestions" else "Link suggestions\nReading notes, please wait",
             fontSize = EInkTheme.MenuItem.fontSize,
             color = if (smartLinkAvailable) EInkTheme.MenuItem.textColor else EInkTheme.MenuItem.textColorDisabled
         )
@@ -291,7 +291,7 @@ fun BooxNotesMenuItems(onDone: () -> Unit) {
 
     Divider(color = EInkTheme.Divider.subtleColor, thickness = EInkTheme.Divider.subtleThickness)
 
-    // Refresh All Notes
+    // Rescan notes
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -306,12 +306,12 @@ fun BooxNotesMenuItems(onDone: () -> Unit) {
     ) {
         Icon(
             imageVector = Icons.Default.Refresh,
-            contentDescription = "Refresh All Notes",
+            contentDescription = "Rescan notes",
             modifier = Modifier.size(EInkTheme.MenuItem.iconSize),
             tint = EInkTheme.MenuItem.iconColor
         )
         Text(
-            text = "Refresh All Notes",
+            text = "Rescan notes",
             fontSize = EInkTheme.MenuItem.fontSize,
             color = EInkTheme.MenuItem.textColor
         )
