@@ -36,6 +36,11 @@
          idle OCR needs 100 MB free and stalled after two pages per launch -->
     <queries>
         <package android:name="com.onyx.android.note" />
+        <!-- Google sign-in checks the Play Store and Play services before it starts. Some BOOX
+             firmware (Go 10.3, Android 15) does not make the Play Store visible to all apps, so
+             without these the check fails and sign-in returns 12500 at once (Oct 2026) -->
+        <package android:name="com.android.vending" />
+        <package android:name="com.google.android.gms" />
     </queries>
 
     <application
