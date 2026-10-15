@@ -1369,8 +1369,8 @@ object EInkTheme {
         val pageAspectRatio = 0.75f          // BOOX page, 3:4
         val pageBorderWidth = 2.dp
 
-        // Page chevrons (sizes unchanged from the previous dialog; see DIALOG_RULEBOOK)
-        val chevronSize = 36.dp
+        // Page chevrons: a full touch target (was 36 dp; owner OK'd the change, Oct 2026)
+        val chevronSize = Global.touchTarget
         val chevronIconSize = 28.dp
         val chevronIconColor = Colors.primary
         val chevronIconColorDisabled = Colors.lightGray
