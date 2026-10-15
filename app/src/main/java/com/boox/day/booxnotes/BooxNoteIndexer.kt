@@ -501,14 +501,6 @@ class BooxNoteIndexer(
         // Time definitions
         private const val EVENING_START_HOUR = 17  // 5 PM
 
-        // Words to ignore when matching titles (common words that don't indicate relevance)
-        private val STOP_WORDS = setOf(
-            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-            "of", "with", "by", "from", "as", "is", "was", "are", "were", "been",
-            "be", "have", "has", "had", "do", "does", "did", "will", "would",
-            "could", "should", "may", "might", "must", "shall", "can", "need",
-            "meeting", "call", "sync", "chat", "discussion", "session", "notes"
-        )
 
         // ═══════════════════════════════════════════════════════════════════
         // CROSS-DAY SCORING (Smart Link Enhancement - Dec 2025)
@@ -2857,168 +2849,17 @@ class BooxNoteIndexer(
         return localTime.hour >= EVENING_START_HOUR
     }
 
-    /**
-     * Enhanced title matching with multiple signal types.
-     *
-     * Match signals (any one triggers match):
-     * 1. Direct keyword match - event keyword found in note title
-     * 2. Abbreviation expansion - expanded abbreviation matches
-     * 3. Stemmed match - word stems match (meetings → meeting)
-     * 4. Fuzzy match - Levenshtein distance ≤ 2 (for typos)
-     */
-    private fun hasTitleMatch(noteTitle: String?, eventText: String): Boolean {
-        if (noteTitle.isNullOrBlank()) return false
+    /** Whether the note title names the event (whole words only; see [TitleMatcher]). */
+    private fun hasTitleMatch(noteTitle: String?, eventText: String): Boolean =
+        findTitleMatchTerm(noteTitle, eventText) != null
 
-        // Extract meaningful keywords from event title (min 3 chars, not stop words)
-        val eventKeywords = eventText
-            .lowercase()
-            .split(Regex("[\\s\\-_/|:,]+"))
-            .filter { it.length >= 3 && it !in STOP_WORDS }
-            .toSet()
+    /** The event word the note title names (null = no title match); shown as a suggestion's reason. */
+    private fun findTitleMatchTerm(noteTitle: String?, eventText: String): String? =
+        TitleMatcher.matchTerm(noteTitle, eventText) { abbreviations.expand(it) }
 
-        if (eventKeywords.isEmpty()) return false
-
-        // Extract note title words for matching
-        val noteTitleLower = noteTitle.lowercase()
-        val noteWords = noteTitleLower
-            .split(Regex("[\\s\\-_/|:,]+"))
-            .filter { it.length >= 2 }
-            .toSet()
-
-        for (eventKeyword in eventKeywords) {
-            // 1. Direct substring match (original behavior)
-            if (noteTitleLower.contains(eventKeyword)) return true
-
-            // 2. Abbreviation expansion - check if note has abbreviation that expands to event keyword
-            // Uses JSON dictionary instead of hardcoded map (Phase 7 - Dictionary Consolidation)
-            for (noteWord in noteWords) {
-                val expanded = abbreviations.expand(noteWord)
-                if (expanded != null && eventKeyword.contains(expanded)) return true
-            }
-
-            // 3. Stemmed match - word stems match
-            val eventStem = stem(eventKeyword)
-            for (noteWord in noteWords) {
-                val noteStem = stem(noteWord)
-                if (eventStem.length >= 3 && noteStem.length >= 3 && eventStem == noteStem) return true
-            }
-
-            // 4. Fuzzy match - Levenshtein distance for typos (only words ≥4 chars)
-            for (noteWord in noteWords) {
-                if (fuzzyMatch(noteWord, eventKeyword, maxDistance = 2)) return true
-            }
-        }
-
-        return false
-    }
-
-    /**
-     * Simple stemming via suffix removal.
-     * Handles common English suffixes: -ing, -ed, -s, -tion, -ly, -er, -est
-     */
-    private fun stem(word: String): String {
-        var result = word
-        // Order matters - remove longer suffixes first
-        when {
-            result.endsWith("tion") -> result = result.dropLast(4)
-            result.endsWith("ing") && result.length > 5 -> result = result.dropLast(3)
-            result.endsWith("ed") && result.length > 4 -> result = result.dropLast(2)
-            result.endsWith("ly") && result.length > 4 -> result = result.dropLast(2)
-            result.endsWith("er") && result.length > 4 -> result = result.dropLast(2)
-            result.endsWith("est") && result.length > 5 -> result = result.dropLast(3)
-            result.endsWith("s") && result.length > 3 -> result = result.dropLast(1)
-        }
-        return result
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // OCR-AWARE FUZZY MATCHING (Enhanced Jan 2026)
-    // Uses OcrCorrector's weighted edit distance for smarter matching
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * Known OCR confusions for first-letter validation in title matching.
-     *
-     * IMPORTANT: This is intentionally MORE RESTRICTIVE than OcrCorrector.CONFUSION_COSTS.
-     * First letters are typically written more carefully, so we only accept high-confidence
-     * OCR confusions here. This prevents false positives like "lond" → "bond".
-     *
-     * Enhanced Jan 2026: Added a few more high-confidence first-letter confusions.
-     */
-    private val FIRST_LETTER_OCR_CONFUSIONS = setOf(
-        // Tier 1: Very high confidence (font/OCR)
-        'l' to '1', '1' to 'l',
-        'l' to 'i', 'i' to 'l',
-        'i' to '1', '1' to 'i',
-        'o' to '0', '0' to 'o',
-        'c' to 'e', 'e' to 'c',
-        'n' to 'h', 'h' to 'n',
-        'u' to 'v', 'v' to 'u',
-        'r' to 'n', 'n' to 'r',
-
-        // Tier 2: High confidence (added Jan 2026)
-        'a' to 'o', 'o' to 'a',  // Handwriting: open/closed
-        'g' to 'q', 'q' to 'g',  // Font confusion
-        's' to '5', '5' to 's',  // OCR confusion
-        'p' to 'q', 'q' to 'p',  // Mirror (common in dyslexia/handwriting)
-        'b' to 'd', 'd' to 'b',  // Mirror (common in dyslexia/handwriting)
-        't' to 'l', 'l' to 't'   // Missing crossbar
-        // NOTE: Do NOT add b↔l here - "lond"↔"bond" should be rejected
-    )
-
-    /**
-     * OCR-aware fuzzy match for title matching.
-     *
-     * Enhanced (Jan 2026):
-     * - First-letter validation: rejects matches where first letters differ
-     *   unless they're known OCR confusions (l/1/i, o/0, etc.)
-     * - OCR-weighted edit distance: known OCR confusions cost less
-     * - Adaptive thresholds based on word length
-     *
-     * This prevents false positives like "lond" → "bond" while still
-     * catching real OCR/typo errors like "rneet" → "meet".
-     *
-     * @param word1 First word (from note title)
-     * @param word2 Second word (from event title)
-     * @param maxDistance Ignored - kept for API compatibility, uses adaptive thresholds
-     */
-    @Suppress("UNUSED_PARAMETER")
-    private fun fuzzyMatch(word1: String, word2: String, maxDistance: Int = 2): Boolean {
-        // Minimum length check
-        if (word1.length < 4 || word2.length < 4) return false
-
-        // Quick length difference check
-        if (abs(word1.length - word2.length) > 2) return false
-
-        val w1 = word1.lowercase()
-        val w2 = word2.lowercase()
-
-        // First-letter validation - OCR rarely garbles first letters
-        if (!isPlausibleFirstLetterOcrMatch(w1[0], w2[0])) {
-            return false
-        }
-
-        // Use OCR-weighted edit distance
-        val distance = OcrCorrector.weightedEditDistance(w1, w2)
-
-        // Adaptive threshold based on word length
-        val threshold = when (minOf(w1.length, w2.length)) {
-            4 -> 0.8f      // Short words: strict
-            5 -> 1.0f      // Medium-short: moderate
-            in 6..8 -> 1.3f // Medium: reasonable
-            else -> 1.6f   // Long words: lenient
-        }
-
-        return distance <= threshold
-    }
-
-    /**
-     * Check if first letters could plausibly be OCR confusion.
-     */
-    private fun isPlausibleFirstLetterOcrMatch(c1: Char, c2: Char): Boolean {
-        if (c1 == c2) return true
-        return (c1 to c2) in FIRST_LETTER_OCR_CONFUSIONS
-    }
+    /** The word from [event]'s title or description that matched [note]'s title, or null. */
+    fun titleMatchTerm(note: BooxNoteIndex, event: CalendarEvent): String? =
+        findTitleMatchTerm(note.title, buildEventText(event))
 
     // ═══════════════════════════════════════════════════════════════════════════
     // CROSS-DAY SMART LINK FUNCTIONS (Dec 2025)
