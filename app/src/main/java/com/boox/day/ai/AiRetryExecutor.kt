@@ -2,6 +2,7 @@ package com.boox.day.ai
 
 import android.util.Log
 import androidx.annotation.VisibleForTesting
+import com.boox.day.api.AiPickStatus
 import com.boox.day.api.OpenRouterAccount
 import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiRequest
@@ -93,6 +94,7 @@ object AiRetryExecutor {
                         } else {
                             Log.w(TAG, "${model.displayName} returned invalid response, trying next...")
                             lastError = "Invalid response from ${model.displayName}"
+                            AiPickStatus.noteUnusableAnswer(model)
                         }
                     }
                     is AiResponse.Error.RateLimitError -> {

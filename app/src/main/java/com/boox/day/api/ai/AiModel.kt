@@ -241,7 +241,9 @@ sealed class AiModel(
         override val capabilities: Set<AiCapability>,
         override val defaultConfig: AiConfig,
         val userChoice: Boolean = false,
-        val reasoning: com.boox.day.api.ReasoningConfig? = null
+        val reasoning: com.boox.day.api.ReasoningConfig? = null,
+        /** The job a picked model was chosen for (its failures show on that job's row) */
+        val job: com.boox.day.api.AiJob? = null
     ) : AiModel(id, displayName, capabilities, defaultConfig)
 
     companion object {

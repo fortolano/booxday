@@ -20,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.boox.day.api.AiJob
+import com.boox.day.api.AiPickStatus
 import com.boox.day.api.ModelConfigProvider
+import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.api.OpenRouterAccount
 import com.boox.day.ui.dialogs.ModelPickerPopup
 import com.boox.day.ui.noRippleClickable
@@ -105,6 +107,18 @@ fun AiModelsCard(aiEnabled: Boolean, modifier: Modifier = Modifier) {
                         inUse.unavailablePick?.let { pick ->
                             Text(
                                 text = "$pick is no longer available, so Boox Day's choice is used.",
+                                fontSize = EInkTheme.Typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = textColor
+                            )
+                        }
+                        // Plan step f: the pick failed last time and Boox Day's models answered
+                        val failure = if (inUse.isUserChoice) {
+                            AiPickStatus.failureFor(job, GlobalAppSettings.current.aiModels.forJob(job)?.id)
+                        } else null
+                        failure?.let {
+                            Text(
+                                text = "Didn't answer last time (${it.reason}), so Boox Day's choice was used.",
                                 fontSize = EInkTheme.Typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = textColor

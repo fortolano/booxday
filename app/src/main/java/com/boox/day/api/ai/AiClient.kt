@@ -88,6 +88,8 @@ object AiClient {
             AiKeyGate.open(AiKeyGate.Reason.KEY_REJECTED)
         }
         noteCreditState(request.model.id, result)
+        // A picked model's failure shows on its AI Models row until it answers again (Oct 2026)
+        com.boox.day.api.AiPickStatus.noteResult(request.model, result)
         return result
     }
 

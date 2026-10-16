@@ -138,7 +138,8 @@ object ModelConfigProvider {
             capabilities = job.capabilities,
             defaultConfig = AiConfig(temperature = job.temperature, maxTokens = maxTokens),
             userChoice = true,
-            reasoning = AiModelSettings.reasoningConfig(choice.reasoning, choice.reasoningOptions)
+            reasoning = AiModelSettings.reasoningConfig(choice.reasoning, choice.reasoningOptions),
+            job = job
         )
     }
 
