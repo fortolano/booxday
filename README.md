@@ -32,14 +32,29 @@ BooxDay is free and open source under the [GNU General Public License v3.0](LICE
 
 ## Install
 
-BooxDay is free. It is not on Google Play; you install the APK file yourself.
+BooxDay is free. It is not on Google Play, so you install it from an APK file. That is called "sideloading". It is a normal Android feature and it takes about two minutes.
 
-1. On the tablet, open the [Releases](../../releases) page in the browser and download the latest `booxday-x.y.z.apk` (or download it on a computer and copy it to the tablet over USB).
-2. Open the downloaded file. If Android asks, allow your browser or file manager to install unknown apps, then tap **Install**.
-3. Open BooxDay and pick your calendar (Google, Outlook or on the tablet only).
-4. Optional: for AI features, go to Settings > AI Settings and tap **Connect OpenRouter**.
+**What you need:** a BOOX tablet with Android 10 or later, and an internet connection to download the file (about 100 MB).
 
-To update, install the newer APK over the old one. Your memos, tasks and settings are kept. Every release is signed with the same key, so updates install in place.
+### Step by step
+
+1. **Download the APK.** On the tablet, open the [Releases](../../releases) page in the browser, find the latest version and tap `booxday-x.y.z.apk` under **Assets**. (You can also download it on a computer and copy it to the tablet over USB, into the Download folder.)
+2. **If the browser warns about the file**, for example "This type of file can harm your device", tap **OK** or **Download anyway**. Android shows this for every APK from outside an app store.
+3. **Open the file.** Tap **Open** when the download finishes, or open it from the Files app (Download folder) or the browser's download list.
+4. **Allow installs from this app, once.** The first time, Android says something like "For your security, your tablet isn't allowed to install unknown apps from this source". Tap **Settings**, turn on **Allow from this source**, then press Back. The installer opens again. You are only allowing the app you opened the file from (the browser or Files), not everything.
+5. **Tap Install.** If Android asks "Do you want to install this app?", confirm.
+6. **If you see "Google Play Protect" or "Blocked by Play Protect"**: this is Google's automatic scan, and it shows up for apps it has not seen before. It does not mean the app is harmful. Tap **More details**, then **Install anyway** (or **Open anyway**). If it only offers "Scan app", tap that, wait for the result, then continue. You can leave Play Protect on.
+7. **Tap Open**, pick your calendar (Google, Outlook or on the tablet only) and you are done.
+8. Optional: for AI features, go to Settings > AI Settings and tap **Connect OpenRouter**.
+
+### Good to know
+
+- **"Unknown apps" setting.** If you missed the prompt, find it in Settings > Apps > Special app access > Install unknown apps (the exact name varies by tablet). Pick your browser or Files app and turn it on. You can turn it off again after installing.
+- **"App not installed".** Usually the file did not finish downloading, so download it again. Also check there is free storage. If you have a copy of BooxDay that was installed some other way, uninstall it first (this removes its data, so back up first).
+- **"There was a problem parsing the package".** The download is incomplete or damaged. Download it again.
+- **Can't find the file.** Open the Files app and look in the Download folder.
+- **Is it safe?** BooxDay is open source (GPL v3), has no server and sends nothing to its developer. You can read the code in this repository. Download only from this Releases page, never from other sites.
+- **Updates.** Download the newer APK and install it over the old one. Your memos, tasks and settings are kept. Every release is signed with the same key, so updates install in place. The app does not update itself, so check the Releases page now and then.
 
 ## Build from source
 
