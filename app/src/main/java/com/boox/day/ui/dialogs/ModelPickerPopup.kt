@@ -4,8 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,6 +63,12 @@ import java.time.LocalDate
 
 /** The pinned row's key: Boox Day's choice (no pick saved for the job). */
 private const val BOOX_DAY_CHOICE = ""
+
+/**
+ * Width that fits the Show filters (about 330 dp) and the longest Sort label ("Sort: Price: high
+ * to low", about 200 dp) on one row: the Go 10.3 list is about 626 dp wide, the Go 6 about 507 dp.
+ */
+private val FILTERS_AND_SORT_ONE_ROW = 560.dp
 
 /**
  * One AI job's model list (Oct 2026, plan step d), opened from the AI Models card: OpenRouter's
@@ -210,17 +218,35 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
                     }
                 }
 
-                // ── Show and Sort ──
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-                ) {
-                    Text("Show:", fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.primary)
-                    for (option in OpenRouterModelCatalog.Show.entries) {
-                        OptionChip(text = showLabel(option), selected = show == option) { show = option }
+                // ── Show, with Sort at the right of the same row (owner, Oct 2026). Where both
+                // don't fit (Go 6), Sort goes under the filters, still at the right ──
+                val showChips: @Composable () -> Unit = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
+                    ) {
+                        Text("Show:", fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.primary)
+                        for (option in OpenRouterModelCatalog.Show.entries) {
+                            OptionChip(text = showLabel(option), selected = show == option) { show = option }
+                        }
                     }
                 }
-                SortMenu(sort = sort, onSort = { sort = it })
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    if (maxWidth >= FILTERS_AND_SORT_ONE_ROW) {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            showChips()
+                            Spacer(modifier = Modifier.weight(1f))
+                            SortMenu(sort = sort, onSort = { sort = it })
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)) {
+                            showChips()
+                            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                                SortMenu(sort = sort, onSort = { sort = it })
+                            }
+                        }
+                    }
+                }
 
                 // ── List ──
                 val listState = rememberLazyListState()
