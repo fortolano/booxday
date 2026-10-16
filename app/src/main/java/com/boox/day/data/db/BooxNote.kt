@@ -40,7 +40,7 @@ data class BooxNoteIndex(
     val shapeFileModified: Long,        // For cache invalidation
     val indexedAt: Long,                // When this entry was created/updated
     val titleSource: String? = null,    // native / provider / derived / generated
-    val dateSource: String? = null,     // title / title_partial / shape_file / unknown
+    val dateSource: String? = null,     // title / title_partial / shape_file / boox_created / modified_time / unknown
     val pageSource: String? = null,     // provided / live_point / shape_directory / mixed / none
     val previewStatus: String? = null,  // page_ready / shape_only / text_only / unavailable
     val hasTextContent: Boolean = false,

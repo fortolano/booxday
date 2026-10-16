@@ -685,6 +685,8 @@ class BooxNoteIndexer(
             val newNoteIds = mutableListOf<String>()  // Track NEW notes for smart auto-linking
             val relinkDates = mutableSetOf<String>()
             var missingTitleRecovered = 0
+            // Read only when a note has no page files (resolveNoteTime)
+            val booxCreationTimes by lazy { BooxNoteCreationTimes(workDir = context.cacheDir).load() }
 
             // Process discovered notes
             for (discovered in discovery.notes) {
@@ -695,14 +697,14 @@ class BooxNoteIndexer(
                 // This prevents notes from "moving" to different dates when edited.
                 // Same logic as quickScanRecent() for consistency.
                 // ═══════════════════════════════════════════════════════════════════
-                val (ts1, ts2) = booxIntegration.getShapeFileTimestamps(uniqueId)
-                val shapeTimestamp = listOfNotNull(ts1, ts2).minOrNull() ?: discovered.modifiedTimestampMs
+                val noteTime = resolveNoteTime(uniqueId, discovered.modifiedTimestampMs) { booxCreationTimes }
 
-                // Determine original date (priority: title > shape file timestamp)
+                // Determine original date (priority: title > note time)
                 val resolvedDate = extractOriginalDate(
                     uniqueId = uniqueId,
                     title = discovered.nativeTitle ?: discovered.providerTitle,
-                    shapeTimestamp = shapeTimestamp
+                    shapeTimestamp = noteTime.timestampMs,
+                    timestampSource = noteTime.source
                 )
 
                 // Skip notes we cannot place on a day.
@@ -1072,6 +1074,8 @@ class BooxNoteIndexer(
             var missingTitleRecovered = 0
             val newNoteIds = mutableListOf<String>()
             val relinkDates = mutableSetOf<String>()
+            // Read only when a note has no page files (resolveNoteTime)
+            val booxCreationTimes by lazy { BooxNoteCreationTimes(workDir = context.cacheDir).load() }
 
             // Process only new notes or notes modified in the last 24 hours
             for (discovered in discovery.notes) {
@@ -1085,12 +1089,12 @@ class BooxNoteIndexer(
                 }
 
                 // Extract original date
-                val (ts1, ts2) = booxIntegration.getShapeFileTimestamps(uniqueId)
-                val shapeTimestamp = listOfNotNull(ts1, ts2).minOrNull() ?: modifiedTimestamp
+                val noteTime = resolveNoteTime(uniqueId, modifiedTimestamp) { booxCreationTimes }
                 val resolvedDate = extractOriginalDate(
                     uniqueId = uniqueId,
                     title = discovered.nativeTitle ?: discovered.providerTitle,
-                    shapeTimestamp = shapeTimestamp
+                    shapeTimestamp = noteTime.timestampMs,
+                    timestampSource = noteTime.source
                 )
 
                 if (resolvedDate.originalDate == null) {
@@ -1688,9 +1692,27 @@ class BooxNoteIndexer(
         }
     }
 
+    private data class NoteTime(val timestampMs: Long, val source: String)
+
+    /**
+     * When a note was written: its earliest page file; with no page files on the tablet, Boox's own
+     * creation time; else its last-modified time ("modified_time", a guess: Boox rewrites note folders
+     * in bulk, and on 3 Oct 2026 one sync put notes from March to September at 09:23).
+     */
+    private fun resolveNoteTime(
+        uniqueId: String,
+        modifiedTimestampMs: Long,
+        booxCreationTimes: () -> Map<String, Long>
+    ): NoteTime {
+        val (ts1, ts2) = booxIntegration.getShapeFileTimestamps(uniqueId)
+        listOfNotNull(ts1, ts2).minOrNull()?.let { return NoteTime(it, "shape_file") }
+        booxCreationTimes()[uniqueId]?.let { return NoteTime(it, "boox_created") }
+        return NoteTime(modifiedTimestampMs, "modified_time")
+    }
+
     /**
      * Extract original date from note metadata.
-     * Priority: parsed title > shape file timestamp
+     * Priority: parsed title > note time ([timestampSource] says where it came from, see resolveNoteTime)
      *
      * For partial-date titles (e.g. "April 24" with no year), the year is
      * derived from the shape file timestamp to avoid incorrectly assuming
@@ -1699,7 +1721,8 @@ class BooxNoteIndexer(
     private fun extractOriginalDate(
         uniqueId: String,
         title: String?,
-        shapeTimestamp: Long
+        shapeTimestamp: Long,
+        timestampSource: String
     ): ResolvedDate {
         val warnings = mutableListOf<String>()
 
@@ -1759,12 +1782,12 @@ class BooxNoteIndexer(
             }
         }
 
-        // Fall back to shape file timestamp
+        // Fall back to the note time
         if (shapeDate != null) {
             return ResolvedDate(
                 originalDate = shapeDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
                 originalTimestamp = shapeTimestamp,
-                source = "shape_file",
+                source = timestampSource,
                 warnings = warnings
             )
         }
