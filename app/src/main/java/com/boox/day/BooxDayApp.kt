@@ -88,6 +88,8 @@ class BooxDayApp : Application() {
         }
         // Oct 2026: OpenRouter's model list, so retired models are skipped (refreshed daily with a key)
         com.boox.day.api.OpenRouterModelCatalog.init(this)
+        // Oct 2026: whether a picked AI model failed last time (AI Models card)
+        com.boox.day.api.AiPickStatus.init(this)
     }
 
     /**

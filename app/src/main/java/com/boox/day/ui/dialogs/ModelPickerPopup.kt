@@ -57,6 +57,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.api.AiJob
 import com.boox.day.api.AiModelSettings
+import com.boox.day.api.AiPickStatus
 import com.boox.day.api.CatalogModel
 import com.boox.day.api.ModelConfigProvider
 import com.boox.day.api.OpenRouterAccount
@@ -125,6 +126,8 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
 
     /** Saves the job's pick (null = Boox Day's choice) and closes. */
     fun save(choice: AiModelChoice?) {
+        // A new pick starts without the old one's failure note (plan step f)
+        if (choice?.id != currentPick?.id) AiPickStatus.clear(job)
         val settings = GlobalAppSettings.current
         KvProxy(context).setAppSettings(settings.copy(aiModels = settings.aiModels.withJob(job, choice)))
         onDismiss()
