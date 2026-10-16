@@ -10,6 +10,7 @@ import com.boox.day.data.db.CalendarSelectionEntity
 import com.boox.day.data.db.ConnectedAccountDao
 import com.boox.day.data.db.ConnectedAccountEntity
 import com.boox.day.data.db.collectCoveredDayIds
+import com.boox.day.data.db.smartLinkFieldsChanged
 import com.boox.day.data.model.AccountType
 import com.boox.day.data.model.CalendarSelection
 import com.boox.day.data.model.ConnectedAccount
@@ -692,7 +693,11 @@ class MultiAccountSyncManager(
             } else {
                 emptyList()
             }
-            val changedExistingEvents = existingEvents.filter { existing -> calendarEvents.any { it.id == existing.id } }
+            // Events whose Smart Link fields changed: their old and new days get re-linked. For Google the
+            // provider (CalendarSyncManager) has already saved and re-linked them, so this finds none (Oct 2026)
+            val existingById = existingEvents.associateBy { it.id }
+            val smartLinkChangedEvents = calendarEvents.filter { smartLinkFieldsChanged(existingById[it.id], it) }
+            val changedExistingEvents = smartLinkChangedEvents.mapNotNull { existingById[it.id] }
 
             // Calculate new vs updated
             var newCount = 0
@@ -800,7 +805,7 @@ class MultiAccountSyncManager(
                 }
 
                 refreshSmartLinksForEvents(
-                    events = changedExistingEvents + calendarEvents,
+                    events = changedExistingEvents + smartLinkChangedEvents,
                     reason = "cloud sync refreshed events"
                 )
             }

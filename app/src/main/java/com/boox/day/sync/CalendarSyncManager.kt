@@ -4,6 +4,7 @@ import android.content.Context
 import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.db.CalendarEventRepository
 import com.boox.day.data.db.collectCoveredDayIds
+import com.boox.day.data.db.smartLinkFieldsChanged
 import com.boox.day.booxnotes.SmartLinkRefreshCoordinator
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.http.javanet.NetHttpTransport
@@ -283,10 +284,13 @@ class CalendarSyncManager(
                         val existingEvent = eventRepository.getEventById(event.id)
                         eventRepository.cacheEvent(calendarEvent)
                         fetchedEventIds.add(calendarEvent.id)
-                        if (existingEvent != null) {
-                            changedEvents.add(existingEvent)
+                        // Re-link only days whose events really changed (old and new days of a moved event)
+                        if (smartLinkFieldsChanged(existingEvent, calendarEvent)) {
+                            if (existingEvent != null) {
+                                changedEvents.add(existingEvent)
+                            }
+                            changedEvents.add(calendarEvent)
                         }
-                        changedEvents.add(calendarEvent)
 
                         if (existingEvent != null) {
                             updatedEventsCount++

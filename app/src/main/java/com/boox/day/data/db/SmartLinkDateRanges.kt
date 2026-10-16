@@ -36,3 +36,19 @@ internal fun collectCoveredDayIds(events: Iterable<CalendarEvent>): Set<String> 
 
 internal fun collectLocalCoveredDayIds(events: Iterable<LocalEvent>): Set<String> =
     events.flatMap { it.coveredDayIds() }.toSet()
+
+/**
+ * Whether a synced event changed anything Smart Link matching reads (days, times, title, description,
+ * location); a new event ([existing] = null) counts. Calendar sync re-links only these events' days,
+ * not every fetched event on every sync (Oct 2026).
+ */
+internal fun smartLinkFieldsChanged(existing: CalendarEvent?, updated: CalendarEvent): Boolean =
+    existing == null ||
+        existing.dayId != updated.dayId ||
+        existing.endDayId != updated.endDayId ||
+        existing.startTime != updated.startTime ||
+        existing.endTime != updated.endTime ||
+        existing.isAllDay != updated.isAllDay ||
+        existing.title != updated.title ||
+        existing.description != updated.description ||
+        existing.location != updated.location
