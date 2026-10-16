@@ -3,7 +3,6 @@ package com.boox.day.ai
 import android.util.Log
 import com.boox.day.api.Modality
 import com.boox.day.api.ModelConfigProvider
-import com.boox.day.api.ai.AiClient
 import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
@@ -69,13 +68,13 @@ object VoiceTextParser {
             return ParsedText.empty("No audio recorded")
         }
 
-        // Get audio model from server config (or hardcoded default)
-        val audioModel = ModelConfigProvider.getPrimaryAudioModel()
-        Log.d(TAG, "Parsing audio to formatted text using ${audioModel.id} (${audioBase64.length} chars base64)")
+        // The voice job's models: the user's pick, then Boox Day's choice (a backup since Oct 2026)
+        val audioModels = ModelConfigProvider.getAudioFallbackChain()
+        Log.d(TAG, "Parsing audio to formatted text using ${audioModels.map { it.id }} (${audioBase64.length} chars base64)")
 
         // Build the AI request with audio content
-        val request = aiRequest {
-            model(audioModel)  // Audio-capable model from server config
+        fun buildRequest(audioModel: AiModel) = aiRequest {
+            model(audioModel)
             systemPrompt(buildSystemPrompt())
             userMessageWithAudio(
                 text = buildAudioPrompt(),
@@ -93,7 +92,7 @@ object VoiceTextParser {
                 delay(RETRY_DELAY_MS)
             }
 
-            when (val response = AiClient.execute(request)) {
+            when (val response = AiRetryExecutor.executeWithBackup(audioModels, buildRequest = ::buildRequest)) {
                 is AiResponse.Success -> {
                     Log.d(TAG, "Gemini response: ${response.data.take(500)}...")
                     val result = parseResponse(response.data)

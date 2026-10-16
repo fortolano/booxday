@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.Composable
@@ -40,11 +42,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.boox.day.api.OpenRouterConnect
 import com.boox.day.api.OpenRouterKeyCheck
 import com.boox.day.security.UserOpenRouterKey
 import com.boox.day.ui.dialogs.ActionButton
 import com.boox.day.ui.dialogs.OpenRouterKeySteps
+import com.boox.day.ui.dialogs.OpenRouterLinks
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 import kotlinx.coroutines.Dispatchers
@@ -56,8 +61,11 @@ import java.util.Locale
  * The OpenRouter key card in AI Settings (Oct 2026): every AI feature runs on the user's own
  * OpenRouter account, so there is no app key to fall back to.
  *
- * - No key: paste field, Paste and Show (44 dp), Save Key, and the steps to get a key.
- * - Saved: masked key, what OpenRouter said about it, Remove Key and Replace Key.
+ * - No key: Connect OpenRouter (OpenRouter's sign-in for apps, [OpenRouterConnect]); or a paste
+ *   field for a key or the return page's connection code, Paste and Show (44 dp), Save Key, and
+ *   the steps to get a key by hand.
+ * - Saved: whether AI is ready (credit or free models only), masked key, spending limit,
+ *   Remove Key and Replace Key.
  *
  * Save Key first asks OpenRouter whether the key works ([OpenRouterKeyCheck], no tokens used);
  * a rejected key is not saved, and a key that could not be checked (offline) is saved anyway.
@@ -70,29 +78,60 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
 
     val savedKey = UserOpenRouterKey.value
+    val connectStatus = OpenRouterConnect.status
     var replacing by remember { mutableStateOf(false) }
     var input by remember { mutableStateOf("") }
     var showKey by remember { mutableStateOf(false) }
     var checking by remember { mutableStateOf(false) }
+    var startingConnect by remember { mutableStateOf(false) }
     var confirmingRemove by remember { mutableStateOf(false) }
     // What OpenRouter last said about the saved key (null = not checked yet in this popup)
     var lastCheck by remember { mutableStateOf<OpenRouterKeyCheck.Result?>(null) }
     var entryMessage by remember { mutableStateOf<String?>(null) }
 
-    // Saved key: ask OpenRouter once when the card opens (status and spending limit)
+    // Saved key: ask OpenRouter once when the card opens (status and spending limit). A key saved
+    // by Connect OpenRouter while the card is open shows here too.
     LaunchedEffect(savedKey) {
+        replacing = false
+        lastCheck = null
         lastCheck = if (savedKey.isNullOrBlank()) null else OpenRouterKeyCheck.check(savedKey)
     }
 
+    fun startConnect() {
+        if (startingConnect) return
+        startingConnect = true
+        entryMessage = null
+        scope.launch {
+            OpenRouterLinks.open(context, OpenRouterConnect.begin(context))
+            startingConnect = false
+        }
+    }
+
     fun saveKey() {
-        val key = input.trim()
-        if (key.isEmpty() || checking) return
+        val text = input.trim()
+        if (text.isEmpty() || checking) return
         checking = true
         entryMessage = null
         scope.launch {
+            // Oct 2026: the same field takes the connection code the return page shows when its
+            // button can't open the app; anything else is checked as a key, as before
+            if (!OpenRouterConnect.looksLikeKey(text) && OpenRouterConnect.hasPending(context)) {
+                if (OpenRouterConnect.finishWithCode(context, text) is OpenRouterConnect.Status.Connected) {
+                    input = ""
+                    showKey = false
+                }
+                checking = false
+                return@launch
+            }
+            val key = text
             val result = OpenRouterKeyCheck.check(key)
             if (result is OpenRouterKeyCheck.Result.Rejected) {
-                entryMessage = "OpenRouter did not accept this key. Check that you copied all of it."
+                entryMessage = if (OpenRouterConnect.looksLikeKey(key)) {
+                    "OpenRouter did not accept this key. Check that you copied all of it."
+                } else {
+                    // Not a key: most likely a connection code whose 10 minutes ran out
+                    "That isn't a working key. If it's a connection code, it has timed out: tap Connect OpenRouter again."
+                }
             } else {
                 withContext(Dispatchers.IO) { UserOpenRouterKey.save(context, key) }
                 lastCheck = result
@@ -107,18 +146,28 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
 
     SettingCard(
         title = "OpenRouter key",
-        description = "Every AI feature runs on your own OpenRouter account. AI stays off until you add a key.",
+        description = "Every AI feature runs on your own OpenRouter account.",
         modifier = modifier
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)) {
             if (!savedKey.isNullOrBlank() && !replacing) {
                 // ── Saved key ──
                 val check = lastCheck
-                when (check) {
-                    is OpenRouterKeyCheck.Result.Accepted -> StatusLine(Icons.Default.Check, "OpenRouter accepted this key")
-                    OpenRouterKeyCheck.Result.Rejected -> StatusLine(Icons.Default.Info, "OpenRouter did not accept this key. Replace it with a working one.", bold = true)
-                    is OpenRouterKeyCheck.Result.Unreachable -> StatusLine(Icons.Default.Info, "Key saved. Could not reach OpenRouter to check it.")
-                    null -> StatusLine(Icons.Default.Info, "Key saved. Checking with OpenRouter...")
+                when {
+                    check is OpenRouterKeyCheck.Result.Accepted && check.isFreeTier -> StatusLine(
+                        Icons.Default.Check,
+                        "Connected. No credit yet: AI uses free models, up to 50 requests a day. " +
+                            "Search indexing starts when you add credit."
+                    )
+                    check is OpenRouterKeyCheck.Result.Accepted -> StatusLine(Icons.Default.Check, "Connected. AI is ready.")
+                    check == OpenRouterKeyCheck.Result.Rejected -> StatusLine(Icons.Default.Info, "OpenRouter did not accept this key. Replace it with a working one.", bold = true)
+                    check is OpenRouterKeyCheck.Result.Unreachable -> StatusLine(Icons.Default.Info, "Connected. The key is saved; OpenRouter couldn't be reached to check it.")
+                    else -> StatusLine(Icons.Default.Info, "Key saved. Checking with OpenRouter...")
+                }
+                if (check is OpenRouterKeyCheck.Result.Accepted && check.isFreeTier) {
+                    OpenRouterLink("Add credit: openrouter.ai/settings/credits") {
+                        OpenRouterLinks.open(context, OpenRouterLinks.CREDITS)
+                    }
                 }
                 KeyBox {
                     Text(
@@ -127,7 +176,7 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                         color = EInkTheme.Colors.darkGray
                     )
                 }
-                if (check is OpenRouterKeyCheck.Result.Accepted) {
+                if (check is OpenRouterKeyCheck.Result.Accepted && !check.isFreeTier) {
                     Text(
                         text = limitText(check),
                         fontSize = EInkTheme.Typography.bodySmall,
@@ -179,7 +228,31 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                 }
             } else {
                 // ── No key (or replacing it) ──
-                StatusLine(Icons.Default.Info, if (replacing) "Paste the new key" else "No key saved")
+                when (connectStatus) {
+                    OpenRouterConnect.Status.Connecting -> StatusLine(Icons.Default.Info, "Connecting to OpenRouter...")
+                    is OpenRouterConnect.Status.Failed -> StatusLine(Icons.Default.Info, connectStatus.message, bold = true)
+                    else -> StatusLine(Icons.Default.Info, if (replacing) "Connect again, or paste the new key" else "No key saved")
+                }
+
+                // Oct 2026: OpenRouter's sign-in for apps, so nothing has to be copied on e-ink
+                ActionButton(
+                    text = "Connect OpenRouter",
+                    isLoading = startingConnect || connectStatus == OpenRouterConnect.Status.Connecting,
+                    onClick = { startConnect() },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = "Opens OpenRouter in the browser: sign in, tap Authorize, then tap Open Boox Day.",
+                    fontSize = EInkTheme.Typography.bodySmall,
+                    color = EInkTheme.Colors.darkGray
+                )
+
+                Text(
+                    text = "Or paste a key or connection code",
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = EInkTheme.Colors.primary
+                )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
@@ -202,7 +275,7 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                             decorationBox = { innerTextField ->
                                 if (input.isEmpty()) {
                                     Text(
-                                        text = "sk-or-v1-...",
+                                        text = "sk-or-v1-... or a code",
                                         fontSize = EInkTheme.Typography.bodyMedium,
                                         color = EInkTheme.Colors.gray
                                     )
@@ -230,6 +303,8 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                         color = EInkTheme.Colors.primary
                     )
                 }
+                // Connect OpenRouter is the main button now, so Save Key is the outlined one
+                val saveLabel = if (checking) "Checking..." else "Save Key"
                 if (replacing) {
                     Row(modifier = Modifier.fillMaxWidth()) {
                         EinkSecondaryButton(
@@ -242,19 +317,17 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                             modifier = Modifier.weight(0.4f)
                         )
                         Spacer(modifier = Modifier.weight(0.2f))
-                        ActionButton(
-                            text = "Save Key",
-                            enabled = input.isNotBlank(),
-                            isLoading = checking,
+                        EinkSecondaryButton(
+                            text = saveLabel,
+                            enabled = input.isNotBlank() && !checking,
                             onClick = { saveKey() },
                             modifier = Modifier.weight(0.4f)
                         )
                     }
                 } else {
-                    ActionButton(
-                        text = "Save Key",
-                        enabled = input.isNotBlank(),
-                        isLoading = checking,
+                    EinkSecondaryButton(
+                        text = saveLabel,
+                        enabled = input.isNotBlank() && !checking,
                         onClick = { saveKey() },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -262,7 +335,7 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
 
                 Divider(color = EInkTheme.Divider.subtleColor, thickness = EInkTheme.Divider.subtleThickness)
                 Text(
-                    text = "How to get a key",
+                    text = "How to get a key by hand",
                     fontSize = EInkTheme.Typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = EInkTheme.Colors.primary
@@ -334,10 +407,36 @@ private fun maskKey(key: String): String {
     return k.take(9) + "••••••••" + k.takeLast(4)
 }
 
+/** A link that opens OpenRouter in the browser: 44 dp tall, underlined, with the open icon. */
+@Composable
+private fun OpenRouterLink(text: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = EInkTheme.Global.touchTarget)
+            .noRippleClickable { onClick() },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
+    ) {
+        Icon(
+            imageVector = Icons.Default.OpenInNew,
+            contentDescription = "Open in browser",
+            tint = EInkTheme.Colors.primary,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = text,
+            fontSize = EInkTheme.Typography.bodyMedium,
+            color = EInkTheme.Colors.primary,
+            textDecoration = TextDecoration.Underline
+        )
+    }
+}
+
+/** Spending limit of a key that has bought credit (the free-tier case has its own status line). */
 private fun limitText(check: OpenRouterKeyCheck.Result.Accepted): String {
     fun dollars(v: Double) = "$" + String.format(Locale.US, "%.2f", v)
     return when {
-        check.isFreeTier -> "No credit bought yet: free models only, up to 50 requests a day."
         check.limit != null && check.limitRemaining != null ->
             "Spending limit on this key: ${dollars(check.limitRemaining)} left of ${dollars(check.limit)}."
         else -> "No spending limit on this key."

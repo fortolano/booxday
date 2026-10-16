@@ -3,22 +3,14 @@ package com.boox.day.api
 import kotlinx.serialization.Serializable
 
 /**
- * AI models for one use case (vision, audio, reasoning, text): a primary model and two fallbacks.
- * The app's defaults are in ModelConfigProvider.
+ * One of Boox Day's own AI models. The lists per AI job (AiJob) are in ModelConfigProvider.
  */
-@Serializable
-data class ModalityConfig(
-    val primary: ModelEntry,
-    val fallback: ModelEntry,
-    val safety: ModelEntry
-) {
-    fun getFallbackChain(): List<ModelEntry> = listOf(primary, fallback, safety)
-}
-
 @Serializable
 data class ModelEntry(
     val id: String,
-    val reasoning: ReasoningParam? = null
+    val reasoning: ReasoningParam? = null,
+    /** Name shown to users, e.g. "Gemini 3.1 Flash Lite" (AI Models card) */
+    val name: String = ""
 ) {
     val provider: String get() = id.substringBefore("/")
     val hasReasoning: Boolean get() = reasoning?.enabled == true || reasoning?.effort != null
@@ -30,5 +22,5 @@ data class ReasoningParam(
     val effort: String? = null
 )
 
+/** The old model groups; AI jobs (AiJob) replaced them. Kept because older files still import it. */
 enum class Modality { VISION, AUDIO, REASONING, TEXT }
-enum class ModelRole { PRIMARY, FALLBACK, SAFETY }

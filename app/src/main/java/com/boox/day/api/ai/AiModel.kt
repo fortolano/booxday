@@ -230,12 +230,18 @@ sealed class AiModel(
     /**
      * Custom model for future extensibility.
      * Allows defining new models without modifying this sealed class.
+     *
+     * [userChoice]: the model the user picked for an AI job (Oct 2026). Its [reasoning] is sent
+     * as-is, null = nothing (the model's own default), whatever the feature asks for, and
+     * [defaultConfig]'s max tokens is the user's output limit.
      */
     data class Custom(
         override val id: String,
         override val displayName: String,
         override val capabilities: Set<AiCapability>,
-        override val defaultConfig: AiConfig
+        override val defaultConfig: AiConfig,
+        val userChoice: Boolean = false,
+        val reasoning: com.boox.day.api.ReasoningConfig? = null
     ) : AiModel(id, displayName, capabilities, defaultConfig)
 
     companion object {

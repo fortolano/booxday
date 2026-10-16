@@ -1,0 +1,2082 @@
+{
+ "data": [
+  {
+   "id": "deepseek/deepseek-v4.1-flash",
+   "canonical_slug": "deepseek/deepseek-v4.1-flash-20260910",
+   "hugging_face_id": "deepseek-ai/DeepSeek-V4.1-Flash",
+   "name": "DeepSeek: DeepSeek V4.1 Flash",
+   "created": 1789021285,
+   "context_length": 1048576,
+   "architecture": {
+    "modality": "text+image->text",
+    "input_modalities": [
+     "text",
+     "image"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "DeepSeek",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.00000015",
+    "completion": "0.0000006",
+    "input_cache_read": "0.000000003",
+    "overrides": [
+     {
+      "utc_days": [
+       "saturday",
+       "sunday"
+      ],
+      "prompt": "0.00000015",
+      "completion": "0.0000006",
+      "input_cache_read": "0.000000003"
+     },
+     {
+      "utc_days": [
+       "monday",
+       "tuesday",
+       "wednesday",
+       "thursday",
+       "friday"
+      ],
+      "utc_start": 0,
+      "utc_end": 100,
+      "prompt": "0.00000015",
+      "completion": "0.0000006",
+      "input_cache_read": "0.000000003"
+     },
+     {
+      "utc_days": [
+       "monday",
+       "tuesday",
+       "wednesday",
+       "thursday",
+       "friday"
+      ],
+      "utc_start": 100,
+      "utc_end": 400,
+      "prompt": "0.0000003",
+      "completion": "0.0000012",
+      "input_cache_read": "0.000000006"
+     },
+     {
+      "utc_days": [
+       "monday",
+       "tuesday",
+       "wednesday",
+       "thursday",
+       "friday"
+      ],
+      "utc_start": 400,
+      "utc_end": 600,
+      "prompt": "0.00000015",
+      "completion": "0.0000006",
+      "input_cache_read": "0.000000003"
+     },
+     {
+      "utc_days": [
+       "monday",
+       "tuesday",
+       "wednesday",
+       "thursday",
+       "friday"
+      ],
+      "utc_start": 600,
+      "utc_end": 1000,
+      "prompt": "0.0000003",
+      "completion": "0.0000012",
+      "input_cache_read": "0.000000006"
+     },
+     {
+      "utc_days": [
+       "monday",
+       "tuesday",
+       "wednesday",
+       "thursday",
+       "friday"
+      ],
+      "utc_start": 1000,
+      "utc_end": 0,
+      "prompt": "0.00000015",
+      "completion": "0.0000006",
+      "input_cache_read": "0.000000003"
+     }
+    ]
+   },
+   "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 393216,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "frequency_penalty",
+    "include_reasoning",
+    "logit_bias",
+    "logprobs",
+    "max_tokens",
+    "min_p",
+    "presence_penalty",
+    "reasoning",
+    "reasoning_effort",
+    "repetition_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_logprobs",
+    "top_p"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/deepseek/deepseek-v4.1-flash-20260910/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [],
+    "artificial_analysis": {
+     "intelligence_index": 39.5,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": false,
+    "default_enabled": true,
+    "supported_efforts": [
+     "max",
+     "high",
+     "low",
+     "none"
+    ],
+    "default_effort": "high"
+   }
+  },
+  {
+   "id": "z-ai/glm-5.3-flash",
+   "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+   "hugging_face_id": "zai-org/GLM-5.3-Flash",
+   "name": "Z.ai: GLM 5.3 Flash",
+   "created": 1787752741,
+   "context_length": 1048576,
+   "architecture": {
+    "modality": "text+image+video->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "video"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.0000000156",
+    "completion": "0.0000007928",
+    "input_cache_read": "0.0000000125"
+   },
+   "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 131072,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "frequency_penalty",
+    "include_reasoning",
+    "logit_bias",
+    "logprobs",
+    "max_tokens",
+    "min_p",
+    "parallel_tool_calls",
+    "presence_penalty",
+    "reasoning",
+    "reasoning_effort",
+    "repetition_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_logprobs",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": 1,
+    "top_p": 0.95
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/z-ai/glm-5.3-flash-20260826/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 1317,
+      "win_rate": 56.3,
+      "rank": 16
+     },
+     {
+      "arena": "models",
+      "category": "asciiart",
+      "elo": 1268,
+      "win_rate": 54.9,
+      "rank": 12
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1285,
+      "win_rate": 49.4,
+      "rank": 21
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1263,
+      "win_rate": 50.5,
+      "rank": 29
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1284,
+      "win_rate": 47.3,
+      "rank": 21
+     },
+     {
+      "arena": "models",
+      "category": "svg",
+      "elo": 1286,
+      "win_rate": 56.9,
+      "rank": 10
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 1318,
+      "win_rate": 54.9,
+      "rank": 13
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1274,
+      "win_rate": 48.5,
+      "rank": 26
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": 41.8,
+     "coding_index": 71.5,
+     "agentic_index": 50.9
+    }
+   },
+   "reasoning": {
+    "mandatory": true,
+    "default_enabled": true,
+    "supported_efforts": [
+     "max",
+     "high",
+     "low"
+    ],
+    "default_effort": "max"
+   }
+  },
+  {
+   "id": "xiaomi/mimo-v2.6-flash",
+   "canonical_slug": "xiaomi/mimo-v2.6-flash-20260921",
+   "hugging_face_id": "XiaomiMiMo/MiMo-V2.6-Flash-RL",
+   "name": "Xiaomi: MiMo-V2.6-Flash",
+   "created": 1790021264,
+   "context_length": 1050000,
+   "architecture": {
+    "modality": "text+image+audio+video->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "video",
+     "audio"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.00000014",
+    "completion": "0.00000028",
+    "input_cache_read": "0.0000000028"
+   },
+   "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 131072,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "frequency_penalty",
+    "include_reasoning",
+    "logit_bias",
+    "logprobs",
+    "max_tokens",
+    "min_p",
+    "presence_penalty",
+    "reasoning",
+    "repetition_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_logprobs",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": 1,
+    "top_p": 0.95,
+    "frequency_penalty": 0
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/xiaomi/mimo-v2.6-flash-20260921/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [],
+    "artificial_analysis": {
+     "intelligence_index": 37.9,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": false
+   }
+  },
+  {
+   "id": "anthropic/claude-opus-5.5",
+   "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+   "hugging_face_id": null,
+   "name": "Anthropic: Claude Opus 5.5",
+   "created": 1790094732,
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Claude",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.000004",
+    "completion": "0.00002",
+    "web_search": "0.01",
+    "input_cache_read": "0.0000002",
+    "input_cache_write": "0.000005",
+    "input_cache_write_1h": "0.000008"
+   },
+   "top_provider": {
+    "context_length": 1000000,
+    "max_completion_tokens": 128000,
+    "is_moderated": true
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_completion_tokens",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "stop",
+    "structured_outputs",
+    "tool_choice",
+    "tools",
+    "verbosity"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/anthropic/claude-opus-5.5-20260921/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "agents",
+      "category": "mobileapps",
+      "elo": 1327,
+      "win_rate": 64.2,
+      "rank": 2
+     },
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 1479,
+      "win_rate": 72.1,
+      "rank": 1
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1392,
+      "win_rate": 63.8,
+      "rank": 1
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1400,
+      "win_rate": 64.8,
+      "rank": 1
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1462,
+      "win_rate": 72,
+      "rank": 2
+     },
+     {
+      "arena": "models",
+      "category": "svg",
+      "elo": 1331,
+      "win_rate": 51.7,
+      "rank": 1
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 1380,
+      "win_rate": 63.3,
+      "rank": 2
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1336,
+      "win_rate": 57.4,
+      "rank": 3
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": 57.6,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": true,
+    "supported_efforts": [
+     "max",
+     "xhigh",
+     "high",
+     "medium",
+     "low"
+    ],
+    "default_effort": "high"
+   }
+  },
+  {
+   "id": "anthropic/claude-haiku-5.5",
+   "canonical_slug": "anthropic/claude-haiku-5.5-20261007",
+   "hugging_face_id": null,
+   "name": "Anthropic: Claude Haiku 5.5",
+   "created": 1791397883,
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Claude",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.0000001",
+    "completion": "0.0000005",
+    "web_search": "0.01",
+    "input_cache_read": "0.00000001",
+    "input_cache_write": "0.000000125",
+    "input_cache_write_1h": "0.0000002",
+    "overrides": [
+     {
+      "min_prompt_tokens": 100000,
+      "prompt": "0.0000005",
+      "completion": "0.0000025",
+      "input_cache_read": "0.00000005",
+      "input_cache_write": "0.000000625",
+      "input_cache_write_1h": "0.000001"
+     }
+    ]
+   },
+   "top_provider": {
+    "context_length": 1000000,
+    "max_completion_tokens": 128000,
+    "is_moderated": true
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_completion_tokens",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "stop",
+    "structured_outputs",
+    "tool_choice",
+    "tools",
+    "verbosity"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/anthropic/claude-haiku-5.5-20261007/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 1346,
+      "win_rate": 58.9,
+      "rank": 9
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1280,
+      "win_rate": 50,
+      "rank": 22
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1294,
+      "win_rate": 55.1,
+      "rank": 14
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1317,
+      "win_rate": 53.9,
+      "rank": 12
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 1299,
+      "win_rate": 53.2,
+      "rank": 17
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1265,
+      "win_rate": 48.5,
+      "rank": 34
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": 43.4,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": false,
+    "supported_efforts": [
+     "max",
+     "xhigh",
+     "high",
+     "medium",
+     "low",
+     "none"
+    ],
+    "default_effort": "medium"
+   }
+  },
+  {
+   "id": "google/gemini-3-flash-preview",
+   "canonical_slug": "google/gemini-3-flash-preview-20251217",
+   "hugging_face_id": "",
+   "name": "Google: Gemini 3 Flash Preview",
+   "created": 1765987078,
+   "context_length": 1048576,
+   "architecture": {
+    "modality": "text+image+file+audio+video->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file",
+     "audio",
+     "video"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Gemini",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.0000005",
+    "completion": "0.000003",
+    "image": "0.0000005",
+    "audio": "0.000001",
+    "input_audio_cache": "0.0000001",
+    "web_search": "0.014",
+    "internal_reasoning": "0.000003",
+    "input_cache_read": "0.00000005",
+    "input_cache_write": "0.0000000833333333333333"
+   },
+   "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 65536,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": null,
+    "top_p": null,
+    "top_k": null,
+    "frequency_penalty": null,
+    "presence_penalty": null,
+    "repetition_penalty": null
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/google/gemini-3-flash-preview-20251217/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "agents",
+      "category": "agenticslides",
+      "elo": 1073,
+      "win_rate": 39.3,
+      "rank": 8
+     },
+     {
+      "arena": "agents",
+      "category": "agenticslides(python-pptx)",
+      "elo": 1075,
+      "win_rate": 39.3,
+      "rank": 8
+     },
+     {
+      "arena": "agents",
+      "category": "androidnative",
+      "elo": 1066,
+      "win_rate": 48.1,
+      "rank": 33
+     },
+     {
+      "arena": "agents",
+      "category": "fullstack",
+      "elo": 1063,
+      "win_rate": 47.4,
+      "rank": 33
+     },
+     {
+      "arena": "agents",
+      "category": "godotgamedev",
+      "elo": 1161,
+      "win_rate": 50.6,
+      "rank": 19
+     },
+     {
+      "arena": "agents",
+      "category": "mobileapps",
+      "elo": 1087,
+      "win_rate": 46.6,
+      "rank": 39
+     },
+     {
+      "arena": "agents",
+      "category": "python-pptxslides",
+      "elo": 1036,
+      "win_rate": 38.3,
+      "rank": 27
+     },
+     {
+      "arena": "agents",
+      "category": "webapps",
+      "elo": 1104,
+      "win_rate": 48.5,
+      "rank": 34
+     },
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 1184,
+      "win_rate": 62.7,
+      "rank": 55
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1191,
+      "win_rate": 57.6,
+      "rank": 60
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1169,
+      "win_rate": 58.3,
+      "rank": 66
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1198,
+      "win_rate": 57,
+      "rank": 60
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": 26.3,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": false,
+    "supported_efforts": [
+     "high",
+     "medium",
+     "low",
+     "minimal",
+     "none"
+    ],
+    "default_effort": "medium"
+   }
+  },
+  {
+   "id": "nvidia/nemotron-3-super-120b-a12b:free",
+   "canonical_slug": "nvidia/nemotron-3-super-120b-a12b-20230311",
+   "hugging_face_id": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8",
+   "name": "NVIDIA: Nemotron 3 Super (free)",
+   "created": 1773245239,
+   "context_length": 262144,
+   "architecture": {
+    "modality": "text->text",
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0",
+    "completion": "0"
+   },
+   "top_provider": {
+    "context_length": 262144,
+    "max_completion_tokens": 235929,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "seed",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": 1,
+    "top_p": 0.95,
+    "top_k": null,
+    "frequency_penalty": null,
+    "presence_penalty": null,
+    "repetition_penalty": null
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/nvidia/nemotron-3-super-120b-a12b-20230311/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [],
+    "artificial_analysis": {
+     "intelligence_index": 12.8,
+     "coding_index": 37.7,
+     "agentic_index": 1.7
+    }
+   },
+   "reasoning": {
+    "mandatory": false,
+    "default_enabled": true,
+    "supports_max_tokens": true,
+    "supported_efforts": [
+     "medium",
+     "low",
+     "none"
+    ],
+    "default_effort": "medium"
+   }
+  },
+  {
+   "id": "google/gemini-2.5-flash-lite",
+   "canonical_slug": "google/gemini-2.5-flash-lite",
+   "hugging_face_id": "",
+   "name": "Google: Gemini 2.5 Flash Lite",
+   "created": 1753200276,
+   "context_length": 1048576,
+   "architecture": {
+    "modality": "text+image+file+audio+video->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file",
+     "audio",
+     "video"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Gemini",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.0000001",
+    "completion": "0.0000004",
+    "image": "0.0000001",
+    "audio": "0.0000003",
+    "input_audio_cache": "0.00000003",
+    "web_search": "0.014",
+    "internal_reasoning": "0.0000004",
+    "input_cache_read": "0.00000001",
+    "input_cache_write": "0.0000000833333333333333"
+   },
+   "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 65535,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_tokens",
+    "reasoning",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": null,
+    "top_p": null,
+    "frequency_penalty": null
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": "2025-01-31",
+   "expiration_date": "2026-10-20",
+   "links": {
+    "details": "/api/v1/models/google/gemini-2.5-flash-lite/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [],
+    "artificial_analysis": {
+     "intelligence_index": 10.4,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": false
+   }
+  },
+  {
+   "id": "xiaomi/mimo-v2.5",
+   "canonical_slug": "xiaomi/mimo-v2.5-20260422",
+   "hugging_face_id": "XiaomiMiMo/MiMo-V2.5",
+   "name": "Xiaomi: MiMo-V2.5",
+   "created": 1776874269,
+   "context_length": 1050000,
+   "architecture": {
+    "modality": "text+image+audio+video->text",
+    "input_modalities": [
+     "text",
+     "audio",
+     "image",
+     "video"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.00000014",
+    "completion": "0.00000028",
+    "input_cache_read": "0.0000000028"
+   },
+   "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 131072,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "frequency_penalty",
+    "include_reasoning",
+    "max_tokens",
+    "presence_penalty",
+    "reasoning",
+    "repetition_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": 1,
+    "top_p": 0.95,
+    "top_k": null,
+    "frequency_penalty": null,
+    "presence_penalty": null,
+    "repetition_penalty": null
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": "2026-10-21",
+   "links": {
+    "details": "/api/v1/models/xiaomi/mimo-v2.5-20260422/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 1217,
+      "win_rate": 50.8,
+      "rank": 42
+     },
+     {
+      "arena": "models",
+      "category": "asciiart",
+      "elo": 1143,
+      "win_rate": 45,
+      "rank": 48
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1262,
+      "win_rate": 53.5,
+      "rank": 36
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1250,
+      "win_rate": 53.6,
+      "rank": 33
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1249,
+      "win_rate": 52.5,
+      "rank": 37
+     },
+     {
+      "arena": "models",
+      "category": "svg",
+      "elo": 1176,
+      "win_rate": 50,
+      "rank": 36
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 1257,
+      "win_rate": 53.8,
+      "rank": 39
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1267,
+      "win_rate": 53.6,
+      "rank": 32
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": 21.8,
+     "coding_index": 56.8,
+     "agentic_index": 15.8
+    }
+   },
+   "reasoning": {
+    "mandatory": false
+   }
+  },
+  {
+   "id": "google/gemini-3.1-flash-lite",
+   "canonical_slug": "google/gemini-3.1-flash-lite-20260507",
+   "hugging_face_id": null,
+   "name": "Google: Gemini 3.1 Flash Lite",
+   "created": 1778168828,
+   "context_length": 1048576,
+   "architecture": {
+    "modality": "text+image+file+audio+video->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "video",
+     "file",
+     "audio"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Gemini",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.00000025",
+    "completion": "0.0000015",
+    "image": "0.00000025",
+    "audio": "0.0000005",
+    "input_audio_cache": "0.00000005",
+    "web_search": "0.014",
+    "internal_reasoning": "0.0000015",
+    "input_cache_read": "0.000000025",
+    "input_cache_write": "0.0000000833333333333333"
+   },
+   "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 65536,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": null,
+    "top_p": null,
+    "top_k": null,
+    "frequency_penalty": null,
+    "presence_penalty": null,
+    "repetition_penalty": null
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/google/gemini-3.1-flash-lite-20260507/endpoints"
+   },
+   "reasoning": {
+    "mandatory": false,
+    "default_enabled": true,
+    "supported_efforts": [
+     "high",
+     "medium",
+     "low",
+     "minimal",
+     "none"
+    ],
+    "default_effort": "minimal"
+   }
+  },
+  {
+   "id": "openai/gpt-5-nano",
+   "canonical_slug": "openai/gpt-5-nano-2025-08-07",
+   "hugging_face_id": "",
+   "name": "OpenAI: GPT-5 Nano",
+   "created": 1754587402,
+   "context_length": 400000,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "GPT",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.00000005",
+    "completion": "0.0000004",
+    "web_search": "0.01",
+    "input_cache_read": "0.000000005"
+   },
+   "top_provider": {
+    "context_length": 400000,
+    "max_completion_tokens": 128000,
+    "is_moderated": true
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_completion_tokens",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "seed",
+    "structured_outputs",
+    "tool_choice",
+    "tools",
+    "verbosity"
+   ],
+   "default_parameters": {
+    "temperature": null,
+    "top_p": null,
+    "top_k": null,
+    "frequency_penalty": null,
+    "presence_penalty": null,
+    "repetition_penalty": null
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": "2024-05-31",
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/openai/gpt-5-nano-2025-08-07/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 966,
+      "win_rate": 36.3,
+      "rank": 115
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1086,
+      "win_rate": 48,
+      "rank": 104
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1057,
+      "win_rate": 46.2,
+      "rank": 106
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1048,
+      "win_rate": 46.5,
+      "rank": 109
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 1066,
+      "win_rate": 51.9,
+      "rank": 101
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1103,
+      "win_rate": 48.9,
+      "rank": 104
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": 13,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": true,
+    "supported_efforts": [
+     "high",
+     "medium",
+     "low",
+     "minimal"
+    ],
+    "default_effort": "medium"
+   }
+  },
+  {
+   "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+   "canonical_slug": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning-20260428",
+   "hugging_face_id": "nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16",
+   "name": "NVIDIA: Nemotron 3 Nano Omni (free)",
+   "created": 1777393095,
+   "context_length": 256000,
+   "architecture": {
+    "modality": "text+image+audio+video->text",
+    "input_modalities": [
+     "text",
+     "audio",
+     "image",
+     "video"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0",
+    "completion": "0"
+   },
+   "top_provider": {
+    "context_length": 256000,
+    "max_completion_tokens": 65536,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_tokens",
+    "reasoning",
+    "seed",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": null,
+    "frequency_penalty": null,
+    "presence_penalty": null,
+    "repetition_penalty": null
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning-20260428/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [],
+    "artificial_analysis": {
+     "intelligence_index": 10.3,
+     "coding_index": 13.8,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": false,
+    "default_enabled": true,
+    "supports_max_tokens": true
+   }
+  },
+  {
+   "id": "anthropic/claude-haiku-5.5:batch",
+   "canonical_slug": "anthropic/claude-haiku-5.5-20261007",
+   "hugging_face_id": null,
+   "name": "Anthropic: Claude Haiku 5.5 (batch)",
+   "created": 1791397883,
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Claude",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.00000005",
+    "completion": "0.00000025",
+    "web_search": "0.01",
+    "input_cache_read": "0.000000005",
+    "input_cache_write": "0.0000000625",
+    "input_cache_write_1h": "0.0000001",
+    "overrides": [
+     {
+      "min_prompt_tokens": 100000,
+      "prompt": "0.00000025",
+      "completion": "0.00000125",
+      "input_cache_read": "0.000000025",
+      "input_cache_write": "0.0000003125",
+      "input_cache_write_1h": "0.0000005"
+     }
+    ]
+   },
+   "top_provider": {
+    "context_length": 1000000,
+    "max_completion_tokens": 128000,
+    "is_moderated": true
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "stop",
+    "structured_outputs",
+    "tool_choice",
+    "tools",
+    "verbosity"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/anthropic/claude-haiku-5.5-20261007/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 1346,
+      "win_rate": 58.9,
+      "rank": 9
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1280,
+      "win_rate": 50,
+      "rank": 22
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1294,
+      "win_rate": 55.1,
+      "rank": 14
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1317,
+      "win_rate": 53.9,
+      "rank": 12
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 1299,
+      "win_rate": 53.2,
+      "rank": 17
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1265,
+      "win_rate": 48.5,
+      "rank": 34
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": 43.4,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": false,
+    "supported_efforts": [
+     "max",
+     "xhigh",
+     "high",
+     "medium",
+     "low",
+     "none"
+    ],
+    "default_effort": "medium"
+   }
+  },
+  {
+   "id": "meta/muse-spark-open",
+   "canonical_slug": "meta/muse-spark-open-20261015",
+   "hugging_face_id": "meta-models/Muse-Spark-Open-816B-A42B",
+   "name": "Meta: Muse Spark Open",
+   "created": 1792087069,
+   "context_length": 1048576,
+   "architecture": {
+    "modality": "text+image+file+audio+video->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "video",
+     "file",
+     "audio"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.00000125",
+    "completion": "0.00000425",
+    "input_cache_read": "0.00000015"
+   },
+   "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 943718,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "frequency_penalty",
+    "include_reasoning",
+    "logit_bias",
+    "logprobs",
+    "max_tokens",
+    "min_p",
+    "presence_penalty",
+    "reasoning",
+    "reasoning_effort",
+    "repetition_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_logprobs",
+    "top_p"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/meta/muse-spark-open-20261015/endpoints"
+   },
+   "reasoning": {
+    "mandatory": true,
+    "supported_efforts": [
+     "xhigh",
+     "high",
+     "medium",
+     "low"
+    ],
+    "default_effort": "medium"
+   }
+  },
+  {
+   "id": "google/gemma-4-26b-a4b-it:free",
+   "canonical_slug": "google/gemma-4-26b-a4b-it-20260403",
+   "hugging_face_id": "google/gemma-4-26B-A4B-it",
+   "name": "Google: Gemma 4 26B A4B  (free)",
+   "created": 1775227989,
+   "context_length": 262144,
+   "architecture": {
+    "modality": "text+image+video->text",
+    "input_modalities": [
+     "image",
+     "text",
+     "video"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Gemma",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0",
+    "completion": "0"
+   },
+   "top_provider": {
+    "context_length": 262144,
+    "max_completion_tokens": 32768,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_tokens",
+    "reasoning",
+    "response_format",
+    "seed",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": 1,
+    "top_p": 0.95,
+    "top_k": 64
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/google/gemma-4-26b-a4b-it-20260403/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [],
+    "artificial_analysis": {
+     "intelligence_index": 16.7,
+     "coding_index": 39.3,
+     "agentic_index": 2.9
+    }
+   },
+   "reasoning": {
+    "mandatory": false,
+    "default_enabled": false
+   }
+  },
+  {
+   "id": "google/gemma-4-31b-it:free",
+   "canonical_slug": "google/gemma-4-31b-it-20260402",
+   "hugging_face_id": "google/gemma-4-31B-it",
+   "name": "Google: Gemma 4 31B (free)",
+   "created": 1775148486,
+   "context_length": 262144,
+   "architecture": {
+    "modality": "text+image+video->text",
+    "input_modalities": [
+     "image",
+     "text",
+     "video"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Gemma",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0",
+    "completion": "0"
+   },
+   "top_provider": {
+    "context_length": 262144,
+    "max_completion_tokens": 32768,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_tokens",
+    "reasoning",
+    "response_format",
+    "seed",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": 1,
+    "top_p": 0.95,
+    "top_k": 64,
+    "frequency_penalty": null,
+    "presence_penalty": null,
+    "repetition_penalty": null
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/google/gemma-4-31b-it-20260402/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [],
+    "artificial_analysis": {
+     "intelligence_index": 14.7,
+     "coding_index": 43.4,
+     "agentic_index": 4.2
+    }
+   },
+   "reasoning": {
+    "mandatory": false,
+    "default_enabled": false
+   }
+  },
+  {
+   "id": "rekaai/reka-edge",
+   "canonical_slug": "rekaai/reka-edge-2603",
+   "hugging_face_id": "RekaAI/reka-edge-2603",
+   "name": "Reka Edge",
+   "created": 1774026965,
+   "context_length": 16384,
+   "architecture": {
+    "modality": "text+image+video->text",
+    "input_modalities": [
+     "image",
+     "text",
+     "video"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.0000001",
+    "completion": "0.0000001"
+   },
+   "top_provider": {
+    "context_length": 16384,
+    "max_completion_tokens": 14745,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "frequency_penalty",
+    "logprobs",
+    "max_tokens",
+    "presence_penalty",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_logprobs",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": null,
+    "top_p": null,
+    "top_k": null,
+    "frequency_penalty": null,
+    "presence_penalty": null,
+    "repetition_penalty": null
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/rekaai/reka-edge-2603/endpoints"
+   },
+   "reasoning": {
+    "mandatory": false
+   }
+  },
+  {
+   "id": "google/lyria-3-clip-preview",
+   "canonical_slug": "google/lyria-3-clip-preview-20260330",
+   "hugging_face_id": null,
+   "name": "Google: Lyria 3 Clip Preview",
+   "created": 1774907255,
+   "context_length": 1048576,
+   "architecture": {
+    "modality": "text+image->text+audio",
+    "input_modalities": [
+     "text",
+     "image"
+    ],
+    "output_modalities": [
+     "text",
+     "audio"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0",
+    "completion": "0"
+   },
+   "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 65536,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "max_tokens",
+    "response_format",
+    "seed",
+    "temperature",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": null,
+    "top_p": null,
+    "top_k": null,
+    "frequency_penalty": null,
+    "presence_penalty": null,
+    "repetition_penalty": null
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/google/lyria-3-clip-preview-20260330/endpoints"
+   }
+  },
+  {
+   "id": "openai/o1-pro",
+   "canonical_slug": "openai/o1-pro",
+   "hugging_face_id": "",
+   "name": "OpenAI: o1-pro",
+   "created": 1742423211,
+   "context_length": 200000,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "GPT",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.00015",
+    "completion": "0.0006",
+    "web_search": "0.01"
+   },
+   "top_provider": {
+    "context_length": 200000,
+    "max_completion_tokens": 100000,
+    "is_moderated": true
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_tokens",
+    "reasoning",
+    "response_format",
+    "seed",
+    "structured_outputs"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": "2023-10-31",
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/openai/o1-pro/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [],
+    "artificial_analysis": {
+     "intelligence_index": 12.4,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": true
+   }
+  },
+  {
+   "id": "~anthropic/claude-haiku-latest",
+   "canonical_slug": "~anthropic/claude-haiku-latest",
+   "alias_target": {
+    "name": "Anthropic: Claude Haiku 5.5",
+    "slug": "anthropic/claude-haiku-5.5"
+   },
+   "hugging_face_id": null,
+   "name": "Anthropic: Claude Haiku Latest",
+   "created": 1777318492,
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Router",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.0000001",
+    "completion": "0.0000005",
+    "web_search": "0.01",
+    "input_cache_read": "0.00000001",
+    "input_cache_write": "0.000000125",
+    "input_cache_write_1h": "0.0000002",
+    "overrides": [
+     {
+      "min_prompt_tokens": 100000,
+      "prompt": "0.0000005",
+      "completion": "0.0000025",
+      "input_cache_read": "0.00000005",
+      "input_cache_write": "0.000000625",
+      "input_cache_write_1h": "0.000001"
+     }
+    ]
+   },
+   "top_provider": {
+    "context_length": 1000000,
+    "max_completion_tokens": 128000,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_completion_tokens",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "stop",
+    "structured_outputs",
+    "tool_choice",
+    "tools",
+    "verbosity"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/~anthropic/claude-haiku-latest/endpoints"
+   },
+   "reasoning": {
+    "mandatory": false,
+    "supported_efforts": [
+     "max",
+     "xhigh",
+     "high",
+     "medium",
+     "low",
+     "none"
+    ],
+    "default_effort": "medium"
+   }
+  },
+  {
+   "id": "openrouter/auto",
+   "canonical_slug": "openrouter/auto",
+   "hugging_face_id": null,
+   "name": "Auto Router",
+   "created": 1699401600,
+   "context_length": 2000000,
+   "architecture": {
+    "modality": "text+image+file+audio+video->text+image",
+    "input_modalities": [
+     "text",
+     "image",
+     "audio",
+     "file",
+     "video"
+    ],
+    "output_modalities": [
+     "text",
+     "image"
+    ],
+    "tokenizer": "Router",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "-1",
+    "completion": "-1"
+   },
+   "top_provider": {
+    "context_length": null,
+    "max_completion_tokens": null,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "frequency_penalty",
+    "include_reasoning",
+    "logit_bias",
+    "logprobs",
+    "max_tokens",
+    "min_p",
+    "prediction",
+    "presence_penalty",
+    "reasoning",
+    "reasoning_effort",
+    "repetition_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_a",
+    "top_k",
+    "top_logprobs",
+    "top_p",
+    "web_search_options"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/openrouter/auto/endpoints"
+   }
+  },
+  {
+   "id": "typesafe/jev-router",
+   "canonical_slug": "typesafe/jev-router",
+   "hugging_face_id": null,
+   "name": "TypeSafe: Jev Router",
+   "created": 1790363560,
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text+image+file+audio+video->text",
+    "input_modalities": [
+     "audio",
+     "file",
+     "image",
+     "text",
+     "video"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Router",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "-1",
+    "completion": "-1"
+   },
+   "top_provider": {
+    "context_length": null,
+    "max_completion_tokens": null,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "frequency_penalty",
+    "include_reasoning",
+    "logit_bias",
+    "logprobs",
+    "max_completion_tokens",
+    "max_tokens",
+    "min_p",
+    "parallel_tool_calls",
+    "presence_penalty",
+    "reasoning",
+    "reasoning_effort",
+    "repetition_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_a",
+    "top_k",
+    "top_logprobs",
+    "top_p",
+    "verbosity"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/typesafe/jev-router/endpoints"
+   }
+  }
+ ]
+}

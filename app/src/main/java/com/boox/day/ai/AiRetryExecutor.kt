@@ -1,6 +1,8 @@
 package com.boox.day.ai
 
 import android.util.Log
+import androidx.annotation.VisibleForTesting
+import com.boox.day.api.OpenRouterAccount
 import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiRequest
 import com.boox.day.api.ai.AiResponse
@@ -11,12 +13,13 @@ import kotlin.coroutines.coroutineContext
 
 /**
  * Implements the **Rule of 3+3** for AI service calls:
- * - 3 models per modality (from server via ModelConfigProvider)
+ * - The job's models from ModelConfigProvider (the user's pick, then Boox Day's choice)
  * - 3 cycles through those models with 500ms delay between cycles
- * - User-friendly error when all 9 attempts fail
+ * - User-friendly error when all attempts fail
  *
- * This ensures maximum resilience while maintaining pure server control
- * over model selection.
+ * The user's own OpenRouter key (Oct 2026): a missing or rejected key stops at once. When
+ * OpenRouter refuses a paid model for credit, only free models are tried after it, and accounts
+ * without credit get one pass (free models allow 50 requests a day).
  */
 object AiRetryExecutor {
     private const val TAG = "AiRetryExecutor"
@@ -29,6 +32,11 @@ object AiRetryExecutor {
 
     /** User-friendly error message when all attempts fail */
     const val SERVICE_UNAVAILABLE_MESSAGE = "AI service temporarily unavailable. Please try again later."
+
+    /** Sends one request (request, promptForKey); unit tests replace it. */
+    @VisibleForTesting
+    internal var send: suspend (AiRequest, Boolean) -> AiResponse<String> =
+        { request, promptForKey -> AiClient.execute(request, promptForKey) }
 
     /**
      * Result of an AI execution with retry logic.
@@ -58,19 +66,25 @@ object AiRetryExecutor {
 
         var lastError: String? = null
         var totalAttempts = 0
+        var creditRefusal: AiResponse.Error.OutOfCredit? = null
+        // No credit: one pass, to save the free models' daily allowance
+        var cycles = if (OpenRouterAccount.isFreeOnly()) 1 else MAX_CYCLES
 
         for (cycle in 1..MAX_CYCLES) {
+            if (cycle > cycles) break
             coroutineContext.ensureActive()
-            Log.d(TAG, "Starting cycle $cycle/$MAX_CYCLES")
+            Log.d(TAG, "Starting cycle $cycle/$cycles")
 
             for ((index, model) in models.withIndex()) {
+                // After a credit refusal only free models can answer
+                if (creditRefusal != null && !OpenRouterAccount.isFreeModel(model.id)) continue
                 totalAttempts++
                 val attemptInCycle = index + 1
                 Log.d(TAG, "Cycle $cycle, attempt $attemptInCycle/${models.size}: ${model.displayName}")
 
                 val request = buildRequest(model)
 
-                when (val response = AiClient.execute(request)) {
+                when (val response = send(request, true)) {
                     is AiResponse.Success -> {
                         val result = processResponse(response, model)
                         if (result != null) {
@@ -93,12 +107,22 @@ object AiRetryExecutor {
                         Log.w(TAG, "${model.displayName} service unavailable: ${response.message}")
                         return RetryResult.Failure(response.message, response.message)
                     }
-                    // The user's own key: no key, a rejected key or no credit. No other model can help.
+                    // The user's own key: missing or rejected. No other model can help.
                     is AiResponse.Error.NoApiKey,
-                    is AiResponse.Error.KeyRejected,
-                    is AiResponse.Error.OutOfCredit -> {
+                    is AiResponse.Error.KeyRejected -> {
                         Log.w(TAG, "OpenRouter key problem: ${response.message}")
                         return RetryResult.Failure(response.message, response.message)
+                    }
+                    // Refused for credit: free models still work (before Oct 2026 this ended here,
+                    // so an account without credit never reached the free models)
+                    is AiResponse.Error.OutOfCredit -> {
+                        Log.w(TAG, "${model.displayName} refused for credit: ${response.message}")
+                        creditRefusal = response
+                        lastError = response.message
+                        if (models.none { OpenRouterAccount.isFreeModel(it.id) }) {
+                            return RetryResult.Failure(response.message, response.message)
+                        }
+                        cycles = minOf(cycles, cycle + 1)
                     }
                     is AiResponse.Error -> {
                         Log.w(TAG, "${model.displayName} error: ${response.message}")
@@ -108,14 +132,15 @@ object AiRetryExecutor {
             }
 
             // Wait between cycles (but not after the last cycle)
-            if (cycle < MAX_CYCLES) {
+            if (cycle < cycles) {
                 Log.d(TAG, "Cycle $cycle complete, waiting ${INTER_CYCLE_DELAY_MS}ms before next cycle...")
                 delay(INTER_CYCLE_DELAY_MS)
             }
         }
 
         Log.e(TAG, "All $totalAttempts attempts failed. Last error: $lastError")
-        return RetryResult.Failure(SERVICE_UNAVAILABLE_MESSAGE, lastError)
+        // A credit refusal says what to do (add credit); the free models' errors usually don't
+        return RetryResult.Failure(creditRefusal?.message ?: SERVICE_UNAVAILABLE_MESSAGE, lastError)
     }
 
     /**
@@ -130,5 +155,40 @@ object AiRetryExecutor {
             val data = response.data.trim()
             if (data.isNotBlank()) data else null
         }
+    }
+
+    /**
+     * One pass through [models] for features that handle the answer themselves (Oct 2026: voice,
+     * memo context, search indexing used a single model before): the first answer wins. A missing
+     * or rejected key stops at once; after a credit refusal only free models are tried.
+     *
+     * @return the first answer, else the credit refusal if there was one, else the last error
+     */
+    suspend fun executeWithBackup(
+        models: List<AiModel>,
+        promptForKey: Boolean = true,
+        buildRequest: (AiModel) -> AiRequest
+    ): AiResponse<String> {
+        var creditRefusal: AiResponse.Error.OutOfCredit? = null
+        var lastError: AiResponse.Error = AiResponse.Error.ApiError(null, SERVICE_UNAVAILABLE_MESSAGE)
+        for (model in models) {
+            coroutineContext.ensureActive()
+            if (creditRefusal != null && !OpenRouterAccount.isFreeModel(model.id)) continue
+            when (val response = send(buildRequest(model), promptForKey)) {
+                is AiResponse.Success -> return response
+                is AiResponse.Error.NoApiKey,
+                is AiResponse.Error.KeyRejected -> return response
+                is AiResponse.Error.OutOfCredit -> {
+                    Log.w(TAG, "${model.displayName} refused for credit: ${response.message}")
+                    creditRefusal = response
+                    lastError = response
+                }
+                is AiResponse.Error -> {
+                    Log.w(TAG, "${model.displayName} failed, trying the next model: ${response.message}")
+                    lastError = response
+                }
+            }
+        }
+        return creditRefusal ?: lastError
     }
 }
