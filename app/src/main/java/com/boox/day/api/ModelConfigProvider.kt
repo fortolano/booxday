@@ -27,13 +27,13 @@ object ModelConfigProvider {
     // The reasoning params are kept with the entries but not sent (see toReasoningConfig).
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private val GPT_5_NANO = ModelEntry(id = "openai/gpt-5-nano", reasoning = ReasoningParam(effort = "medium"))
-    private val GEMINI_31_FLASH_LITE = ModelEntry(id = "google/gemini-3.1-flash-lite")
-    private val GEMINI_3_FLASH_PREVIEW = ModelEntry(id = "google/gemini-3-flash-preview")
-    private val GEMMA_4_26B_FREE = ModelEntry(id = "google/gemma-4-26b-a4b-it:free")
-    private val GEMMA_4_31B_FREE = ModelEntry(id = "google/gemma-4-31b-it:free", reasoning = ReasoningParam(enabled = true))
-    private val NEMOTRON_3_SUPER_FREE = ModelEntry(id = "nvidia/nemotron-3-super-120b-a12b:free", reasoning = ReasoningParam(enabled = true))
-    private val NEMOTRON_3_NANO_OMNI_FREE = ModelEntry(id = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", reasoning = ReasoningParam(enabled = true))
+    private val GPT_5_NANO = ModelEntry(id = "openai/gpt-5-nano", reasoning = ReasoningParam(effort = "medium"), name = "GPT-5 Nano")
+    private val GEMINI_31_FLASH_LITE = ModelEntry(id = "google/gemini-3.1-flash-lite", name = "Gemini 3.1 Flash Lite")
+    private val GEMINI_3_FLASH_PREVIEW = ModelEntry(id = "google/gemini-3-flash-preview", name = "Gemini 3 Flash Preview")
+    private val GEMMA_4_26B_FREE = ModelEntry(id = "google/gemma-4-26b-a4b-it:free", name = "Gemma 4 26B (free)")
+    private val GEMMA_4_31B_FREE = ModelEntry(id = "google/gemma-4-31b-it:free", reasoning = ReasoningParam(enabled = true), name = "Gemma 4 31B (free)")
+    private val NEMOTRON_3_SUPER_FREE = ModelEntry(id = "nvidia/nemotron-3-super-120b-a12b:free", reasoning = ReasoningParam(enabled = true), name = "Nemotron 3 Super (free)")
+    private val NEMOTRON_3_NANO_OMNI_FREE = ModelEntry(id = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", reasoning = ReasoningParam(enabled = true), name = "Nemotron 3 Nano Omni (free)")
 
     /** With credit: the tested paid models first, free models as the last backups. */
     private val WITH_CREDIT: Map<AiJob, List<ModelEntry>> = mapOf(
@@ -72,6 +72,19 @@ object ModelConfigProvider {
     /** Boox Day's choice for [job]; [freeOnly] = the free set. */
     fun defaultChain(job: AiJob, freeOnly: Boolean): List<ModelEntry> =
         (if (freeOnly) NO_CREDIT else WITH_CREDIT).getValue(job)
+
+    /**
+     * The model a job tries first right now (AI Models card). [waitsForCredit]: the account has no
+     * credit and the job has no free model (search indexing), so it waits for credit.
+     */
+    data class InUse(val name: String, val isUserChoice: Boolean, val waitsForCredit: Boolean)
+
+    fun modelInUse(job: AiJob): InUse {
+        val first = getChain(job).first()
+        val picked = (first as? AiModel.Custom)?.userChoice == true
+        val waits = !picked && OpenRouterAccount.isFreeOnly() && !OpenRouterAccount.isFreeModel(first.id)
+        return InUse(first.displayName, picked, waits)
+    }
 
     /**
      * The user's pick for [job] as a model, or null: no pick, or one this job can't use. Always a
@@ -137,7 +150,7 @@ object ModelConfigProvider {
         AiModel.fromId(entry.id)?.let { return it }
         return AiModel.Custom(
             id = entry.id,
-            displayName = entry.id.substringAfterLast("/").substringBefore(":"),
+            displayName = entry.name.ifBlank { entry.id.substringAfterLast("/").substringBefore(":") },
             capabilities = job.capabilities,
             defaultConfig = AiConfig(temperature = job.temperature, maxTokens = job.defaultMaxTokens)
         )

@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import com.boox.day.ui.components.AiModelsCard
 import com.boox.day.ui.components.ApiKeySettingsCard
 import com.boox.day.ui.components.EInkToggle
 import com.boox.day.ui.components.ScrollableWithIndicator
@@ -46,6 +47,7 @@ import com.boox.day.ui.theme.EInkTheme
  * Contents (Oct 2026):
  * - OpenRouter key: every AI feature runs on the user's own key, so it comes first
  * - AI Features: master toggle
+ * - AI Models: the OpenRouter model each AI job uses
  * - AI Personalization: button to open AiPreferencesDialog wizard
  * - Privacy: where requests go, BYOK link
  *
@@ -165,6 +167,9 @@ fun AiSettingsDialog(
                                 )
                             }
                         }
+
+                        // Oct 2026: which OpenRouter model each AI job uses
+                        AiModelsCard(aiEnabled = aiEnabled)
 
                         // Personalization Section
                         SettingCard(

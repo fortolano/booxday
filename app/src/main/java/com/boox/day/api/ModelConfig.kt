@@ -8,7 +8,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ModelEntry(
     val id: String,
-    val reasoning: ReasoningParam? = null
+    val reasoning: ReasoningParam? = null,
+    /** Name shown to users, e.g. "Gemini 3.1 Flash Lite" (AI Models card) */
+    val name: String = ""
 ) {
     val provider: String get() = id.substringBefore("/")
     val hasReasoning: Boolean get() = reasoning?.enabled == true || reasoning?.effort != null

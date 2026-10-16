@@ -120,6 +120,21 @@ class ModelConfigProviderTest {
     }
 
     @Test
+    fun `the AI Models card shows the model each job uses first`() {
+        pick(AiJob.WRITING, AiModelChoice(id = "anthropic/claude-haiku-5.5", name = "Claude Haiku 5.5", lab = "Anthropic"))
+        assertEquals(ModelConfigProvider.InUse("GPT-5 Nano", false, false), ModelConfigProvider.modelInUse(AiJob.HANDWRITING))
+        assertEquals(ModelConfigProvider.InUse("Claude Haiku 5.5", true, false), ModelConfigProvider.modelInUse(AiJob.WRITING))
+        assertEquals("Gemini 3 Flash Preview", ModelConfigProvider.modelInUse(AiJob.PLANNING).name)
+
+        // No credit: free models by name; search indexing has none and waits
+        OpenRouterAccount.onPaidRequestRefused()
+        assertEquals(ModelConfigProvider.InUse("Nemotron 3 Nano Omni (free)", false, false), ModelConfigProvider.modelInUse(AiJob.VOICE))
+        assertEquals(ModelConfigProvider.InUse("Gemini 3.1 Flash Lite", false, true), ModelConfigProvider.modelInUse(AiJob.SEARCH_INDEXING))
+        // A pick still comes first
+        assertTrue(ModelConfigProvider.modelInUse(AiJob.WRITING).isUserChoice)
+    }
+
+    @Test
     fun `a level the model no longer offers sends nothing`() {
         val picked = ModelConfigProvider.userModel(
             AiJob.PLANNING,

@@ -1,5 +1,9 @@
 package com.boox.day.api
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.setValue
+
 /**
  * Whether the user's OpenRouter account can pay for paid models right now (Oct 2026). A normal key
  * can't read the balance (OpenRouter's credits endpoint needs a management key), so this comes from
@@ -8,6 +12,7 @@ package com.boox.day.api
  *
  * "Free only" lasts [FREE_ONLY_MS], then paid models are tried again, so credit added on the
  * website starts working without a restart. Memory only: a restart tries paid models first.
+ * Compose state, so the AI Models card shows the free models as soon as this changes.
  */
 object OpenRouterAccount {
     const val FREE_ONLY_MS = 30 * 60 * 1000L
@@ -15,8 +20,7 @@ object OpenRouterAccount {
     /** Free-model ids end in ":free" (OpenRouter's free variants) */
     fun isFreeModel(modelId: String): Boolean = modelId.endsWith(":free")
 
-    @Volatile
-    private var freeOnlyUntilMs = 0L
+    private var freeOnlyUntilMs by mutableLongStateOf(0L)
 
     /** True while paid models should be skipped: Boox Day's choice uses its free models. */
     fun isFreeOnly(nowMs: Long = System.currentTimeMillis()): Boolean = nowMs < freeOnlyUntilMs
