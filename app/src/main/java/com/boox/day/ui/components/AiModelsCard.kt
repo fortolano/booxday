@@ -2,15 +2,28 @@ package com.boox.day.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.Icon
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.boox.day.api.AiJob
 import com.boox.day.api.ModelConfigProvider
 import com.boox.day.api.OpenRouterAccount
+import com.boox.day.ui.dialogs.ModelPickerPopup
+import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 
 /** The job's name in AI Settings (Oct 2026). */
@@ -23,18 +36,31 @@ val AiJob.label: String
         AiJob.SEARCH_INDEXING -> "Search indexing"
     }
 
+/** What the job covers, at the top of its model list. */
+val AiJob.description: String
+    get() = when (this) {
+        AiJob.HANDWRITING -> "Reads your ink for Convert, Summaries, Translate and Memo to Tasks."
+        AiJob.VOICE -> "Turns your speech into text for voice notes, events, tasks and preferences."
+        AiJob.WRITING -> "Formats, summarizes and translates text, and turns memos into tasks."
+        AiJob.PLANNING -> "Task suggestions and breakdowns, planning, voice events, and linking notes to events."
+        AiJob.SEARCH_INDEXING -> "Reads pages in the background so search can find them. Only providers that keep no copy of your pages."
+    }
+
 /**
- * AI Models (Oct 2026, plan step c): which OpenRouter model each AI job uses right now, the user's
- * pick or Boox Day's choice (ModelConfigProvider). Read-only until the model list exists (step d);
- * then each row opens it. Greyed out while AI Features is off.
+ * AI Models (Oct 2026, plan steps c and d): which OpenRouter model each AI job uses right now, the
+ * user's pick or Boox Day's choice (ModelConfigProvider). Each row opens the job's model list
+ * ([ModelPickerPopup]). Greyed out, and not tappable, while AI Features is off.
  *
- * Reads Compose state (the settings and OpenRouterAccount), so a new pick or the account running
- * out of credit shows at once.
+ * Reads Compose state (the settings, OpenRouterAccount and the model list), so a new pick, the
+ * account running out of credit or a pick OpenRouter dropped shows at once.
  */
 @Composable
 fun AiModelsCard(aiEnabled: Boolean, modifier: Modifier = Modifier) {
     val textColor = if (aiEnabled) EInkTheme.Colors.primary else EInkTheme.Colors.gray
     val modelColor = if (aiEnabled) EInkTheme.Colors.darkGray else EInkTheme.Colors.gray
+    var openJob by remember { mutableStateOf<AiJob?>(null) }
+
+    openJob?.let { job -> ModelPickerPopup(job = job, onDismiss = { openJob = null }) }
 
     SettingCard(
         title = "AI Models",
@@ -57,22 +83,39 @@ fun AiModelsCard(aiEnabled: Boolean, modifier: Modifier = Modifier) {
                     inUse.isUserChoice -> "Your choice"
                     else -> "Boox Day's choice"
                 }
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = EInkTheme.Global.touchTarget),
-                    verticalArrangement = Arrangement.Center
+                        .heightIn(min = EInkTheme.Global.touchTarget)
+                        .noRippleClickable(enabled = aiEnabled) { openJob = job },
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = job.label,
-                        fontSize = EInkTheme.Typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = textColor
-                    )
-                    Text(
-                        text = "${inUse.name} · $source",
-                        fontSize = EInkTheme.Typography.bodyMedium,
-                        color = modelColor
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = job.label,
+                            fontSize = EInkTheme.Typography.bodyLarge,
+                            fontWeight = FontWeight.Medium,
+                            color = textColor
+                        )
+                        Text(
+                            text = "${inUse.name} · $source",
+                            fontSize = EInkTheme.Typography.bodyMedium,
+                            color = modelColor
+                        )
+                        inUse.unavailablePick?.let { pick ->
+                            Text(
+                                text = "$pick is no longer available, so Boox Day's choice is used.",
+                                fontSize = EInkTheme.Typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = textColor
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Choose the model for ${job.label}",
+                        tint = modelColor,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }

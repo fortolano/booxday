@@ -29,6 +29,55 @@ class ModelConfigProviderTest {
     fun tearDown() {
         GlobalAppSettings.update(savedSettings)
         OpenRouterAccount.onPaidRequestSucceeded()
+        OpenRouterModelCatalog.setSnapshotForTest(null)
+    }
+
+    /** A saved model list with just these ids, downloaded [ageMs] ago. */
+    private fun listed(vararg ids: String, allowed: List<String>? = null, ageMs: Long = 0L) {
+        OpenRouterModelCatalog.setSnapshotForTest(
+            CatalogSnapshot(
+                fetchedAtMs = System.currentTimeMillis() - ageMs,
+                models = ids.mapIndexed { i, id -> CatalogModel(id = id, name = id, lab = "", rank = i) },
+                allowedIds = allowed
+            )
+        )
+    }
+
+    @Test
+    fun `models OpenRouter no longer lists are skipped`() {
+        // Gemini 3 Flash Preview retired: planning starts with the next model
+        listed("nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", "openai/gpt-5-nano")
+        assertEquals(
+            listOf("nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free"),
+            ModelConfigProvider.getReasoningFallbackChain().map { it.id }
+        )
+        // A list older than two weeks is not trusted to say a model is gone
+        listed("openai/gpt-5-nano", ageMs = 15L * 24 * 60 * 60 * 1000)
+        assertEquals("google/gemini-3-flash-preview", ModelConfigProvider.getReasoningFallbackChain().first().id)
+    }
+
+    @Test
+    fun `models the account blocks are skipped, but never down to nothing`() {
+        listed(
+            "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", "google/gemini-3-flash-preview",
+            allowed = listOf("google/gemma-4-31b-it:free")
+        )
+        OpenRouterAccount.onPaidRequestRefused()
+        assertEquals(listOf("google/gemma-4-31b-it:free"), ModelConfigProvider.getReasoningFallbackChain().map { it.id })
+        // Nothing of Boox Day's allowed: keep the list rather than send no request at all
+        listed("x/other", allowed = listOf("x/other"))
+        assertEquals(2, ModelConfigProvider.getReasoningFallbackChain().size)
+    }
+
+    @Test
+    fun `a pick OpenRouter dropped is skipped and the card says so`() {
+        pick(AiJob.WRITING, AiModelChoice(id = "old/retired-model", name = "Retired Model"))
+        listed("openai/gpt-5-nano", "google/gemini-3.1-flash-lite", "nvidia/nemotron-3-super-120b-a12b:free")
+        assertEquals("openai/gpt-5-nano", ModelConfigProvider.getTextFallbackChain().first().id)
+        val inUse = ModelConfigProvider.modelInUse(AiJob.WRITING)
+        assertFalse(inUse.isUserChoice)
+        assertEquals("Retired Model", inUse.unavailablePick)
+        assertEquals("GPT-5 Nano", ModelConfigProvider.defaultModel(AiJob.WRITING).displayName)
     }
 
     private fun pick(job: AiJob, choice: AiModelChoice?) {

@@ -86,6 +86,8 @@ class BooxDayApp : Application() {
         applicationScope.launch(Dispatchers.IO) {
             com.boox.day.security.UserOpenRouterKey.ensureLoaded()
         }
+        // Oct 2026: OpenRouter's model list, so retired models are skipped (refreshed daily with a key)
+        com.boox.day.api.OpenRouterModelCatalog.init(this)
     }
 
     /**

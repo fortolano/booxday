@@ -63,27 +63,53 @@ object ModelConfigProvider {
     // PUBLIC API
     // ═══════════════════════════════════════════════════════════════════════════
 
-    /** Models for [job] in the order to try: the user's pick, then Boox Day's choice. */
+    /**
+     * Models for [job] in the order to try: the user's pick, then Boox Day's choice. Models that
+     * OpenRouter's recent list no longer has, or that the account's settings block, are skipped
+     * (OpenRouterModelCatalog); Boox Day's choice is never skipped down to nothing.
+     */
     fun getChain(job: AiJob): List<AiModel> {
-        val defaults = defaultChain(job, OpenRouterAccount.isFreeOnly()).map { toAiModel(it, job) }
-        return (listOfNotNull(userModel(job)) + defaults).distinctBy { it.id }
+        val pick = userModel(job)?.takeIf { isUsable(it.id) }
+        return (listOfNotNull(pick) + usableDefaults(job)).distinctBy { it.id }
+    }
+
+    private fun usableDefaults(job: AiJob): List<AiModel> {
+        val all = defaultChain(job, OpenRouterAccount.isFreeOnly())
+        return all.filter { isUsable(it.id) }.ifEmpty { all }.map { toAiModel(it, job) }
+    }
+
+    /** Listed by OpenRouter and allowed for the account, as far as the saved list knows. */
+    private fun isUsable(modelId: String): Boolean {
+        val listed = OpenRouterModelCatalog.listedIds()
+        val allowed = OpenRouterModelCatalog.allowedIds()
+        return (listed == null || modelId in listed) && (allowed == null || modelId in allowed)
     }
 
     /** Boox Day's choice for [job]; [freeOnly] = the free set. */
     fun defaultChain(job: AiJob, freeOnly: Boolean): List<ModelEntry> =
         (if (freeOnly) NO_CREDIT else WITH_CREDIT).getValue(job)
 
+    /** The first of Boox Day's models for [job] right now (the model list's pinned row). */
+    fun defaultModel(job: AiJob): AiModel = usableDefaults(job).first()
+
     /**
      * The model a job tries first right now (AI Models card). [waitsForCredit]: the account has no
      * credit and the job has no free model (search indexing), so it waits for credit.
+     * [unavailablePick]: the user's pick, when OpenRouter no longer lists it or the account blocks it.
      */
-    data class InUse(val name: String, val isUserChoice: Boolean, val waitsForCredit: Boolean)
+    data class InUse(
+        val name: String,
+        val isUserChoice: Boolean,
+        val waitsForCredit: Boolean,
+        val unavailablePick: String? = null
+    )
 
     fun modelInUse(job: AiJob): InUse {
         val first = getChain(job).first()
         val picked = (first as? AiModel.Custom)?.userChoice == true
         val waits = !picked && OpenRouterAccount.isFreeOnly() && !OpenRouterAccount.isFreeModel(first.id)
-        return InUse(first.displayName, picked, waits)
+        val unavailable = if (picked) null else userModel(job)?.displayName
+        return InUse(first.displayName, picked, waits, unavailable)
     }
 
     /**
