@@ -79,6 +79,29 @@
             </intent-filter>
         </activity>
 
+        <!-- Connect OpenRouter (Oct 2026): the return page's button opens
+             booxday-connect://openrouter?code=...&state=... Its own scheme and screen, so the
+             browser never starts a second MainActivity. -->
+        <activity
+            android:name=".OpenRouterConnectActivity"
+            android:configChanges="orientation|screenSize"
+            android:screenOrientation="portrait"
+            android:exported="true"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.Inka">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="booxday-connect"
+                    android:host="openrouter" />
+            </intent-filter>
+        </activity>
+
         <provider
             android:name="com.boox.day.editor.utils.Provider"
             android:authorities="com.boox.day.provider"

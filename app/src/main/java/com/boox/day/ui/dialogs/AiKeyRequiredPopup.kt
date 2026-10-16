@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -27,6 +26,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,10 +35,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import com.boox.day.api.OpenRouterConnect
 import com.boox.day.ui.AiKeyGate
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
+import kotlinx.coroutines.launch
 
 /** OpenRouter pages the steps link to (checked Oct 2026). */
 object OpenRouterLinks {
@@ -59,15 +61,22 @@ object OpenRouterLinks {
 
 /**
  * MainScreen's host for [AiKeyRequiredPopup]: shows it while [AiKeyGate] is open and calls
- * [onOpenAiSettings] once after Add Key. Its own composable keeps MainScreen's root lambda small.
+ * [onOpenAiSettings] once after "Paste a key instead". Connect OpenRouter opens OpenRouter's
+ * sign-in in the browser. Its own composable keeps MainScreen's root lambda small.
  */
 @Composable
 fun AiKeyGateHost(onOpenAiSettings: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val reason = AiKeyGate.openReason
     if (reason != null) {
         AiKeyRequiredPopup(
             reason = reason,
             onClose = { AiKeyGate.close() },
+            onConnect = {
+                AiKeyGate.close()
+                scope.launch { OpenRouterLinks.open(context, OpenRouterConnect.begin(context)) }
+            },
             onAddKey = { AiKeyGate.requestAddKey() }
         )
     }
@@ -78,14 +87,16 @@ fun AiKeyGateHost(onOpenAiSettings: () -> Unit) {
 }
 
 /**
- * "Add your OpenRouter key" (Oct 2026): shown when an AI feature starts without the user's own
- * key (or OpenRouter rejected it). Steps to create an account, add credit and create a key, and
- * Add Key, which opens AI Settings at the key field. MainScreen hosts it (see [AiKeyGate]).
+ * "Connect OpenRouter" (Oct 2026): shown when an AI feature starts without the user's own key (or
+ * OpenRouter rejected it). Connect OpenRouter signs in through the browser ([OpenRouterConnect]);
+ * "Paste a key instead" opens AI Settings at the key field; the steps make a key by hand.
+ * MainScreen hosts it (see [AiKeyGate]).
  */
 @Composable
 fun AiKeyRequiredPopup(
     reason: AiKeyGate.Reason,
     onClose: () -> Unit,
+    onConnect: () -> Unit,
     onAddKey: () -> Unit
 ) {
     val context = LocalContext.current
@@ -118,7 +129,7 @@ fun AiKeyRequiredPopup(
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
-                        text = "Add your OpenRouter key",
+                        text = "Connect OpenRouter",
                         fontSize = EInkTheme.PopupOverlay.titleFontSize,
                         fontWeight = FontWeight.Bold,
                         color = EInkTheme.PopupOverlay.titleColor
@@ -133,7 +144,7 @@ fun AiKeyRequiredPopup(
                 ) {
                     if (reason == AiKeyGate.Reason.KEY_REJECTED) {
                         Text(
-                            text = "OpenRouter did not accept your saved key. Check it, or create a new one.",
+                            text = "OpenRouter did not accept your saved key. Connect again, or replace it in AI Settings.",
                             fontSize = EInkTheme.Typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = EInkTheme.Colors.primary
@@ -147,22 +158,39 @@ fun AiKeyRequiredPopup(
                     )
                     OpenRouterKeySteps(
                         context = context,
-                        lastStepTitle = "Paste it here:",
-                        lastStepDetail = " tap Add Key, then Paste and Save Key."
+                        lastStepTitle = "Paste it:",
+                        lastStepDetail = " tap Paste a key instead, then Paste and Save Key."
                     )
                 }
 
-                Row(modifier = Modifier.fillMaxWidth()) {
+                // The main button is wider: "Connect OpenRouter" must fit on the Go 6 too
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
+                ) {
                     EinkSecondaryButton(
                         text = "Close",
                         onClick = onClose,
-                        modifier = Modifier.weight(0.4f)
+                        modifier = Modifier.weight(0.35f)
                     )
-                    Spacer(modifier = Modifier.weight(0.2f))
                     ActionButton(
-                        text = "Add Key",
-                        onClick = onAddKey,
-                        modifier = Modifier.weight(0.4f)
+                        text = "Connect OpenRouter",
+                        onClick = onConnect,
+                        modifier = Modifier.weight(0.65f)
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = EInkTheme.Global.touchTarget)
+                        .noRippleClickable { onAddKey() },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Paste a key instead",
+                        fontSize = EInkTheme.Typography.bodyMedium,
+                        color = EInkTheme.Colors.primary,
+                        textDecoration = TextDecoration.Underline
                     )
                 }
             }
