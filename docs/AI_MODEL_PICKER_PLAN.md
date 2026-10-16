@@ -1,9 +1,10 @@
 # AI models and OpenRouter connection: plan
 
-> Status: planned in chat with the owner, 15 Oct 2026. **Nothing is built yet.**
-> Local planning file, not committed. Line numbers were checked on 15 Oct 2026. Other agents are
-> editing some of these files, so find code by name before editing.
-> "Decided" = the owner chose it. "Proposed" = recommended, waiting for the owner's OK.
+> Status: **done, 15 Oct 2026.** All six steps (a to f) are built, checked on the Go 10.3 and
+> merged into main (last: be04817). Kept as the record of what was decided and why.
+> Line numbers were checked on 15 Oct 2026 and drift; find code by name.
+> "Decided" = the owner chose it. "Proposed" = recommended at the time; all were then built.
+> Open: a spending limit on the "Boox Day" OpenRouter key (owner, later).
 
 ---
 
