@@ -3,10 +3,10 @@ package com.boox.day.data.db
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Index
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Transaction
+import androidx.room.Upsert
 import com.boox.day.data.model.AccountType
 import com.boox.day.data.model.ConnectedAccount
 import com.boox.day.data.model.ProviderId
@@ -105,9 +105,25 @@ interface ConnectedAccountDao {
 
     /**
      * Insert or update an account.
+     *
+     * An existing id is UPDATEd in place, never REPLACEd: REPLACE deletes the row first, and
+     * calendar_selections cascade from it, so signing in again with a connected account wiped its
+     * calendar on/off choices (Oct 2026). The same email under another id is a removed (inactive)
+     * account being connected again with a new id: that old row goes first, as REPLACE did (its
+     * old choices with it); a plain upsert would hit the unique email index and then update nothing.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(account: ConnectedAccountEntity)
+    @Transaction
+    suspend fun upsert(account: ConnectedAccountEntity) {
+        deleteOtherAccountWithEmail(account.email, account.id)
+        upsertRow(account)
+    }
+
+    @Query("DELETE FROM connected_accounts WHERE email = :email AND id != :id")
+    suspend fun deleteOtherAccountWithEmail(email: String, id: String)
+
+    /** Use [upsert]. */
+    @Upsert
+    suspend fun upsertRow(account: ConnectedAccountEntity)
 
     /**
      * Soft delete - deactivate account (keeps record for reference).
