@@ -7,10 +7,9 @@ import java.util.Collections
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Index
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -140,15 +139,19 @@ interface CalendarEventDao {
     suspend fun getByDateRange(startDate: String, endDate: String): List<CalendarEvent>
 
     /**
-     * Insert or update events (upsert)
+     * Insert or update events (upsert).
+     *
+     * @Upsert updates an existing row in place. Never use REPLACE here: it deletes the old row, and
+     * boox_note_links.linkedEventId (ON DELETE SET NULL) then loses every link to the event, so each
+     * sync emptied all Boox Notes links and links set by hand never came back (Oct 2026).
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertAll(events: List<CalendarEvent>)
 
     /**
-     * Insert or update a single event
+     * Insert or update a single event (updates in place; see [upsertAll])
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(event: CalendarEvent)
 
     /**
