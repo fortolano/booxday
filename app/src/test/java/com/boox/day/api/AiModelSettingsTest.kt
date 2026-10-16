@@ -140,6 +140,34 @@ class AiModelSettingsTest {
     }
 
     @Test
+    fun `output token steps reach the model's limit and always include the recommendation`() {
+        assertEquals(
+            listOf(1_000, 2_000, 3_000, 4_000, 5_000, 6_000, 8_000, 12_000, 16_000, 24_000, 32_000, 48_000, 64_000, 65_536),
+            AiModelSettings.outputTokenSteps(modelMaxOutput = 65_536, recommended = 5_000)
+        )
+        val withTwenty = AiModelSettings.outputTokenSteps(128_000, 20_000)
+        assertTrue(20_000 in withTwenty)
+        assertEquals(withTwenty.sorted(), withTwenty)
+        assertEquals(listOf(1_000, 2_000, 3_000, 4_000, 5_000, 6_000, 8_000, 8_192), AiModelSettings.outputTokenSteps(8_192, 8_192))
+        // Limit not known: up to 128,000
+        assertEquals(128_000, AiModelSettings.outputTokenSteps(null, 4_000).last())
+        // A model that can only write 800 tokens
+        assertEquals(listOf(800), AiModelSettings.outputTokenSteps(800, 800))
+    }
+
+    @Test
+    fun `minus and plus move one step and stop at the ends`() {
+        val steps = AiModelSettings.outputTokenSteps(65_536, 5_000)
+        assertEquals(6_000, AiModelSettings.stepOutputTokens(steps, 5_000, up = true))
+        assertEquals(4_000, AiModelSettings.stepOutputTokens(steps, 5_000, up = false))
+        assertEquals(65_536, AiModelSettings.stepOutputTokens(steps, 65_536, up = true))
+        assertEquals(1_000, AiModelSettings.stepOutputTokens(steps, 1_000, up = false))
+        // A saved value between steps moves to the neighbouring steps
+        assertEquals(8_000, AiModelSettings.stepOutputTokens(steps, 7_000, up = true))
+        assertEquals(6_000, AiModelSettings.stepOutputTokens(steps, 7_000, up = false))
+    }
+
+    @Test
     fun `no level is offered twice`() {
         val repeated = ReasoningOptions(true, false, listOf("high", "high", "low"))
         val choices = AiModelSettings.reasoningChoices(repeated)

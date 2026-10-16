@@ -6,8 +6,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,8 +31,10 @@ import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,9 +46,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
@@ -48,6 +59,7 @@ import com.boox.day.api.AiJob
 import com.boox.day.api.AiModelSettings
 import com.boox.day.api.CatalogModel
 import com.boox.day.api.ModelConfigProvider
+import com.boox.day.api.OpenRouterAccount
 import com.boox.day.api.OpenRouterModelCatalog
 import com.boox.day.data.datastore.AiModelChoice
 import com.boox.day.data.datastore.GlobalAppSettings
@@ -60,6 +72,7 @@ import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.util.Locale
 
 /** The pinned row's key: Boox Day's choice (no pick saved for the job). */
 private const val BOOX_DAY_CHOICE = ""
@@ -73,9 +86,9 @@ private val FILTERS_AND_SORT_ONE_ROW = 560.dp
 /**
  * One AI job's model list (Oct 2026, plan step d), opened from the AI Models card: OpenRouter's
  * models that can do the job, with search, Show, Sort and at most 200 rows
- * ([OpenRouterModelCatalog]). Boox Day's choice is pinned first; choosing it removes the pick.
- * Use Model saves the pick with the recommended reasoning level and output tokens (the settings
- * step comes in plan step e).
+ * ([OpenRouterModelCatalog]). Boox Day's choice is pinned first; Use Model on it removes the
+ * pick. Next on a model opens its settings step ([ModelSettingsStep], plan step e), whose Use
+ * Model saves the pick.
  *
  * E-ink: Popup, no ripple, no animation, rows at least 44 dp, inverted selection.
  */
@@ -107,23 +120,11 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
     val inUseId = ModelConfigProvider.getChain(job).first().id
     val defaultName = ModelConfigProvider.defaultModel(job).displayName
 
-    fun useSelected() {
-        val chosen: CatalogModel? = if (selectedKey == BOOX_DAY_CHOICE) null
-        else snapshot?.models?.firstOrNull { it.id == selectedKey }
-        if (selectedKey != BOOX_DAY_CHOICE && chosen == null) return
-        val choice = chosen?.let {
-            AiModelChoice(
-                id = it.id,
-                name = it.name,
-                lab = it.lab,
-                reasoning = AiModelSettings.recommendedReasoning(job, it.reasoning),
-                maxOutputTokens = null, // the recommended value for the reasoning level
-                reasoningOptions = it.reasoning,
-                modelMaxOutputTokens = it.maxOutput,
-                contextLength = it.contextLength,
-                inputs = it.inputs
-            )
-        }
+    // The settings step (plan step e) for this model, or null while the list shows
+    var settingsFor by remember { mutableStateOf<CatalogModel?>(null) }
+
+    /** Saves the job's pick (null = Boox Day's choice) and closes. */
+    fun save(choice: AiModelChoice?) {
         val settings = GlobalAppSettings.current
         KvProxy(context).setAppSettings(settings.copy(aiModels = settings.aiModels.withJob(job, choice)))
         onDismiss()
@@ -162,6 +163,16 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
                         Icon(Icons.Default.Close, contentDescription = "Close", tint = EInkTheme.Colors.primary, modifier = Modifier.size(24.dp))
                     }
                 }
+                val settingsTarget = settingsFor
+                if (settingsTarget != null) {
+                    ModelSettingsStep(
+                        job = job,
+                        model = settingsTarget,
+                        saved = currentPick?.takeIf { it.id == settingsTarget.id },
+                        onBack = { settingsFor = null },
+                        onUse = { save(it) }
+                    )
+                } else {
                 Text(text = job.description, fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.darkGray)
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -293,22 +304,229 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
                     }
                 }
 
-                // ── Buttons ──
+                // ── Buttons: Boox Day's choice saves at once; a model goes to its settings ──
+                val selectedModel = snapshot?.models?.firstOrNull { it.id == selectedKey }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
                 ) {
                     EinkSecondaryButton(text = "Cancel", onClick = onDismiss, modifier = Modifier.weight(0.4f))
-                    ActionButton(
-                        text = "Use Model",
-                        enabled = selectedKey != currentKey,
-                        onClick = { useSelected() },
-                        modifier = Modifier.weight(0.6f)
-                    )
+                    if (selectedKey == BOOX_DAY_CHOICE) {
+                        ActionButton(
+                            text = "Use Model",
+                            enabled = currentKey != BOOX_DAY_CHOICE,
+                            onClick = { save(null) },
+                            modifier = Modifier.weight(0.6f)
+                        )
+                    } else {
+                        ActionButton(
+                            text = "Next",
+                            enabled = selectedModel != null,
+                            onClick = { settingsFor = selectedModel },
+                            modifier = Modifier.weight(0.6f)
+                        )
+                    }
+                }
                 }
             }
         }
     }
+}
+
+/**
+ * The settings step (Oct 2026, plan step e): reasoning effort from the model's own levels, with
+ * the job's recommended one selected, and max output tokens, which follow the level until the
+ * user sets them ([AiModelSettings]). A pick opened again starts from its saved settings.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ColumnScope.ModelSettingsStep(
+    job: AiJob,
+    model: CatalogModel,
+    saved: AiModelChoice?,
+    onBack: () -> Unit,
+    onUse: (AiModelChoice) -> Unit
+) {
+    val options = model.reasoning
+    val choices = remember(model) { AiModelSettings.reasoningChoices(options) }
+    val recommendedLevel = remember(model) { AiModelSettings.recommendedReasoning(job, options) }
+    var level by remember(model) { mutableStateOf(saved?.reasoning?.takeIf { it in choices } ?: recommendedLevel) }
+    val recommendedTokens = AiModelSettings.recommendedMaxOutputTokens(job, level, options, model.maxOutput)
+    // Set by the user: kept when the level changes; otherwise the recommendation is used
+    var userTokens by remember(model) { mutableStateOf(saved?.maxOutputTokens) }
+    val tokens = userTokens ?: recommendedTokens
+    val steps = remember(model, recommendedTokens) { AiModelSettings.outputTokenSteps(model.maxOutput, recommendedTokens) }
+
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
+    ) {
+        Text(text = model.name, fontSize = EInkTheme.Typography.titleSmall, fontWeight = FontWeight.Bold, color = EInkTheme.Colors.primary)
+        Text(text = OpenRouterModelCatalog.priceLine(model), fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.darkGray)
+        if (OpenRouterAccount.isFreeOnly() && !model.isFree) {
+            Text(
+                text = "Your account has no credit: this model won't answer until you add credit. Boox Day's free models answer meanwhile.",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = EInkTheme.Colors.primary
+            )
+        }
+
+        // ── Reasoning effort ──
+        SectionTitle("Reasoning effort")
+        when {
+            choices.isNotEmpty() -> {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall),
+                    verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
+                ) {
+                    for (choice in choices) {
+                        OptionChip(text = levelLabel(choice), selected = level == choice) { level = choice }
+                    }
+                }
+                recommendedLevel?.let {
+                    Text(
+                        text = "Recommended for ${job.label}: ${levelLabel(it)}.",
+                        fontSize = EInkTheme.Typography.bodyMedium,
+                        color = EInkTheme.Colors.darkGray
+                    )
+                }
+                Text(
+                    text = "More reasoning can help hard jobs, but it's slower and uses more tokens.",
+                    fontSize = EInkTheme.Typography.bodySmall,
+                    color = EInkTheme.Colors.darkGray
+                )
+            }
+            options.supported && options.mandatory -> Note("This model always reasons; it can't be turned off.")
+            else -> Note("This model answers without a reasoning step.")
+        }
+
+        // ── Max output tokens ──
+        SectionTitle("Max output tokens")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StepButton(Icons.Default.Remove, "Fewer tokens", enabled = tokens > steps.first()) {
+                userTokens = AiModelSettings.stepOutputTokens(steps, tokens, up = false)
+            }
+            Text(
+                text = String.format(Locale.US, "%,d", tokens),
+                fontSize = EInkTheme.Typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                color = EInkTheme.Colors.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(110.dp)
+            )
+            StepButton(Icons.Default.Add, "More tokens", enabled = tokens < steps.last()) {
+                userTokens = AiModelSettings.stepOutputTokens(steps, tokens, up = true)
+            }
+        }
+        val recommendedText = String.format(Locale.US, "%,d", recommendedTokens)
+        if (tokens != recommendedTokens) {
+            Row(
+                modifier = Modifier
+                    .heightIn(min = EInkTheme.Global.touchTarget)
+                    .noRippleClickable { userTokens = null },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Recommended: $recommendedText",
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    color = EInkTheme.Colors.primary,
+                    textDecoration = TextDecoration.Underline
+                )
+            }
+        } else {
+            Text(
+                text = "Recommended: $recommendedText. Reasoning uses part of this limit.",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.darkGray
+            )
+        }
+        if (tokens < recommendedTokens) {
+            Text(
+                text = "Lower than recommended: answers may be cut off.",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = EInkTheme.Colors.primary
+            )
+        }
+        val limits = listOfNotNull(
+            model.contextLength?.let { String.format(Locale.US, "Can read up to %,d tokens.", it) },
+            model.maxOutput?.let { String.format(Locale.US, "Can write up to %,d.", it) }
+        )
+        if (limits.isNotEmpty()) {
+            Text(text = limits.joinToString(" "), fontSize = EInkTheme.Typography.bodySmall, color = EInkTheme.Colors.darkGray)
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
+    ) {
+        EinkSecondaryButton(text = "Back", onClick = onBack, modifier = Modifier.weight(0.4f))
+        ActionButton(
+            text = "Use Model",
+            onClick = {
+                onUse(
+                    AiModelChoice(
+                        id = model.id,
+                        name = model.name,
+                        lab = model.lab,
+                        reasoning = level,
+                        // Only a value the user set; otherwise it keeps following the recommendation
+                        maxOutputTokens = userTokens?.takeIf { it != recommendedTokens },
+                        reasoningOptions = options,
+                        modelMaxOutputTokens = model.maxOutput,
+                        contextLength = model.contextLength,
+                        inputs = model.inputs
+                    )
+                )
+            },
+            modifier = Modifier.weight(0.6f)
+        )
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(text = text, fontSize = EInkTheme.Typography.bodyLarge, fontWeight = FontWeight.Bold, color = EInkTheme.Colors.primary)
+}
+
+/** A 44 dp − or + button. */
+@Composable
+private fun StepButton(icon: ImageVector, description: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(EInkTheme.Global.touchTarget)
+            .border(
+                EInkTheme.Global.borderWidth,
+                if (enabled) EInkTheme.Colors.primary else EInkTheme.Colors.lightGray,
+                RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
+            )
+            .noRippleClickable(enabled = enabled) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = if (enabled) EInkTheme.Colors.primary else EInkTheme.Colors.lightGray,
+            modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+private fun levelLabel(level: String): String = when (level) {
+    "none", AiModelSettings.OFF -> "Off"
+    AiModelSettings.ON -> "On"
+    "minimal" -> "Minimal"
+    "low" -> "Low"
+    "medium" -> "Medium"
+    "high" -> "High"
+    "xhigh" -> "Extra high"
+    "max" -> "Max"
+    else -> level.replaceFirstChar { it.titlecase(Locale.US) }
 }
 
 /** Two lines: name (and "In use"), then lab and price. Selected = black with white text. */

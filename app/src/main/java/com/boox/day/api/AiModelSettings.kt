@@ -172,4 +172,33 @@ object AiModelSettings {
         val modelLimit = modelMaxOutput?.takeIf { it > 0 } ?: Int.MAX_VALUE
         return minOf(rounded, OUTPUT_TOKENS_CAP, modelLimit)
     }
+
+    /** Lowest max output tokens offered (lower cuts most answers off) */
+    const val MIN_OUTPUT_TOKENS = 1_000
+
+    private val TOKEN_STEPS = listOf(
+        1_000, 2_000, 3_000, 4_000, 5_000, 6_000, 8_000, 12_000, 16_000, 24_000, 32_000, 48_000,
+        64_000, 96_000, 128_000, 192_000, 256_000, 384_000, 512_000, 1_000_000
+    )
+
+    /** Highest step offered when the model's own limit isn't known */
+    private const val UNKNOWN_LIMIT_STEPS_CAP = 128_000
+
+    /**
+     * The sizes − and + step through (settings step, plan step e): set sizes up to the model's own
+     * limit, the limit itself, and always [recommended], low to high.
+     */
+    fun outputTokenSteps(modelMaxOutput: Int?, recommended: Int): List<Int> {
+        val limit = modelMaxOutput?.takeIf { it > 0 }
+        val steps = TOKEN_STEPS.filter { it <= (limit ?: UNKNOWN_LIMIT_STEPS_CAP) }.toMutableList()
+        if (limit != null && limit > (steps.lastOrNull() ?: 0)) steps += limit
+        steps += recommended
+        val lowest = minOf(MIN_OUTPUT_TOKENS, limit ?: MIN_OUTPUT_TOKENS)
+        return steps.filter { it >= lowest }.distinct().sorted()
+    }
+
+    /** The next size up or down from [current] ([current] when there is none). */
+    fun stepOutputTokens(steps: List<Int>, current: Int, up: Boolean): Int =
+        if (up) steps.firstOrNull { it > current } ?: current
+        else steps.lastOrNull { it < current } ?: current
 }
