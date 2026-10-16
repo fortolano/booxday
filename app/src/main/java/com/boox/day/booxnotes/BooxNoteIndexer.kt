@@ -16,6 +16,7 @@ import com.boox.day.data.db.BooxNoteSemanticAggregate
 import com.boox.day.data.db.BooxNoteSemanticAggregateBuilder
 import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.db.CalendarEventRepository
+import com.boox.day.data.db.CooccurrenceCounts
 import com.boox.day.data.db.Kv
 import com.boox.day.data.db.KvRepository
 import com.boox.day.data.db.SmartLinkEventRepository
@@ -2318,6 +2319,7 @@ class BooxNoteIndexer(
      * @param isOnlyTimedEvent Whether this is the only timed event on the day
      * @param noteProfile Pre-loaded semantic profile for the note (optional)
      * @param eventProfile Pre-loaded semantic profile for the event (optional, will fetch on-demand)
+     * @param cooccurrenceCounts Entity co-occurrence counts, loaded once per note
      * @param cohesionBoost Pre-calculated cohesion boost from multi-note context (Phase 8)
      * @return HybridScoredMatch with score breakdown
      */
@@ -2327,6 +2329,7 @@ class BooxNoteIndexer(
         isOnlyTimedEvent: Boolean,
         noteProfile: SemanticProfile?,
         eventProfile: SemanticProfile?,
+        cooccurrenceCounts: CooccurrenceCounts,
         cohesionBoost: Float = 0f
     ): HybridScoredMatch {
         val service = getSemanticServiceForMatching()
@@ -2343,7 +2346,7 @@ class BooxNoteIndexer(
 
         // Layer 3: Entity co-occurrence boost (Phase 5 - SemanticGenius Transformation)
         val cooccurrenceBoost = if (service != null && noteProfile != null && eventProfile != null) {
-            service.calculateCooccurrenceBoost(noteProfile, eventProfile)
+            SemanticGeniusService.calculateCooccurrenceBoost(noteProfile, eventProfile, cooccurrenceCounts)
         } else {
             0f
         }
@@ -2733,6 +2736,8 @@ class BooxNoteIndexer(
         if (eligibleEvents.isEmpty()) return emptyList()
 
         val isOnlyTimedEvent = scoringMode == SmartLinkScoringMode.SAME_DAY && eligibleEvents.size == 1
+        // Read once for this note, on the first hybrid score (not once per entity pair, Oct 2026)
+        var cooccurrenceCounts: CooccurrenceCounts? = null
 
         return eligibleEvents.map { event ->
             val eventProfile = loadEventProfileForMatching(
@@ -2754,12 +2759,15 @@ class BooxNoteIndexer(
 
             val (scoredMatch, semanticAffinity) =
                 if (matchContext.noteProfile != null && eventProfile != null && service != null) {
+                    val counts = cooccurrenceCounts
+                        ?: service.loadCooccurrenceCounts().also { cooccurrenceCounts = it }
                     val hybrid = calculateHybridScore(
                         note = note,
                         event = event,
                         isOnlyTimedEvent = isOnlyTimedEvent,
                         noteProfile = matchContext.noteProfile,
                         eventProfile = eventProfile,
+                        cooccurrenceCounts = counts,
                         cohesionBoost = cohesionBoost
                     )
                     ScoredMatch(

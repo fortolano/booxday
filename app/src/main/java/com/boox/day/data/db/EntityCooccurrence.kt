@@ -87,6 +87,12 @@ interface EntityCooccurrenceDao {
     suspend fun getCooccurrence(entityA: String, entityB: String): EntityCooccurrence?
 
     /**
+     * Get every co-occurrence record, for [CooccurrenceCounts].
+     */
+    @Query("SELECT * FROM entity_cooccurrence")
+    suspend fun getAllCooccurrences(): List<EntityCooccurrence>
+
+    /**
      * Insert or update a co-occurrence record.
      * Uses Room's @Upsert for atomic insert-or-update semantics.
      *
@@ -126,4 +132,27 @@ interface EntityCooccurrenceDao {
         LIMIT :limit
     """)
     suspend fun getFrequentCooccurrences(minCount: Int, limit: Int = 50): List<EntityCooccurrence>
+}
+
+/**
+ * All co-occurrence counts in memory, read with one query.
+ *
+ * Oct 2026: Smart Link scoring used to call [EntityCooccurrenceDao.getCooccurrence] once per note
+ * entity × event entity × event (about 4,500 queries, 2.4 s, per suggestion run on a Go 10.3). It now
+ * loads these once per note.
+ */
+class CooccurrenceCounts(rows: List<EntityCooccurrence>) {
+
+    /** Keyed by (entity1, entity2), the table's primary key, so each key is one row */
+    private val counts: Map<Pair<String, String>, Int> =
+        rows.associate { (it.entity1 to it.entity2) to it.cooccurrenceCount }
+
+    val isEmpty: Boolean get() = counts.isEmpty()
+
+    /**
+     * The count of the row [EntityCooccurrenceDao.getCooccurrence] returns for these entities: row
+     * ([entityA], [entityB]), else row ([entityB], [entityA]); null when neither exists.
+     */
+    fun get(entityA: String, entityB: String): Int? =
+        counts[entityA to entityB] ?: counts[entityB to entityA]
 }

@@ -5,6 +5,7 @@ import android.util.Log
 import com.boox.day.BuildConfig
 import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.CalendarEvent
+import com.boox.day.data.db.CooccurrenceCounts
 import com.boox.day.data.db.EntityCooccurrence
 import com.boox.day.data.db.EntityCooccurrenceDao
 import com.boox.day.data.db.Kv
@@ -72,6 +73,73 @@ class SemanticGeniusService(context: Context) {
         // Entity co-occurrence weight (Phase 5 - SemanticGenius Transformation)
         // Co-occurrence can boost hybrid score by up to 15%
         const val COOCCURRENCE_WEIGHT = 0.15f
+
+        /**
+         * Calculate co-occurrence boost between two profiles.
+         * Returns boost value 0.0 to COOCCURRENCE_WEIGHT (0.15).
+         *
+         * Algorithm:
+         * 1. Extract entity texts from both profiles
+         * 2. For each cross-profile entity pair (ea from A, eb from B):
+         *    - Skip if ea == eb (direct match handled elsewhere)
+         *    - Look up co-occurrence count
+         *    - If count >= 2, calculate logarithmic boost factor
+         * 3. Average all boost factors
+         * 4. Scale by COOCCURRENCE_WEIGHT and cap at maximum
+         *
+         * Logarithmic scaling formula:
+         * factor = 1 - (1 / (1 + ln(count)))
+         *
+         * This gives:
+         * - 2 occurrences → ~0.50 factor
+         * - 4 occurrences → ~0.67 factor
+         * - 8 occurrences → ~0.75 factor
+         * - 16 occurrences → ~0.81 factor
+         *
+         * Oct 2026: takes the counts from [loadCooccurrenceCounts] instead of querying the database for
+         * every entity pair (about 4,500 queries, 2.4 s, per Smart Link suggestion run on a Go 10.3).
+         * Results are unchanged; CooccurrenceBoostTest checks them against the old code.
+         *
+         * @param profileA First semantic profile (typically note)
+         * @param profileB Second semantic profile (typically event)
+         * @param counts All co-occurrence counts, from [loadCooccurrenceCounts]
+         * @return Boost value between 0.0 and COOCCURRENCE_WEIGHT
+         */
+        fun calculateCooccurrenceBoost(
+            profileA: SemanticProfile,
+            profileB: SemanticProfile,
+            counts: CooccurrenceCounts
+        ): Float {
+            if (counts.isEmpty) return 0f  // No pair can have a count
+
+            val entitiesA = profileA.entities.map { it.text.lowercase() }.toSet()
+            val entitiesB = profileB.entities.map { it.text.lowercase() }.toSet()
+
+            if (entitiesA.isEmpty() || entitiesB.isEmpty()) return 0f
+
+            var totalBoost = 0f
+            var pairCount = 0
+
+            for (ea in entitiesA) {
+                for (eb in entitiesB) {
+                    if (ea == eb) continue  // Direct match handled elsewhere (entity overlap in affinity)
+
+                    val count = counts.get(ea, eb)
+                    if (count != null && count >= 2) {
+                        // Logarithmic scaling: 2 occurrences = 0.5x, 4 = 0.67x, 8 = 0.75x, etc.
+                        val factor = 1 - (1 / (1 + ln(count.toDouble())))
+                        totalBoost += factor.toFloat()
+                        pairCount++
+                    }
+                }
+            }
+
+            return if (pairCount > 0) {
+                ((totalBoost / pairCount) * COOCCURRENCE_WEIGHT).coerceAtMost(COOCCURRENCE_WEIGHT)
+            } else {
+                0f
+            }
+        }
 
         // Semantic version - increment to trigger reindex (bumped for full extraction unification)
         const val SEMANTIC_VERSION = 2
@@ -1558,63 +1626,11 @@ class SemanticGeniusService(context: Context) {
     }
 
     /**
-     * Calculate co-occurrence boost between two profiles.
-     * Returns boost value 0.0 to COOCCURRENCE_WEIGHT (0.15).
-     *
-     * Algorithm:
-     * 1. Extract entity texts from both profiles
-     * 2. For each cross-profile entity pair (ea from A, eb from B):
-     *    - Skip if ea == eb (direct match handled elsewhere)
-     *    - Look up co-occurrence count
-     *    - If count >= 2, calculate logarithmic boost factor
-     * 3. Average all boost factors
-     * 4. Scale by COOCCURRENCE_WEIGHT and cap at maximum
-     *
-     * Logarithmic scaling formula:
-     * factor = 1 - (1 / (1 + ln(count)))
-     *
-     * This gives:
-     * - 2 occurrences → ~0.50 factor
-     * - 4 occurrences → ~0.67 factor
-     * - 8 occurrences → ~0.75 factor
-     * - 16 occurrences → ~0.81 factor
-     *
-     * @param profileA First semantic profile (typically note)
-     * @param profileB Second semantic profile (typically event)
-     * @return Boost value between 0.0 and COOCCURRENCE_WEIGHT
+     * Load every co-occurrence count with one query, for [calculateCooccurrenceBoost] (in the
+     * companion object). Smart Link loads it once per note instead of querying once per entity pair.
      */
-    suspend fun calculateCooccurrenceBoost(
-        profileA: SemanticProfile,
-        profileB: SemanticProfile
-    ): Float {
-        val entitiesA = profileA.entities.map { it.text.lowercase() }.toSet()
-        val entitiesB = profileB.entities.map { it.text.lowercase() }.toSet()
-
-        if (entitiesA.isEmpty() || entitiesB.isEmpty()) return 0f
-
-        var totalBoost = 0f
-        var pairCount = 0
-
-        for (ea in entitiesA) {
-            for (eb in entitiesB) {
-                if (ea == eb) continue  // Direct match handled elsewhere (entity overlap in affinity)
-
-                val cooccurrence = cooccurrenceDao.getCooccurrence(ea, eb)
-                if (cooccurrence != null && cooccurrence.cooccurrenceCount >= 2) {
-                    // Logarithmic scaling: 2 occurrences = 0.5x, 4 = 0.67x, 8 = 0.75x, etc.
-                    val factor = 1 - (1 / (1 + ln(cooccurrence.cooccurrenceCount.toDouble())))
-                    totalBoost += factor.toFloat()
-                    pairCount++
-                }
-            }
-        }
-
-        return if (pairCount > 0) {
-            ((totalBoost / pairCount) * COOCCURRENCE_WEIGHT).coerceAtMost(COOCCURRENCE_WEIGHT)
-        } else {
-            0f
-        }
-    }
+    suspend fun loadCooccurrenceCounts(): CooccurrenceCounts =
+        CooccurrenceCounts(cooccurrenceDao.getAllCooccurrences())
 
     /**
      * Update source types JSON array with new source type.
