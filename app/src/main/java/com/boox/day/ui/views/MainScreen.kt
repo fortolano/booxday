@@ -2135,7 +2135,7 @@ fun MainScreen(
                         false
                     }
             ) {
-                // Jump to today (shown by the day header in the calendar area when another day is selected)
+                // Jump to today (the Today button in the top bar)
                 val goToToday: () -> Unit = {
                     selectedDate = today
                     viewingCalendar = Calendar.getInstance()
@@ -2362,17 +2362,15 @@ fun MainScreen(
                             .weight(1f - EInkTheme.EventsPanel.widthFraction)
                             .fillMaxHeight()
                     ) {
-                        // Selected day: big date, marks of that day, Today shortcut only when not on today
+                        // Selected day: big date and the marks of that day
                         SelectedDayHeader(
                             selectedDate = selectedDate,
-                            today = today,
                             datesWithBooxNotes = datesWithBooxNotes,
                             datesWithNotes = datesWithNotesSet,
                             datesWithTasks = datesWithTasks,
                             tabManager = tabManager,
                             memosPageId = currentPageId,
-                            tasksPageId = currentTaskPageId,
-                            onToday = goToToday
+                            tasksPageId = currentTaskPageId
                         )
 
                         // Weekdays header with tab indicator
@@ -7590,27 +7588,23 @@ private fun RowScope.SplitOutOfMainScreen(content: @Composable RowScope.() -> Un
 }
 
 /**
- * Day header of the calendar area: big selected date, the marks of that day, Today shortcut when needed.
+ * Day header of the calendar area: big selected date and the marks of that day (Today is in the top bar).
  */
 @Composable
 private fun SelectedDayHeader(
     selectedDate: String,
-    today: String,
     datesWithBooxNotes: Set<String>,
     datesWithNotes: Set<String>,
     datesWithTasks: Set<String>,
     tabManager: EditorTabManager,
     memosPageId: String?,
-    tasksPageId: String?,
-    onToday: () -> Unit
+    tasksPageId: String?
 ) {
     DayHeader(
         selectedDate = selectedDate,
-        today = today,
         hasBooxNotes = datesWithBooxNotes.contains(selectedDate),
         hasMemo = datesWithNotes.contains(selectedDate),
         hasTasks = datesWithTasks.contains(selectedDate),
-        onTodayClick = onToday,
         // Same signal as the toolbar's Notes button: MainScreen opens the Boox Notes dialog for the selected day
         onBooxNotesClick = { DrawCanvas.viewBooxNotes.tryEmit(Unit) },
         onMemoClick = {

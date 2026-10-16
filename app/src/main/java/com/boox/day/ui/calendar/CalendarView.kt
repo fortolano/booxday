@@ -857,7 +857,7 @@ fun MonthHeaderWithToolbar(
         Spacer(modifier = Modifier.weight(1f))
 
         // Right side: Toolbar icons with spacing. Today comes first (back on 14 Oct 2026 at the owner's
-        // request; DayHeader also shows a Today shortcut when another day is selected).
+        // request; it is the only Today button since DayHeader's shortcut was removed on 15 Oct 2026).
         if (LayoutProfiles.isNarrowScreen) {
             // Narrow screens (Go 6, Oct 2026): six buttons at full touch size, spread evenly like the
             // toolbar. All eight did not fit (search and settings went off the screen): the streak and
@@ -903,18 +903,16 @@ fun MonthHeaderWithToolbar(
 private val DAY_HEADER_HEIGHT = 50.dp
 
 /**
- * Header of the calendar area (Oct 2026, like the BOOX Calendar): the selected date in big type, the
- * marks of that day (Boox Notes, memo, tasks) and, only when the selected day is not today, a Today
- * shortcut. The marks used to sit on every day cell; a mark is shown only when the day has it.
+ * Header of the calendar area (Oct 2026, like the BOOX Calendar): the selected date in big type and the
+ * marks of that day (Boox Notes, memo, tasks). The marks used to sit on every day cell; a mark is shown
+ * only when the day has it. No Today shortcut here (15 Oct 2026): the Today button is in the top bar.
  */
 @Composable
 fun DayHeader(
     selectedDate: String,
-    today: String,
     hasBooxNotes: Boolean,
     hasMemo: Boolean,
     hasTasks: Boolean,
-    onTodayClick: () -> Unit,
     onBooxNotesClick: () -> Unit,
     onMemoClick: () -> Unit,
     onTasksClick: () -> Unit,
@@ -997,35 +995,6 @@ fun DayHeader(
                     contentDescription = null,
                     tint = EInkTheme.Colors.primary,
                     modifier = Modifier.size(22.dp)
-                )
-            }
-        }
-
-        // Today shortcut: only when another day is selected
-        if (selectedDate != today) {
-            val todayDay = remember(today) {
-                try { LocalDate.parse(today).dayOfMonth.toString() } catch (e: Exception) { "" }
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-            Box(
-                modifier = Modifier
-                    .size(width = 44.dp, height = 40.dp)
-                    .border(1.5.dp, EInkTheme.Colors.primary, RoundedCornerShape(6.dp))
-                    .noRippleClickable { onTodayClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.calendar_today_thin),
-                    contentDescription = "Go to today",
-                    modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard),
-                    tint = EInkTheme.Colors.primary
-                )
-                Text(
-                    text = todayDay,
-                    fontSize = EInkTheme.Typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = EInkTheme.Colors.primary,
-                    modifier = Modifier.padding(top = 7.dp)
                 )
             }
         }
