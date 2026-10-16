@@ -12,17 +12,34 @@ BooxDay is free and open source under the [GNU General Public License v3.0](LICE
 - Google Calendar and Outlook Calendar sync, or a calendar kept only on the tablet
 - BOOX Notes integration: see your BOOX notes on the days they were written and link them to events
 - Search across memos, tasks and notes
-- Optional AI features (voice to event or task, handwriting to text, summaries, translation, task suggestions) using your own [OpenRouter](https://openrouter.ai) key
+- Optional AI features (voice to event or task, handwriting to text, summaries, translation, task suggestions, search of handwritten pages) on your own [OpenRouter](https://openrouter.ai) account
+- Connect OpenRouter in a few taps from the app, or paste a key you already have. Without credit, AI uses OpenRouter's free models
+- Choose the AI model for each job, or leave Boox Day's choice. If your model fails, Boox Day's own model answers instead
 - Designed for e-ink: no animations, high contrast, large touch targets
+
+## Screenshots
+
+| Memos | Tasks |
+|---|---|
+| ![Memos page](docs/images/memos.png) | ![Tasks page](docs/images/tasks.png) |
+| **Task card** | **Toolbar menu** |
+| ![Task card](docs/images/task-card.png) | ![Toolbar menu](docs/images/toolbar-menu.png) |
 
 ## Requirements
 
 - An Onyx BOOX tablet running Android 10 or later. It has been tested on Boox Note Air4C, Air5C and Go 10.3, 10.3 gen II Lumi, Go 7 gen II B&W, Go 6 gen II B&W.
-- For AI features: your own OpenRouter API key, entered in Settings > AI Settings
+- For AI features: a free OpenRouter account. Connect it in Settings > AI Settings. The app has no AI key built in
 
 ## Install
 
-Download the latest APK from the [Releases](../../releases) page and install it on the tablet.
+BooxDay is free. It is not on Google Play; you install the APK file yourself.
+
+1. On the tablet, open the [Releases](../../releases) page in the browser and download the latest `booxday-x.y.z.apk` (or download it on a computer and copy it to the tablet over USB).
+2. Open the downloaded file. If Android asks, allow your browser or file manager to install unknown apps, then tap **Install**.
+3. Open BooxDay and pick your calendar (Google, Outlook or on the tablet only).
+4. Optional: for AI features, go to Settings > AI Settings and tap **Connect OpenRouter**.
+
+To update, install the newer APK over the old one. Your memos, tasks and settings are kept. Every release is signed with the same key, so updates install in place.
 
 ## Build from source
 
