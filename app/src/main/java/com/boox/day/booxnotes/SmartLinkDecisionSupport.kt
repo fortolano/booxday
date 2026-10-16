@@ -57,10 +57,22 @@ internal object SmartLinkDecisionSupport {
     /**
      * The confidence a suggestion is SHOWN with. Timing alone ("written during the event") is a
      * Possible, never a Strong: on a busy day several events fit the time, and "Link N strong…"
-     * links every Strong at once. Auto-link keeps its own thresholds (Oct 2026).
+     * links every Strong at once (Oct 2026). Auto-link uses [autoLinkConfidence].
      */
     fun suggestionConfidence(confidence: LinkConfidence, reasons: Collection<MatchReason>): LinkConfidence =
         if (confidence == LinkConfidence.HIGH && !hasContentSignal(reasons)) LinkConfidence.MEDIUM else confidence
+
+    /**
+     * The confidence the background auto-link ACTS on. Timing alone never links (LOW = saved as a
+     * suggestion): a note without page files only has its folder's last-change time, and one Boox sync
+     * once put eight unrelated notes inside a General Conference session (Oct 2026).
+     */
+    fun autoLinkConfidence(confidence: LinkConfidence, reasons: Collection<MatchReason>): LinkConfidence =
+        if ((confidence == LinkConfidence.HIGH || confidence == LinkConfidence.MEDIUM) && !hasContentSignal(reasons)) {
+            LinkConfidence.LOW
+        } else {
+            confidence
+        }
 
     fun mergeDataQualityFlags(vararg flagGroups: Collection<SmartLinkDataQualityFlag>): List<SmartLinkDataQualityFlag> {
         val merged = linkedSetOf<SmartLinkDataQualityFlag>()

@@ -78,6 +78,28 @@ class SmartLinkDecisionSupportTest {
     }
 
     @Test
+    fun `auto-link never links on timing alone`() {
+        val timingOnly = listOf(MatchReason.DURING_EVENT, MatchReason.LONG_EVENT)
+
+        assertEquals(LinkConfidence.LOW, SmartLinkDecisionSupport.autoLinkConfidence(LinkConfidence.HIGH, timingOnly))
+        assertEquals(LinkConfidence.LOW, SmartLinkDecisionSupport.autoLinkConfidence(LinkConfidence.MEDIUM, timingOnly))
+    }
+
+    @Test
+    fun `auto-link keeps strong and possible matches with a content signal`() {
+        val withTitle = listOf(MatchReason.TITLE_MATCH, MatchReason.DURING_EVENT)
+
+        assertEquals(LinkConfidence.HIGH, SmartLinkDecisionSupport.autoLinkConfidence(LinkConfidence.HIGH, withTitle))
+        assertEquals(LinkConfidence.MEDIUM, SmartLinkDecisionSupport.autoLinkConfidence(LinkConfidence.MEDIUM, withTitle))
+    }
+
+    @Test
+    fun `auto-link leaves weak and no matches unchanged`() {
+        assertEquals(LinkConfidence.LOW, SmartLinkDecisionSupport.autoLinkConfidence(LinkConfidence.LOW, emptyList()))
+        assertEquals(LinkConfidence.NONE, SmartLinkDecisionSupport.autoLinkConfidence(LinkConfidence.NONE, emptyList()))
+    }
+
+    @Test
     fun `progress moves through every step and ends at 100 percent`() {
         val steps = listOf(
             SmartLinkProgress(SmartLinkProgress.Step.READING_EVENTS, 0, 0),

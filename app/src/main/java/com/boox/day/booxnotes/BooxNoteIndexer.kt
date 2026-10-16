@@ -471,6 +471,7 @@ class BooxNoteIndexer(
         private const val KV_NEEDS_AUTOLINK = "boox_needs_autolink"
         private const val KV_PENDING_AUTOLINK_SCOPE = "boox_pending_autolink_scope"
         private const val KV_PENDING_AUTOLINK_DATES = "boox_pending_autolink_dates"
+        private const val KV_AUTOLINK_ENGINE_VERSION = "boox_autolink_engine_version"
 
         private const val PENDING_AUTOLINK_SCOPE_ALL = "all"
         private const val PENDING_AUTOLINK_SCOPE_DATES = "dates"
@@ -480,7 +481,8 @@ class BooxNoteIndexer(
 
         // Quick scan only checks notes from the last 24 hours (Boox Notes can't create notes in the past)
         const val QUICK_SCAN_WINDOW_MS = 24 * 60 * 60 * 1000L  // 24 hours
-        private const val SMART_LINK_ENGINE_VERSION = "shared_engine_v2"
+        // A new version re-runs auto-link on all notes once (fullScan). v3: timing alone never links (Oct 2026)
+        private const val SMART_LINK_ENGINE_VERSION = "shared_engine_v3"
 
         // ═══════════════════════════════════════════════════════════════════
         // ENHANCED SCORING CONSTANTS (Dec 2025)
@@ -787,8 +789,10 @@ class BooxNoteIndexer(
                 val hasDeletedNotes = deletedCount > 0
                 val hasUpdatedMatchingDates = relinkDates.isNotEmpty()
                 val eventCountChanged = currentEventCount != lastAutolinkEventCount
+                // Links made by older auto-link rules are redone once (set by autoLinkAllNotes)
+                val engineChanged = kvRepository.get(KV_AUTOLINK_ENGINE_VERSION)?.value != SMART_LINK_ENGINE_VERSION
 
-                val needsRelinking = hasUpdatedMatchingDates || hasDeletedNotes || eventCountChanged
+                val needsRelinking = hasUpdatedMatchingDates || hasDeletedNotes || eventCountChanged || engineChanged
 
                 if (needsRelinking) {
                     val reason = buildString {
@@ -796,9 +800,10 @@ class BooxNoteIndexer(
                         if (hasUpdatedMatchingDates) append("${relinkDates.size} affected note dates, ")
                         if (hasDeletedNotes) append("$deletedCount deleted notes, ")
                         if (eventCountChanged) append("event count changed ($lastAutolinkEventCount → $currentEventCount), ")
+                        if (engineChanged) append("auto-link rules changed ($SMART_LINK_ENGINE_VERSION), ")
                     }.trimEnd(',', ' ')
 
-                    if (eventCountChanged) {
+                    if (eventCountChanged || engineChanged) {
                         if (quotaManager.isBackfillComplete()) {
                             Log.d(TAG, "Notes/events changed + backfill complete — auto-linking all notes now (reason: $reason)")
                             autoLinkAllNotes()
@@ -1863,6 +1868,8 @@ class BooxNoteIndexer(
         for ((date, notes) in dateGroups) {
             autoLinkNotesForDate(date, notes)
         }
+        // Every note now has links from the current rules (fullScan checks this)
+        kvRepository.set(Kv(KV_AUTOLINK_ENGINE_VERSION, SMART_LINK_ENGINE_VERSION))
     }
 
     /**
@@ -1882,6 +1889,8 @@ class BooxNoteIndexer(
      * - MEDIUM (50-79): Auto-link but flag needsAttention for review
      * - LOW (20-49): Don't auto-link, store suggestions for user
      * - NONE (<20): Link to day only (generic note)
+     * HIGH and MEDIUM link only with a content signal (title word, topic, AI); timing alone is
+     * stored as a suggestion, like LOW (Oct 2026, see SmartLinkDecisionSupport.autoLinkConfidence).
      *
      * @param date The date to process notes for ("yyyy-MM-dd")
      * @param notes Optional list of notes (if null, fetched from repository)
@@ -1982,7 +1991,9 @@ class BooxNoteIndexer(
                 cohesionBoostCache = cohesionBoostCache
             ).map { it.scoredMatch }
 
-            // Determine linking result based on confidence
+            // Determine linking result based on confidence (timing alone never links: autoLinkConfidence)
+            val bestConfidence = scoredMatches.firstOrNull()
+                ?.let { SmartLinkDecisionSupport.autoLinkConfidence(it.confidence, it.reasons) }
             val result = when {
                 scoredMatches.isEmpty() -> {
                     // No matches - link to day only
@@ -2003,7 +2014,7 @@ class BooxNoteIndexer(
                     LinkingResult.DayLinked(date)
                 }
 
-                scoredMatches.first().confidence == LinkConfidence.HIGH -> {
+                bestConfidence == LinkConfidence.HIGH -> {
                     // HIGH confidence - auto-link silently
                     val best = scoredMatches.first()
                     noteRepository.linkNoteToEventEnhanced(
@@ -2030,7 +2041,7 @@ class BooxNoteIndexer(
                     )
                 }
 
-                scoredMatches.first().confidence == LinkConfidence.MEDIUM -> {
+                bestConfidence == LinkConfidence.MEDIUM -> {
                     // MEDIUM confidence - auto-link but flag for review
                     val best = scoredMatches.first()
                     val alternatives = scoredMatches.drop(1).take(3)  // Top 3 alternatives
@@ -2059,7 +2070,7 @@ class BooxNoteIndexer(
                 }
 
                 else -> {
-                    // LOW confidence - don't auto-link, just store suggestions
+                    // LOW confidence or timing only - don't auto-link, just store suggestions
                     val suggestions = scoredMatches.take(4)  // Top 4 suggestions
                     noteRepository.linkNoteToEventEnhanced(
                         noteId = note.uniqueId,
@@ -2075,7 +2086,8 @@ class BooxNoteIndexer(
                         engineVersion = SMART_LINK_ENGINE_VERSION,
                         dataQualityFlags = scoredMatches.first().dataQualityFlags
                     )
-                    Log.d(TAG, "SUGGESTIONS ONLY (LOW): '${note.title}' has ${suggestions.size} suggestions")
+                    val why = if (scoredMatches.first().confidence == LinkConfidence.LOW) "LOW" else "timing only"
+                    Log.d(TAG, "SUGGESTIONS ONLY ($why): '${note.title}' has ${suggestions.size} suggestions")
                     LinkingResult.NeedsAttention(suggestions)
                 }
             }
