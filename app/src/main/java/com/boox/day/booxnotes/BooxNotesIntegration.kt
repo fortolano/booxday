@@ -206,44 +206,21 @@ class BooxNotesIntegration(private val context: Context) {
     // Note Actions
     // ========================================================================
 
-    /**
-     * Open a note in the Boox Notes app.
-     *
-     * Uses the MIDDLEWARE intent which is the canonical Boox way to open notes.
-     * Since we only index notes that exist in NOTE_TREE (registered notes),
-     * MIDDLEWARE should always work.
-     *
-     * IMPORTANT: Uses Bundle + putExtras() pattern which is CRITICAL for Boox intents.
-     * Do NOT use putExtra() directly - it will fail silently.
-     *
-     * @param uniqueId The note's uniqueId to open
-     * @param title Optional title for logging (not used for opening)
-     */
+    /** Open an existing note through BOOX's direct document route, then older middleware. */
     fun openNote(uniqueId: String, title: String? = null) {
-        Log.i(TAG, "Opening note via MIDDLEWARE: $uniqueId (title: $title)")
-
-        // Build the middleware intent with note identifier
-        // CRITICAL: Must use Bundle + putExtras(), NOT individual putExtra() calls
-        val bundle = Bundle().apply {
-            putString("note_document_id", uniqueId)
-            putString("type", "note")
-        }
-
-        val intent = Intent("com.onyx.action.MIDDLEWARE").apply {
-            putExtras(bundle)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        Log.i(TAG, "Opening Boox note (title: $title)")
+        try {
+            context.startActivity(BooxNoteIntents.direct(uniqueId))
+            return
+        } catch (e: Exception) {
+            Log.w(TAG, "Direct note route unavailable; trying middleware", e)
         }
 
         try {
-            context.startActivity(intent)
-            Log.i(TAG, "✓ MIDDLEWARE intent sent successfully")
+            context.startActivity(BooxNoteIntents.middleware(uniqueId))
         } catch (e: Exception) {
-            Log.e(TAG, "✗ Failed to open note: ${e.message}", e)
-            Toast.makeText(
-                context,
-                "Could not open note in Boox Notes.",
-                Toast.LENGTH_SHORT
-            ).show()
+            Log.e(TAG, "Failed to open note", e)
+            Toast.makeText(context, "Could not open note in Boox Notes.", Toast.LENGTH_SHORT).show()
         }
     }
 

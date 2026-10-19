@@ -30,6 +30,9 @@ package com.boox.day.editor
 import com.boox.day.editor.state.TextBoxState
 
 import android.content.Context
+import android.view.MotionEvent
+import java.lang.ref.WeakReference
+import com.boox.day.compat.AndroidStylusInput
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -192,11 +195,14 @@ class DrawCanvas(
     override fun onAttachedToWindow() {
         log.d("Attached to window")
         super.onAttachedToWindow()
+        if (::touchHelper.isInitialized && observerJob?.isActive != true) registerObservers()
     }
 
     override fun onDetachedFromWindow() {
         log.d("Detached from window")
+        cancelAndroidPen()
         surfaceReady = false
+        finishStylusContact()
         // PERFORMANCE FIX: Cancel all observer coroutines when detached
         cancelObservers()
         super.onDetachedFromWindow()
@@ -245,6 +251,7 @@ class DrawCanvas(
      * Called from AndroidView.update block in MainScreen.kt when pageId changes.
      */
     fun updateState(newPage: PageView, newState: EditorState, newHistory: History) {
+        cancelAndroidPen()
         // 1PX MISMATCH FIX (RESOLVED): Sync PageView dimensions with actual SurfaceView.
         // When a tab becomes active, its PageView may have stale dimensions from when it was
         // created (before surfaceChanged fired). The active tab gets surfaceChanged, but the
@@ -346,6 +353,12 @@ class DrawCanvas(
         private val touchHelperMutex = Mutex()
         private var sharedTouchHelper: TouchHelper? = null
         private var sharedCanvasHash: Int? = null
+        private var sharedCanvas = WeakReference<DrawCanvas>(null)
+
+        fun dispatchAndroidStylusEvent(event: MotionEvent): Boolean =
+            sharedCanvas.get()?.dispatchAndroidPen(event) ?: false
+
+        fun cancelAndroidStylusInput() { sharedCanvas.get()?.cancelAndroidPen() }
         val surfaceSize = MutableStateFlow<SurfaceSize?>(null)
 
         // ⚠️ NO-TOUCH ZONE: TAB SWITCH LIMIT RECT FIX (Dec 2025)
@@ -370,7 +383,12 @@ class DrawCanvas(
                     } catch (_: Throwable) {
                     }
                 }
-                val newHelper = OnyxCompat.createTouchHelper(canvas, canvas.inputCallback)
+                sharedCanvas.get()?.cancelAndroidPen()
+                canvas.androidPenBackend = OnyxCompat.usesAndroidPenInput(canvas.context)
+                val newHelper = OnyxCompat.createTouchHelper(canvas,
+                    if (canvas.androidPenBackend) AndroidStylusInput.previewCallback else canvas.inputCallback,
+                    canvas.androidPenBackend)
+                sharedCanvas = WeakReference(canvas)
                 sharedTouchHelper = newHelper
                 sharedCanvasHash = currentHash
                 newHelper to true
@@ -455,11 +473,13 @@ class DrawCanvas(
         // 2 seconds covers brief pauses between strokes while allowing badge updates when idle.
         // DO NOT reduce below 1.5 seconds - fast writing needs protection from flush interrupts.
         // See: CLAUDE.md "Critical Bug Fixes" and memory.md section 14
+        private val stylusContact = StylusContactGuard()
         @Volatile var lastStylusActivityMs: Long = 0L
         const val PALM_REJECTION_WINDOW_MS = 2000L  // 2 seconds - DO NOT REDUCE
 
         fun isStylusRecentlyActive(): Boolean {
-            return System.currentTimeMillis() - lastStylusActivityMs < PALM_REJECTION_WINDOW_MS
+            return stylusContact.isActive ||
+                System.currentTimeMillis() - lastStylusActivityMs < PALM_REJECTION_WINDOW_MS
         }
 
         // Signal when strokes/images are added or removed (for updating calendar badges)
@@ -651,11 +671,12 @@ class DrawCanvas(
         // - erase :  `onBeginRawErasing()` -> `onRawErasingTouchPointMoveReceived()` -> `onRawErasingTouchPointListReceived()` -> `onEndRawErasing()`
 
         override fun onBeginRawDrawing(p0: Boolean, p1: TouchPoint?) {
-            lastStylusActivityMs = System.currentTimeMillis()  // Track stylus activity for palm rejection
+            beginStylusContact()
             log.i("RAW_IN[${canvasOwnerId()}]: onBeginRawDrawing p0=$p0")
         }
 
         override fun onEndRawDrawing(p0: Boolean, p1: TouchPoint?) {
+            finishStylusContact()
             log.i("RAW_IN[${canvasOwnerId()}]: onEndRawDrawing p0=$p0")
         }
 
@@ -663,6 +684,8 @@ class DrawCanvas(
         }
 
     override fun onRawDrawingTouchPointListReceived(plist: TouchPointList) {
+        // The completed list arrives before onEnd: allow its immediate persistence blit.
+        finishStylusContact()
         // - pen : `onBeginRawDrawing()` -> `onRawDrawingTouchPointMoveReceived()` -> `onRawDrawingTouchPointListReceived()` -> `onEndRawDrawing()`
 
         if (PERF_LOGS) log.i("RAW_IN[${canvasOwnerId()}]: onRawDrawingTouchPointListReceived - isDrawing=${state.isDrawing}, inputBlocked=${isCanvasInputBlockedByOverlay()}, eventsOverlayExpanded=${eventsOverlayExpanded.value}")
@@ -840,6 +863,7 @@ class DrawCanvas(
 
         // Handle button/eraser tip of the pen:
         override fun onBeginRawErasing(p0: Boolean, p1: TouchPoint?) {
+            beginStylusContact()
             // Phase 4 (Oct 2026): no prepareForPartialUpdate() here any more. It switched the view
             // to A2 and EPD turbo 100 on every erase, but nothing switched them back
             // (restoreDefaults only resets the display scheme) — a likely cause of ghosting after
@@ -848,12 +872,15 @@ class DrawCanvas(
         }
 
         override fun onEndRawErasing(p0: Boolean, p1: TouchPoint?) {
+            finishStylusContact()
+            isErasing = false
             // Phase 6 (Oct 2026): the unused OpenGL eraser renderer is gone; its setting was on by
             // default, so the display scheme reset after erasing stays exactly as it was.
             restoreDefaults(this@DrawCanvas)
         }
 
         override fun onRawErasingTouchPointListReceived(plist: TouchPointList?) {
+            finishStylusContact()
             // GUARD: Block eraser input when drawing is disabled (text box selected, etc.)
             if (!state.isDrawing) {
                 log.d("Blocking eraser input - drawing disabled")
@@ -948,6 +975,75 @@ class DrawCanvas(
     }
 
     private lateinit var touchHelper: TouchHelper
+    private var androidPenBackend = false
+    private val androidPenInput by lazy {
+        AndroidStylusInput(inputCallback, { pressure }) { action, point, normalizedPressure, erasing ->
+            // Use the SDK's pressure-aware EPD commands synchronously. Its AppTouchRender
+            // queues MotionEvent references on Rx; Android may recycle those before use.
+            when (action) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (erasing) touchHelper.setStrokeStyle(penToStroke(Pen.MARKER))
+                        .setStrokeWidth(30f).setStrokeColor(Color.GRAY)
+                    val width = when {
+                        erasing -> 30f
+                        state.mode == Mode.Select -> 4f
+                        state.mode == Mode.Erase -> if (state.eraser == Eraser.PEN) 30f else 3f
+                        else -> state.penSettings[state.pen.penName]!!.strokeSize * page.zoomLevel.value
+                    }
+                    EpdController.moveTo(this, point!!.x, point.y, width, normalizedPressure)
+                }
+                MotionEvent.ACTION_MOVE -> EpdController.quadTo(this, point!!.x, point.y,
+                    com.onyx.android.sdk.api.device.epd.UpdateMode.DU, normalizedPressure)
+                MotionEvent.ACTION_UP -> EpdController.penUp()
+                MotionEvent.ACTION_CANCEL -> {
+                    EpdController.penUp()
+                    // Drop transient ink on palm cancellation, focus loss or a lost UP.
+                    if (surfaceReady && sharedCanvasHash == hashCode()) drawCanvasToView(null)
+                }
+            }
+        }
+    }
+
+    private fun cancelAndroidPen() {
+        if (!androidPenBackend || !androidPenInput.isCaptured) return
+        androidPenInput.cancel()
+        finishStylusContact()
+        if (::touchHelper.isInitialized && sharedCanvasHash == hashCode()) updatePenAndStroke()
+    }
+
+    private fun dispatchAndroidPen(event: MotionEvent): Boolean {
+        if (!androidPenBackend || !::touchHelper.isInitialized) return false
+        val wasCaptured = androidPenInput.isCaptured
+        if (!isAttachedToWindow || !hasWindowFocus() || !surfaceReady || surfaceSetupInProgress ||
+            !rawDrawingOpened || !touchHelper.isRawDrawingInputEnabled || !state.isDrawing ||
+            memoModeChanged.value != isMemosCanvas || isCanvasInputBlockedByOverlay() ||
+            isStartupRawDrawingCaptureBlocked()) {
+            cancelAndroidPen()
+            return wasCaptured
+        }
+        val location = IntArray(2)
+        getLocationInWindow(location)
+        val local = MotionEvent.obtain(event)
+        try {
+            local.offsetLocation(-location[0].toFloat(), -location[1].toFloat())
+            val toolbar = if (state.hasInternalToolbar && state.isToolbarOpen)
+                convertDpToPixel(40.dp, context).toInt() else 0
+            val left = if (isMemosCanvas) 0 else convertDpToPixel(TASKS_CONTROL_COLUMN_WIDTH, context).toInt()
+            val top = if (GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top) toolbar else 0
+            val bottom = if (top == 0) height - toolbar else height
+            val bounds = Rect(left, top, width, bottom)
+            val visible = Rect()
+            if (!getLocalVisibleRect(visible) || !bounds.intersect(visible)) {
+                cancelAndroidPen()
+                return wasCaptured
+            }
+            val handled = androidPenInput.onTouchEvent(local, bounds)
+            if (handled && !androidPenInput.isCaptured) {
+                updatePenAndStroke()
+            }
+            return handled
+        } finally { local.recycle() }
+    }
 
     /**
      * Ensures this canvas is holding the currently owned TouchHelper.
@@ -984,6 +1080,17 @@ class DrawCanvas(
     private var lastKnownMemoMode: Boolean? = null
     @Volatile private var deferredStartupRawDrawingOpen = false
     private var deferredStartupRawDrawingJob: Job? = null
+
+    private fun beginStylusContact() {
+        stylusContact.begin(canvasOwnerId())
+        lastStylusActivityMs = System.currentTimeMillis()
+    }
+
+    private fun finishStylusContact() {
+        if (stylusContact.end(canvasOwnerId())) {
+            lastStylusActivityMs = System.currentTimeMillis()
+        }
+    }
 
     // Unique identifier for raw drawing ownership logs
     private fun canvasOwnerId(): String {
@@ -1091,7 +1198,7 @@ class DrawCanvas(
                         page.syncToSurfaceSize(currentWidth, currentHeight)
                     }
                     // set up the drawing surface
-                    updateActiveSurface()
+                    updateActiveSurface(force = true)
                     // Restore the correct stroke size and style.
                     updatePenAndStroke()
                 }
@@ -1100,6 +1207,7 @@ class DrawCanvas(
                     holder: SurfaceHolder, format: Int, width: Int, height: Int
                 ) {
                     val sizeChanged = page.viewWidth != width || page.viewHeight != height
+                    if (sizeChanged) cancelAndroidPen()
                     surfaceSize.value = SurfaceSize(width, height)
                     page.syncToSurfaceSize(width, height)
                     if (!sizeChanged) {
@@ -1107,17 +1215,19 @@ class DrawCanvas(
                     }
 
                     // Update page dimensions, redraw and refresh
-                    updateActiveSurface()
+                    updateActiveSurface(force = true)
                     onSurfaceChanged(this@DrawCanvas)
                 }
 
                 override fun surfaceDestroyed(holder: SurfaceHolder) {
+                    finishStylusContact()
                     val canvasName = if (isMemosCanvas) "Memos" else "Tasks"
                     surfaceReady = false
                     if (::touchHelper.isInitialized && PERF_LOGS) {
                         log.i("TOUCH_TRACE[$canvasName]: surfaceDestroyed - hashCode=${this@DrawCanvas.hashCode()}, touchHelper=${touchHelper.hashCode()}, rawDrawingOpened=$rawDrawingOpened")
                     }
-                    holder.removeCallback(this)
+                    // Keep the callback registered for surface recreation (resize/app return).
+                    cancelAndroidPen()
                     // CRITICAL FIX: Always close raw drawing for THIS canvas's TouchHelper
                     // Previously checked referencedSurfaceView which is a global variable that
                     // gets overwritten by whichever canvas created its TouchHelper last.
@@ -1185,7 +1295,9 @@ class DrawCanvas(
                 // Use selectedTextBoxIdForDraw (non-Compose) for reliable reading outside Compose
                 val ignoredTextAnnotationIds = TextBoxState.globalSelectedTextBoxId?.let { listOf(it) } ?: emptyList()
                 page.drawAreaScreenCoordinates(zoneToRedraw, ignoredTextAnnotationIds = ignoredTextAnnotationIds)
-                launch(Dispatchers.Default) {
+                // Finish each reset before collecting the next one. Launching child jobs here
+                // let page loads overlap close/open calls with surface and tab activation.
+                withContext(Dispatchers.Main.immediate) {
                     if (dirtyRectangle.isNull()) {
                         // ⚠️ NO-TOUCH ZONE: E-INK SPARKLE/GHOSTING FIX (Jan 2026)
                         // ═══════════════════════════════════════════════════════════════════════
@@ -1210,60 +1322,72 @@ class DrawCanvas(
                         // See: CLAUDE.md NO-TOUCH zones, memory.md 12.8, AGENTS.md
                         // ═══════════════════════════════════════════════════════════════════════
                         if (rawDrawingOpened) {
-                            log.i("SPARKLE_FIX: forceUpdate full page - close/open cycle for framebuffer refresh")
-                            // Part 1: Close current raw drawing session
-                            touchHelper.setRawDrawingEnabled(false)
-                            touchHelper.closeRawDrawing()
-                            rawDrawingOpened = false
+                            withRawDrawingOwner("forceUpdate-full") {
+                                // A queued refresh must not take ownership from another active tab.
+                                if (!surfaceReady || memoModeChanged.value != isMemosCanvas) {
+                                    return@withRawDrawingOwner
+                                }
+                                log.i("SPARKLE_FIX: forceUpdate full page - close/open cycle for framebuffer refresh")
+                                // Part 1: Close current raw drawing session
+                                if (rawDrawingOpened) {
+                                    touchHelper.setRawDrawingEnabled(false)
+                                    touchHelper.closeRawDrawing()
+                                    rawDrawingOpened = false
+                                }
 
-                            // Part 2: Blit clean bitmap and wait for Compose/EPD
-                            drawCanvasToView(null)
-                            // CRITICAL: Use Main thread for delay to ensure Compose finishes recomposition
-                            // The old delay on Default didn't yield to Main, causing race with TasksControlColumn
-                            withContext(Dispatchers.Main) {
-                                delay(100)  // Allow Compose to finish + EPD sync - DO NOT REDUCE
-                            }
+                                // Part 2: Blit clean bitmap and wait for Compose/EPD
+                                drawCanvasToView(null)
+                                // CRITICAL: Use Main thread for delay to ensure Compose finishes recomposition
+                                // The old delay on Default didn't yield to Main, causing race with TasksControlColumn
+                                withContext(Dispatchers.Main) {
+                                    delay(100)  // Allow Compose to finish + EPD sync - DO NOT REDUCE
+                                }
 
-                            // Part 2.5: Set limit rect BEFORE reopening (LIMIT_RECT_FIX Jan 2026)
-                            // ═══════════════════════════════════════════════════════════════════════
-                            // BUG FIX: The Onyx SDK only applies limit rect at openRawDrawing() time.
-                            // Without this, after page navigation/creation, the SDK reuses whatever
-                            // cached limit rect exists from previous sessions. If that was from Tasks
-                            // (with 152dp control column exclusion), strokes in the left 152dp of
-                            // Memos canvas won't render.
-                            //
-                            // This replicates the limit rect calculation from reactivateRawDrawing().
-                            // ═══════════════════════════════════════════════════════════════════════
-                            val viewWidth = this@DrawCanvas.width
-                            val viewHeight = this@DrawCanvas.height
-                            val toolbarHeight = if (state.hasInternalToolbar && state.isToolbarOpen)
-                                convertDpToPixel(40.dp, context).toInt() else 0
-                            val screenWidth = context.resources.displayMetrics.widthPixels
-                            val excludeRect = if (GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top) {
-                                Rect(0, 0, screenWidth, toolbarHeight)
-                            } else {
-                                Rect(0, viewHeight - toolbarHeight, screenWidth, viewHeight)
-                            }
-                            val controlWidthPx = convertDpToPixel(TASKS_CONTROL_COLUMN_WIDTH, context).toInt()
-                            val limitRect = if (GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top) {
-                                if (!isMemosCanvas) Rect(controlWidthPx, toolbarHeight, viewWidth, viewHeight)
-                                else Rect(0, toolbarHeight, viewWidth, viewHeight)
-                            } else {
-                                if (!isMemosCanvas) Rect(controlWidthPx, 0, viewWidth, viewHeight - toolbarHeight)
-                                else Rect(0, 0, viewWidth, viewHeight - toolbarHeight)
-                            }
-                            val canvasName = if (isMemosCanvas) "Memos" else "Tasks"
-                            log.i("LIMIT_RECT_FIX[$canvasName]: forceUpdate setting limitRect=$limitRect before openRawDrawing")
-                            touchHelper.setLimitRect(mutableListOf(limitRect)).setExcludeRect(listOf(excludeRect))
+                                // Part 2.5: Set limit rect BEFORE reopening (LIMIT_RECT_FIX Jan 2026)
+                                // ═══════════════════════════════════════════════════════════════════════
+                                // BUG FIX: The Onyx SDK only applies limit rect at openRawDrawing() time.
+                                // Without this, after page navigation/creation, the SDK reuses whatever
+                                // cached limit rect exists from previous sessions. If that was from Tasks
+                                // (with 152dp control column exclusion), strokes in the left 152dp of
+                                // Memos canvas won't render.
+                                //
+                                // This replicates the limit rect calculation from reactivateRawDrawing().
+                                // ═══════════════════════════════════════════════════════════════════════
+                                val viewWidth = this@DrawCanvas.width
+                                val viewHeight = this@DrawCanvas.height
+                                val toolbarHeight = if (state.hasInternalToolbar && state.isToolbarOpen)
+                                    convertDpToPixel(40.dp, context).toInt() else 0
+                                val screenWidth = context.resources.displayMetrics.widthPixels
+                                val excludeRect = if (GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top) {
+                                    Rect(0, 0, screenWidth, toolbarHeight)
+                                } else {
+                                    Rect(0, viewHeight - toolbarHeight, screenWidth, viewHeight)
+                                }
+                                val controlWidthPx = convertDpToPixel(TASKS_CONTROL_COLUMN_WIDTH, context).toInt()
+                                val limitRect = if (GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top) {
+                                    if (!isMemosCanvas) Rect(controlWidthPx, toolbarHeight, viewWidth, viewHeight)
+                                    else Rect(0, toolbarHeight, viewWidth, viewHeight)
+                                } else {
+                                    if (!isMemosCanvas) Rect(controlWidthPx, 0, viewWidth, viewHeight - toolbarHeight)
+                                    else Rect(0, 0, viewWidth, viewHeight - toolbarHeight)
+                                }
+                                val canvasName = if (isMemosCanvas) "Memos" else "Tasks"
+                                log.i("LIMIT_RECT_FIX[$canvasName]: forceUpdate setting limitRect=$limitRect before openRawDrawing")
+                                touchHelper.setLimitRect(mutableListOf(limitRect)).setExcludeRect(listOf(excludeRect))
 
-                            // Part 3: Reopen raw drawing to capture fresh framebuffer
-                            touchHelper.openRawDrawing()
-                            rawDrawingOpened = true
-                            // OVERLAY_FIX: Keep SDK lifecycle (open) but don't enable input when overlay is blocking
-                            if (!isCanvasInputBlockedByOverlay()) {
-                                touchHelper.setRawDrawingEnabled(true)
-                            } else {
-                                log.i("OVERLAY_FIX[$canvasName]: forceUpdate opened raw drawing but leaving disabled - blocking overlay is open")
+                                // Part 3: Reopen raw drawing to capture fresh framebuffer
+                                touchHelper.openRawDrawing()
+                                rawDrawingOpened = true
+                                // A fresh SDK session needs the same style setup as normal activation.
+                                updatePenAndStroke()
+                                log.i("PAGE_RESET: reopened page=${page.currentPageId} mode=${state.mode} pen=${state.pen.penName} onMain=${Looper.getMainLooper().isCurrentThread}")
+                                // OVERLAY_FIX: Keep SDK lifecycle (open) but don't enable input when overlay is blocking
+                                if (state.isDrawing && memoModeChanged.value == isMemosCanvas &&
+                                    !isCanvasInputBlockedByOverlay()) {
+                                    touchHelper.setRawDrawingEnabled(true)
+                                } else {
+                                    log.i("OVERLAY_FIX[$canvasName]: forceUpdate opened raw drawing but leaving disabled - blocking overlay is open")
+                                }
                             }
                         } else {
                             refreshUiSuspend()
@@ -1688,10 +1812,11 @@ class DrawCanvas(
                 )
             }
             strokeHistoryBatch.clear()
-            // Refresh view after committing strokes (helps with undo visibility)
-            // Only refresh when there are actual strokes to commit - avoids redundant
-            // refresh after scribble-to-erase which already refreshed via partialRefreshRegionOnce()
-            drawCanvasToView(null)
+            // History changes no pixels. The completed stroke already blitted immediately.
+            // Its delayed history commit must not post a full surface over the next live stroke.
+            if (!stylusContact.isActive) {
+                drawCanvasToView(null)
+            }
         }
     }
 
@@ -1719,7 +1844,7 @@ class DrawCanvas(
         // FIX: Skip resetScreenFreeze() if stylus is actively drawing
         // This prevents the "flick" caused by refreshUiImmediately replay or other refresh triggers
         // interrupting active drawing with isRawDrawingRenderEnabled toggle.
-        if (drawingInProgress.isLocked) {
+        if (stylusContact.isActive || drawingInProgress.isLocked) {
             log.i("FLICK_FIX: Skipping resetScreenFreeze() in refreshUi - stylus actively drawing")
             return
         }
@@ -2179,7 +2304,9 @@ class DrawCanvas(
         }
     }
 
-    fun updateActiveSurface() {
+    private var surfaceUpdatePending = false
+
+    fun updateActiveSurface(force: Boolean = false) {
         if (startupInitializationFailed || StartupDiagnostics.hasFatalFailure()) {
             return
         }
@@ -2188,6 +2315,7 @@ class DrawCanvas(
         if (PERF_LOGS) log.i("PERF: updateActiveSurface called at $now")
 
         if (surfaceUpdateInProgress) {
+            if (force) surfaceUpdatePending = true
             if (PERF_LOGS) log.i("PERF: updateActiveSurface SKIPPED (already in progress)")
             return
         }
@@ -2196,7 +2324,7 @@ class DrawCanvas(
         // If surfaceReady is false, we MUST keep trying - don't debounce.
         // This fixes a race where observer fires before surfaceCreated, sets surfaceReady=false,
         // and then surfaceCreated call gets debounced, leaving surface stuck uninitialized.
-        if (surfaceReady && now - lastSurfaceUpdateCompletionTime < 200) {
+        if (!force && surfaceReady && now - lastSurfaceUpdateCompletionTime < 200) {
             if (PERF_LOGS) log.i("PERF: updateActiveSurface DEBOUNCED (last completed ${now - lastSurfaceUpdateCompletionTime}ms ago)")
             return
         }
@@ -2301,6 +2429,10 @@ class DrawCanvas(
                 surfaceSetupInProgress = false
                 lastSurfaceUpdateCompletionTime = System.currentTimeMillis()
                 surfaceUpdateInProgress = false
+                if (surfaceUpdatePending) {
+                    surfaceUpdatePending = false
+                    post { if (isAttachedToWindow) updateActiveSurface(force = true) }
+                }
             }
         }
     }

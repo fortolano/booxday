@@ -58,7 +58,7 @@ BooxDay is free. It is not on Google Play, so you install it from an APK file. T
 
 ## Build from source
 
-Requirements: JDK 17 and the Android SDK (compile SDK 36).
+Requirements: JDK 17 or 21 and the Android SDK (compile SDK 36). Android 16 unit tests require JDK 21 (Robolectric 4.16).
 
 ```bash
 ./gradlew assembleDebug

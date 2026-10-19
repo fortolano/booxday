@@ -1217,6 +1217,19 @@ fun MainScreen(
     var showDayQuickView by remember { mutableStateOf(false) }
     var quickViewDate by remember { mutableStateOf<String?>(null) }
     var quickViewData by remember { mutableStateOf<DayQuickViewData?>(null) }
+
+    fun openQuickViewList(tab: String) {
+        val date = quickViewData?.date ?: return
+        selectedDate = date
+        selectedEventsTab = tab
+        if (isCompactLayout) {
+            compactEventsListDate = date
+            showCompactEventsPopup = true
+        } else {
+            isEventsExpanded = true
+        }
+        showDayQuickView = false
+    }
     // Tasks page navigation (plan §13.4, Oct 2026): the quota check and the page lookup or
     // creation run off the main thread; the result is applied only if the day hasn't changed.
     // Break down one task from its task card (plan T3): same steps as the Daily Summary entry —
@@ -6016,17 +6029,8 @@ fun MainScreen(
         if (showDayQuickView && quickViewData != null) {
             DayQuickViewPopup(
                 data = quickViewData!!,
-                onNavigateToEvents = {
-                    // Select the date and switch to Events tab
-                    selectedDate = quickViewData!!.date
-                    selectedEventsTab = "events"
-                    showDayQuickView = false
-                },
-                onNavigateToTasksDue = {
-                    selectedDate = quickViewData!!.date
-                    selectedEventsTab = "due"
-                    showDayQuickView = false
-                },
+                onNavigateToEvents = { openQuickViewList("events") },
+                onNavigateToTasksDue = { openQuickViewList("due") },
                 onOpenBooxNote = { uniqueId, title ->
                     // Open the note in Boox Notes app (pass title for diagnostic logging)
                     booxNotesIntegration.openNote(uniqueId, title)

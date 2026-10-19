@@ -11,8 +11,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven {
-            url "http://repo.boox.com/repository/maven-public/"
-            allowInsecureProtocol = true
+            url "https://repo.boox.com/repository/maven-public/"
         }
         maven { url "https://jitpack.io" }
         maven {url "https://maven.ghostscript.com"}

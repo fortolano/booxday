@@ -161,7 +161,13 @@ android {
             excludes += 'META-INF/notice.txt'
         }
         jniLibs {
-            pickFirsts += ['**/*.so']
+            // BOOX's SDK includes a link-time INPUT script, not a loadable runtime library.
+            // Match OnyxPenDemo: keep libc++_shared.so and exclude this linker-only file.
+            excludes += ['**/libc++.so']
+            // The migrated wrappers load neopen_jni. The old bundled neo_pen is
+            // unused and has 4 KB ELF alignment; retain it in source for rollback only.
+            excludes += ['**/libneo_pen.so']
+            pickFirsts += ['**/libc++_shared.so']
         }
     }
     namespace 'com.boox.day'
@@ -194,16 +200,16 @@ dependencies {
     // implementation 'androidx.fragment:fragment-ktx:1.8.9'
 
     //implementation fileTree(dir: 'libs', include: ['*.aar'])
-    implementation('com.onyx.android.sdk:onyxsdk-device:1.3.1.3') {
+    implementation('com.onyx.android.sdk:onyxsdk-device:1.3.6') {
         exclude group: 'com.android.support', module: 'support-compat'
     }
-    // newest: 1.5.0.4, can't update, as onyxsdk-geometry is not available.
-    implementation('com.onyx.android.sdk:onyxsdk-pen:1.4.12.1') {
+    // Same native pen stack as Ink Lab; keep the brush wrappers and JNI version together.
+    implementation('com.onyx.android.sdk:onyxsdk-pen:1.5.8') {
         exclude group: 'com.android.support', module: 'support-compat'
         exclude group: 'com.android.support', module: 'appcompat-v7'
     }
 
-    implementation('com.onyx.android.sdk:onyxsdk-base:1.8.2.1') {
+    implementation('com.onyx.android.sdk:onyxsdk-base:1.8.9') {
         exclude group: 'com.android.support', module: 'support-compat'
         exclude group: 'com.android.support', module: 'appcompat-v7'
     }

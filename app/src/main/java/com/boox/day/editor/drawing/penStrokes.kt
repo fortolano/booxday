@@ -14,17 +14,18 @@ import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.db.Stroke
 import com.boox.day.data.db.StrokePoint
 import com.boox.day.data.model.SimplePointF
-import com.boox.day.editor.pressure
+import com.boox.day.compat.TouchPressureRange
 import com.boox.day.editor.utils.Pen
 import com.boox.day.editor.utils.offsetStroke
 import com.boox.day.editor.utils.pointsToPath
 import com.boox.day.editor.utils.strokeToTouchPoints
 import com.onyx.android.sdk.data.note.ShapeCreateArgs
 import com.onyx.android.sdk.data.note.TouchPoint
-import com.onyx.android.sdk.pen.NeoBrushPen
-import com.onyx.android.sdk.pen.NeoCharcoalPen
-import com.onyx.android.sdk.pen.NeoFountainPen
-import com.onyx.android.sdk.pen.NeoMarkerPen
+import com.onyx.android.sdk.pen.PenRenderArgs
+import com.onyx.android.sdk.pen.NeoBrushPenWrapper
+import com.onyx.android.sdk.pen.NeoCharcoalPenWrapper
+import com.onyx.android.sdk.pen.NeoFountainPenWrapper
+import com.onyx.android.sdk.pen.NeoMarkerPenWrapper
 import com.boox.day.utils.TaggedLog
 import kotlin.math.abs
 import kotlin.math.cos
@@ -116,7 +117,7 @@ fun drawMarkerStroke(
 }
 
 fun drawFountainPenStroke(
-    canvas: Canvas, paint: Paint, strokeSize: Float, points: List<TouchPoint>
+    canvas: Canvas, paint: Paint, strokeSize: Float, points: List<TouchPoint>, maxPressure: Float
 ) {
     val copyPaint = Paint(paint).apply {
         this.strokeWidth = strokeSize
@@ -141,7 +142,7 @@ fun drawFountainPenStroke(
         // Pressure-based stroke width: ranges from 60% to 100% of strokeSize
         // based on stylus pressure (0 to maxPressure)
         // Higher minimum (60%) keeps strokes closer to selected thickness
-        val pressureRatio = (point.pressure / pressure).coerceIn(0f, 1f)
+        val pressureRatio = (point.pressure / maxPressure).coerceIn(0f, 1f)
         val minWidthFactor = 0.6f
         val widthFactor = minWidthFactor + (1f - minWidthFactor) * pressureRatio
         copyPaint.strokeWidth = strokeSize * widthFactor
@@ -165,7 +166,21 @@ fun drawStroke(canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: In
     // a page redraw; notable ecb263cc17)
     val points = strokeToTouchPoints(if (offset == Offset.Zero) stroke else offsetStroke(stroke, offset))
 
-    // Trying to find what throws error when drawing quickly
+    if (points.isEmpty()) return
+    val maxPressure = TouchPressureRange.resolve(stroke.maxPressure.toFloat())
+    // SDK wrappers mutate their input. strokeToTouchPoints creates fresh objects,
+    // so redraw/export can never normalize the canonical saved points in place.
+    if (points.size == 1) {
+        val point = points.single()
+        val ratio = (point.pressure / maxPressure).coerceIn(0f, 1f)
+        val width = if (stroke.pen in listOf(Pen.BRUSH, Pen.FOUNTAIN, Pen.PENCIL))
+            stroke.size * (0.6f + 0.4f * ratio) else stroke.size
+        if (stroke.pen == Pen.MARKER && !GlobalAppSettings.current.neoTools) paint.alpha = 100
+        canvas.drawCircle(point.x, point.y, width / 2f, paint)
+        return
+    }
+
+    // Preserve each saved pen type and the optional non-native marker/fountain renderers.
     try {
         when (stroke.pen) {
             Pen.BALLPEN -> drawBallPenStroke(canvas, paint, stroke.size, points)
@@ -174,39 +189,34 @@ fun drawStroke(canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: In
             Pen.BLUEBALLPEN -> drawBallPenStroke(canvas, paint, stroke.size, points)
             // TODO: this functions for drawing are slow and unreliable
             // replace them with something better
-            Pen.PENCIL -> NeoCharcoalPen.drawNormalStroke(
-                null,
-                canvas,
-                paint,
-                points,
-                stroke.color,
-                stroke.size,
-                ShapeCreateArgs(),
-                Matrix(),
-                false
+            Pen.PENCIL -> NeoCharcoalPenWrapper.drawNormalStroke(
+                PenRenderArgs().setCanvas(canvas).setPaint(paint).setPoints(points)
+                    .setColor(paint.color).setStrokeWidth(stroke.size)
+                    .setCreateArgs(ShapeCreateArgs().setMaxPressure(maxPressure))
+                    .setScreenMatrix(Matrix()).setRenderMatrix(Matrix()).setErase(false)
             )
 
-            Pen.BRUSH -> NeoBrushPen.drawStroke(canvas, paint, points, stroke.size, pressure, false)
+            Pen.BRUSH -> NeoBrushPenWrapper.drawStroke(canvas, paint, points, stroke.size, maxPressure, false)
             Pen.MARKER -> {
                 if (GlobalAppSettings.current.neoTools)
-                    NeoMarkerPen.drawStroke(canvas, paint, points, stroke.size, false)
+                    NeoMarkerPenWrapper.drawStroke(canvas, paint, points, stroke.size, false)
                 else
                     drawMarkerStroke(canvas, paint, stroke.size, points)
             }
 
             Pen.FOUNTAIN -> {
                 if (GlobalAppSettings.current.neoTools)
-                    NeoFountainPen.drawStroke(
+                    NeoFountainPenWrapper.drawStroke(
                         canvas,
                         paint,
                         points,
                         1f,
                         stroke.size,
-                        pressure,
+                        maxPressure,
                         false
                     )
                 else
-                    drawFountainPenStroke(canvas, paint, stroke.size, points)
+                    drawFountainPenStroke(canvas, paint, stroke.size, points, maxPressure)
             }
 
 

@@ -143,27 +143,30 @@ fun handleScribbleToErase(
 fun handleErase(
     page: PageView, history: History, points: List<SimplePointF>, eraser: Eraser
 ): Rect? {
-    val paint = Paint().apply {
-        this.strokeWidth = 30f
-        this.style = Paint.Style.STROKE
-        this.strokeCap = Paint.Cap.ROUND
-        this.strokeJoin = Paint.Join.ROUND
-        this.isAntiAlias = true
-    }
-    val path = pointsToPath(points)
-    var outPath = Path()
-
-    if (eraser == Eraser.SELECT) {
-        path.close()
-        outPath = path
-    }
-
-
+    if (points.isEmpty()) return null
     if (eraser == Eraser.PEN) {
-        paint.getFillPath(path, outPath)
+        // Raw preview is 30 screen pixels wide; clipping operates in page coordinates.
+        val cutter = PreciseEraser(points, 15f / page.zoomLevel.value)
+        val originals = mutableListOf<Stroke>()
+        val fragments = mutableListOf<Stroke>()
+        page.strokes.forEach { stroke ->
+            cutter.cut(stroke)?.let { remaining ->
+                originals.add(stroke)
+                fragments.addAll(remaining)
+            }
+        }
+        if (originals.isEmpty()) return null
+        page.replaceStrokes(originals.map { it.id }, fragments)
+        history.addOperationsToHistory(listOf(
+            Operation.ReplaceStrokes(page.currentPageId, fragments, originals)
+        ))
+        val affectedArea = page.toScreenCoordinates(strokeBounds(originals))
+        page.drawAreaScreenCoordinates(screenArea = affectedArea)
+        return affectedArea
     }
-
-    val deletedStrokes = selectStrokesFromPath(page.strokes, outPath)
+    // The separate Stroke Eraser keeps its existing enclosed-stroke selection behavior.
+    val path = pointsToPath(points).apply { close() }
+    val deletedStrokes = selectStrokesFromPath(page.strokes, path)
 
     val deletedStrokeIds = deletedStrokes.map { it.id }
     if (deletedStrokes.isEmpty()) return null

@@ -255,12 +255,16 @@ fun Router() {
 
         logRouter.i("PERF: Splash pre-loading COMPLETE (${System.currentTimeMillis() - startTime}ms)")
         if (shouldWaitForCanvasHandoff) {
-            // Swap to a plain white handoff cover so the first raw-drawing refresh is less visible.
+            // Native drawing can freeze normal UI posting on some BOOX firmware.
+            // Remove the cover and let the app submit its UI before permitting raw drawing;
+            // otherwise a white cover can remain visible even while the pen works (#1).
             showSplashBranding = false
+            showSplash = false
             withFrameNanos { }
+            withFrameNanos { }
+            logRouter.i("STARTUP_FRAME: splash removed before native drawing activation")
 
-            // Give the active canvas a brief chance to finish its first raw-drawing open
-            // while the plain white handoff cover is still visible.
+            // Retain the existing raw-drawing settle delay and bounded readiness wait.
             DrawCanvas.notifySplashDismissed()
             val canvasReady = DrawCanvas.awaitStartupCanvasReady(STARTUP_CANVAS_HANDOFF_TIMEOUT_MS)
             if (!canvasReady) {

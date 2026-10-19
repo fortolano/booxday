@@ -22,7 +22,7 @@ import org.robolectric.annotation.Config
  * Runs on the JVM (Robolectric) against the real Room database and DAOs.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(sdk = [35, 36], application = Application::class)
 class ConnectedAccountSelectionSurvivalTest {
 
     private lateinit var db: AppDatabase

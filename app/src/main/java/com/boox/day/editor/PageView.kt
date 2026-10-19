@@ -434,6 +434,27 @@ class PageView(
         DrawCanvas.contentChanged.tryEmit(Unit)
     }
 
+    /** Preserve surviving ink atomically when erasing, including Undo and Redo. */
+    fun replaceStrokes(sourceIds: List<String>, replacements: List<Stroke>) {
+        val pageId = currentPageId
+        require(replacements.all { it.pageId == pageId })
+        if (PagePersistenceGate.isDeleting(pageId)) return
+        PageDataManager.replaceStrokes(pageId, sourceIds, replacements)
+        PagePersistenceWriter.submit("replace erased strokes on $pageId") {
+            PagePersistenceGate.withWrite(pageId) {
+                if (appRepository.pageRepository.getById(pageId) != null) {
+                    dbStrokes.replaceOnPage(pageId, sourceIds, replacements)
+                }
+            }
+        }
+        PageDataManager.indexStrokes(coroutineScope, pageId)
+        PageDataManager.recomputeHeight(pageId)
+        persistPageUpdatedAt()
+        persistBitmapDebounced()
+        PageDataManager.invalidatePreviewCache(pageId)
+        DrawCanvas.contentChanged.tryEmit(Unit)
+    }
+
     fun getStrokes(strokeIds: List<String>): List<Stroke?> {
         return PageDataManager.getStrokes(strokeIds, currentPageId)
     }

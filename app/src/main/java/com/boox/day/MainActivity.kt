@@ -51,6 +51,7 @@ import com.boox.day.ui.views.StartupFailureScreen
 import com.boox.day.ui.views.hasFilePermission
 import com.boox.day.tips.TipsService
 import android.util.Log
+import android.view.MotionEvent
 import com.boox.day.utils.TaggedLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -348,7 +349,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (!DrawCanvas.dispatchAndroidStylusEvent(event)) return super.dispatchTouchEvent(event)
+        if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_POINTER_DOWN) {
+            // A palm may already have started a Compose gesture before the pen arrived.
+            val cancel = MotionEvent.obtain(event)
+            try { cancel.action = MotionEvent.ACTION_CANCEL; super.dispatchTouchEvent(cancel) }
+            finally { cancel.recycle() }
+        }
+        return true
+    }
+
     override fun onPause() {
+        DrawCanvas.cancelAndroidStylusInput()
         super.onPause()
 
         // BATTERY FIX: Stop tips timer when app goes to background
@@ -371,6 +384,7 @@ class MainActivity : ComponentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         Log.d(TAG, "OnWindowFocusChanged: $hasFocus")
         super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) DrawCanvas.cancelAndroidStylusInput()
         if (hasFocus) {
             enableFullScreen()
         }
@@ -386,6 +400,7 @@ class MainActivity : ComponentActivity() {
     // when the screen orientation is changed, set new screen width restart is not necessary,
     // as we need first to update page dimensions which is done in EditorView()
     override fun onConfigurationChanged(newConfig: Configuration) {
+        DrawCanvas.cancelAndroidStylusInput()
         super.onConfigurationChanged(newConfig)
         if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             Log.i(TAG, "Switched to Landscape")

@@ -7,6 +7,7 @@ import com.onyx.android.sdk.api.device.epd.EpdController
 import com.onyx.android.sdk.pen.RawInputCallback
 import com.onyx.android.sdk.pen.TouchHelper
 import com.onyx.android.sdk.rx.RxManager
+import com.onyx.android.sdk.utils.DeviceFeatureUtil
 
 object OnyxCompat {
     private const val TAG = "OnyxCompat"
@@ -39,14 +40,24 @@ object OnyxCompat {
 
     fun getMaxTouchPressureOrDefault(defaultValue: Float = DEFAULT_MAX_PRESSURE): Float {
         return try {
-            EpdController.getMaxTouchPressure()
+            val reported = EpdController.getMaxTouchPressure()
+            val resolved = TouchPressureRange.resolve(reported, defaultValue)
+            if (reported != resolved) Log.w(TAG, "Invalid vendor pressure range; using fallback")
+            resolved
         } catch (t: Throwable) {
             Log.w(TAG, "Falling back to default touch pressure", t)
-            defaultValue
+            TouchPressureRange.resolve(Float.NaN, defaultValue)
         }
     }
 
-    fun createTouchHelper(view: SurfaceView, callback: RawInputCallback): TouchHelper {
-        return TouchHelper.create(view, callback)
+    fun usesAndroidPenInput(context: Context): Boolean = !DeviceFeatureUtil.hasStylus(context)
+
+    fun createTouchHelper(view: SurfaceView, callback: RawInputCallback, androidPen: Boolean): TouchHelper {
+        // The SDK detector identifies its direct raw-reader devices, not all pen hardware.
+        // Unrecognized/active pens use actual Android stylus events via APP_PEN, never finger input.
+        val feature = if (androidPen) TouchHelper.FEATURE_APP_PEN_TOUCH_RENDER
+            else TouchHelper.FEATURE_SF_TOUCH_RENDER
+        Log.i(TAG, "Creating BOOX pen backend: " + if (androidPen) "Android pen / EPD" else "SurfaceFlinger")
+        return TouchHelper.create(view, feature, callback)
     }
 }

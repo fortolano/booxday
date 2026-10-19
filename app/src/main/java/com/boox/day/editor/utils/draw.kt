@@ -5,7 +5,7 @@ import com.boox.day.TAG
 import com.boox.day.data.db.Stroke
 import com.boox.day.data.db.StrokePoint
 import com.boox.day.editor.PageView
-import com.onyx.android.sdk.api.device.epd.EpdController
+import com.boox.day.editor.pressure
 import android.util.Log
 
 
@@ -34,7 +34,7 @@ fun handleDraw(
             right = boundingBox.right,
             points = touchPoints,
             color = color,
-            maxPressure = try { EpdController.getMaxTouchPressure().toInt() } catch (e: Exception) { 4095 }
+            maxPressure = pressure.toInt().coerceAtLeast(1)
         )
         page.addStrokes(listOf(stroke))
         // this is causing lagging and crushing, neo pens are not good

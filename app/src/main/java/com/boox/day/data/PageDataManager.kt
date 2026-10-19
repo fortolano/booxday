@@ -150,9 +150,10 @@ object PageDataManager {
     // Unlike bitmapCache (which stores mutable active bitmaps), this cache
     // stores immutable previews that are COPIED to the active bitmap on use.
 
-    private const val PREVIEW_CACHE_MAX_ENTRIES = 8  // ~80MB max (8 × 10MB bitmaps)
+    private val previewCacheBytes = BitmapMemoryBudget.previewBytes(Runtime.getRuntime().maxMemory())
+    private val pageCacheBytes = BitmapMemoryBudget.pageCacheBytes(Runtime.getRuntime().maxMemory())
 
-    private val previewCache = object : android.util.LruCache<String, Bitmap>(PREVIEW_CACHE_MAX_ENTRIES) {
+    private val previewCache = object : android.util.LruCache<String, Bitmap>(previewCacheBytes) {
         override fun entryRemoved(evicted: Boolean, key: String?, oldValue: Bitmap?, newValue: Bitmap?) {
             // Recycle evicted bitmaps to free memory immediately
             if (evicted && oldValue != null && !oldValue.isRecycled) {
@@ -162,8 +163,8 @@ object PageDataManager {
         }
 
         override fun sizeOf(key: String?, value: Bitmap?): Int {
-            // Count each bitmap as 1 entry (size is uniform)
-            return 1
+            // Full-resolution pages vary greatly between Go 6 and Note Max class displays.
+            return value?.allocationByteCount ?: 0
         }
     }
     private val previewCacheLock = Any()
@@ -246,6 +247,10 @@ object PageDataManager {
     fun putPreviewBitmap(pageId: String, bitmap: Bitmap) {
         if (bitmap.isRecycled) {
             log.w("PREVIEW_CACHE: Attempted to cache recycled bitmap for $pageId")
+            return
+        }
+        if (bitmap.allocationByteCount > previewCacheBytes) {
+            log.d("PREVIEW_CACHE: Page exceeds optional preview budget; loading it on demand")
             return
         }
         synchronized(previewCacheLock) {
@@ -419,7 +424,9 @@ object PageDataManager {
     }
 
     private fun evictIfNeeded() {
-        while (bitmapCache.size > MAX_CACHE_ENTRIES) {
+        while (bitmapCache.size > MAX_CACHE_ENTRIES || bitmapCache.values.sumOf {
+                if (it.bitmap.isRecycled) 0L else it.bitmap.allocationByteCount.toLong()
+            } > pageCacheBytes) {
             // Find oldest non-protected entry (LinkedHashMap maintains insertion/access order)
             val victim = bitmapCache.entries.firstOrNull { (key, _) ->
                 !protectedPages.contains(key.pageId)
@@ -1392,6 +1399,15 @@ object PageDataManager {
             val newStrokes = strokesToAdd.filter { presentIds.add(it.id) }
             list.addAll(newStrokes)
             newStrokes.forEach { map[it.id] = it }
+        }
+    }
+
+    /** Replace erased ink and its lookup entries under the same cache lock. */
+    fun replaceStrokes(pageId: String, sourceIds: List<String>, replacements: List<Stroke>) {
+        require(replacements.all { it.pageId == pageId })
+        synchronized(accessLock) {
+            removeStrokes(sourceIds, pageId)
+            appendStrokes(pageId, replacements)
         }
     }
 

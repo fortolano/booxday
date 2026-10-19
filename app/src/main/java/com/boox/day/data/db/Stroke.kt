@@ -101,6 +101,14 @@ interface StrokeDao {
         ids.chunked(SQLITE_ID_CHUNK_SIZE).forEach { deleteChunkOnPage(pageId, it) }
     }
 
+    /** Eraser edits and their undo/redo are one transaction, scoped to the active page. */
+    @Transaction
+    fun replaceOnPage(pageId: String, sourceIds: List<String>, replacements: List<Stroke>) {
+        require(replacements.all { it.pageId == pageId })
+        deleteByIdsOnPage(pageId, sourceIds)
+        create(replacements)
+    }
+
     /**
      * Atomically migrate strokes: delete source strokes and create new ones.
      * This ensures that a crash during migration doesn't leave data in an

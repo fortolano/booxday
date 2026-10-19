@@ -83,7 +83,7 @@ fun strokeToTouchPoints(stroke: Stroke): List<TouchPoint> {
             stroke.size,
             it.tiltX ?: 0,
             it.tiltY ?: 0,
-            stroke.updatedAt.time
+            stroke.createdAt.time + (it.dt?.toLong() ?: 0L)
         )
     }
 }

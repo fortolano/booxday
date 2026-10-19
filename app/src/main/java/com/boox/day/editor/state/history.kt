@@ -19,6 +19,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 
 sealed class Operation {
+    data class ReplaceStrokes(val pageId: String, val remove: List<Stroke>, val add: List<Stroke>) : Operation()
     data class DeleteStroke(val strokeIds: List<String>) : Operation()
     data class AddStroke(val strokes: List<Stroke>) : Operation()
     data class AddImage(val images: List<Image>) : Operation()
@@ -101,6 +102,13 @@ class History(pageView: PageView) {
 
     private fun treatOperation(operation: Operation): Pair<Operation, Rect> {
         when (operation) {
+            is Operation.ReplaceStrokes -> {
+                // History may outlive a day switch; never apply a replacement on another page.
+                if (operation.pageId != pageModel.currentPageId) return operation to Rect()
+                pageModel.replaceStrokes(operation.remove.map { it.id }, operation.add)
+                return Operation.ReplaceStrokes(operation.pageId, operation.add, operation.remove) to
+                    strokeBounds(operation.remove + operation.add)
+            }
             is Operation.AddStroke -> {
                 pageModel.addStrokes(operation.strokes)
                 return Operation.DeleteStroke(strokeIds = operation.strokes.map { it.id }) to strokeBounds(
