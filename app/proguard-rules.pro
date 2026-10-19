@@ -303,3 +303,23 @@
 -keep class com.google.api.services.drive.** { *; }
 -dontwarn com.google.api.client.extensions.android.**
 -dontwarn com.google.api.client.googleapis.**
+
+# SDK 1.5.8 optional references retained by the SDK-wide keep rule above.
+# Boox Day does not use the SDK Wi-Fi UI, fastjson 1.x compatibility,
+# Apache LDAP hostname parsing or Kerberos/SPNEGO authentication.
+# Keep these scoped to R8's reported classes; never suppress all missing classes.
+-dontwarn com.alibaba.fastjson.JSONArray
+-dontwarn com.alibaba.fastjson.JSONObject
+-dontwarn com.onyx.android.sdk.BR
+-dontwarn javax.naming.InvalidNameException
+-dontwarn javax.naming.NamingException
+-dontwarn javax.naming.directory.Attribute
+-dontwarn javax.naming.directory.Attributes
+-dontwarn javax.naming.ldap.LdapName
+-dontwarn javax.naming.ldap.Rdn
+-dontwarn org.ietf.jgss.GSSContext
+-dontwarn org.ietf.jgss.GSSCredential
+-dontwarn org.ietf.jgss.GSSException
+-dontwarn org.ietf.jgss.GSSManager
+-dontwarn org.ietf.jgss.GSSName
+-dontwarn org.ietf.jgss.Oid
