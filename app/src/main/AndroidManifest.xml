@@ -102,6 +102,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Read-only tasks feed for launchers and other apps (see share/TasksFeedProvider.kt). -->
+        <provider
+            android:name="com.boox.day.share.TasksFeedProvider"
+            android:authorities="com.boox.day.tasks"
+            android:exported="true" />
+
         <provider
             android:name="com.boox.day.editor.utils.Provider"
             android:authorities="com.boox.day.provider"
