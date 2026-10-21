@@ -49,6 +49,7 @@ class BooxDayApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.boox.day.share.TasksFeedNotifier.start(this, applicationScope)
         PerfProbe.install(this)  // TEMPORARY: MainScreen JIT measurement
         if (!runFatalStartupStep(
                 stage = StartupStage.HIDDEN_API,
