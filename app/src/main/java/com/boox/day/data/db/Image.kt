@@ -73,6 +73,10 @@ interface ImageDao {
     @Query("SELECT EXISTS(SELECT 1 FROM image WHERE pageId = :pageId LIMIT 1)")
     fun hasImagesForPage(pageId: String): Boolean
 
+    /** Lowest image edge on the page in canvas pixels, null when it has none (full screen memo OCR, Oct 2026). */
+    @Query("SELECT MAX(y + height) FROM image WHERE pageId = :pageId")
+    fun maxBottomForPage(pageId: String): Int?
+
     @Query("DELETE FROM image WHERE pageId = :pageId")
     fun deleteAllForPage(pageId: String)
 

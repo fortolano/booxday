@@ -8,6 +8,7 @@ import com.boox.day.data.db.DayPageRepository
 import com.boox.day.data.db.PageRepository
 import com.boox.day.data.ensurePreviewsFullFolder
 import com.boox.day.editor.utils.loadPersistBitmap
+import com.boox.day.io.ExportEngine
 import com.boox.day.ocr.model.OcrSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,12 +36,23 @@ class MemoBitmapSource(
 
     companion object {
         private const val TAG = "MemoBitmapSource"
+
+        /** Ink ending this close under the saved bitmap is a stroke at the edge, not content below. */
+        private const val BELOW_BITMAP_MARGIN_PX = 12f
+
+        /**
+         * Full screen (Oct 2026): ink or images written low on a page in full screen are not in a
+         * bitmap saved from the normal view. True when the page's content reaches below the bitmap.
+         */
+        fun contentBelowBitmap(contentBottom: Float, bitmapHeight: Int): Boolean =
+            contentBottom > bitmapHeight + BELOW_BITMAP_MARGIN_PX
     }
 
     override val sourceType: OcrSource = OcrSource.MEMO
 
     private val db by lazy { AppDatabase.getDatabase(context) }
     private val strokeDao by lazy { db.strokeDao() }
+    private val imageDao by lazy { db.ImageDao() }
     private val textAnnotationDao by lazy { db.textAnnotationDao() }
 
     /**
@@ -83,6 +95,21 @@ class MemoBitmapSource(
             }
 
             Log.d(TAG, "Loaded memo bitmap $pageId: ${bitmap.width}x${bitmap.height}")
+
+            // Content below the saved bitmap (written in full screen, saved from the normal view):
+            // read the whole page from the database so search finds all of it
+            val contentBottom = maxOf(
+                strokeDao.maxBottomForPage(pageId) ?: 0f,
+                (imageDao.maxBottomForPage(pageId) ?: 0).toFloat()
+            )
+            if (contentBelowBitmap(contentBottom, bitmap.height)) {
+                val wholePage = ExportEngine(context).renderBitmapForPagePublic(pageId)
+                if (wholePage != null) {
+                    Log.d(TAG, "Memo $pageId has content below its saved bitmap: using the whole page ${wholePage.width}x${wholePage.height}")
+                    bitmap.recycle()
+                    return@withContext wholePage
+                }
+            }
             bitmap
 
         } catch (e: Exception) {

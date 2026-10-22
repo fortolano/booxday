@@ -11,6 +11,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloseFullscreen
+import androidx.compose.material.icons.filled.OpenInFull
 import com.boox.day.ui.theme.LayoutProfiles
 import android.Manifest
 import android.content.ClipboardManager
@@ -112,6 +114,7 @@ import com.boox.day.editor.drawing.TableBitmapGenerator
 import com.boox.day.editor.drawing.RichTextConverter
 import com.boox.day.data.model.RichTextSpanSerializer
 import com.boox.day.ui.noRippleClickable
+import com.boox.day.ui.FullScreenState
 import com.boox.day.ui.dialogs.VoiceInputDialog
 import com.boox.day.ui.dialogs.VoiceTextResultDialog
 import com.boox.day.ui.dialogs.VoiceTextAction
@@ -2081,6 +2084,13 @@ fun SharedToolbar(
                     pageNav()
                 }
 
+                // Full screen switch, just before ≡ (Oct 2026, FullScreenButton.kt); in ≡ when the compact
+                // bar has no room for it
+                if (compactFit.fullScreen) {
+                    ToolbarGap(toolGap)
+                    FullScreenToolbarButton()
+                }
+
                 // Toolbar menu (≡) at the end of both bars (Oct 2026; replaces "…", which opened a row of
                 // icons and a second menu): the tools above, with labels, then the page items
                 ToolbarGap(toolGap)
@@ -2269,8 +2279,8 @@ private fun MenuIcon(iconId: Int, tint: Color, size: Dp = Dp.Unspecified) {
 /**
  * The tools that are not on the bar at this width, listed in the toolbar menu (≡) in bar order (Oct
  * 2026). Compact bar: Memos — insert, AI, meeting notes; Tasks — task AI, Boox Notes; plus whatever
- * [compactToolbarFit] left off. Regular bar: [regularToolbarOverflow] (Go 10.3 at 385 dpi: Memos —
- * meeting notes; Tasks — none). Kept out of [SharedToolbar], which is at ART's JIT method-size limit
+ * [compactToolbarFit] left off (full screen on the Go 6). Regular bar: [regularToolbarOverflow] (Go 10.3 at
+ * 385 dpi: Memos — meeting notes, insert; Tasks — task AI). Kept out of [SharedToolbar], which is at ART's JIT method-size limit
  * (above it, ART runs the whole toolbar composable interpreted).
  */
 private fun toolbarMenuTools(
@@ -2453,6 +2463,26 @@ private fun toolbarMenuTools(
             page = { closeMenu -> BooxNotesMenuItems(onDone = closeMenu) }
         ))
     }
+    // Full screen (Oct 2026): here when the compact bar has no room for its button (Go 6)
+    if (isCompactToolbar && !compactFit.fullScreen) {
+        val isOn = FullScreenState.isOn
+        add(ToolbarMenuTool(
+            label = when {
+                isOn -> "Normal view"
+                isMemosTab && FullScreenState.memoHasMoreBelow -> "Full screen (more below)"
+                else -> "Full screen"
+            },
+            icon = { tint ->
+                Icon(
+                    imageVector = if (isOn) Icons.Filled.CloseFullscreen else Icons.Filled.OpenInFull,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    tint = tint
+                )
+            },
+            onClick = { FullScreenState.toggle() }
+        ))
+    }
 }
 
 /** Gap between neighbouring controls on the compact bar, so a finger tap never lands on two. */
@@ -2465,18 +2495,21 @@ private data class CompactToolbarFit(
     /** Boox Notes (Memos) / task actions (Tasks) */
     val second: Boolean,
     /** Pen size & color */
-    val penSettings: Boolean
+    val penSettings: Boolean,
+    /** Full screen switch (Oct 2026) */
+    val fullScreen: Boolean
 ) {
     companion object {
-        val ALL = CompactToolbarFit(first = true, second = true, penSettings = true)
+        val ALL = CompactToolbarFit(first = true, second = true, penSettings = true, fullScreen = true)
     }
 }
 
 /**
  * Fits the compact bar to [barWidth]: tabs, pen, eraser, page navigation, undo, redo and the menu (≡) always
- * stay at their full touch sizes. The optional tools are placed by priority — pen size & color, then
- * Boox Notes / task actions, then lasso / quick add — each one that still fits takes its place, so a
- * gap left by a wide tool is used by a narrower one. The rest go to the toolbar menu (≡).
+ * stay at their full touch sizes. The optional controls are placed by priority — full screen, pen size &
+ * color, then Boox Notes / task actions, then lasso / quick add — each one that still fits takes its place, so
+ * a gap left by a wide tool is used by a narrower one. The rest go to the toolbar menu (≡); on the Go 6
+ * (572 dp, with page navigation) none fit, so full screen is in the menu there.
  * The widths are those of the composables in [Toolbar] — keep them in step when sizes change.
  */
 private fun compactToolbarFit(barWidth: Dp, hasPageNav: Boolean, hasPenSettings: Boolean): CompactToolbarFit {
@@ -2488,6 +2521,9 @@ private fun compactToolbarFit(barWidth: Dp, hasPageNav: Boolean, hasPenSettings:
         (if (hasPageNav) gap + EInkTheme.Global.touchTarget * 2 + 32.dp else 0.dp) +  // page navigation (label 32dp)
         gap + t.buttonSizeLarge + gap + t.buttonSizeLarge + gap + t.buttonSizeLarge   // undo, redo, menu ≡ (48dp)
     var spare = barWidth - fixed
+    val fullScreenWidth = gap + t.buttonSizeMedium
+    val fullScreen = fullScreenWidth <= spare
+    if (fullScreen) spare -= fullScreenWidth
     val penSettingsWidth = gap + 70.dp  // pen settings indicator
     val penSettings = hasPenSettings && penSettingsWidth <= spare
     if (penSettings) spare -= penSettingsWidth
@@ -2495,7 +2531,7 @@ private fun compactToolbarFit(barWidth: Dp, hasPageNav: Boolean, hasPenSettings:
     val second = toolWidth <= spare
     if (second) spare -= toolWidth
     val first = toolWidth <= spare
-    return CompactToolbarFit(first = first, second = second, penSettings = penSettings)
+    return CompactToolbarFit(first = first, second = second, penSettings = penSettings, fullScreen = fullScreen)
 }
 
 /** The optional tools of the regular toolbar, which go into the toolbar menu (≡) when the bar is too narrow (Oct 2026). */
@@ -2504,10 +2540,10 @@ private enum class BarTool { Lasso, Insert, Ai, MeetingNotes, TaskActions, Quick
 /**
  * The tools that go into the toolbar menu (≡) on the regular bar (Oct 2026): the 7 Oct Action items and
  * Meeting notes buttons pushed page navigation and the page menu off the Go 10.3 (then 720 dp at 413 dpi).
- * Tabs, pen, pen size, eraser, Boox Notes, undo, redo, page navigation and ≡ always stay; the optional
- * tools leave the bar lowest priority first — Memos: Meeting notes, Insert, AI, lasso; Tasks: Task AI,
+ * Tabs, pen, pen size, eraser, Boox Notes, undo, redo, page navigation, full screen and ≡ always stay; the
+ * optional tools leave the bar lowest priority first — Memos: Meeting notes, Insert, AI, lasso; Tasks: Task AI,
  * quick add, task actions. Every control keeps a gap of at least REGULAR_TOOL_GAP. Go 10.3 at 385 dpi
- * (773 dp): Memos — Meeting notes; Tasks — none; the ~45 dp left over is shared by the gaps (~4 dp each).
+ * (773 dp), since the full screen button (Oct 2026): Memos — Meeting notes and Insert; Tasks — Task AI.
  * The widths are those of the composables in [SharedToolbar] (every tool 44 dp, its dropdown buttons
  * included) — keep them in step when sizes change; debug builds log a warning when ≡ gets squeezed.
  */
@@ -2520,6 +2556,7 @@ private fun regularToolbarOverflow(barWidth: Dp, isMemos: Boolean, hasPageNav: B
         gap + t.buttonSizeMedium +                                                   // Boox Notes
         gap + t.buttonSizeLarge + gap + t.buttonSizeLarge +                          // undo, redo
         (if (hasPageNav) gap + t.navChevronWidth * 2 + 32.dp else 0.dp) +           // page navigation (label 32dp)
+        gap + t.buttonSizeMedium +                                                   // full screen
         gap + t.buttonSizeLarge                                                      // ≡
     val leaveFirst = if (isMemos) {
         listOf(BarTool.MeetingNotes, BarTool.Insert, BarTool.Ai, BarTool.Lasso)

@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.view.MotionEvent
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Spacer
@@ -2122,6 +2124,8 @@ fun MainScreen(
     com.boox.day.meetings.MeetingNotesHost()
     // In-app update popup (Oct 2026, update/AppUpdateGate)
     com.boox.day.ui.dialogs.AppUpdateHost()
+    // Full screen (Oct 2026, ui/FullScreenState): Back, tidy-up before a switch, full redraw after it
+    com.boox.day.ui.FullScreenEffects(tabManager = tabManager, onEnter = { isEventsExpanded = false })
 
     InkaTheme {
         Box(
@@ -2132,6 +2136,8 @@ fun MainScreen(
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
+            // Hidden in full screen (Oct 2026); its own lambda also keeps this block out of the root lambda
+            CalendarSection {
             // Upper section (40% of total) - Calendar and Toolbar
             // pointerInteropFilter detects finger touches to unfreeze e-ink immediately
             // This allows UI to respond instantly after drawing, instead of waiting 2 seconds
@@ -2547,8 +2553,9 @@ fun MainScreen(
             }
 
             Divider(color = EInkTheme.Colors.borderStrong, thickness = 0.5.dp)
+            }  // end CalendarSection
 
-            // Drawing Canvas Area (60% of total)
+            // Drawing Canvas Area (60% of total; the whole screen in full screen)
             // OPTION C: Single SharedToolbar + Dual Canvases
             // PERFORMANCE: Keep BOTH tabs' DrawCanvas instances alive to avoid recreating
             // TouchHelper (setupSurface ~130ms) on each tab switch. Use visibility + z-index
@@ -2556,8 +2563,10 @@ fun MainScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(if (isCompactLayout) 1f else 0.60f)
+                    .weight(if (isCompactLayout || com.boox.day.ui.FullScreenState.isOn) 1f else 0.60f)
             ) {
+                // Full screen: the selected day above the toolbar (the calendar header is hidden)
+                com.boox.day.ui.FullScreenDateLine(selectedDate)
                 // SHARED TOOLBAR (single instance for both canvases)
                 // PERFORMANCE: Eliminates dual-toolbar sync overhead and latency
                 // NOTE: Do NOT add pointerInteropFilter here - it interferes with toolbar's
@@ -6102,16 +6111,55 @@ private fun PersistentCanvasHost(
             val surfaceSize by DrawCanvas.surfaceSize.collectAsState()
             val surfaceWidth = surfaceSize?.width?.takeIf { it > 0 }
             val surfaceHeight = surfaceSize?.height?.takeIf { it > 0 }
-            val height = surfaceHeight ?: convertDpToPixel(this.maxHeight, context).toInt()
+            val layoutHeight = convertDpToPixel(this.maxHeight, context).toInt()
+            val height = surfaceHeight ?: layoutHeight
             val width = surfaceWidth ?: convertDpToPixel(this.maxWidth, context).toInt()
             // Report canvas height and top offset when they change
             val topOffsetPx = convertDpToPixel(TASKS_TOOLBAR_OFFSET, context)
-            LaunchedEffect(height) {
+            // Full screen (Oct 2026, ui/FullScreenState): Tasks rows keep the normal view's height, so
+            // only the normal view's canvas height is reported — once the surface has caught up with
+            // the layout, never a passing size during a switch
+            val isFullScreen = com.boox.day.ui.FullScreenState.isOn
+            val isNormalViewHeight = !isFullScreen && abs(layoutHeight - height) <= 2
+            LaunchedEffect(height, isNormalViewHeight) {
+                if (!isNormalViewHeight) return@LaunchedEffect
                 onCanvasHeightChanged?.invoke(height.toFloat())
                 // Store for background OCR (DigitalInkService, TaskTextExtractor)
                 // so they can compute correct row boundaries matching the visual overlay
                 GlobalAppSettings.setTasksCanvasHeight(height.toFloat())
                 GlobalAppSettings.setTasksTopOffsetPx(topOffsetPx)
+            }
+            // Height of the Tasks rows: the canvas height in the normal view; in full screen the rows
+            // keep that row height (as many as the page has), and the space under the last row is empty
+            val tasksRowCount = if (tasks.isEmpty()) 10 else tasks.size
+            val normalTasksHeight = GlobalAppSettings.tasksCanvasHeight
+            val tasksRowsHeight = if (isFullScreen && normalTasksHeight > topOffsetPx) {
+                (topOffsetPx + tasksRowCount * (normalTasksHeight - topOffsetPx) / 10f).roundToInt()
+            } else {
+                height
+            }
+            // Memo ink or images below the normal view (written in full screen): the full screen
+            // button shows a small arrow, and the first time a page shows it, a hint says so
+            LaunchedEffect(memosPageId, height, isNormalViewHeight, currentTab) {
+                val fullScreen = com.boox.day.ui.FullScreenState
+                if (!isNormalViewHeight) {
+                    fullScreen.memoHasMoreBelow = false
+                    return@LaunchedEffect
+                }
+                suspend fun check() {
+                    val bottom = withContext(Dispatchers.Default) { pageContentBottom(memosPageId) }
+                    val moreBelow = bottom > height + MORE_BELOW_MARGIN_PX
+                    fullScreen.memoHasMoreBelow = moreBelow
+                    if (moreBelow && currentTab == EditorTab.Memos && fullScreen.hintedPages.add(memosPageId)) {
+                        snackManager.displaySnack(
+                            SnackConf(text = "More of this page is below. Use Full screen to see it all.", duration = SnackConf.DURATION_STANDARD)
+                        )
+                    }
+                }
+                check()
+                delay(1_500L)  // the page's ink may still be loading
+                check()
+                DrawCanvas.contentChanged.collect { check() }
             }
 
             // PERF: Protect both Memos and Tasks pages from cache eviction during tab switches
@@ -6152,6 +6200,7 @@ private fun PersistentCanvasHost(
         // WARNING: Do NOT modify the dimension check or add currentTab back.
         //          See memory.md Section 12.1 for full documentation.
         // ============================================================================
+        ResizeHiddenPageInPlace(memosPage.value, isActive = currentTab == EditorTab.Memos, surfaceSize = surfaceSize)
         LaunchedEffect(memosPageId, width, height) {
             val currentPage = memosPage.value
             val currentState = memosState.value
@@ -6353,6 +6402,7 @@ private fun PersistentCanvasHost(
         // See Memos LaunchedEffect above for full explanation.
         // The same 1px tolerance dimension check is used here for Tasks.
         // ============================================================================
+        ResizeHiddenPageInPlace(tasksPage.value, isActive = currentTab == EditorTab.Tasks, surfaceSize = surfaceSize)
         LaunchedEffect(tasksPageId, width, height) {
             val currentPage = tasksPage.value
             val currentState = tasksState.value
@@ -6490,7 +6540,7 @@ private fun PersistentCanvasHost(
         // PERF: Async stroke detection - enhances metadata-only map with stroke data
         // taskContentVersion is incremented when strokes are drawn to trigger recalculation
         // Uses optimized Spatial Hashing (Stroke -> Row) instead of iterating rows
-        LaunchedEffect(tasks, tasksPageId, height, taskContentVersion) {
+        LaunchedEffect(tasks, tasksPageId, tasksRowsHeight, taskContentVersion) {
             val taskIdSet = tasks.map { it.id }.toSet()
 
             // Handle empty tasks case
@@ -6502,7 +6552,7 @@ private fun PersistentCanvasHost(
             }
 
             // Wait for valid height before computing
-            if (height <= 0) return@LaunchedEffect
+            if (tasksRowsHeight <= 0) return@LaunchedEffect
 
             val rowCount = tasks.size
             val (newMap, strokeRows) = withContext(Dispatchers.Default) {
@@ -6513,7 +6563,7 @@ private fun PersistentCanvasHost(
                 // Uses getDominantRowIndex for correct row assignment matching visual overlay
                 val rowsWithStrokes = mutableSetOf<Int>()
                 allStrokes.forEach { stroke ->
-                    val rowIndex = getDominantRowIndex(stroke, height.toFloat(), rowCount)
+                    val rowIndex = getDominantRowIndex(stroke, tasksRowsHeight.toFloat(), rowCount)
                     if (rowIndex in 0 until rowCount) {
                         rowsWithStrokes.add(rowIndex)
                     }
@@ -6639,6 +6689,14 @@ private fun PersistentCanvasHost(
                 )
                 TextBoxOverlay(context = context, controlTower = activeControlTower)
                 if (currentTab == EditorTab.Tasks) {
+                  // Full screen (Oct 2026): rows keep the normal view's height, so the row overlays end
+                  // at the last row and the space under it stays empty
+                  val tasksRowsArea = if (isFullScreen) {
+                      Modifier.height(with(LocalDensity.current) { tasksRowsHeight.toDp() })
+                  } else {
+                      Modifier.fillMaxHeight()
+                  }
+                  Box(modifier = Modifier.fillMaxWidth().then(tasksRowsArea)) {
                     // PERFORMANCE FIX: taskHasContent now reads from pre-computed map (O(1) lookup)
                     // The map is populated asynchronously by LaunchedEffect above
                     val rowCount = if (tasks.isEmpty()) 10 else tasks.size
@@ -6657,9 +6715,9 @@ private fun PersistentCanvasHost(
                                 task.dueDay != null
                             if (hasMetadata) {
                                 true
-                            } else if (height > 0 && task.rowIndex in 0 until rowCount) {
+                            } else if (tasksRowsHeight > 0 && task.rowIndex in 0 until rowCount) {
                                 val rowBounds = com.boox.day.editor.utils.calculateRowBounds(
-                                    task.rowIndex, height.toFloat(), rowCount
+                                    task.rowIndex, tasksRowsHeight.toFloat(), rowCount
                                 )
                                 val strokes = com.boox.day.data.PageDataManager.getStrokesInRectangle(
                                     rowBounds.toRect(), tasksPageId
@@ -6683,7 +6741,7 @@ private fun PersistentCanvasHost(
 
                                 // Calculate row bounds
                                 val rowBounds = com.boox.day.editor.utils.calculateRowBounds(
-                                    task.rowIndex, height.toFloat(), rowCount
+                                    task.rowIndex, tasksRowsHeight.toFloat(), rowCount
                                 )
 
                                 // Check if erased area intersects with this row
@@ -6719,7 +6777,7 @@ private fun PersistentCanvasHost(
                     // typed text checks it; undoing (or erasing) that line unchecks it again. Runs after
                     // the stroke is saved (contentChanged) — never in the pen path.
                     val crossOutLines = remember(tasksPageId) { mutableMapOf<String, String>() }  // line id -> task id
-                    val currentCanvasHeight = rememberUpdatedState(height)
+                    val currentCanvasHeight = rememberUpdatedState(tasksRowsHeight)
                     val currentToggleCompleted = rememberUpdatedState(onToggleTaskCompleted)
                     val crossOutTextGeometry = with(LocalDensity.current) {
                         val columnEnd = TASKS_CONTROL_COLUMN_WIDTH.toPx()
@@ -6821,7 +6879,7 @@ private fun PersistentCanvasHost(
                                 // T8 (Oct 2026): only rows with real content (text, subtask or ink);
                                 // empty rows are never completed.
                                 val pageTasks = tasks
-                                val canvasHeight = height.toFloat()
+                                val canvasHeight = tasksRowsHeight.toFloat()
                                 scope.launch(Dispatchers.IO) {
                                     val contentTasks = pageTasks.filter {
                                         appRepository.taskRepository.taskHasRealContent(it, canvasHeight)
@@ -6852,7 +6910,7 @@ private fun PersistentCanvasHost(
                                 // Uses taskRowHasContent() which detects INTENTIONAL strokes (not overflow)
                                 val hasContent = if (task.rowIndex in 0 until rowCount) {
                                     val rowBounds = com.boox.day.editor.utils.calculateRowBounds(
-                                        task.rowIndex, height.toFloat(), rowCount
+                                        task.rowIndex, tasksRowsHeight.toFloat(), rowCount
                                     )
                                     val strokes = com.boox.day.data.PageDataManager.getStrokesInRectangle(
                                         rowBounds.toRect(), tasksPageId
@@ -6887,7 +6945,7 @@ private fun PersistentCanvasHost(
                                 // Clear the task slot
                                 onTaskCleared(task)
                                 scope.launch(Dispatchers.IO) {
-                                    appRepository.taskRepository.clearTaskSlot(task, height.toFloat())
+                                    appRepository.taskRepository.clearTaskSlot(task, tasksRowsHeight.toFloat())
                                     withContext(Dispatchers.Main) {
                                         snackManager.displaySnack(SnackConf(text = "Task cleared successfully", duration = SnackConf.DURATION_STANDARD))
                                     }
@@ -6914,7 +6972,7 @@ private fun PersistentCanvasHost(
                     com.boox.day.editor.ui.TaskTypedTextOverlay(
                         tasks = tasks,
                         rowCount = if (tasks.isEmpty()) 10 else tasks.size,
-                        canvasHeightPx = height,
+                        canvasHeightPx = tasksRowsHeight,
                         rowsWithStrokes = asyncRowsWithStrokes,
                         recurringStateForTask = { task ->
                             task.templateId?.let { templateId ->
@@ -6930,6 +6988,7 @@ private fun PersistentCanvasHost(
                             modifier = Modifier.padding(start = TASKS_CONTROL_COLUMN_WIDTH)
                         )
                     }
+                  }  // end Tasks rows area
                 }
                 // Hide stale content while the next date is loading.
                 val showCanvasLoadingCover =
@@ -6958,7 +7017,7 @@ private fun PersistentCanvasHost(
                         scope.launch(Dispatchers.IO) {
                             appRepository.taskRepository.setTypedText(taskToType.id, text)
                             // Clear handwritten strokes when typed text replaces them
-                            val strokesCleared = appRepository.taskRepository.clearStrokesForRow(taskToType, height.toFloat())
+                            val strokesCleared = appRepository.taskRepository.clearStrokesForRow(taskToType, tasksRowsHeight.toFloat())
                             // Trigger canvas refresh to show cleared strokes
                             if (strokesCleared > 0) {
                                 TasksCanvasRefresh.request()  // coalesced with the task op's own refresh (plan §13.4)
@@ -7102,7 +7161,7 @@ private fun PersistentCanvasHost(
                             onTaskTypedTextChanged(cardTask, text)
                             scope.launch(Dispatchers.IO) {
                                 appRepository.taskRepository.setTypedText(cardTask.id, text)
-                                appRepository.taskRepository.clearStrokesForRow(cardTask, height.toFloat())
+                                appRepository.taskRepository.clearStrokesForRow(cardTask, tasksRowsHeight.toFloat())
                                 TasksCanvasRefresh.request()
                             }
                         }
@@ -7164,7 +7223,7 @@ private fun PersistentCanvasHost(
                         if (toDelete.parentTaskId != null) {
                             // Subtask: delete and move the following siblings up (as the subtask dialog does)
                             scope.launch(Dispatchers.IO) {
-                                appRepository.taskRepository.deleteChildTaskAndCompact(toDelete, height.toFloat())
+                                appRepository.taskRepository.deleteChildTaskAndCompact(toDelete, tasksRowsHeight.toFloat())
                                 TaskTextIndexer.getInstanceOrNull()?.indexNow(dayDate, pageIndex, pageId)
                                 withContext(Dispatchers.Main) {
                                     onTasksNeedRefresh?.invoke(null)
@@ -7175,7 +7234,7 @@ private fun PersistentCanvasHost(
                             // Task: clear its row (as the task management dialog does)
                             onTaskCleared(toDelete)
                             scope.launch(Dispatchers.IO) {
-                                appRepository.taskRepository.clearTaskSlot(toDelete, height.toFloat())
+                                appRepository.taskRepository.clearTaskSlot(toDelete, tasksRowsHeight.toFloat())
                                 TaskTextIndexer.getInstanceOrNull()?.indexNow(dayDate, pageIndex, pageId)
                                 withContext(Dispatchers.Main) {
                                     snackManager.displaySnack(SnackConf(text = "Task deleted", duration = SnackConf.DURATION_STANDARD))
@@ -7203,7 +7262,7 @@ private fun PersistentCanvasHost(
                             val pageIndex = taskToMove.taskPageIndex
                             val pageId = taskToMove.pageId
                             scope.launch(Dispatchers.IO) {
-                                appRepository.taskRepository.deleteChildTaskAndCompact(taskToMove, height.toFloat())
+                                appRepository.taskRepository.deleteChildTaskAndCompact(taskToMove, tasksRowsHeight.toFloat())
                                 // Re-index task page to update/remove OCR entries
                                 TaskTextIndexer.getInstanceOrNull()?.indexNow(dayDate, pageIndex, pageId)
                                 withContext(Dispatchers.Main) {
@@ -7242,7 +7301,7 @@ private fun PersistentCanvasHost(
                                     task = taskToMove,
                                     targetDate = targetDate,
                                     targetPageIndex = 0,
-                                    canvasHeight = height.toFloat(),
+                                    canvasHeight = tasksRowsHeight.toFloat(),
                                     context = context
                                 )
                                 if (result.success) {
@@ -7261,7 +7320,7 @@ private fun PersistentCanvasHost(
                                     val sourcePageHasContent = sourceTasks.any { task ->
                                         // Use unified content check (typed text, metadata, AND intentional strokes)
                                         val rowBounds = com.boox.day.editor.utils.calculateRowBounds(
-                                            task.rowIndex, height.toFloat(), 10
+                                            task.rowIndex, tasksRowsHeight.toFloat(), 10
                                         )
                                         val strokes = com.boox.day.data.PageDataManager.getStrokesInRectangle(
                                             rowBounds.toRect(), sourcePageId
@@ -7300,7 +7359,7 @@ private fun PersistentCanvasHost(
                                 val result = appRepository.taskRepository.copySingleTask(
                                     task = taskToMove,
                                     targetDate = targetDate,
-                                    canvasHeight = height.toFloat(),
+                                    canvasHeight = tasksRowsHeight.toFloat(),
                                     copyChildren = true
                                 )
                                 withContext(Dispatchers.Main) {
@@ -7342,7 +7401,7 @@ private fun PersistentCanvasHost(
                             val result = appRepository.taskRepository.copySingleTask(
                                 task = childTask,
                                 targetDate = targetDate,
-                                canvasHeight = height.toFloat(),
+                                canvasHeight = tasksRowsHeight.toFloat(),
                                 copyChildren = false
                             )
                             withContext(Dispatchers.Main) {
@@ -7592,6 +7651,43 @@ private fun NotePreviewOverlay(
 @Composable
 private fun RowScope.SplitOutOfMainScreen(content: @Composable RowScope.() -> Unit) {
     content()
+}
+
+/**
+ * The calendar section above the toolbar (Oct 2026): left out in full screen (ui/FullScreenState), so
+ * the toolbar and canvas take the whole screen. Like [SplitOutOfMainScreen], its lambda also moves this
+ * big block out of MainScreen's root lambda.
+ */
+@Composable
+private fun ColumnScope.CalendarSection(content: @Composable ColumnScope.() -> Unit) {
+    if (!com.boox.day.ui.FullScreenState.isOn) content()
+}
+
+/**
+ * Full screen (Oct 2026): when the canvas really changes size, the surface resizes the active tab's
+ * page itself (DrawCanvas.surfaceChanged → PageView.syncToSurfaceSize). This resizes the hidden tab's
+ * page the same way, so the size check that follows reuses it — with its undo history and tool state —
+ * instead of recreating it. Differences of a pixel or two (startup rounding) are left to that check.
+ */
+/** Ink ending this close under the canvas edge is a stroke written at the edge, not content below. */
+private const val MORE_BELOW_MARGIN_PX = 12
+
+/** Lowest point of a page's ink and images, in canvas pixels (0 when empty), from the loaded page. */
+private fun pageContentBottom(pageId: String): Float {
+    val strokesBottom = com.boox.day.data.PageDataManager.getStrokes(pageId).maxOfOrNull { it.bottom } ?: 0f
+    val imagesBottom = com.boox.day.data.PageDataManager.getImages(pageId).maxOfOrNull { (it.y + it.height).toFloat() } ?: 0f
+    return maxOf(strokesBottom, imagesBottom)
+}
+
+@Composable
+private fun ResizeHiddenPageInPlace(page: PageView?, isActive: Boolean, surfaceSize: com.boox.day.editor.SurfaceSize?) {
+    LaunchedEffect(surfaceSize) {
+        val size = surfaceSize ?: return@LaunchedEffect
+        if (isActive || page == null) return@LaunchedEffect
+        if (abs(page.viewWidth - size.width) > 2 || abs(page.viewHeight - size.height) > 2) {
+            page.syncToSurfaceSize(size.width, size.height)
+        }
+    }
 }
 
 /**

@@ -130,6 +130,10 @@ interface StrokeDao {
     @Query("SELECT EXISTS(SELECT 1 FROM stroke WHERE pageId = :pageId LIMIT 1)")
     fun hasStrokesForPage(pageId: String): Boolean
 
+    /** Lowest ink on the page in canvas pixels, null when it has none (full screen memo OCR, Oct 2026). */
+    @Query("SELECT MAX(bottom) FROM stroke WHERE pageId = :pageId")
+    fun maxBottomForPage(pageId: String): Float?
+
     @Query("DELETE FROM stroke WHERE pageId = :pageId")
     fun deleteAllForPage(pageId: String)
 
