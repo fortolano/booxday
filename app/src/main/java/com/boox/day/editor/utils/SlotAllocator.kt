@@ -5,6 +5,7 @@ import com.boox.day.data.PageDataManager
 import com.boox.day.data.db.StrokeRepository
 import com.boox.day.data.db.Task
 import com.boox.day.data.db.TaskRepository
+import com.boox.day.tasks.TaskPagination
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -76,6 +77,8 @@ object SlotAllocator {
         startPageIndex: Int = 0,
         maxPages: Int = 10
     ): AllocatedSlot? = withContext(Dispatchers.IO) {
+        // Full screen Tasks (Oct 2026): slots are found on pages of 10; callers leave full screen first
+        if (TaskPagination.isReflowed(date)) return@withContext null
         var pageIndex = startPageIndex
 
         while (pageIndex < maxPages) {
@@ -124,6 +127,8 @@ object SlotAllocator {
         startPageIndex: Int = 0,
         maxPages: Int = 10
     ): List<AllocatedSlot> = withContext(Dispatchers.IO) {
+        // Full screen Tasks (Oct 2026): slots are found on pages of 10; callers leave full screen first
+        if (TaskPagination.isReflowed(date)) return@withContext emptyList()
         val allocated = mutableListOf<AllocatedSlot>()
         var pageIndex = startPageIndex
 
@@ -172,6 +177,8 @@ object SlotAllocator {
         startPageIndex: Int = 0,
         maxPages: Int = 10
     ): ContiguousAllocation? = withContext(Dispatchers.IO) {
+        // Full screen Tasks (Oct 2026): slots are found on pages of 10; callers leave full screen first
+        if (TaskPagination.isReflowed(date)) return@withContext null
         var pageIndex = startPageIndex
 
         while (pageIndex < maxPages) {
@@ -233,6 +240,8 @@ object SlotAllocator {
         canvasHeight: Float,
         taskRepository: TaskRepository
     ): Boolean = withContext(Dispatchers.IO) {
+        // Full screen Tasks (Oct 2026): slots are found on pages of 10; callers leave full screen first
+        if (TaskPagination.isReflowed(task.dayDate)) return@withContext false
         val pageId = task.pageId
         val strokes = getStrokesForPage(pageId, taskRepository)
         isSlotEmptyInternal(task, canvasHeight, strokes)
@@ -263,6 +272,8 @@ object SlotAllocator {
         canvasHeight: Float,
         taskRepository: TaskRepository
     ): Boolean = withContext(Dispatchers.IO) {
+        // Full screen Tasks (Oct 2026): slots are found on pages of 10; callers leave full screen first
+        if (TaskPagination.isReflowed(task.dayDate)) return@withContext false
         // Re-fetch task from DB to get current state
         val freshTask = taskRepository.getTaskById(task.id)
         if (freshTask == null) {
@@ -297,6 +308,8 @@ object SlotAllocator {
         taskRepository: TaskRepository,
         maxPages: Int = 10
     ): SlotCapacity = withContext(Dispatchers.IO) {
+        // Full screen Tasks (Oct 2026): slots are found on pages of 10; callers leave full screen first
+        if (TaskPagination.isReflowed(date)) return@withContext SlotCapacity(totalEmpty = 0, emptyOnExistingPages = 0, canCreateMorePages = false, maxContiguousBlock = 0)
         var totalEmpty = 0
         var maxContiguous = 0
         val existingPages = taskRepository.getMaxTaskPageIndex(date) + 1

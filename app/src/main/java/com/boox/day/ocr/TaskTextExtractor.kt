@@ -292,6 +292,13 @@ class TaskTextExtractor private constructor(
             Log.w(TAG, "Tasks canvas not measured; skipping $pageId for now")
             return
         }
+        // Full screen Tasks (Oct 2026): rows are read on pages of 10; a day on full screen pages waits
+        // like an unmeasured canvas (the page stays needing OCR and is retried after full screen)
+        val pageDate = taskDao.getDayDateByPageId(pageId)
+        if (pageDate != null && com.boox.day.tasks.TaskPagination.isReflowed(pageDate)) {
+            Log.i(TAG, "Tasks of $pageDate are on full screen pages; skipping $pageId for now")
+            return
+        }
         val controlColumnPx = convertDpToPixel(TASKS_CONTROL_COLUMN_WIDTH, context)
         val topOffset = GlobalAppSettings.tasksTopOffsetPx.takeIf { it > 0f }
             ?: density  // 1.dp * density

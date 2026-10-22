@@ -521,7 +521,12 @@ fun drawOnCanvasFromPage(
                 if (!bounds.toRect().intersect(pageArea)) return@forEach
 
                 val override = if (completedColor != null) {
-                    val rowIdx = getDominantRowIndex(stroke, page.viewHeight.toFloat())
+                    // Rows on screen (more in full screen, Oct 2026): the canvas height ÷ 10 in the normal view
+                    val rowIdx = getDominantRowIndex(
+                        stroke,
+                        com.boox.day.tasks.TaskPagination.screenRowsHeight(page.viewHeight.toFloat()),
+                        com.boox.day.tasks.TaskPagination.screenRowCount
+                    )
                     if (rowIdx in completedRows) completedColor else null
                 } else null
 

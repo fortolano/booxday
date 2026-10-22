@@ -67,6 +67,7 @@ class BooxDayApp : Application() {
 
         runSafeStartupStep("OpenRouter key") { initUserOpenRouterKey() }
         runSafeStartupStep("Removed features cleanup") { com.boox.day.startup.RemovedFeaturesCleanup.run(this) }
+        runSafeStartupStep("Tasks pages") { initTaskPagination() }
         runSafeStartupStep("Task AI context") { TaskAiContextBuilderV1.initialize(this) }
         runSafeStartupStep("Markdown helper") { MarkdownHelper.init(this) }
         runSafeStartupStep("Notification channels") { initNotificationChannels() }
@@ -79,6 +80,23 @@ class BooxDayApp : Application() {
         runSafeStartupStep("Pending calendar push") { requestPendingCalendarPush() }
         // Automatic Drive backup check (does nothing unless Drive backup is on and due)
         runSafeStartupStep("Drive auto-backup schedule") { com.boox.day.sync.DriveAutoBackupWorker.schedule(this) }
+    }
+
+    /**
+     * Full screen Tasks (Oct 2026): a day left on full screen pages (app killed in full screen) goes
+     * back to pages of 10 before any screen opens; this waits only in that case. Then, in the
+     * background, any other day with long pages (e.g. from a backup) too.
+     */
+    private fun initTaskPagination() {
+        com.boox.day.tasks.TaskPagination.init(this)
+        com.boox.day.tasks.TaskPagination.restoreAtStartup()
+        applicationScope.launch(Dispatchers.IO) {
+            try {
+                com.boox.day.tasks.TaskPagination.normalizeStrayDays()
+            } catch (e: Exception) {
+                Log.w("BooxDayApp", "Tasks pages check failed: ${e.message}")
+            }
+        }
     }
 
     /** The user's own OpenRouter key (the only key AI features use), read from encrypted storage off the main thread. */

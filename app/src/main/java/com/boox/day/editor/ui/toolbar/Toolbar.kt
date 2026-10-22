@@ -1450,7 +1450,8 @@ fun SharedToolbar(
                 val onMeetingNotes: () -> Unit = {
                     DrawCanvas.toolbarInteraction.tryEmit(Unit)
                     activeTower.saveAndExitTextBox()
-                    com.boox.day.meetings.MeetingNotesUi.openPicker(selectedDate)
+                    // Full screen (Oct 2026): action items can become tasks, placed on pages of 10
+                    FullScreenState.exitThen { com.boox.day.meetings.MeetingNotesUi.openPicker(selectedDate) }
                 }
                 val meetingNotesTool: @Composable () -> Unit = {
                     ToolbarButton(

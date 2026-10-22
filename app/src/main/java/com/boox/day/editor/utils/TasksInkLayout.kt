@@ -48,6 +48,8 @@ object TasksInkLayout {
         realignOnFirstRun: Boolean
     ): Boolean {
         if (doneThisRun || canvasHeight <= topOffset + ROWS) return false
+        // Full screen Tasks (Oct 2026): a day on pages of more rows; its ink is checked at the next start
+        if (com.boox.day.tasks.TaskPagination.current != null) return false
         doneThisRun = true
 
         val settings = GlobalAppSettings.current

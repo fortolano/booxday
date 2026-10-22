@@ -110,6 +110,14 @@ interface TextAnnotationDao {
     @Query("SELECT * FROM text_annotations WHERE pageId = :pageId ORDER BY createdAt ASC")
     fun getByPageIdFlow(pageId: String): Flow<List<TextAnnotation>>
 
+    /** Full screen Tasks (Oct 2026, tasks/TaskPagination): a page's text boxes, inside a blocking transaction. */
+    @Query("SELECT * FROM text_annotations WHERE pageId = :pageId")
+    fun getForPageNow(pageId: String): List<TextAnnotation>
+
+    /** Full screen Tasks: a text box follows its row to another row and maybe another page. */
+    @Query("UPDATE text_annotations SET pageId = :pageId, y = :y WHERE id = :id")
+    fun moveTo(id: String, pageId: String, y: Float)
+
     @Query("SELECT * FROM text_annotations WHERE id = :id")
     suspend fun getById(id: String): TextAnnotation?
 

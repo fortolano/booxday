@@ -924,8 +924,9 @@ class DrawCanvas(
             if (!isMemosCanvas) {
                 val completedRows = completedTaskRows.value
                 if (completedRows.isNotEmpty()) {
-                    val canvasHeight = height.toFloat()
-                    val rowCount = 10
+                    // Rows on screen (more in full screen, Oct 2026): the canvas height ÷ 10 in the normal view
+                    val canvasHeight = com.boox.day.tasks.TaskPagination.screenRowsHeight(height.toFloat())
+                    val rowCount = com.boox.day.tasks.TaskPagination.screenRowCount
                     val topOffset = 1f
                     val visibleHeight = canvasHeight - topOffset
                     val rowHeight = visibleHeight / rowCount

@@ -150,10 +150,12 @@ fun extractStrokesForRow(
     strokes: List<Stroke>,
     rowBounds: TaskRowBounds,
     canvasHeight: Float,
-    topOffset: Float = tasksTopOffset()
+    topOffset: Float = tasksTopOffset(),
+    // Rows of the page that [canvasHeight] holds: more than 10 on full screen Tasks pages (Oct 2026)
+    rowCount: Int = 10
 ): List<Stroke> {
     return strokes.filter { stroke ->
-        getDominantRowIndex(stroke, canvasHeight, topOffset = topOffset) == rowBounds.rowIndex
+        getDominantRowIndex(stroke, canvasHeight, rowCount, topOffset) == rowBounds.rowIndex
     }
 }
 

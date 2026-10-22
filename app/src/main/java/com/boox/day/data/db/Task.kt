@@ -27,6 +27,8 @@ import com.boox.day.editor.utils.hasIntentionalStrokeContent
 import com.boox.day.editor.utils.createMigratedStrokes
 import com.boox.day.editor.utils.extractStrokesForRow
 import com.boox.day.editor.utils.groupStrokesByRow
+import com.boox.day.editor.utils.tasksTopOffset
+import com.boox.day.tasks.TaskPagination
 import java.util.Collections
 import java.util.Date
 import java.time.LocalDate
@@ -407,6 +409,20 @@ interface TaskDao {
      */
     @Query("UPDATE task SET dayDate = :newDate, taskPageIndex = :newPageIndex, rowIndex = :newRowIndex, updatedAt = :updatedAt WHERE id = :taskId")
     fun moveTask(taskId: String, newDate: String, newPageIndex: Int, newRowIndex: Int, updatedAt: Date = Date())
+
+    /**
+     * Full screen Tasks (Oct 2026, tasks/TaskPagination): the row itself moves to another slot of the
+     * same day, on another page if needed — same ID, content untouched.
+     */
+    @Query("UPDATE task SET taskPageIndex = :pageIndex, rowIndex = :rowIndex, pageId = :pageId WHERE id = :taskId")
+    fun moveTaskToSlot(taskId: String, pageIndex: Int, rowIndex: Int, pageId: String)
+
+    /** Days with a row at index [rowIndex] or higher (pages of more than 10 rows: full screen Tasks). */
+    @Query("SELECT DISTINCT dayDate FROM task WHERE rowIndex >= :rowIndex")
+    fun getDaysWithRowsFrom(rowIndex: Int): List<String>
+
+    @Query("SELECT MAX(rowIndex) FROM task WHERE dayDate = :date")
+    fun getMaxRowIndex(date: String): Int?
 
     /**
      * Insert a single task.
@@ -1748,7 +1764,8 @@ class TaskRepository(internal val context: Context) {
         val sharedPage = Page()
         pageDao.create(sharedPage)
 
-        val tasks = (0 until 10).map { rowIndex ->
+        // 10 rows; more while full screen shows this day's Tasks (Oct 2026, tasks/TaskPagination)
+        val tasks = (0 until TaskPagination.rowsPerPage(date)).map { rowIndex ->
             Task(
                 dayDate = date,
                 taskPageIndex = pageIndex,
@@ -1769,7 +1786,8 @@ class TaskRepository(internal val context: Context) {
         if (existingTasks.isEmpty()) return existingTasks
 
         val usedRows = existingTasks.map { it.rowIndex }.toSet()
-        val missingRows = (0 until 10).filter { it !in usedRows }
+        // 10 rows; more while full screen shows this day's Tasks (Oct 2026, tasks/TaskPagination)
+        val missingRows = (0 until TaskPagination.rowsPerPage(date)).filter { it !in usedRows }
         if (missingRows.isEmpty()) return existingTasks.sortedBy { it.rowIndex }
 
         val sharedPageId = existingTasks.first().pageId
@@ -2363,11 +2381,15 @@ class TaskRepository(internal val context: Context) {
             Log.i(TAG, "CLEAR_SLOT: Orphaned children of parent task ${task.id}")
         }
 
+        // Full screen Tasks (Oct 2026): pages of more rows of the same height (tasks/TaskPagination)
+        val rowCount = TaskPagination.rowsPerPage(task.dayDate)
+        val rowsHeight = TaskPagination.rowsHeight(canvasHeight, rowCount, tasksTopOffset())
+
         // Calculate row bounds
         val rowBounds = calculateRowBounds(
             rowIndex = sourceRowIndex,
-            canvasHeight = canvasHeight,
-            rowCount = 10
+            canvasHeight = rowsHeight,
+            rowCount = rowCount
         )
 
         // Get strokes in this row — from memory, or the DB when the page isn't loaded
@@ -2376,7 +2398,7 @@ class TaskRepository(internal val context: Context) {
         val sourceRect = rowBounds.toRect()
         val allStrokes = PageDataManager.getStrokesInRectangle(sourceRect, sourcePageId)
             ?: strokeRepository.getAllForPage(sourcePageId)
-        val strokesInRow = extractStrokesForRow(allStrokes, rowBounds, canvasHeight)
+        val strokesInRow = extractStrokesForRow(allStrokes, rowBounds, rowsHeight, rowCount = rowCount)
 
         // Delete strokes if any (page-scoped; the cache follows after commit)
         if (strokesInRow.isNotEmpty()) {
@@ -2508,6 +2530,9 @@ class TaskRepository(internal val context: Context) {
         val deletedRowIndex = task.rowIndex
         val pageId = task.pageId
         val date = task.dayDate
+        // Full screen Tasks (Oct 2026): pages of more rows of the same height (tasks/TaskPagination)
+        val rowCount = TaskPagination.rowsPerPage(date)
+        val rowsHeight = TaskPagination.rowsHeight(canvasHeight, rowCount, tasksTopOffset())
 
         // Get all siblings (children of the same parent)
         val allSiblings = taskDao.getChildTasks(parentId)
@@ -2536,8 +2561,8 @@ class TaskRepository(internal val context: Context) {
         // stroke-cache updates and reminders are applied after the commit.
         inTransaction {
             // Step 1: Delete the target child's content (strokes + metadata)
-            val deletedRowBounds = calculateRowBounds(deletedRowIndex, canvasHeight, 10)
-            val deletedRowStrokes = extractStrokesForRow(pageStrokes, deletedRowBounds, canvasHeight)
+            val deletedRowBounds = calculateRowBounds(deletedRowIndex, rowsHeight, rowCount)
+            val deletedRowStrokes = extractStrokesForRow(pageStrokes, deletedRowBounds, rowsHeight, rowCount = rowCount)
             if (deletedRowStrokes.isNotEmpty()) {
                 val strokeIds = deletedRowStrokes.map { it.id }
                 strokeRepository.deleteAll(strokeIds)
@@ -2555,8 +2580,8 @@ class TaskRepository(internal val context: Context) {
                 val sourceRowIndex = sibling.rowIndex
                 val targetRowIndex = sourceRowIndex - 1
 
-                val sourceRowBounds = calculateRowBounds(sourceRowIndex, canvasHeight, 10)
-                val targetRowBounds = calculateRowBounds(targetRowIndex, canvasHeight, 10)
+                val sourceRowBounds = calculateRowBounds(sourceRowIndex, rowsHeight, rowCount)
+                val targetRowBounds = calculateRowBounds(targetRowIndex, rowsHeight, rowCount)
 
                 // Find target task entity at the target row
                 val targetTask = pageTasks.find { it.rowIndex == targetRowIndex }
@@ -2566,7 +2591,7 @@ class TaskRepository(internal val context: Context) {
                 }
 
                 // Move strokes from source to target row
-                val siblingStrokes = extractStrokesForRow(pageStrokes, sourceRowBounds, canvasHeight)
+                val siblingStrokes = extractStrokesForRow(pageStrokes, sourceRowBounds, rowsHeight, rowCount = rowCount)
                 if (siblingStrokes.isNotEmpty()) {
                     // Create migrated strokes with new Y positions
                     val migratedStrokes = createMigratedStrokes(
@@ -2602,8 +2627,8 @@ class TaskRepository(internal val context: Context) {
             // This is now empty since all siblings shifted up
             if (siblingsBelow.isNotEmpty()) {
                 val lastSibling = siblingsBelow.last()
-                val lastRowBounds = calculateRowBounds(lastSibling.rowIndex, canvasHeight, 10)
-                val lastRowStrokes = extractStrokesForRow(pageStrokes, lastRowBounds, canvasHeight)
+                val lastRowBounds = calculateRowBounds(lastSibling.rowIndex, rowsHeight, rowCount)
+                val lastRowStrokes = extractStrokesForRow(pageStrokes, lastRowBounds, rowsHeight, rowCount = rowCount)
                 if (lastRowStrokes.isNotEmpty()) {
                     val strokeIds = lastRowStrokes.map { it.id }
                     strokeRepository.deleteAll(strokeIds)
@@ -2702,11 +2727,15 @@ class TaskRepository(internal val context: Context) {
         val sourcePageId = task.pageId
         val sourceRowIndex = task.rowIndex
 
+        // Full screen Tasks (Oct 2026): pages of more rows of the same height (tasks/TaskPagination)
+        val rowCount = TaskPagination.rowsPerPage(task.dayDate)
+        val rowsHeight = TaskPagination.rowsHeight(canvasHeight, rowCount, tasksTopOffset())
+
         // Calculate row bounds
         val rowBounds = calculateRowBounds(
             rowIndex = sourceRowIndex,
-            canvasHeight = canvasHeight,
-            rowCount = 10
+            canvasHeight = rowsHeight,
+            rowCount = rowCount
         )
 
         // Get strokes in this row — from memory, or the DB when the page isn't loaded
@@ -2715,7 +2744,7 @@ class TaskRepository(internal val context: Context) {
         val sourceRect = rowBounds.toRect()
         val allStrokes = PageDataManager.getStrokesInRectangle(sourceRect, sourcePageId)
             ?: strokeRepository.getAllForPage(sourcePageId)
-        val strokesInRow = extractStrokesForRow(allStrokes, rowBounds, canvasHeight)
+        val strokesInRow = extractStrokesForRow(allStrokes, rowBounds, rowsHeight, rowCount = rowCount)
 
         // Delete strokes if any (page-scoped; the cache follows after commit)
         if (strokesInRow.isNotEmpty()) {
@@ -2811,6 +2840,11 @@ class TaskRepository(internal val context: Context) {
         canvasHeight: Float,
         context: Context
     ): MoveTaskResult {
+        // Full screen Tasks (Oct 2026): this works on pages of 10; the tools calling it leave full screen first
+        if (TaskPagination.isReflowed(task.dayDate) || TaskPagination.isReflowed(targetDate)) {
+            Log.w(TAG, "Not moving task ${task.id}: Tasks on full screen pages")
+            return MoveTaskResult(success = false, errorReason = MoveTaskError.DATABASE_ERROR)
+        }
         // GROUP-AWARE: Get the complete task group (parent + all children)
         val taskGroup = getTaskGroup(task.id)
         if (taskGroup.isEmpty()) {
@@ -3139,6 +3173,10 @@ class TaskRepository(internal val context: Context) {
         targetDate: String,
         canvasHeight: Float
     ): Result<Int> {
+        // Full screen Tasks (Oct 2026): this works on pages of 10; the tools calling it leave full screen first
+        if (TaskPagination.isReflowed(sourceDate) || TaskPagination.isReflowed(targetDate)) {
+            return Result.failure(IllegalStateException("Tasks are on full screen pages"))
+        }
         return try {
             if (sourceDate == targetDate) {
                 return Result.failure(Exception("Cannot move to same date"))
@@ -3987,6 +4025,10 @@ class TaskRepository(internal val context: Context) {
         targetDate: String,
         canvasHeight: Float
     ): Result<CopyTasksResult> {
+        // Full screen Tasks (Oct 2026): this works on pages of 10; the tools calling it leave full screen first
+        if (TaskPagination.isReflowed(sourceDate) || TaskPagination.isReflowed(targetDate)) {
+            return Result.failure(IllegalStateException("Tasks are on full screen pages"))
+        }
         return try {
             if (sourceDate == targetDate) {
                 return Result.failure(Exception("Cannot copy to same date"))
@@ -4512,6 +4554,10 @@ class TaskRepository(internal val context: Context) {
         canvasHeight: Float,
         copyChildren: Boolean = true
     ): Result<CopyTasksResult> {
+        // Full screen Tasks (Oct 2026): this works on pages of 10; the tools calling it leave full screen first
+        if (TaskPagination.isReflowed(task.dayDate) || TaskPagination.isReflowed(targetDate)) {
+            return Result.failure(IllegalStateException("Tasks are on full screen pages"))
+        }
         return try {
             val sourceDate = task.dayDate
             if (sourceDate == targetDate) {
@@ -4853,7 +4899,9 @@ class TaskRepository(internal val context: Context) {
      * @param canvasHeight Canvas height for row bounds calculation
      */
     fun taskHasIntentionalStrokes(task: Task, canvasHeight: Float): Boolean {
-        val rowBounds = calculateRowBounds(task.rowIndex, canvasHeight, 10)
+        // Full screen Tasks (Oct 2026): pages of more rows of the same height (tasks/TaskPagination)
+        val rowCount = TaskPagination.rowsPerPage(task.dayDate)
+        val rowBounds = calculateRowBounds(task.rowIndex, TaskPagination.rowsHeight(canvasHeight, rowCount, tasksTopOffset()), rowCount)
         val strokes = PageDataManager.getStrokesInRectangle(rowBounds.toRect(), task.pageId)
         return hasIntentionalStrokeContent(strokes, rowBounds)
     }
@@ -5192,6 +5240,11 @@ class TaskRepository(internal val context: Context) {
         canvasHeight: Float,
         priorityAssignments: Map<String, String> = emptyMap()
     ): Boolean {
+        // Full screen Tasks (Oct 2026): this works on pages of 10; the tools calling it leave full screen first
+        if (TaskPagination.isReflowed(date)) {
+            Log.w(TAG, "Not reordering $date: its Tasks are on full screen pages")
+            return false
+        }
         if (items.isEmpty()) return true
 
         // T5 (Oct 2026): one transaction; every content column carried; ink deleted by ID from
@@ -5390,6 +5443,11 @@ class TaskRepository(internal val context: Context) {
         canvasHeight: Float,
         defaultDueDate: Long? = null
     ): com.boox.day.ai.TasksAddedResult {
+        // Full screen Tasks (Oct 2026): this works on pages of 10; the tools calling it leave full screen first
+        if (TaskPagination.isReflowed(defaultTargetDate)) {
+            Log.w(TAG, "Not adding tasks to $defaultTargetDate: its Tasks are on full screen pages")
+            return com.boox.day.ai.TasksAddedResult(tasksAdded = 0, pagesUsed = 0, targetDates = emptySet())
+        }
         val selectedTasks = tasks.filter { it.isSelected }
         if (selectedTasks.isEmpty()) {
             return com.boox.day.ai.TasksAddedResult(0, 0, emptySet(), emptyMap())

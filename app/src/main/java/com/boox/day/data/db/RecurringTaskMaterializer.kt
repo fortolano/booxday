@@ -52,6 +52,11 @@ class RecurringTaskMaterializer(
                 Log.i(TAG, "Recurring placement for $date deferred until the Tasks canvas is measured")
                 return@withLock RecurringTaskMaterializationResult()
             }
+            // Full screen Tasks (Oct 2026): placement works on pages of 10; deferred like an unmeasured canvas
+            if (com.boox.day.tasks.TaskPagination.isReflowed(date)) {
+                Log.i(TAG, "Recurring placement for $date deferred: its Tasks are on full screen pages")
+                return@withLock RecurringTaskMaterializationResult()
+            }
             val templates = templateDao.getActiveTemplatesForDate(date)
             if (templates.isEmpty()) {
                 return@withLock RecurringTaskMaterializationResult()

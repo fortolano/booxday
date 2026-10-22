@@ -3,6 +3,7 @@ package com.boox.day.tasks
 import android.util.Log
 import com.boox.day.data.db.Task
 import com.boox.day.data.db.TaskRepository
+import com.boox.day.tasks.TaskPagination
 import com.boox.day.data.db.StrokeRepository
 
 /**
@@ -33,6 +34,11 @@ object TaskSlotCalculator {
         strokeRepository: StrokeRepository,
         canvasHeight: Float = 1872f
     ): TaskSlotsResult {
+        // Full screen Tasks (Oct 2026): counted on pages of 10; callers leave full screen first
+        if (TaskPagination.isReflowed(date)) {
+            return TaskSlotsResult(totalAvailable = 0, emptyOnExistingPages = 0, slotsFromNewPages = 0,
+                existingPageCount = 0, filledSlots = 0, canCreateMorePages = false)
+        }
         // 1. Count existing task pages for this date
         val existingPageCount = taskRepository.getMaxTaskPageIndex(date) + 1
         Log.d(TAG, "Date $date has $existingPageCount existing task pages")
