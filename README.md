@@ -54,7 +54,7 @@ BooxDay is free. It is not on Google Play, so you install it from an APK file. T
 - **"There was a problem parsing the package".** The download is incomplete or damaged. Download it again.
 - **Can't find the file.** Open the Files app and look in the Download folder.
 - **Is it safe?** BooxDay is open source (GPL v3), has no server and sends nothing to its developer. You can read the code in this repository. Download only from this Releases page, never from other sites.
-- **Updates.** Download the newer APK and install it over the old one. Your memos, tasks and settings are kept. Every release is signed with the same key, so updates install in place. The app does not update itself, so check the Releases page now and then.
+- **Updates.** BooxDay checks this Releases page when it starts. When a newer version is out, it asks whether to update, then downloads and installs it itself. The first time, Android asks you to allow installs from BooxDay (turn on **Allow from this source**, then come back). Your memos, tasks and settings are kept. Every release is signed with the same key, so updates install in place. You can also check by hand in Settings > About > **Check for Updates**. Versions 1.0.34 and earlier can't update themselves: install the next version by hand once, as above.
 
 ## Build from source
 

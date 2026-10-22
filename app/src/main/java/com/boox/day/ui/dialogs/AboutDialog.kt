@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
@@ -42,6 +44,7 @@ import androidx.compose.ui.window.PopupProperties
 import com.boox.day.BuildConfig
 import com.boox.day.ProjectInfo
 import com.boox.day.R
+import com.boox.day.update.AppUpdateGate
 import com.boox.day.ui.components.ScrollableWithIndicator
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
@@ -225,6 +228,16 @@ fun AboutDialog(
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        // Debug builds only: test the in-app update without publishing a release
+                        if (BuildConfig.DEBUG) {
+                            UpdateLink(text = "Debug: test update as version 1.0.0") {
+                                AppUpdateGate.debugCheckAsOldVersion(context)
+                            }
+                            UpdateLink(text = "Debug: install update-test.apk") {
+                                AppUpdateGate.debugInstallTestApk(context)
+                            }
+                        }
                     }
                 }
             }
@@ -237,6 +250,7 @@ private fun AboutHeader(
     versionLabel: String,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -259,6 +273,7 @@ private fun AboutHeader(
                 fontSize = EInkTheme.Typography.bodyMedium,
                 color = EInkTheme.Colors.gray
             )
+            UpdateLink(text = "Check for Updates") { AppUpdateGate.checkNow(context) }
         }
 
         Box(
@@ -440,6 +455,31 @@ private fun ExternalLinkAction(
                 modifier = Modifier.size(EInkTheme.Global.iconSizeSmall)
             )
         }
+    }
+}
+
+/** In-app updates (Oct 2026): opens the update popup (update/AppUpdateGate) with the answer. */
+@Composable
+private fun UpdateLink(text: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .heightIn(min = EInkTheme.Global.touchTarget)
+            .noRippleClickable { onClick() },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.SystemUpdate,
+            contentDescription = null,
+            tint = EInkTheme.Colors.primary,
+            modifier = Modifier.size(EInkTheme.Global.iconSizeSmall)
+        )
+        Text(
+            text = text,
+            fontSize = EInkTheme.Typography.bodyMedium,
+            color = EInkTheme.Colors.primary,
+            textDecoration = TextDecoration.Underline
+        )
     }
 }
 

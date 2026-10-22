@@ -1487,6 +1487,7 @@ fun MainScreen(
                 com.boox.day.actionitems.ActionItemsUi.isOpen ||
                 com.boox.day.meetings.MeetingNotesUi.isOpen ||
                 com.boox.day.ui.AiKeyGate.isOpen ||
+                com.boox.day.update.AppUpdateGate.isOpen ||
                 onboardingDismissedAt == 0L
         }
     }
@@ -2119,6 +2120,8 @@ fun MainScreen(
     // below is at the JVM method-size limit (64 KB) and takes no more code
     com.boox.day.actionitems.ActionItemsHost()
     com.boox.day.meetings.MeetingNotesHost()
+    // In-app update popup (Oct 2026, update/AppUpdateGate)
+    com.boox.day.ui.dialogs.AppUpdateHost()
 
     InkaTheme {
         Box(

@@ -24,6 +24,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- In-app updates (Oct 2026): installs a newer release from GitHub (update/AppUpdateInstaller) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Phase 3 (Oct 2026): permissions merged in from libraries that the app never uses -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
     <uses-permission android:name="android.permission.DUMP" tools:node="remove" />
@@ -161,6 +164,21 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- In-app updates (Oct 2026): the install session's result, and "updated, tap to open" -->
+        <receiver
+            android:name=".update.AppUpdateResultReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <receiver
+            android:name=".update.AppUpdatedReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 

@@ -230,6 +230,9 @@ class MainActivity : ComponentActivity() {
 
         readTaskFocusExtras(intent)
         setBooxDayContent(snackState)
+
+        // In-app updates (Oct 2026): checks GitHub for a newer release 15 s from now
+        com.boox.day.update.AppUpdateGate.onAppStart(this)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -268,6 +271,9 @@ class MainActivity : ComponentActivity() {
         // BATTERY FIX: Restart tips timer when app comes to foreground
         // TipsService.start() internally checks if tips are enabled
         TipsService.start()
+
+        // In-app updates: continue after the "Install unknown apps" screen; daily check
+        com.boox.day.update.AppUpdateGate.onResume(this)
 
         // NOTIFICATION FIX: Detect permission changes from Android Settings
         // When user grants POST_NOTIFICATIONS outside the app (via system settings),
