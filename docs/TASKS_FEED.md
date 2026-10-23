@@ -13,12 +13,16 @@ Optional `?limit=` (1 to 200, default 50).
 
 Columns: `_id`, `task_id`, `title`, `handwritten_only`, `day`, `due_day`, `completed`,
 `priority`, `overdue`, `parent_task_id`, `updated_at`. `title` is the converted, typed or
-recognised text, or "Handwritten task" when a task has only strokes.
+recognised text, or "Handwritten task" when a task has only strokes (before handwriting
+recognition reads it, or when it can't). A row counts as handwritten by the same rule BooxDay
+uses on its own pages, so a stray line from the next row doesn't make an empty row a task.
 
 Only task text and dates are shared. Strokes, notes, pages, accounts, API keys and settings are
 not. The provider is exported without a permission, so any app on the device can read it.
 
-Readers are notified on `content://com.boox.day.tasks` whenever BooxDay changes a task.
+Readers are notified on `content://com.boox.day.tasks` whenever tasks change, including new
+handwriting and handwriting recognition, about a second after the change (a burst of changes is
+one notice).
 
 Note: BOOX's app freezing disables idle apps, which also hides this feed until BooxDay is opened
 again. Turning off freezing for BooxDay keeps it available.

@@ -281,15 +281,25 @@ fun createMigratedStrokes(
 fun hasIntentionalStrokeContent(
     strokes: List<Stroke>?,
     rowBounds: TaskRowBounds
+): Boolean = hasIntentionalInk(strokes.orEmpty(), rowBounds, { it.top }, { it.bottom })
+
+/**
+ * [hasIntentionalStrokeContent] for anything with a vertical extent, e.g. stroke bounds read without
+ * their points (the tasks feed, share/TasksFeedProvider). The rule only uses top and bottom.
+ */
+inline fun <T> hasIntentionalInk(
+    strokes: List<T>,
+    rowBounds: TaskRowBounds,
+    top: (T) -> Float,
+    bottom: (T) -> Float
 ): Boolean {
-    if (strokes.isNullOrEmpty()) return false
+    if (strokes.isEmpty()) return false
 
     val rowHeight = rowBounds.height
-    val rowCenterY = (rowBounds.topY + rowBounds.bottomY) / 2
 
     // Filter to strokes whose vertical centroid falls within the row
     val centroidStrokes = strokes.filter { stroke ->
-        val strokeCenterY = (stroke.top + stroke.bottom) / 2
+        val strokeCenterY = (top(stroke) + bottom(stroke)) / 2
         strokeCenterY >= rowBounds.topY && strokeCenterY <= rowBounds.bottomY
     }
 
@@ -302,8 +312,8 @@ fun hasIntentionalStrokeContent(
     // At ~112px rows, 15% = ~17px — catches underlines, strikethroughs, dashes,
     // compact handwriting while still rejecting pure overflow slivers (<5px)
     val singleStroke = centroidStrokes.first()
-    val strokeHeightInRow = minOf(singleStroke.bottom, rowBounds.bottomY) -
-                            maxOf(singleStroke.top, rowBounds.topY)
+    val strokeHeightInRow = minOf(bottom(singleStroke), rowBounds.bottomY) -
+                            maxOf(top(singleStroke), rowBounds.topY)
     val coverageRatio = strokeHeightInRow / rowHeight
 
     return coverageRatio >= 0.15f
