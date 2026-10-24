@@ -6,6 +6,7 @@ import com.boox.day.ai.AiRetryExecutor
 import com.boox.day.api.Modality
 import com.boox.day.api.ModelConfigProvider
 import com.boox.day.api.ai.AiModel
+import com.boox.day.api.ai.AiProblem
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
 import com.boox.day.data.datastore.GlobalAppSettings
@@ -447,22 +448,12 @@ class TranscriptionService(
                 }
             }
 
-            is AiResponse.Error.RateLimitError -> {
-                Log.w(TAG, "Gemini rate limited")
-                _state.value = TranscriptionState.ERROR
-                TranscriptionResult.Error("Service busy, please try again")
-            }
-
-            is AiResponse.Error.NetworkError -> {
-                Log.e(TAG, "Gemini network error: ${response.message}")
-                _state.value = TranscriptionState.ERROR
-                TranscriptionResult.Error("No internet connection")
-            }
-
+            // What went wrong in plain words (Oct 2026: OpenRouter timeouts said "No internet
+            // connection", other errors showed OpenRouter's raw HTTP answer)
             is AiResponse.Error -> {
                 Log.e(TAG, "Gemini error: ${response.message}")
                 _state.value = TranscriptionState.ERROR
-                TranscriptionResult.Error("Transcription failed: ${response.message}")
+                TranscriptionResult.Error(AiProblem.messageFor(response))
             }
         }
     }

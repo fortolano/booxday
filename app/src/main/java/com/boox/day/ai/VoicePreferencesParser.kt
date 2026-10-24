@@ -4,6 +4,7 @@ import android.util.Log
 import com.boox.day.api.ModelConfigProvider
 import com.boox.day.api.ai.AiCapability
 import com.boox.day.api.ai.AiModel
+import com.boox.day.api.ai.AiProblem
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
 import com.boox.day.data.ai.AiPreferences
@@ -173,17 +174,11 @@ object VoicePreferencesParser {
                 Log.d(TAG, "Stage 1 complete: Raw transcript = '$transcript'")
                 transcript
             }
-            is AiResponse.Error.RateLimitError -> {
-                Log.w(TAG, "Stage 1: Rate limited")
-                return ParseResult.empty("Service busy, please try again")
-            }
-            is AiResponse.Error.NetworkError -> {
-                Log.e(TAG, "Stage 1: Network error: ${response.message}")
-                return ParseResult.empty("No internet connection")
-            }
+            // What went wrong in plain words (Oct 2026: OpenRouter timeouts said "No internet
+            // connection", other errors showed OpenRouter's raw HTTP answer)
             is AiResponse.Error -> {
                 Log.e(TAG, "Stage 1: AI error: ${response.message}")
-                return ParseResult.empty("Could not transcribe audio: ${response.message}")
+                return ParseResult.empty(AiProblem.messageFor(response))
             }
         }
 
