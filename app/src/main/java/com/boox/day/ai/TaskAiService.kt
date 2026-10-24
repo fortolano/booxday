@@ -1733,7 +1733,8 @@ OUTPUT FORMAT (JSON only):
             is AiRetryExecutor.RetryResult.Success -> result.data
             is AiRetryExecutor.RetryResult.Failure -> SuggestionsResult(
                 suggestions = emptyList(),
-                error = AiRetryExecutor.SERVICE_UNAVAILABLE_MESSAGE
+                // What went wrong (no Wi-Fi, no credit, ...); was always "temporarily unavailable" (Oct 2026)
+                error = result.message
             )
         }
     }
@@ -2049,7 +2050,8 @@ OUTPUT FORMAT (JSON only):
                 originalTask = taskText,
                 subtasks = emptyList(),
                 keepOriginal = false,
-                error = AiRetryExecutor.SERVICE_UNAVAILABLE_MESSAGE
+                // What went wrong (no Wi-Fi, no credit, ...); was always "temporarily unavailable" (Oct 2026)
+                error = result.message
             )
         }
     }
