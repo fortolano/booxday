@@ -22,7 +22,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.boox.day.editor.DrawCanvas
 import com.boox.day.editor.EditorTabManager
-import com.boox.day.editor.utils.refreshScreen
 import com.boox.day.ui.theme.EInkTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -48,9 +47,10 @@ private const val SURFACE_SETTLE_MS = 150L
  * - before a switch, the active canvas closes a text box and puts down a lasso selection (the resize
  *   would drop both);
  * - entering calls [onEnter] (MainScreen closes the expanded events panel);
- * - once the canvas has its new size: one full e-ink refresh (clears the calendar's ghost) and one
- *   full raw-drawing cycle ([DrawCanvas.forceUpdate]: the protected close, redraw, wait, open, with
- *   the limit rect of the new size); leaving also lets the calendar reach the screen.
+ * - once the canvas has its new size: one full raw-drawing cycle ([DrawCanvas.forceUpdate]: the
+ *   protected close, redraw, wait, open, with the limit rect of the new size); leaving also lets the
+ *   calendar reach the screen. No full e-ink refresh (GC flash): tried on the Go 6, the switch looked
+ *   better without it (owner's call, Oct 2026).
  */
 @Composable
 fun FullScreenEffects(tabManager: EditorTabManager, onEnter: () -> Unit) {
@@ -83,7 +83,6 @@ fun FullScreenEffects(tabManager: EditorTabManager, onEnter: () -> Unit) {
             DrawCanvas.surfaceSize.first { it != null && it != before }
         }
         delay(SURFACE_SETTLE_MS)
-        refreshScreen()
         DrawCanvas.forceUpdate.emit(null)
         if (!isOn) DrawCanvas.forceUnfreeze()
     }
