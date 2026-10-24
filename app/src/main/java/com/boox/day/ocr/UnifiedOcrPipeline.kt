@@ -7,6 +7,7 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.util.Log
+import com.boox.day.api.ai.AiProblem
 import com.boox.day.data.db.UnifiedOcrRepository
 import com.boox.day.ocr.model.OcrSource
 import com.boox.day.ocr.model.UnifiedOcrStatus
@@ -28,7 +29,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * 1. Check quota (the page budget is effectively unlimited) and the monthly AI read limit
  * 2. Render bitmap from source (Boox Notes, Memo, Task)
  * 3. Preprocess bitmap (downscale, grayscale)
- * 4. AI page read (no key or no credit pauses indexing; it is not a page failure)
+ * 4. AI page read (no key, no credit, no internet or OpenRouter down pauses indexing; it is not a page failure)
  * 5. Semantic extraction (12-step pipeline)
  * 6. Store results in UnifiedOcrText
  * 7. Record the new or re-indexed page (logged only, no page budget) and the AI read
@@ -109,7 +110,7 @@ class UnifiedOcrPipeline(private val context: Context) {
         FAILED,
         /** Processing failed too many times and was quarantined */
         QUARANTINED,
-        /** Budget exhausted - page queued for later */
+        /** Indexing waits (no key, no credit, no internet, OpenRouter down, monthly limit) - page queued for later */
         BUDGET_EXHAUSTED,
         /** Bitmap not ready yet (recently modified page) - will retry later */
         BITMAP_NOT_READY
@@ -179,6 +180,7 @@ class UnifiedOcrPipeline(private val context: Context) {
         withContext(Dispatchers.IO) { com.boox.day.security.UserOpenRouterKey.ensureLoaded() }
         if (!com.boox.day.security.UserOpenRouterKey.hasKey) {
             Log.d(TAG, "No OpenRouter key - indexing waits")
+            IndexingStatus.onWaiting(AiProblem.NO_KEY)
             return ProcessResult.BUDGET_EXHAUSTED
         }
         if (!quotaManager.canReadWithAi()) {
@@ -237,11 +239,14 @@ class UnifiedOcrPipeline(private val context: Context) {
             val ocrResult = when (val read = executeAiRead(bitmap)) {
                 is OpenRouterOcrService.Result.Success -> {
                     quotaManager.recordAiRead()
+                    IndexingStatus.onPageRead()
                     OcrResult(text = read.text, confidence = read.confidence, language = read.language, blocks = read.blocks)
                 }
                 is OpenRouterOcrService.Result.Paused -> {
-                    // No key, rejected key or no credit: wait, without counting a page failure
-                    Log.w(TAG, "AI read paused (${read.reason}) - $sourceId/$pageId stays queued")
+                    // No key, rejected key, no credit, no internet or OpenRouter down: wait, without
+                    // counting a page failure
+                    Log.w(TAG, "AI read paused (${read.problem}) - $sourceId/$pageId stays queued")
+                    IndexingStatus.onWaiting(read.problem)
                     ocrRepository.resetToPending(source.sourceType, sourceId, pageId)
                     return ProcessResult.BUDGET_EXHAUSTED
                 }
@@ -384,7 +389,7 @@ class UnifiedOcrPipeline(private val context: Context) {
         try {
             withTimeoutOrNull(AI_READ_TIMEOUT_MS) {
                 openRouterOcrService.recognizeText(bitmap)
-            } ?: OpenRouterOcrService.Result.Failed("timed out").also { Log.w(TAG, "AI read timed out") }
+            } ?: OpenRouterOcrService.Result.Paused(AiProblem.timedOut()).also { Log.w(TAG, "AI read timed out") }
         } catch (e: Exception) {
             Log.e(TAG, "AI read exception: ${e.message}", e)
             OpenRouterOcrService.Result.Failed(e.message ?: "error")

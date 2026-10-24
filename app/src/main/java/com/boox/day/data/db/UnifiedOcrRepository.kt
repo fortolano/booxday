@@ -777,6 +777,20 @@ class UnifiedOcrRepository(context: Context) {
         count
     }
 
+    /**
+     * Free pages quarantined only because they were read while offline (Oct 2026), so they are
+     * read again. Safe at every start: see [UnifiedOcrDao.releaseNetworkQuarantines].
+     *
+     * @return Number of pages freed
+     */
+    suspend fun releaseNetworkQuarantines(): Int = withContext(Dispatchers.IO) {
+        val count = dao.releaseNetworkQuarantines()
+        if (count > 0) {
+            Log.i(TAG, "Freed $count pages quarantined by network errors")
+        }
+        count
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // SEMANTIC GENIUS SERVICE QUERIES
     // ═══════════════════════════════════════════════════════════════════════════

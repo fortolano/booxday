@@ -26,8 +26,17 @@ object DailyNoteMarkdown {
     /** The note's front matter, for a new file. */
     fun frontMatter(digest: DayDigest): String = "---\ndate: ${digest.date}\nsource: Boox Day\n---\n"
 
-    /** Boox Day's part of the note, markers included. */
-    fun block(digest: DayDigest, use24Hour: Boolean, zone: ZoneId = ZoneId.systemDefault(), locale: Locale = Locale.getDefault()): String =
+    /**
+     * Boox Day's part of the note, markers included. [memoWaitReason]: why handwriting is not read
+     * yet, if reading is waiting (e.g. "no internet (Wi-Fi is off)", `IndexingStatus`).
+     */
+    fun block(
+        digest: DayDigest,
+        use24Hour: Boolean,
+        zone: ZoneId = ZoneId.systemDefault(),
+        locale: Locale = Locale.getDefault(),
+        memoWaitReason: String? = null
+    ): String =
         buildString {
             appendLine(START)
             val date = digest.date
@@ -76,7 +85,10 @@ object DailyNoteMarkdown {
                         }
                         page.hasInk -> {
                             appendLine()
-                            appendLine("_Handwriting not read yet._")
+                            appendLine(
+                                if (memoWaitReason != null) "_Handwriting not read yet: ${memoWaitReason}._"
+                                else "_Handwriting not read yet._"
+                            )
                         }
                     }
                     page.textBoxes.forEach { box ->

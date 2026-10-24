@@ -61,6 +61,7 @@ import com.boox.day.data.db.UnifiedOcrRepository
 import com.boox.day.data.db.UnifiedOcrStatistics
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.datastore.OcrSettings
+import com.boox.day.ocr.IndexingStatus
 import com.boox.day.ocr.OcrQuotaManager
 import com.boox.day.ocr.UnifiedOcrIdleProcessor
 import kotlinx.coroutines.Dispatchers
@@ -539,6 +540,8 @@ private fun OcrSettingsSection(
     val settings = GlobalAppSettings.current
     val ocrSettings = settings.ocrSettings
     val isProcessing = processingState?.isProcessing == true
+    // Why reading is waiting (no internet, OpenRouter down, ...), Oct 2026
+    val indexingWaitsFor by IndexingStatus.waitingFor.collectAsState()
 
     // Confirmation dialog state
     var showClearIndexConfirmation by remember { mutableStateOf(false) }
@@ -930,6 +933,10 @@ private fun OcrSettingsSection(
                 ocrStats != null && ocrStats!!.totalPending == 0 && ocrStats!!.totalIndexed > 0 -> {
                     // Index is complete - show friendly message
                     "Index up to date • New content will be indexed during idle time"
+                }
+                indexingWaitsFor != null && ocrStats != null && ocrStats!!.totalPending > 0 -> {
+                    // Pages wait for internet, OpenRouter, a key or credit (Oct 2026)
+                    "Waiting: ${indexingWaitsFor!!.shortText} • ${ocrStats!!.totalPending} items will be read later"
                 }
                 ocrStats != null && ocrStats!!.totalPending > 0 -> {
                     // Items pending

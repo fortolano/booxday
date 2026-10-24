@@ -96,6 +96,19 @@ class DailyNoteMarkdownTest {
     }
 
     @Test
+    fun unreadHandwritingSaysWhyItWaits() {
+        val block = DailyNoteMarkdown.block(
+            digest,
+            use24Hour = false,
+            zone = zone,
+            locale = Locale.US,
+            memoWaitReason = "no internet (Wi-Fi is off)"
+        )
+        assertTrue(block.contains("_Handwriting not read yet: no internet (Wi-Fi is off)._"))
+        assertFalse(block.contains("_Handwriting not read yet._"))
+    }
+
+    @Test
     fun anEmptyDaySaysSo() {
         val block = DailyNoteMarkdown.block(DayDigest(day, emptyList(), emptyList(), 0), use24Hour = true, zone = zone, locale = Locale.US)
         assertTrue(block.contains("## Schedule\nNo events."))

@@ -126,6 +126,10 @@ interface UnifiedOcrDao {
      * EMPTY pages do NOT set firstIndexedAt because they had no content to index.
      * This ensures that when content is later added, the page is treated as NEW
      * (costs budget) rather than a re-index (free).
+     *
+     * failCount goes back to 0 (Oct 2026): the page was read, so old failures say nothing about it.
+     * Before, a page that once reached the quarantine threshold was quarantined again by its first
+     * failure after any later edit.
      */
     @Query("""
         UPDATE unified_ocr_page
@@ -134,6 +138,7 @@ interface UnifiedOcrDao {
             textHash = :textHash,
             semanticHash = :semanticHash,
             lastError = NULL,
+            failCount = 0,
             firstIndexedAt = CASE
                 WHEN firstIndexedAt = 0 AND :status IN ('SUCCESS', 'LOW_SIGNAL') THEN :now
                 ELSE firstIndexedAt
@@ -460,6 +465,22 @@ interface UnifiedOcrDao {
         WHERE status = 'EMPTY' AND firstIndexedAt > 0
     """)
     suspend fun resetFirstIndexedAtForEmptyPages(): Int
+
+    /**
+     * Free pages quarantined only because the AI read had no internet or timed out (Oct 2026).
+     * Before then a network error counted as a page failure, so 3 of them while offline quarantined
+     * a page for good. Reads now wait instead, so no page gets quarantined with these errors any
+     * more and this can run at every start. Pages quarantined for other errors stay.
+     *
+     * @return Number of pages freed
+     */
+    @Query("""
+        UPDATE unified_ocr_page
+        SET status = 'PENDING', failCount = 0
+        WHERE status = 'QUARANTINED'
+          AND (lastError LIKE 'AI read failed: Network error:%' OR lastError = 'AI read failed: timed out')
+    """)
+    suspend fun releaseNetworkQuarantines(): Int
 
     /**
      * Check if a page needs OCR processing.

@@ -599,6 +599,9 @@ fun MainScreen(
             // BUG FIX (Jan 2026): Reset firstIndexedAt for EMPTY pages so they can be
             // properly counted as NEW when content is later added
             ocrRepository.fixEmptyPagesFirstIndexedAt()
+
+            // Oct 2026: pages read while offline were quarantined for good; read them again
+            ocrRepository.releaseNetworkQuarantines()
         }
     }
 

@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.boox.day.data.datastore.AppSettings
+import com.boox.day.ocr.IndexingStatus
 import com.boox.day.sleepscreen.SleepAgenda
 import com.boox.day.today.DayDataWatcher
 import com.boox.day.today.DayDigestLoader
@@ -72,7 +73,11 @@ object DailyNotes {
         val digest = DayDigestLoader(app).load(date, withMemoText = true, withFullTaskText = true)
         val use24Hour = SleepAgenda.settings(app).timeFormat == AppSettings.TimeFormat.TwentyFourHour
         val name = DailyNoteMarkdown.fileName(digest)
-        val block = DailyNoteMarkdown.block(digest, use24Hour)
+        val block = DailyNoteMarkdown.block(
+            digest,
+            use24Hour,
+            memoWaitReason = IndexingStatus.waitingFor.value?.shortText
+        )
         DailyNoteWriter.write(app, name) { existing ->
             DailyNoteMarkdown.merge(existing, block, DailyNoteMarkdown.frontMatter(digest))
         }

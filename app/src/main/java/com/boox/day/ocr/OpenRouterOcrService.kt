@@ -8,8 +8,11 @@ import com.boox.day.ai.JsonExtractor
 import com.boox.day.ai.StructuredOutputSchemas
 import com.boox.day.api.AiJob
 import com.boox.day.api.ModelConfigProvider
+import com.boox.day.api.NetworkState
+import com.boox.day.api.NetworkStatus
 import com.boox.day.api.ReasoningConfig
 import com.boox.day.api.ai.AiModel
+import com.boox.day.api.ai.AiProblem
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
 import kotlinx.coroutines.Dispatchers
@@ -52,11 +55,21 @@ RULES:
     sealed class Result {
         data class Success(val text: String, val language: String?, val confidence: Float, val blocks: Int) : Result()
 
-        /** No key, a rejected key or no credit: indexing waits; the page is not a failure. */
-        data class Paused(val reason: String) : Result()
+        /**
+         * Indexing waits; the page is not a failure: no key, a rejected key, no credit, and since
+         * Oct 2026 no internet or OpenRouter down. Before, those two counted as page failures, and
+         * 3 of them while offline quarantined the page for good (owner's Go 10.3, 20 and 24 Oct 2026).
+         */
+        data class Paused(val problem: AiProblem) : Result()
 
-        /** Network or model error: the page is retried later. */
+        /** The model refused the page or gave no usable answer: counted, the page is retried later. */
         data class Failed(val reason: String) : Result()
+    }
+
+    /** What a failed read means for the page: wait without counting, or count a failure. */
+    internal fun resultFor(error: AiResponse.Error, network: NetworkState): Result {
+        val problem = AiProblem.of(error, network)
+        return if (problem.indexingWaits) Result.Paused(problem) else Result.Failed(error.message)
     }
 
     suspend fun recognizeText(bitmap: Bitmap): Result {
@@ -83,10 +96,7 @@ RULES:
 
         return when (response) {
             is AiResponse.Success -> parse(response.data)
-            is AiResponse.Error.NoApiKey -> Result.Paused("no OpenRouter key")
-            is AiResponse.Error.KeyRejected -> Result.Paused("OpenRouter key rejected")
-            is AiResponse.Error.OutOfCredit -> Result.Paused("OpenRouter credit used up")
-            is AiResponse.Error -> Result.Failed(response.message)
+            is AiResponse.Error -> resultFor(response, NetworkStatus.current())
         }
     }
 
