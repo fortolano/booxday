@@ -640,6 +640,9 @@ RULES:
         val allStrokeIds = mutableListOf<String>()
         val allTextAnnotationIds = mutableListOf<String>()
 
+        // Why the last unreadable page failed, if it really failed
+        var pageFailure: String? = null
+
         try {
             // Process each page sequentially
             pagesWithContent.forEachIndexed { index, page ->
@@ -658,6 +661,9 @@ RULES:
                     allTextAnnotationIds.addAll(result.textAnnotationIds)
                     log.d("Page ${index + 1} translated: ${result.translatedText.length} chars")
                 } else {
+                    // A real failure (no Wi-Fi, no credit, ...), not just an empty page (Oct 2026)
+                    result.errorMessage?.takeUnless { it.startsWith("No readable") || it.startsWith("No content") }
+                        ?.let { pageFailure = it }
                     log.w("Page ${index + 1} had no translatable content, skipping")
                 }
             }
@@ -665,12 +671,12 @@ RULES:
             // Check if we got any translations
             if (perPageTranslations.isEmpty()) {
                 log.i("No readable content found across all pages")
-                onStateChange(MultiPageTranslationState.NoContent("No readable content found on any page"))
+                onStateChange(MultiPageTranslationState.NoContent(pageFailure ?: "No readable content found on any page"))
                 return TranslationResult(
                     translatedText = "",
                     detectedLanguages = "",
                     wasSuccessful = false,
-                    errorMessage = "No readable content found"
+                    errorMessage = pageFailure ?: "No readable content found"
                 )
             }
 
