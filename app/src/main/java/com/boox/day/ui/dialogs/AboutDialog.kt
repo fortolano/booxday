@@ -237,6 +237,10 @@ fun AboutDialog(
                             UpdateLink(text = "Debug: install update-test.apk") {
                                 AppUpdateGate.debugInstallTestApk(context)
                             }
+                            // Tests the crash report (diagnostics/CrashReporter): reopen the app after
+                            UpdateLink(text = "Debug: crash now") {
+                                throw RuntimeException("Debug crash from About")
+                            }
                         }
                     }
                 }

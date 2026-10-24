@@ -233,6 +233,8 @@ class MainActivity : ComponentActivity() {
 
         // In-app updates (Oct 2026): checks GitHub for a newer release 15 s from now
         com.boox.day.update.AppUpdateGate.onAppStart(this)
+        // A crash report saved by the last run (Oct 2026, diagnostics/CrashReporter)
+        com.boox.day.diagnostics.CrashReportGate.onAppStart(this)
     }
 
     override fun onNewIntent(intent: Intent) {

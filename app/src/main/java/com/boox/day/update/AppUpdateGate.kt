@@ -109,8 +109,8 @@ object AppUpdateGate {
         prefs.edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply()
         val result = AppUpdateChecker.check()
         if (result !is AppUpdateChecker.Result.Available) return
-        // Don't cover the page in the middle of writing
-        while (DrawCanvas.isStylusRecentlyActive()) delay(1_000L)
+        // Don't cover the page in the middle of writing, nor the crash popup
+        while (DrawCanvas.isStylusRecentlyActive() || com.boox.day.diagnostics.CrashReportGate.isOpen) delay(1_000L)
         if (state is State.Idle) {
             Log.i(TAG, "Update ${result.info.version} available")
             state = State.Available(result.info)

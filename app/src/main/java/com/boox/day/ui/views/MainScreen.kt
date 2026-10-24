@@ -1490,6 +1490,7 @@ fun MainScreen(
                 com.boox.day.meetings.MeetingNotesUi.isOpen ||
                 com.boox.day.ui.AiKeyGate.isOpen ||
                 com.boox.day.update.AppUpdateGate.isOpen ||
+                com.boox.day.diagnostics.CrashReportGate.isOpen ||
                 com.boox.day.ui.FullScreenState.transitioning ||
                 onboardingDismissedAt == 0L
         }
@@ -2125,6 +2126,8 @@ fun MainScreen(
     com.boox.day.meetings.MeetingNotesHost()
     // In-app update popup (Oct 2026, update/AppUpdateGate)
     com.boox.day.ui.dialogs.AppUpdateHost()
+    // "Boox Day closed unexpectedly" after a crash (Oct 2026, diagnostics/CrashReportGate)
+    com.boox.day.ui.dialogs.CrashReportHost()
     // Full screen (Oct 2026, ui/FullScreenState): Back, tidy-up before a switch, full redraw after it
     com.boox.day.ui.FullScreenEffects(tabManager = tabManager, onEnter = { isEventsExpanded = false })
 
