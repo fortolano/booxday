@@ -85,7 +85,7 @@ fun SleepAgendaSetting() {
             }
             if (justTurnedOff) {
                 Text(
-                    text = "Turned off. To pick your own sleep image again: BOOX Settings, then Screensaver.",
+                    text = "Turned off. The sleep screen shows BOOX's own image again. To pick your own: BOOX Settings, then Screensaver.",
                     fontSize = EInkTheme.Typography.bodySmall,
                     color = EInkTheme.Colors.darkGray
                 )
