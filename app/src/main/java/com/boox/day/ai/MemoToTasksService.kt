@@ -4,8 +4,8 @@ import android.graphics.Bitmap
 import android.util.Base64
 import com.boox.day.api.ModelConfigProvider
 import com.boox.day.api.ai.AiCapability
-import com.boox.day.api.ai.AiClient
 import com.boox.day.api.ai.AiModel
+import com.boox.day.api.ai.AiProblem
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
 import com.boox.day.ocr.model.OcrSource
@@ -104,6 +104,37 @@ object MemoToTasksService {
     )
     private val plausibleEventIdRegex = Regex("""^[A-Za-z0-9][A-Za-z0-9:_-]{2,}$""")
     private const val MAX_TEXT_LENGTH = 8000
+
+    /**
+     * Why every model failed, for the dialog (Oct 2026). It said "All vision models failed to
+     * extract text" or "All models failed to convert memo to tasks" whatever the cause, so no
+     * Wi-Fi, no credit and a bad answer looked the same.
+     */
+    private class ModelFailures {
+        private var lastError: AiResponse.Error? = null
+        private var creditRefusal: AiResponse.Error.OutOfCredit? = null
+        private var keyProblem: AiResponse.Error? = null
+
+        /** Notes a model's answer that could not be used; true when no other model can help. */
+        fun note(response: AiResponse<String>): Boolean {
+            when (response) {
+                // The model answered, but nothing usable came back
+                is AiResponse.Success -> lastError = null
+                is AiResponse.Error.NoApiKey,
+                is AiResponse.Error.KeyRejected -> {
+                    keyProblem = response
+                    return true
+                }
+                is AiResponse.Error.OutOfCredit -> creditRefusal = response
+                is AiResponse.Error -> lastError = response
+            }
+            return false
+        }
+
+        /** A key problem first, then a credit refusal (says to add credit), else the last model's problem. */
+        fun message(): String =
+            (keyProblem ?: creditRefusal ?: lastError)?.let { AiProblem.messageFor(it) } ?: AiProblem.MODEL_FAILED.message
+    }
 
     // Stage 1 vision models - same as AiHandwritingService
     private fun getVisionModels(): List<AiModel> =
@@ -389,6 +420,7 @@ Use this context to:
      * Stage 1: Extract text from image using vision models with fallback.
      */
     private suspend fun extractTextFromImage(base64Image: String): String {
+        val failures = ModelFailures()
         for (model in getVisionModels()) {
             try {
                 log.i("Trying vision model: ${model.id}")
@@ -403,7 +435,8 @@ Use this context to:
                     }
                 }
 
-                val response = AiClient.execute(request)
+                // AiClient.execute; unit tests replace it
+                val response = AiRetryExecutor.send(request, true)
 
                 if (response is AiResponse.Success) {
                     val content = response.data
@@ -431,6 +464,7 @@ Use this context to:
                         return content.trim()
                     }
                 }
+                if (failures.note(response)) break
 
                 log.w("Model ${model.id} failed or returned empty, trying next...")
 
@@ -440,7 +474,7 @@ Use this context to:
             }
         }
 
-        throw Exception("All vision models failed to extract text")
+        throw Exception(failures.message())
     }
 
     private fun parseStructuredOcrResponse(response: String): String? {
@@ -465,6 +499,7 @@ Use this context to:
         dayContext: DateSemanticContext?,
         existingTasks: List<String>
     ): List<ConvertedTask> {
+        val failures = ModelFailures()
         val taskScopeSection = if (existingTasks.isNotEmpty()) {
             "Existing tasks (do not duplicate):\n" +
                 existingTasks.take(10).joinToString("\n") { "- $it" }
@@ -512,7 +547,8 @@ Use this context to:
                     }
                 }
 
-                val response = AiClient.execute(request)
+                // AiClient.execute; unit tests replace it
+                val response = AiRetryExecutor.send(request, true)
 
                 if (response is AiResponse.Success) {
                     val content = response.data
@@ -523,6 +559,7 @@ Use this context to:
                         return tasks
                     }
                 }
+                if (failures.note(response)) break
 
                 log.w("Model ${model.id} failed or returned empty tasks, trying next...")
 
@@ -532,7 +569,7 @@ Use this context to:
             }
         }
 
-        throw Exception("All models failed to convert memo to tasks")
+        throw Exception(failures.message())
     }
 
     /**
