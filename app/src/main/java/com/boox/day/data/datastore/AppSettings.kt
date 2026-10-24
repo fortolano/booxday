@@ -196,6 +196,9 @@ data class AppSettings(
     /** Today's agenda as the BOOX sleep screen (Oct 2026, sleepscreen/SleepAgenda). Off until the user turns it on. */
     val sleepScreenAgendaEnabled: Boolean = false,
 
+    /** A Markdown note for each day, written by itself (Oct 2026, export/DailyNotes). Off until turned on. */
+    val dailyNotesEnabled: Boolean = false,
+
     /** Tasks: day (yyyy-MM-dd) the start-the-day review was last shown (plan T4, Oct 2026) */
     val lastStartDayReviewDay: String? = null,
 

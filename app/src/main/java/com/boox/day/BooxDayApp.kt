@@ -84,6 +84,8 @@ class BooxDayApp : Application() {
         runSafeStartupStep("Drive auto-backup schedule") { com.boox.day.sync.DriveAutoBackupWorker.schedule(this) }
         // Today's agenda on the BOOX sleep screen, when turned on (sleepscreen/SleepAgenda)
         runSafeStartupStep("Sleep screen agenda") { com.boox.day.sleepscreen.SleepAgenda.onAppStart(this, applicationScope) }
+        // Markdown daily notes, when turned on (export/DailyNotes)
+        runSafeStartupStep("Daily notes") { com.boox.day.export.DailyNotes.onAppStart(this, applicationScope) }
     }
 
     /**
