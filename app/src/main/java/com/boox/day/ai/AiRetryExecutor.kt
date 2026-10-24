@@ -5,6 +5,7 @@ import androidx.annotation.VisibleForTesting
 import com.boox.day.api.AiPickStatus
 import com.boox.day.api.OpenRouterAccount
 import com.boox.day.api.ai.AiModel
+import com.boox.day.api.ai.AiProblem
 import com.boox.day.api.ai.AiRequest
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.AiClient
@@ -66,6 +67,9 @@ object AiRetryExecutor {
         }
 
         var lastError: String? = null
+        // What the user is told if every attempt fails (Oct 2026: no Wi-Fi, OpenRouter down or a
+        // model's bad answer all said "temporarily unavailable" before)
+        var lastProblem: AiProblem? = null
         var totalAttempts = 0
         var creditRefusal: AiResponse.Error.OutOfCredit? = null
         // No credit: one pass, to save the free models' daily allowance
@@ -94,16 +98,19 @@ object AiRetryExecutor {
                         } else {
                             Log.w(TAG, "${model.displayName} returned invalid response, trying next...")
                             lastError = "Invalid response from ${model.displayName}"
+                            lastProblem = AiProblem.MODEL_FAILED
                             AiPickStatus.noteUnusableAnswer(model)
                         }
                     }
                     is AiResponse.Error.RateLimitError -> {
                         Log.w(TAG, "${model.displayName} rate limited")
                         lastError = "Rate limited: ${response.message}"
+                        lastProblem = AiProblem.of(response)
                     }
                     is AiResponse.Error.NetworkError -> {
                         Log.w(TAG, "${model.displayName} network error: ${response.message}")
                         lastError = "Network error: ${response.message}"
+                        lastProblem = AiProblem.of(response)
                     }
                     is AiResponse.Error.ServiceUnavailable -> {
                         Log.w(TAG, "${model.displayName} service unavailable: ${response.message}")
@@ -129,6 +136,7 @@ object AiRetryExecutor {
                     is AiResponse.Error -> {
                         Log.w(TAG, "${model.displayName} error: ${response.message}")
                         lastError = response.message
+                        lastProblem = AiProblem.of(response)
                     }
                 }
             }
@@ -142,7 +150,7 @@ object AiRetryExecutor {
 
         Log.e(TAG, "All $totalAttempts attempts failed. Last error: $lastError")
         // A credit refusal says what to do (add credit); the free models' errors usually don't
-        return RetryResult.Failure(creditRefusal?.message ?: SERVICE_UNAVAILABLE_MESSAGE, lastError)
+        return RetryResult.Failure(creditRefusal?.message ?: lastProblem?.message ?: SERVICE_UNAVAILABLE_MESSAGE, lastError)
     }
 
     /**

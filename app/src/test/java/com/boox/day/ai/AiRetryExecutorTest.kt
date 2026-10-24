@@ -4,6 +4,7 @@ import com.boox.day.api.OpenRouterAccount
 import com.boox.day.api.ai.AiCapability
 import com.boox.day.api.ai.AiConfig
 import com.boox.day.api.ai.AiModel
+import com.boox.day.api.ai.AiProblem
 import com.boox.day.api.ai.AiRequest
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
@@ -83,6 +84,26 @@ class AiRetryExecutorTest {
         val result = AiRetryExecutor.executeSimple(listOf(paidA, paidB, free), ::build)
         assertEquals(AiResponse.Error.OutOfCredit.NO_CREDIT_MESSAGE, (result as AiRetryExecutor.RetryResult.Failure).message)
         assertEquals(listOf(paidA.id, free.id, free.id), sent)
+    }
+
+    @Test
+    fun `a failure says what went wrong instead of temporarily unavailable`() = runBlocking {
+        // No network state in unit tests (NetworkStatus not set up): a connection failure means
+        // OpenRouter could not be reached
+        AiRetryExecutor.send = { request, _ ->
+            sent += request.model.id
+            AiResponse.Error.NetworkError("Network error: Unable to resolve host", java.net.UnknownHostException())
+        }
+        val offline = AiRetryExecutor.executeSimple(listOf(paidA), ::build)
+        assertEquals(AiProblem.OPENROUTER_UNREACHABLE.message, (offline as AiRetryExecutor.RetryResult.Failure).message)
+
+        answers(paidA.id to AiResponse.Success("   ", paidA.id, null))
+        val badAnswer = AiRetryExecutor.executeSimple(listOf(paidA), ::build)
+        assertEquals(AiProblem.MODEL_FAILED.message, (badAnswer as AiRetryExecutor.RetryResult.Failure).message)
+
+        answers(paidA.id to AiResponse.Error.ApiError(502, "bad gateway"))
+        val down = AiRetryExecutor.executeSimple(listOf(paidA), ::build)
+        assertEquals(AiProblem.OPENROUTER_DOWN.message, (down as AiRetryExecutor.RetryResult.Failure).message)
     }
 
     @Test
