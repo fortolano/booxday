@@ -241,6 +241,13 @@ fun AboutDialog(
                             UpdateLink(text = "Debug: crash now") {
                                 throw RuntimeException("Debug crash from About")
                             }
+                            // Plan step 1a: does BOOX take a sleep image from the app? (sleepscreen/SleepScreenSpike)
+                            UpdateLink(text = "Debug: set test sleep screen (Pictures)") {
+                                com.boox.day.sleepscreen.SleepScreenSpike.run(context, com.boox.day.sleepscreen.SleepScreenSpike.Where.PICTURES)
+                            }
+                            UpdateLink(text = "Debug: set test sleep screen (app folder)") {
+                                com.boox.day.sleepscreen.SleepScreenSpike.run(context, com.boox.day.sleepscreen.SleepScreenSpike.Where.APP_FILES)
+                            }
                         }
                     }
                 }

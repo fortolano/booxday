@@ -53,6 +53,8 @@ class TasksFeedProvider : ContentProvider() {
         val context = context ?: return null
         val limit = uri.getQueryParameter("limit")?.toIntOrNull()?.coerceIn(1, 200) ?: 50
         val today = LocalDate.now().toString()
+        // /today?day=yyyy-MM-dd: another day's tasks (the Markdown daily note writes yesterday's)
+        val day = uri.getQueryParameter("day")?.takeIf { runCatching { LocalDate.parse(it) }.isSuccess } ?: today
 
         val where = when (match) {
             DUE -> "isCompleted = 0 AND dueDay IS NOT NULL AND dueDay <= ?"
@@ -64,7 +66,11 @@ class TasksFeedProvider : ContentProvider() {
             TODAY -> "taskPageIndex ASC, rowIndex ASC"
             else -> "dayDate DESC, taskPageIndex ASC, rowIndex ASC"
         }
-        val args: Array<Any> = if (match == OPEN) emptyArray() else arrayOf(today)
+        val args: Array<Any> = when (match) {
+            OPEN -> emptyArray()
+            TODAY -> arrayOf(day)
+            else -> arrayOf(today)
+        }
         // Rows with text or task data, and rows on pages with ink: a task can be handwriting only
         // (no text until handwriting recognition reads it, or ever if it can't). Those are checked
         // below with the app's own rule for intentional ink in a row.

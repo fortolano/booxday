@@ -193,6 +193,9 @@ data class AppSettings(
     /** Tasks: a line drawn through a task's ink or text checks it (plan T4, Oct 2026) */
     val taskCrossOutEnabled: Boolean = true,
 
+    /** Today's agenda as the BOOX sleep screen (Oct 2026, sleepscreen/SleepAgenda). Off until the user turns it on. */
+    val sleepScreenAgendaEnabled: Boolean = false,
+
     /** Tasks: day (yyyy-MM-dd) the start-the-day review was last shown (plan T4, Oct 2026) */
     val lastStartDayReviewDay: String? = null,
 

@@ -349,6 +349,9 @@ fun PreferencesDialog(
                             }
                         }
 
+                        // Today's agenda on the BOOX sleep screen (Oct 2026; BOOX tablets only)
+                        com.boox.day.sleepscreen.SleepAgendaSetting()
+
                         // Show Tips Setting
                         SettingCard(
                             title = "Show Tips",

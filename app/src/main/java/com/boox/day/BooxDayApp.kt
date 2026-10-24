@@ -82,6 +82,8 @@ class BooxDayApp : Application() {
         runSafeStartupStep("Pending calendar push") { requestPendingCalendarPush() }
         // Automatic Drive backup check (does nothing unless Drive backup is on and due)
         runSafeStartupStep("Drive auto-backup schedule") { com.boox.day.sync.DriveAutoBackupWorker.schedule(this) }
+        // Today's agenda on the BOOX sleep screen, when turned on (sleepscreen/SleepAgenda)
+        runSafeStartupStep("Sleep screen agenda") { com.boox.day.sleepscreen.SleepAgenda.onAppStart(this, applicationScope) }
     }
 
     /**

@@ -368,6 +368,12 @@ class MainActivity : ComponentActivity() {
         return true
     }
 
+    override fun onStop() {
+        super.onStop()
+        // The tablet is often put to sleep right after: bring the sleep-screen agenda up to date
+        com.boox.day.sleepscreen.SleepAgenda.onAppBackground(this)
+    }
+
     override fun onPause() {
         DrawCanvas.cancelAndroidStylusInput()
         super.onPause()
