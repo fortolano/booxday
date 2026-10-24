@@ -6586,7 +6586,10 @@ private fun PersistentCanvasHost(
                 // If Memos is active, this wipes the Memos bitmap while strokes are still
                 // loading from DB, causing the "strokes get cleared" bug.
                 // See EditorTabManager.kt:254,301 for prior instance of this exact bug.
-                if (currentTab == EditorTab.Tasks) {
+                // On a day switch the page is still loading the new day, and that load ends with
+                // its own full redraw, which greys these rows. Asking for one here too ran the
+                // close → 100 ms → reopen pen cycle twice on most day switches (Oct 2026).
+                if (currentTab == EditorTab.Tasks && !page.isLoadRedrawPending) {
                     DrawCanvas.forceUpdate.emit(null)
                 }
             }

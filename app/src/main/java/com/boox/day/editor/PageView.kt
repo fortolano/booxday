@@ -103,6 +103,15 @@ class PageView(
     @Volatile
     var completedRowIndices: Set<Int> = emptySet()
 
+    /** Page whose load (loadPage) has not yet asked for its full redraw. That redraw reads
+     *  [completedRowIndices], so another full redraw asked for meanwhile only repeats it. */
+    @Volatile
+    private var loadRedrawPendingPageId: String? = null
+
+    /** True while the current page's own load is still going to redraw the whole canvas. */
+    val isLoadRedrawPending: Boolean
+        get() = loadRedrawPendingPageId == currentPageId
+
     // Surface sync state for validation
     @Volatile
     private var surfaceSyncedWidth: Int = 0
@@ -242,6 +251,7 @@ class PageView(
             log.i("PERF: PageView init sync part took ${System.currentTimeMillis() - initStart}ms")
         }
 
+        loadRedrawPendingPageId = currentPageId
         coroutineScope.launch {
 //            DrawCanvas.refreshUiImmediately.emit(Unit)
             loadPage()
@@ -277,6 +287,7 @@ class PageView(
             val oldId = currentPageId
 
             currentPageId = newPageId
+            loadRedrawPendingPageId = newPageId
             coroutineScope.launch {
                 updateOnExit(oldId)
                 persistBitmapDebounced(oldId)
@@ -357,6 +368,7 @@ class PageView(
         logCache.i("Init from persist layer, pageId: $currentPageId")
         windowedCanvas.scale(zoomLevel.value, zoomLevel.value)
         val bookId = pageFromDb?.notebookId
+        val loadingPageId = currentPageId
 
         loadingJob = coroutineScope.launch(Dispatchers.IO) {
             try {
@@ -369,6 +381,7 @@ class PageView(
                 // TODO: If we put it in loadPage(…) sometimes it will try to refresh
                 //  without seeing strokes, I have no idea why.
                 coroutineScope.launch(Dispatchers.Main.immediate) {
+                    clearLoadRedrawPending(loadingPageId)
                     DrawCanvas.forceUpdate.emit(null)
                 }
                 logCache.d("Loaded page from persistent layer $currentPageId")
@@ -381,13 +394,20 @@ class PageView(
                         cacheNeighbors(appRepository, currentPageId, bookId)
                 }
             } catch (_: CancellationException) {
+                clearLoadRedrawPending(loadingPageId)
                 val dataStatus = PageDataManager.validatePageDataLoaded(currentPageId)
                 logCache.d("Page loading cancelled, data was loaded correctly: $dataStatus")
             } catch (e: Exception) {
+                clearLoadRedrawPending(loadingPageId)
                 val dataStatus = PageDataManager.validatePageDataLoaded(currentPageId)
                 logCache.e("Page loading cancelled, data was loaded correctly: $dataStatus", e)
             }
         }
+    }
+
+    // A load that ends without its redraw must not keep other full redraws waiting for it.
+    private fun clearLoadRedrawPending(pageId: String) {
+        if (loadRedrawPendingPageId == pageId) loadRedrawPendingPageId = null
     }
 
 
