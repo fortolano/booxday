@@ -341,6 +341,8 @@ If no readable text: <<<NO_TEXT>>>
         onStateChange(SummarizationState.Analyzing)
 
         val ocrResult = extractAndRefineStrokeTextForSummarization(base64Image)
+        // Why reading the handwriting failed (no Wi-Fi, no credit, ...), if it did
+        var readFailure: String? = null
         if (ocrResult.isSuccess) {
             val ocrText = ocrResult.getOrThrow()
             if (ocrText.isNotBlank()) {
@@ -348,13 +350,24 @@ If no readable text: <<<NO_TEXT>>>
                 log.d("OCR extracted and cleaned: ${ocrText.length} chars")
             }
         } else {
-            log.w("OCR failed, continuing with text annotations only")
+            readFailure = ocrResult.exceptionOrNull()?.message
+            log.w("OCR failed ($readFailure), continuing with text annotations only")
         }
 
         // 2. Extract text from annotations
         content.textAnnotations
             .filter { it.content.isNotBlank() }
             .forEach { extractedTexts.add(it.content) }
+
+        // Nothing read because reading failed: say why (Oct 2026: said "No readable text found")
+        if (extractedTexts.isEmpty() && readFailure != null) {
+            onStateChange(SummarizationState.Error(readFailure))
+            return SummarizationResult(
+                summary = "",
+                wasSuccessful = false,
+                errorMessage = readFailure
+            )
+        }
 
         if (extractedTexts.isEmpty()) {
             onStateChange(SummarizationState.NoContent("No readable text found"))

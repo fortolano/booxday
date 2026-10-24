@@ -170,6 +170,8 @@ object AiTranslationService {
 
             val extractedTexts = mutableListOf<String>()
             val detectedLanguages = mutableListOf<String>()
+            // Why reading the handwriting failed (no Wi-Fi, no credit, ...), if it did
+            var readFailure: String? = null
 
             // 1a. Extract text from strokes via Vision OCR (if any)
             if (content.hasStrokes) {
@@ -190,7 +192,8 @@ object AiTranslationService {
                         log.d("OCR extracted: ${text.length} chars, cleaned=${cleanedOcrText.length} chars, language: $lang")
                     }
                 } else {
-                    log.w("OCR failed: ${ocrResult.exceptionOrNull()?.message}")
+                    readFailure = ocrResult.exceptionOrNull()?.message
+                    log.w("OCR failed: $readFailure")
                     // Continue with text annotations even if OCR fails
                 }
             }
@@ -203,6 +206,18 @@ object AiTranslationService {
                         extractedTexts.add(annotation.content)
                     }
                 }
+            }
+
+            // Nothing read because reading failed: say why (Oct 2026: said "No readable text
+            // found" even with a page full of handwriting and Wi-Fi off)
+            if (extractedTexts.isEmpty() && readFailure != null) {
+                onStateChange(TranslationState.Error(readFailure))
+                return TranslationResult(
+                    translatedText = "",
+                    detectedLanguages = "",
+                    wasSuccessful = false,
+                    errorMessage = readFailure
+                )
             }
 
             // Check if we got any text
