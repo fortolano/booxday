@@ -104,6 +104,14 @@ class DailyNoteMarkdownTest {
     }
 
     @Test
+    fun aPlaceOnSeveralLinesStaysInItsListItem() {
+        val event = DigestEvent("p", "Activity", at(10, 0), at(12, 0), allDay = false,
+            location = "6270 126 Street \r\nSURREY, BC V3X 1T9 \nCANADA\n")
+        val block = DailyNoteMarkdown.block(DayDigest(day, listOf(event), emptyList(), 0), use24Hour = true, zone = zone, locale = Locale.US)
+        assertTrue(block.contains("- 10:00–12:00: Activity (6270 126 Street SURREY, BC V3X 1T9 CANADA)\n\n## Tasks"))
+    }
+
+    @Test
     fun writingAgainKeepsTheUsersOwnText() {
         val first = DailyNoteMarkdown.merge(null, "<!-- booxday:start -->\nold\n<!-- booxday:end -->", "---\ndate: x\n---\n")
         assertTrue(first.startsWith("---\ndate: x\n---\n"))

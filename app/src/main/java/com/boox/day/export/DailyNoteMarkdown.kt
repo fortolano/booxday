@@ -37,7 +37,8 @@ object DailyNoteMarkdown {
             appendLine("## Schedule")
             if (digest.events.isEmpty()) appendLine("No events.")
             digest.events.forEach { event ->
-                val place = event.location?.trim()?.takeIf { it.isNotEmpty() }?.let { " ($it)" }.orEmpty()
+                // Places can be several lines (Google sends postal addresses that way)
+                val place = event.location?.let { oneLine(it) }?.takeIf { it.isNotEmpty() }?.let { " ($it)" }.orEmpty()
                 appendLine("- ${whenText(event, use24Hour, zone, locale)}: ${oneLine(event.title)}$place")
                 event.booxNoteTitles.forEach { appendLine("  - BOOX Note: ${oneLine(it)}") }
             }
