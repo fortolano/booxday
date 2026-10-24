@@ -768,6 +768,10 @@ interface TaskDao {
     @Query("SELECT dayDate FROM task WHERE pageId = :pageId LIMIT 1")
     fun getDayDateByPageId(pageId: String): String?
 
+    /** Task pages with text read from handwriting (TaskTextExtractor reads them again when its rules change). */
+    @Query("SELECT DISTINCT pageId FROM task WHERE recognizedText IS NOT NULL AND recognizedText != ''")
+    fun getPageIdsWithRecognizedText(): List<String>
+
     /**
      * Get taskPageIndex for a given pageId.
      * Used by TaskSemanticBridge to query all tasks for combined text.

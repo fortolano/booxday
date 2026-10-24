@@ -311,7 +311,7 @@ class BooxDayApp : Application() {
      *
      * Two components initialized in background (non-blocking):
      * 1. DigitalInkModelManager: Pre-downloads en-US recognition model (~20MB)
-     * 2. HandwritingNormalizer: Loads spell correction dictionaries (~300KB)
+     * 2. HandwritingNormalizer: Loads the word and name lists used for capitals (~300KB)
      *
      * Both are fire-and-forget - if they fail, Task extraction gracefully degrades.
      */

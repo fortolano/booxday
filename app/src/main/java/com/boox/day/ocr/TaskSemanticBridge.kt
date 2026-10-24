@@ -59,7 +59,7 @@ class TaskSemanticBridge private constructor(
     private val ocrRepository: UnifiedOcrRepository by lazy { UnifiedOcrRepository(context) }
     private val semanticGeniusService: SemanticGeniusService by lazy { SemanticGeniusService(context) }
 
-    // Normalizer for spell correction + name detection on handwritten text
+    // Capitals of typed text in the combined page text (recognized text is tidied by DigitalInkService)
     // en-US is always supported, so !! is safe here
     private val normalizer: HandwritingNormalizer by lazy {
         HandwritingNormalizerFactory.getInstance(context, "en-US")!!
@@ -98,9 +98,9 @@ class TaskSemanticBridge private constructor(
         // when user erases content from a previously-filled slot
         for (result in results) {
             if (!result.isEmpty && result.text.isNotBlank()) {
-                // Apply spell correction + name detection before storing
-                val normalizedText = normalizer.normalize(result.text)
-                taskDao.setRecognizedText(dayDate, result.slotIndex, taskPageIndex, normalizedText)
+                // Already tidied, in the recognition language (Oct 2026: a second English pass here
+                // garbled other languages: "Brot und Milch" → "Brot fund milch")
+                taskDao.setRecognizedText(dayDate, result.slotIndex, taskPageIndex, result.text)
             } else {
                 // Clear stale recognizedText for empty slots
                 taskDao.setRecognizedText(dayDate, result.slotIndex, taskPageIndex, null)
@@ -195,7 +195,7 @@ class TaskSemanticBridge private constructor(
             return ""
         }
 
-        // Use class-level normalizer for typed text (recognizedText already normalized in processResults)
+        // Use class-level normalizer for typed text (recognizedText is already tidied by DigitalInkService)
         return tasks
             .sortedBy { it.rowIndex }
             .mapNotNull { task -> getTaskText(task, normalizer) }
@@ -207,7 +207,7 @@ class TaskSemanticBridge private constructor(
      *
      * Priority:
      * 1. typedText (normalized via HandwritingNormalizer)
-     * 2. recognizedText (already normalized in processResultsInternal before storing)
+     * 2. recognizedText (already tidied by DigitalInkService before storing)
      * 3. convertedText (from AI memo conversion)
      *
      * @param task The task to get text from
@@ -224,7 +224,7 @@ class TaskSemanticBridge private constructor(
             }
         }
 
-        // Priority 2: Recognized text (already normalized in processResultsInternal)
+        // Priority 2: Recognized text (already tidied by DigitalInkService)
         task.recognizedText?.takeIf { it.isNotBlank() }?.let { return it }
 
         // Priority 3: Converted text (from AI memo conversion)

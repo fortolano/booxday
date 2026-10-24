@@ -53,6 +53,15 @@ class TaskTextExtractor private constructor(
         private const val GEOMETRY_WAIT_STEP_MS = 250L
         private const val GEOMETRY_WAIT_STEPS = 120  // 30 s
 
+        /**
+         * Version of the rules that tidy recognized text (DigitalInkService.tidyRecognizedText). Raise it
+         * when they change: every task page with recognized text is then read again once.
+         * 2 (Oct 2026): no more dropped letters and words, no more spell "correction".
+         */
+        private const val TIDY_RULES_VERSION = 2
+        private const val PREFS = "task_handwriting"
+        private const val KEY_TIDY_RULES = "tidyRulesVersion"
+
         @Volatile
         private var instance: TaskTextExtractor? = null
 
@@ -82,6 +91,7 @@ class TaskTextExtractor private constructor(
 
     // Prevent multiple concurrent batch processing runs
     private val batchProcessingInProgress = AtomicBoolean(false)
+    private val rereadInProgress = AtomicBoolean(false)
 
     // Services (lazy initialized)
     private val taskDao: TaskDao by lazy { AppDatabase.getDatabase(context).taskDao() }
@@ -137,8 +147,10 @@ class TaskTextExtractor private constructor(
      * This triggers:
      * 1. Processing of any pages that were queued while waiting for model
      * 2. Batch processing of all historical unconverted Task pages
+     * 3. Once after a change of the tidy rules: reading again every page with recognized text
      *
-     * Called from DigitalInkModelManager after successful model download.
+     * Called from DigitalInkModelManager after successful model download (and at every start when the
+     * model is already there).
      */
     fun onModelReady() {
         scope.launch(Dispatchers.IO) {
@@ -158,6 +170,42 @@ class TaskTextExtractor private constructor(
 
             // 2. Batch process all unconverted Task pages
             processUnconvertedPages()
+
+            // 3. Text saved under older tidy rules
+            rereadRecognizedPagesOnce()
+        }
+    }
+
+    /**
+     * Reads every task page that has recognized text again, once per [TIDY_RULES_VERSION], so text saved
+     * under older rules is replaced (Oct 2026: they had dropped the "B" of "Task B", "3 PM" and the like,
+     * and turned "bread" into "read"). From the ink, on the tablet, no quota. Done only when every page
+     * could be read; otherwise tried again at the next start.
+     */
+    private suspend fun rereadRecognizedPagesOnce() {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getInt(KEY_TIDY_RULES, 0) >= TIDY_RULES_VERSION) return
+        if (!rereadInProgress.compareAndSet(false, true)) return
+        try {
+            if (!digitalInkService.isReady() || awaitMeasuredTasksCanvasHeight() == null) {
+                Log.i(TAG, "Re-read under tidy rules $TIDY_RULES_VERSION postponed (model or canvas not ready)")
+                return
+            }
+            val density = context.resources.displayMetrics.density
+            val pageIds = taskDao.getPageIdsWithRecognizedText()
+            var allRead = true
+            for (pageId in pageIds) {
+                try {
+                    if (!processPageInternal(pageId, density, isNewPage = false)) allRead = false
+                } catch (e: Exception) {
+                    allRead = false
+                    Log.e(TAG, "Re-read of $pageId failed: ${e.message}")
+                }
+            }
+            if (allRead) prefs.edit().putInt(KEY_TIDY_RULES, TIDY_RULES_VERSION).apply()
+            Log.i(TAG, "Re-read ${pageIds.size} task pages under tidy rules $TIDY_RULES_VERSION (complete=$allRead)")
+        } finally {
+            rereadInProgress.set(false)
         }
     }
 
@@ -265,13 +313,6 @@ class TaskTextExtractor private constructor(
         processPageInternal(pageId, density, isNewPage)
     }
 
-    /**
-     * Internal page processing with quota tracking.
-     *
-     * @param pageId Page UUID
-     * @param density Screen density
-     * @param isNewPage True if this page has never been indexed (consumes quota)
-     */
     /** The measured Tasks canvas height, waiting up to 30 s for MainScreen to report it. */
     private suspend fun awaitMeasuredTasksCanvasHeight(): Float? {
         repeat(GEOMETRY_WAIT_STEPS) {
@@ -281,7 +322,15 @@ class TaskTextExtractor private constructor(
         return GlobalAppSettings.tasksCanvasHeight.takeIf { it > 0f }
     }
 
-    private suspend fun processPageInternal(pageId: String, density: Float, isNewPage: Boolean) {
+    /**
+     * Internal page processing with quota tracking.
+     *
+     * @param pageId Page UUID
+     * @param density Screen density
+     * @param isNewPage True if this page has never been indexed (consumes quota)
+     * @return false when the page was skipped for now (canvas not measured, day on full screen pages)
+     */
+    private suspend fun processPageInternal(pageId: String, density: Float, isNewPage: Boolean): Boolean {
         Log.i(TAG, "Processing task page: $pageId (isNew=$isNewPage)")
         val startTime = System.currentTimeMillis()
 
@@ -290,14 +339,14 @@ class TaskTextExtractor private constructor(
         // recognized text there. Unmeasured -> skip; the page stays "needing OCR" and is retried.
         val canvasHeight = awaitMeasuredTasksCanvasHeight() ?: run {
             Log.w(TAG, "Tasks canvas not measured; skipping $pageId for now")
-            return
+            return false
         }
         // Full screen Tasks (Oct 2026): rows are read on pages of 10; a day on full screen pages waits
         // like an unmeasured canvas (the page stays needing OCR and is retried after full screen)
         val pageDate = taskDao.getDayDateByPageId(pageId)
         if (pageDate != null && com.boox.day.tasks.TaskPagination.isReflowed(pageDate)) {
             Log.i(TAG, "Tasks of $pageDate are on full screen pages; skipping $pageId for now")
-            return
+            return false
         }
         val controlColumnPx = convertDpToPixel(TASKS_CONTROL_COLUMN_WIDTH, context)
         val topOffset = GlobalAppSettings.tasksTopOffsetPx.takeIf { it > 0f }
@@ -333,5 +382,6 @@ class TaskTextExtractor private constructor(
 
         val elapsed = System.currentTimeMillis() - startTime
         Log.i(TAG, "Task page processing complete: $pageId (${elapsed}ms)")
+        return true
     }
 }

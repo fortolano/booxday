@@ -6,21 +6,29 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 /**
- * Language-specific handwriting normalizer for Digital Ink recognition results.
+ * Tidies the capitals of English Digital Ink recognition results (typed task text in the search index
+ * too). The words themselves are never changed: ML Kit already reads with its own language model.
  *
- * One instance per language, cached by HandwritingNormalizerFactory.
- * ~60KB memory per language.
+ * One instance per language, cached by HandwritingNormalizerFactory. Other languages keep the
+ * recognizer's capitals ([UniversalHandwritingNormalizer]).
  *
- * Pipeline (5 stages):
- * 1. Word Segmentation - split merged words ("ADDINGA" → "ADDING A")
- * 2. Spell Correction - fix typos ("intereview" → "interview")
- * 3. Case Normalization - lowercase everything
- * 4. Proper Noun Detection - capitalize names ("rajin" → "Rajin")
- * 5. Sentence Capitalization - capitalize first word
+ * Rules, word by word:
+ * - ordinary words go lower case, the line starts with a capital ("CALL MOM" → "Call mom")
+ * - "I" (and I'm, I'll…) is a capital; other single letters keep their capital ("TASK B" → "Task B")
+ * - known abbreviations are capitals ("3 pm" → "3 PM", "review pr" → "review PR"); words that are
+ *   also ordinary words ("it", "am", "re", "pin") keep the case they were written in
+ * - names are capitalized ("rajin" → "Rajin"); names that are also ordinary words ("Mark", "Will")
+ *   only when written with a capital or after "call", "email", "meet"…
+ * - in a line written in normal case, a word that isn't an ordinary word keeps the capitals it was
+ *   written with ("Call IBM", "Meet Santos", "Q4"); in a line all in capitals they tell nothing, so
+ *   only the rules above apply there
+ *
+ * Oct 2026: the earlier word splitting and spell correction against these word lists were removed.
+ * The lists are too small (no "bread", "taxes", "chicken"), so they turned correct words into others:
+ * 11 of 40 everyday tasks ("Buy bread" → "Buy read"). The lists are now only used for capitals.
  *
  * NOTE: This is different from ocr/semantic/TextNormalizer.kt which does
- * OCR cleanup (NFKC, whitespace, garbage removal). This file does
- * handwriting-specific spell correction and word segmentation.
+ * OCR cleanup (NFKC, whitespace, garbage removal).
  */
 class HandwritingNormalizer private constructor(
     private val languageTag: String,
@@ -29,14 +37,20 @@ class HandwritingNormalizer private constructor(
     companion object {
         private const val TAG = "HandwritingNormalizer"
 
-        // Known acronyms to preserve (language-independent for now)
+        // Abbreviations always written in capitals
         private val acronyms = setOf(
-            "api", "usa", "asap", "pdf", "ceo", "hr", "it", "cfo", "cto", "coo",
-            "vp", "svp", "evp", "md", "phd", "mba", "ba", "bs", "ms", "ma",
-            "pm", "am", "est", "pst", "gmt", "utc", "etc", "fyi", "btw", "tbd",
-            "eta", "rsvp", "diy", "faq", "id", "pin", "atm", "gps", "wifi",
-            "tv", "pc", "mac", "ios", "ok", "aka", "vs", "re", "cc", "bcc"
+            "api", "usa", "asap", "pdf", "ceo", "hr", "cfo", "cto", "coo",
+            "vp", "svp", "evp", "md", "phd", "mba", "ba", "bs",
+            "pm", "est", "pst", "gmt", "utc", "fyi", "btw", "tbd",
+            "eta", "rsvp", "diy", "faq", "id", "atm", "gps", "wifi",
+            "tv", "pc", "ios", "ok", "aka", "vs", "cc", "bcc",
+            "pr", "ui", "ux", "qa", "ci", "kpi", "okr", "roi", "seo", "crm", "sql", "url", "usb",
+            "irs", "dmv", "nyc", "ny", "uk", "eu", "pto", "eod", "ooo", "wfh", "tba", "aa", "aaa"
         )
+
+        // Abbreviations that are also ordinary words or titles: kept as written ("Do it", "Call IT").
+        // "am" after a number is a time ("9 am" → "9 AM").
+        private val ambiguousAcronyms = setOf("it", "am", "re", "pin", "mac", "ma", "ms", "la")
 
         // Words that indicate a following word is likely a name
         private val nameIndicators = setOf(
@@ -45,12 +59,30 @@ class HandwritingNormalizer private constructor(
             "invite", "schedule", "book", "see", "visit", "thank", "congratulate"
         )
 
+        // After these, a name that is also an ordinary word ("call mark") is the name
+        private val contactVerbs = setOf(
+            "call", "email", "meet", "contact", "text", "message", "ask", "tell", "remind",
+            "invite", "visit", "thank", "congratulate"
+        )
+
         /**
          * Factory method - use HandwritingNormalizerFactory.getInstance() instead.
          * This is exposed for testing only.
          */
         internal fun create(languageTag: String, context: Context): HandwritingNormalizer {
             return HandwritingNormalizer(languageTag, context)
+        }
+
+        /** Tests: a normalizer with these word lists instead of the asset files. */
+        internal fun withWordLists(
+            languageTag: String,
+            context: Context,
+            words: Set<String>,
+            names: Set<String>
+        ): HandwritingNormalizer = HandwritingNormalizer(languageTag, context).apply {
+            wordDict = words
+            namesDict = names
+            initialized = true
         }
     }
 
@@ -62,10 +94,6 @@ class HandwritingNormalizer private constructor(
     private var wordDict: Set<String>? = null
     private var namesDict: Set<String>? = null
     private var initialized = false
-
-    // Pipeline components (lazy initialized after dictionary load)
-    private var wordSegmenter: WordSegmenter? = null
-    private var spellCorrector: SpellCorrector? = null
 
     /**
      * Initialize this language's normalizer.
@@ -85,14 +113,6 @@ class HandwritingNormalizer private constructor(
                 wordDict = loadDictionary(context, commonWordsFile)
                 namesDict = loadDictionary(context, namesFile)
 
-                // Initialize pipeline components with language-specific alphabet
-                wordSegmenter = WordSegmenter(wordDict!!)
-                val alphabet = SpellCorrector.getAlphabetForLanguage(languageTag)
-                // CRITICAL: Include namesDict so spell corrector doesn't "correct" valid names
-                // e.g., "Bob" was being corrected to "job" because "bob" wasn't in wordDict
-                val combinedDict = wordDict!! + namesDict!!
-                spellCorrector = SpellCorrector(combinedDict, emptyMap(), 0.70f, alphabet)
-
                 initialized = true
 
                 val elapsed = System.currentTimeMillis() - startTime
@@ -103,9 +123,6 @@ class HandwritingNormalizer private constructor(
                 // Initialize with empty sets to prevent crashes
                 wordDict = emptySet()
                 namesDict = emptySet()
-                wordSegmenter = WordSegmenter(emptySet())
-                val fallbackAlphabet = SpellCorrector.getAlphabetForLanguage(languageTag)
-                spellCorrector = SpellCorrector(emptySet(), emptyMap(), 0.70f, fallbackAlphabet)
                 initialized = true
             }
         }
@@ -130,20 +147,15 @@ class HandwritingNormalizer private constructor(
 
         if (text.isBlank()) return text
 
+        // The capital rules below are English ones (German nouns keep their capitals)
+        if (!languageTag.startsWith("en")) return UniversalHandwritingNormalizer.normalize(text, languageTag)
+
         try {
-            var result = text
-
-            // Stage 1: Word Segmentation
-            result = wordSegmenter?.segment(result) ?: result
-
-            // Stage 2: Spell Correction
-            result = spellCorrector?.correctText(result) ?: result
-
-            // Stage 3 & 4: Case Normalization + Proper Noun Detection
-            result = normalizeAndDetectNouns(result, text)
-
-            // Stage 5: Sentence Capitalization
-            result = capitalizeSentence(result)
+            val words = text.trim().split(Regex("\\s+"))
+            val allCapitals = text.any { it.isLetter() } && text.none { it.isLowerCase() }
+            val result = capitalizeSentence(
+                words.mapIndexed { index, word -> normalizeWord(word, index, words, allCapitals) }.joinToString(" ")
+            )
 
             Log.d(TAG, "[$languageTag] Normalized: '$text' → '$result'")
             return result
@@ -162,70 +174,66 @@ class HandwritingNormalizer private constructor(
     }
 
     /**
-     * Stage 3 & 4: Normalize case and detect proper nouns.
+     * The capitals of one word, as written ([word]) in a line written all in capitals or not
+     * ([allCapitals]). Punctuation around the word stays.
      */
-    private fun normalizeAndDetectNouns(text: String, original: String): String {
-        val words = text.split(Regex("\\s+"))
-        val originalWords = original.split(Regex("\\s+"))
+    private fun normalizeWord(word: String, index: Int, allWords: List<String>, allCapitals: Boolean): String {
+        val key = word.lowercase().trim { !it.isLetterOrDigit() }
+        val letters = word.filter { it.isLetter() }
+        if (letters.isEmpty()) return word  // numbers, punctuation
+        val words = wordDict ?: emptySet()
+        val names = namesDict ?: emptySet()
+        val previous = allWords.getOrNull(index - 1)?.lowercase()?.trim { !it.isLetterOrDigit() }
 
-        val normalized = words.mapIndexed { index, word ->
-            normalizeWord(word, index, words, originalWords.getOrNull(index))
+        // "I", "I'm", "I'll": the pronoun
+        if (key == "i" || key.startsWith("i'")) return capitalized(word)
+
+        // A single letter keeps its capital ("Task B", "Plan A"); a capital "A" before a word in a line
+        // all in capitals is the article ("GET A HAIRCUT")
+        if (letters.length == 1 && key.length == 1) {
+            return if (allCapitals && key == "a" && index < allWords.size - 1) word.lowercase() else word
         }
 
-        return normalized.joinToString(" ")
-    }
-
-    /**
-     * Normalize a single word with context awareness.
-     */
-    private fun normalizeWord(
-        word: String,
-        index: Int,
-        allWords: List<String>,
-        originalWord: String?
-    ): String {
-        val lowerWord = word.lowercase()
-
-        // Check if it's an acronym
-        if (lowerWord in acronyms) {
-            return lowerWord.uppercase()
+        // With digits ("Q4", "B12", "5B"): as written, unless it starts with an ordinary word ("TASK4")
+        if (key.any { it.isDigit() }) {
+            val textPart = key.takeWhile { !it.isDigit() }
+            return if (textPart.length > 1 && textPart in words) word.lowercase() else word
         }
 
-        // Check if it's a known name
-        if (lowerWord in (namesDict ?: emptySet())) {
-            return lowerWord.replaceFirstChar { it.uppercase() }
+        if (key in ambiguousAcronyms) {
+            if (key == "am" && previous?.lastOrNull()?.isDigit() == true) return word.uppercase()
+            return if (allCapitals) word.lowercase() else word
         }
+
+        if (key in acronyms) return word.uppercase()
+
+        if (key in names) {
+            // A name that is also an ordinary word ("mark", "will", "rose") only when it reads as one
+            if (key !in words) return capitalized(word)
+            val writtenCapitalized = !allCapitals && index > 0 && word.firstOrNull { it.isLetter() }?.isUpperCase() == true
+            return if (writtenCapitalized || previous in contactVerbs) capitalized(word) else word.lowercase()
+        }
+
+        // In a line written in normal case, a word that isn't an ordinary word keeps the capitals it was
+        // written with ("Call IBM", "Meet Santos")
+        if (!allCapitals && key !in words && word.any { it.isUpperCase() }) return word
 
         // Check if previous word indicates this is a name
-        if (index > 0) {
-            val prevWord = allWords[index - 1].lowercase()
-            if (prevWord in nameIndicators) {
-                // If original was capitalized or all caps, treat as name
-                val wasCapitalized = originalWord?.firstOrNull()?.isUpperCase() == true
-                if (wasCapitalized && lowerWord !in (wordDict ?: emptySet())) {
-                    return lowerWord.replaceFirstChar { it.uppercase() }
-                }
-            }
-        }
-
-        // Check for numbers attached to words (e.g., "task1" → keep structure)
-        if (word.any { it.isDigit() }) {
-            return preserveNumberStructure(word)
+        if (previous != null && previous in nameIndicators) {
+            // If original was capitalized or all caps, treat as name
+            val wasCapitalized = word.firstOrNull { it.isLetter() }?.isUpperCase() == true
+            if (wasCapitalized && key !in words) return capitalized(word)
         }
 
         // Default: lowercase
-        return lowerWord
+        return word.lowercase()
     }
 
-    /**
-     * Preserve number structure in words like "Task1", "TASK4".
-     */
-    private fun preserveNumberStructure(word: String): String {
-        // Split into text and number parts
-        val textPart = word.takeWhile { !it.isDigit() }
-        val numberPart = word.dropWhile { !it.isDigit() }
-
-        return textPart.lowercase() + numberPart
+    /** Lower case with a capital first letter, punctuation kept ("(joe)" → "(Joe)"). */
+    private fun capitalized(word: String): String {
+        val lower = word.lowercase()
+        val first = lower.indexOfFirst { it.isLetter() }
+        return if (first < 0) lower else lower.substring(0, first) + lower[first].uppercaseChar() + lower.substring(first + 1)
     }
 
     /**

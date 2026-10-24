@@ -26,7 +26,7 @@ import kotlinx.coroutines.withContext
  * Key features:
  * - Parallel recognition with fault isolation (supervisorScope)
  * - Non-blocking, fire-and-forget API
- * - Integrated text normalization (spell correction, word segmentation)
+ * - Tidied text ([tidyRecognizedText]): every word ML Kit read is kept
  *
  * Thread Safety: All public methods are thread-safe.
  */
@@ -47,6 +47,33 @@ class DigitalInkService(
             val db = AppDatabase.getDatabase(context)
             return DigitalInkService(context, db.strokeDao(), scope)
         }
+
+        /**
+         * ML Kit's best reading, tidied: spaces collapsed, stray punctuation at the end dropped, then
+         * capitals ([english]'s rules in English, as written in other languages). No word is ever
+         * removed or replaced (Oct 2026: a rule here dropped a last single letter or short word and a
+         * first single character: "Task B" → "Task", "at 3 PM" → "at 3", "2 eggs" → "Eggs").
+         */
+        internal fun tidyRecognizedText(text: String, languageTag: String, english: HandwritingNormalizer?): String {
+            val cleaned = text.replace(Regex("\\s+"), " ").trim().trimEnd('.', ',', ';', ':', '!', '?').trim()
+            if (cleaned.isEmpty()) return ""
+            return if (languageTag.startsWith("en") && english != null) {
+                english.normalize(cleaned)
+            } else {
+                UniversalHandwritingNormalizer.normalize(cleaned, languageTag)
+            }
+        }
+    }
+
+    /** [tidyRecognizedText] in the active recognition language. */
+    private fun tidy(text: String): String {
+        val language = DigitalInkModelManager.activeLanguage.value
+        val english = if (language.startsWith("en") && HandwritingNormalizerFactory.hasLanguageSupport(context, language)) {
+            HandwritingNormalizerFactory.getInstance(context, language)
+        } else {
+            null
+        }
+        return tidyRecognizedText(text, language, english)
     }
 
     /**
@@ -199,15 +226,7 @@ class DigitalInkService(
             val candidates = result.candidates.map { it.text }
             val bestResult = candidates.firstOrNull() ?: ""
 
-            // Clean and normalize the result
-            val activeLanguage = DigitalInkModelManager.activeLanguage.value
-            val cleanedResult = cleanRecognitionResult(bestResult, activeLanguage)
-            val normalizedResult = if (HandwritingNormalizerFactory.hasLanguageSupport(context, activeLanguage)) {
-                val normalizer = HandwritingNormalizerFactory.getInstance(context, activeLanguage)
-                normalizer?.normalize(cleanedResult) ?: cleanedResult
-            } else {
-                UniversalHandwritingNormalizer.normalize(cleanedResult, activeLanguage)
-            }
+            val normalizedResult = tidy(bestResult)
 
             // Calculate confidence
             val confidence = if (candidates.isNotEmpty()) {
@@ -299,17 +318,7 @@ class DigitalInkService(
             val candidates = result.candidates.map { it.text }
             val bestResult = candidates.firstOrNull() ?: ""
 
-            // Clean and normalize the result (language-aware routing)
-            val activeLanguage = DigitalInkModelManager.activeLanguage.value
-            val cleanedResult = cleanRecognitionResult(bestResult, activeLanguage)
-            val normalizedResult = if (HandwritingNormalizerFactory.hasLanguageSupport(context, activeLanguage)) {
-                // Use full dictionary-based normalization for supported languages
-                val normalizer = HandwritingNormalizerFactory.getInstance(context, activeLanguage)
-                normalizer?.normalize(cleanedResult) ?: cleanedResult
-            } else {
-                // Fallback to universal lightweight normalizer for unsupported languages
-                UniversalHandwritingNormalizer.normalize(cleanedResult, activeLanguage)
-            }
+            val normalizedResult = tidy(bestResult)
 
             // Calculate confidence (simple average from candidates)
             val confidence = if (candidates.isNotEmpty()) {
@@ -369,77 +378,5 @@ class DigitalInkService(
         }
 
         return inkBuilder.build()
-    }
-
-    /**
-     * Clean up recognition result by removing noise artifacts.
-     *
-     * @param text Raw recognition result
-     * @param languageTag BCP-47 language tag for language-specific filtering
-     */
-    private fun cleanRecognitionResult(text: String, languageTag: String): String {
-        if (text.isBlank()) return ""
-
-        var cleaned = text
-            // Normalize whitespace (language-agnostic)
-            .replace(Regex("\\s+"), " ")
-            .trim()
-
-        // English-specific word validation (skip for other languages)
-        val isEnglish = languageTag.startsWith("en")
-        if (isEnglish) {
-            // Remove trailing single letter (except valid ones like "I")
-            val words = cleaned.split(" ")
-            if (words.size > 1) {
-                val lastWord = words.last().replace(Regex("[^a-zA-Z0-9]"), "")
-                if (lastWord.length == 1 && !isValidTrailingSingleChar(lastWord)) {
-                    cleaned = words.dropLast(1).joinToString(" ")
-                } else if (lastWord.length == 2 && !isValidTrailingTwoLetterWord(lastWord)) {
-                    cleaned = words.dropLast(1).joinToString(" ")
-                }
-            }
-
-            // Remove leading single-letter noise (except "I" or "A")
-            val firstWords = cleaned.split(" ")
-            if (firstWords.size > 1) {
-                val firstWord = firstWords.first().replace(Regex("[^a-zA-Z0-9]"), "")
-                if (firstWord.length == 1 && firstWord.lowercase() !in setOf("i", "a")) {
-                    cleaned = firstWords.drop(1).joinToString(" ")
-                }
-            }
-        }
-
-        // Final trim and remove trailing punctuation noise (language-agnostic)
-        cleaned = cleaned.trim().trimEnd('.', ',', ';', ':', '!', '?')
-
-        return cleaned.trim()
-    }
-
-    /**
-     * Check if a single character is valid at the end of a phrase.
-     */
-    private fun isValidTrailingSingleChar(char: String): Boolean {
-        val c = char.trim()
-        if (c.length != 1) return false
-        // Keep "I" (pronoun) and all digits
-        return c == "I" || c == "i" || c[0].isDigit()
-    }
-
-    /**
-     * Check if a 2-letter word is valid at the end of a phrase.
-     */
-    private fun isValidTrailingTwoLetterWord(word: String): Boolean {
-        val cleanWord = word.lowercase()
-
-        // Any two-digit number is valid (10-99) - don't strip "room 42", "task 21", etc.
-        if (cleanWord.length == 2 && cleanWord.all { it.isDigit() }) {
-            return true
-        }
-
-        return cleanWord in setOf(
-            "to", "do", "go", "be", "we", "he", "me", "my", "no", "so",
-            "on", "in", "it", "is", "as", "at", "or", "an", "of", "if",
-            "up", "by", "ok", "am", "us", "id"
-        )
     }
 }
