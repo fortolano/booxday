@@ -23,8 +23,11 @@ import kotlinx.coroutines.sync.withLock
  *
  * BOOX takes the image through the Onyx SDK (ScreenResourceManager.setScreensaver): its system app
  * (com.onyx) copies the file and its sleep screen (OnyxDaydreamService) shows the copy. Tested on the
- * Go 10.3 (Android 15): full size, upright. The copy lands in Pictures/ under the same file name,
- * so one fixed name keeps a single copy there.
+ * Go 10.3 (Android 15): full size, upright. The copy lands in Pictures/ under the same file name.
+ *
+ * BOOX ignores a hand-off whose file name it already has: with one fixed name the sleep screen kept
+ * the first image of the day (Go 10.3, 24 Oct 2026). So every image gets a new name, and the older
+ * files are deleted here and in Pictures/, keeping the one before in case BOOX has not switched yet.
  *
  * Nothing is drawn or handed over when the day looks the same as last time ([fingerprint]).
  */
@@ -33,7 +36,10 @@ object SleepScreenPublisher {
     private const val PREFS = "sleep_agenda"
     private const val KEY_FINGERPRINT = "fingerprint"
     private const val KEY_DATE = "date"
-    const val FILE_NAME = "booxday-today.png"
+    private const val KEY_FILE = "file"
+    private const val NAME_PREFIX = "booxday-today"
+    /** The fixed name builds before 24 Oct 2026 used. */
+    private const val OLD_FIXED_NAME = "booxday-today.png"
 
     private val mutex = Mutex()
 
@@ -68,13 +74,19 @@ object SleepScreenPublisher {
                 )
             )
             memo?.recycle()
-            val file = write(bitmap)
+            val previous = prefs(app).getString(KEY_FILE, null) ?: OLD_FIXED_NAME
+            val file = write(bitmap, "$NAME_PREFIX-$nowMs.png")
             bitmap.recycle()
 
             val accepted = ScreenResourceManager.setScreensaver(app, file.absolutePath, false)
-            Log.i(TAG, "Sleep screen ${if (accepted) "set" else "refused"}: $today, ${sizeClass.name.lowercase()} ${width}x$height")
+            Log.i(TAG, "Sleep screen ${if (accepted) "set" else "refused"}: $today, ${sizeClass.name.lowercase()} ${width}x$height, ${file.name}")
             if (accepted) {
-                prefs(app).edit().putString(KEY_FINGERPRINT, fingerprint).putString(KEY_DATE, today.toString()).apply()
+                prefs(app).edit()
+                    .putString(KEY_FINGERPRINT, fingerprint).putString(KEY_DATE, today.toString()).putString(KEY_FILE, file.name)
+                    .apply()
+                deleteImages(keep = setOf(file.name, previous))
+            } else {
+                file.delete()
             }
             accepted
         } catch (t: Throwable) {
@@ -109,8 +121,17 @@ object SleepScreenPublisher {
      */
     fun withdraw(context: Context) {
         prefs(context).edit().clear().apply()
-        runCatching { File(folder(), FILE_NAME).delete() }
-        runCatching { File(folder().parentFile, FILE_NAME).delete() }
+        deleteImages(keep = emptySet())
+    }
+
+    /** Deletes BooxDay's sleep images, in its folder and BOOX's copies in Pictures/, except [keep]. */
+    private fun deleteImages(keep: Set<String>) {
+        listOfNotNull(folder(), folder().parentFile).forEach { dir ->
+            runCatching {
+                dir.listFiles { f -> f.isFile && f.name.startsWith(NAME_PREFIX) && f.name.endsWith(".png") && f.name !in keep }
+                    ?.forEach { if (!it.delete()) Log.w(TAG, "Could not delete ${it.absolutePath}") }
+            }.onFailure { Log.w(TAG, "Old sleep images not cleaned up in $dir: ${it.message}") }
+        }
     }
 
     /** The panel's portrait size in pixels and its pixels per inch. */
@@ -146,11 +167,11 @@ object SleepScreenPublisher {
         return listOf(digest.hashCode(), over, on, sizeClass, memoHash).joinToString("|")
     }
 
-    private fun write(bitmap: Bitmap): File {
+    private fun write(bitmap: Bitmap, name: String): File {
         val dir = folder().apply { mkdirs() }
-        val tmp = File(dir, "booxday-today.tmp")
+        val tmp = File(dir, "$NAME_PREFIX.tmp")
         tmp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        val target = File(dir, FILE_NAME)
+        val target = File(dir, name)
         if (!tmp.renameTo(target)) {
             target.delete()
             check(tmp.renameTo(target)) { "Could not save ${target.absolutePath}" }
