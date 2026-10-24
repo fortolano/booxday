@@ -61,6 +61,7 @@ import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.UnifiedOcrRepository
 import com.boox.day.data.db.UnifiedOcrSearchResult
 import com.boox.day.ocr.model.OcrSource
+import com.boox.day.search.SearchCandidates
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 import androidx.compose.ui.platform.LocalContext
@@ -97,6 +98,8 @@ fun SearchDialog(
 ) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getDatabase(context) }
+    // Events and tasks are read and folded once per dialog, on the first search
+    val searchCandidates = remember { SearchCandidates(db) }
 
     var query by remember { mutableStateOf("") }
     var allResults by remember { mutableStateOf<List<UnifiedOcrSearchResult>>(emptyList()) }
@@ -127,35 +130,16 @@ fun SearchDialog(
                 }
             }
 
-            // Helper to convert event to search result
-            fun eventToResult(id: String, type: String, title: String, dayId: String, desc: String?, score: Double) =
-                UnifiedOcrSearchResult(id = id, sourceType = type, sourceId = id, pageId = "",
-                    sourceTitle = title, sourceDate = dayId, snippet = desc?.take(200) ?: title, score = score)
-
-            // Helper to convert task to search result
-            fun taskToResult(task: com.boox.day.data.db.Task, score: Double): UnifiedOcrSearchResult {
-                val text = task.typedText ?: task.convertedText ?: task.recognizedText ?: ""
-                return UnifiedOcrSearchResult(id = task.id, sourceType = "TASK", sourceId = task.id,
-                    pageId = task.pageId, sourceTitle = null, sourceDate = task.dayDate, snippet = text, score = score)
-            }
-
             // ═══════════════════════════════════════════════════════════════
-            // TIER 1: Exact word-boundary matches (score = 2.0)
-            // "mary" matches "Mary", "Meeting with Mary" — NOT "primary"
+            // TIER 1 (score 2.0) and TIER 3 (score 0.5) for events and tasks,
+            // matched in memory (search/SearchCandidates), accents and case ignored:
+            // tier 1 = every typed word starts a word ("mar" finds "Meeting with Mary",
+            // not "primary"); tier 3 = every word is somewhere inside ("primary").
             // ═══════════════════════════════════════════════════════════════
-            try {
-                db.calendarEventDao().searchEventsExact(query, 20).forEach { e ->
-                    addResult(eventToResult(e.id, "CALENDAR_EVENT", e.title, e.dayId, e.description, 2.0), "CE_${e.id}")
-                }
-                db.localEventDao().searchEventsExact(query, 20).forEach { e ->
-                    addResult(eventToResult(e.id, "LOCAL_EVENT", e.title, e.dayId, e.description, 2.0), "LE_${e.id}")
-                }
-            } catch (_: Exception) {}
-            try {
-                db.taskDao().searchTasksExact(query, 20).forEach { t ->
-                    addResult(taskToResult(t, 2.0), "T_${t.id}")
-                }
-            } catch (_: Exception) {}
+            val eventAndTaskHits = try {
+                searchCandidates.search(query)
+            } catch (_: Exception) { emptyList() }
+            eventAndTaskHits.filter { it.second.score >= 1.0 }.forEach { (key, r) -> addResult(r, key) }
 
             // ═══════════════════════════════════════════════════════════════
             // TIER 2: FTS4 for MEMO and BOOX_NOTE only (score = 1.0)
@@ -174,24 +158,8 @@ fun SearchDialog(
                 }
             } catch (_: Exception) {}
 
-            // ═══════════════════════════════════════════════════════════════
-            // TIER 3: Partial substring matches (score = 0.5)
-            // "mary" inside "primary" — shown last with "Partial match" label
-            // Only add results NOT already found by Tier 1
-            // ═══════════════════════════════════════════════════════════════
-            try {
-                db.calendarEventDao().searchEventsPartial(query, 20).forEach { e ->
-                    addResult(eventToResult(e.id, "CALENDAR_EVENT", e.title, e.dayId, e.description, 0.5), "CE_${e.id}")
-                }
-                db.localEventDao().searchEventsPartial(query, 20).forEach { e ->
-                    addResult(eventToResult(e.id, "LOCAL_EVENT", e.title, e.dayId, e.description, 0.5), "LE_${e.id}")
-                }
-            } catch (_: Exception) {}
-            try {
-                db.taskDao().searchTasksPartial(query, 20).forEach { t ->
-                    addResult(taskToResult(t, 0.5), "T_${t.id}")
-                }
-            } catch (_: Exception) {}
+            // TIER 3: partial matches, shown last with the "Partial match" label
+            eventAndTaskHits.filter { it.second.score < 1.0 }.forEach { (key, r) -> addResult(r, key) }
 
             // Sort: Tier 1 (2.0) → Tier 2 (1.0) → Tier 3 (0.5), then by date
             collected.sortedWith(compareByDescending<UnifiedOcrSearchResult> { it.score }

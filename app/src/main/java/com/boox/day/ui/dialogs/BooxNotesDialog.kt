@@ -53,6 +53,7 @@ import com.boox.day.booxnotes.SmartLinkProgress
 import com.boox.day.data.db.BooxNoteIndex
 import com.boox.day.data.db.BooxNoteLink
 import com.boox.day.data.db.BooxNoteRepository
+import com.boox.day.search.SearchText
 import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.db.CalendarEventRepository
 import com.boox.day.data.db.SmartLinkEventRepository
@@ -345,8 +346,11 @@ fun BooxNotesDialog(
     }
     val allFiltered = remember(allNotes, query, handwritingMatches, unlinkedOnly, links, semantics, selectedDomain, selectedIntent) {
         val trimmed = query.trim()
+        // Title: every typed word somewhere in it, accents and case ignored (search/SearchText)
+        val words = SearchText.queryWords(trimmed)
         allNotes.filter { note ->
-            (trimmed.isEmpty() || note.title.contains(trimmed, ignoreCase = true) || note.uniqueId in handwritingMatches) &&
+            (trimmed.isEmpty() || SearchText.matchesSubstrings(SearchText.fold(note.title), words) ||
+                note.uniqueId in handwritingMatches) &&
                 (!unlinkedOnly || links[note.uniqueId]?.linkedEventId == null) &&
                 (selectedDomain == null || semantics?.domains?.get(note.uniqueId) == selectedDomain) &&
                 (selectedIntent == null || semantics?.intents?.get(note.uniqueId)?.contains(selectedIntent) == true)

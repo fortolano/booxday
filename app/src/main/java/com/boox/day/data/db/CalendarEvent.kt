@@ -401,30 +401,9 @@ interface CalendarEventDao {
     """)
     suspend fun getUnindexedEvents(limit: Int): List<CalendarEvent>
 
-    /**
-     * Search events by word-boundary match on title or description.
-     * Matches "Mary" at start of string or after a space — NOT inside "primary".
-     */
-    @Query("""
-        SELECT * FROM calendar_events
-        WHERE title LIKE :query || '%' OR title LIKE '% ' || :query || '%'
-           OR description LIKE :query || '%' OR description LIKE '% ' || :query || '%'
-        ORDER BY dayId DESC
-        LIMIT :limit
-    """)
-    suspend fun searchEventsExact(query: String, limit: Int = 30): List<CalendarEvent>
-
-    /**
-     * Search events by substring match (partial/fuzzy). Returns results that
-     * contain the query anywhere, including inside words like "primary" for "mary".
-     */
-    @Query("""
-        SELECT * FROM calendar_events
-        WHERE title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%'
-        ORDER BY dayId DESC
-        LIMIT :limit
-    """)
-    suspend fun searchEventsPartial(query: String, limit: Int = 30): List<CalendarEvent>
+    /** The columns the search dialog matches in memory (search/SearchCandidates). */
+    @Query("SELECT id, title, description, dayId FROM calendar_events")
+    suspend fun getSearchRows(): List<com.boox.day.search.EventSearchRow>
 }
 
 /**

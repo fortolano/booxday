@@ -548,26 +548,7 @@ interface LocalEventDao {
     """)
     suspend fun getUnindexedEvents(limit: Int): List<LocalEvent>
 
-    /**
-     * Search local events by word-boundary match on title or description.
-     */
-    @Query("""
-        SELECT * FROM local_events
-        WHERE title LIKE :query || '%' OR title LIKE '% ' || :query || '%'
-           OR description LIKE :query || '%' OR description LIKE '% ' || :query || '%'
-        ORDER BY dayId DESC
-        LIMIT :limit
-    """)
-    suspend fun searchEventsExact(query: String, limit: Int = 30): List<LocalEvent>
-
-    /**
-     * Search local events by substring match (partial/fuzzy).
-     */
-    @Query("""
-        SELECT * FROM local_events
-        WHERE title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%'
-        ORDER BY dayId DESC
-        LIMIT :limit
-    """)
-    suspend fun searchEventsPartial(query: String, limit: Int = 30): List<LocalEvent>
+    /** The columns the search dialog matches in memory (search/SearchCandidates). */
+    @Query("SELECT id, title, description, dayId FROM local_events")
+    suspend fun getSearchRows(): List<com.boox.day.search.EventSearchRow>
 }

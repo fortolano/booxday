@@ -176,22 +176,27 @@ abstract class AppDatabase : RoomDatabase() {
          * rows). A database without the BEFORE DELETE trigger gets the new triggers and one
          * full 'rebuild' of the index from unified_ocr_text, in one transaction; the trigger
          * itself marks the database as done, so a restored older database file is fixed too.
+         *
+         * Tokenizer (Oct 2026): the index uses unicode61 with remove_diacritics=1, so search
+         * ignores accents and case beyond ASCII ("cafe" finds "Café"). Until then it used FTS4's
+         * default 'simple' tokenizer. A table created without unicode61 is dropped, created again
+         * and rebuilt once, in one transaction; its own CREATE statement marks the database as
+         * done. remove_diacritics=2 would need SQLite 3.27 (Android 11); minSdk 29 has 3.22.
+         * Where unicode61 is not available at all, the table keeps the simple tokenizer.
          */
         internal val FTS4_CALLBACK = object : RoomDatabase.Callback() {
             override fun onOpen(db: SupportSQLiteDatabase) {
                 super.onOpen(db)
                 try {
+                    val existingFtsSql = db.query(
+                        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'unified_ocr_text_fts'"
+                    ).use { if (it.moveToFirst()) it.getString(0) ?: "" else null }
+
                     // Create FTS4 virtual table for full-text search on OCR text
                     // content= links to unified_ocr_text for automatic content sync
-                    db.execSQL("""
-                        CREATE VIRTUAL TABLE IF NOT EXISTS unified_ocr_text_fts
-                        USING fts4(
-                            content="unified_ocr_text",
-                            text,
-                            textNormalized,
-                            synopsis
-                        )
-                    """.trimIndent())
+                    if (existingFtsSql == null) {
+                        createFtsTable(db, unicode61 = isUnicode61Available(db))
+                    }
 
                     // Trigger: After INSERT on unified_ocr_text, insert into FTS
                     db.execSQL("""
@@ -244,11 +249,50 @@ abstract class AppDatabase : RoomDatabase() {
                         Log.i("AppDatabase", "FTS4 triggers replaced and index rebuilt")
                     }
 
+                    // An index made with the simple tokenizer: the same table with unicode61.
+                    // The triggers name the table, so they keep working on the new one.
+                    if (existingFtsSql != null && !existingFtsSql.contains("unicode61") && isUnicode61Available(db)) {
+                        val started = System.currentTimeMillis()
+                        db.beginTransaction()
+                        try {
+                            db.execSQL("DROP TABLE unified_ocr_text_fts")
+                            createFtsTable(db, unicode61 = true)
+                            db.execSQL("INSERT INTO unified_ocr_text_fts(unified_ocr_text_fts) VALUES('rebuild')")
+                            db.setTransactionSuccessful()
+                        } finally {
+                            db.endTransaction()
+                        }
+                        Log.i("AppDatabase", "FTS4 index moved to unicode61 in ${System.currentTimeMillis() - started} ms")
+                    }
+
                     Log.d("AppDatabase", "FTS4 virtual table and triggers ensured")
                 } catch (e: Exception) {
                     Log.e("AppDatabase", "Failed to create FTS4 table: ${e.message}", e)
                 }
             }
+        }
+
+        private fun createFtsTable(db: SupportSQLiteDatabase, unicode61: Boolean) {
+            val tokenizer = if (unicode61) ", tokenize=unicode61 \"remove_diacritics=1\"" else ""
+            db.execSQL("""
+                CREATE VIRTUAL TABLE unified_ocr_text_fts
+                USING fts4(
+                    content="unified_ocr_text",
+                    text,
+                    textNormalized,
+                    synopsis$tokenizer
+                )
+            """.trimIndent())
+        }
+
+        /** Whether this SQLite build has FTS4's unicode61 tokenizer (it is optional at compile time). */
+        private fun isUnicode61Available(db: SupportSQLiteDatabase): Boolean = try {
+            db.execSQL("CREATE VIRTUAL TABLE temp.fts_tokenizer_probe USING fts4(x, tokenize=unicode61 \"remove_diacritics=1\")")
+            db.execSQL("DROP TABLE temp.fts_tokenizer_probe")
+            true
+        } catch (e: Exception) {
+            Log.w("AppDatabase", "FTS4 unicode61 tokenizer not available: ${e.message}")
+            false
         }
 
         fun getDatabase(context: Context): AppDatabase {

@@ -5,6 +5,7 @@ import android.util.Log
 import com.boox.day.ocr.model.OcrSource
 import com.boox.day.ocr.model.SemanticBundle
 import com.boox.day.ocr.model.UnifiedOcrStatus
+import com.boox.day.search.SearchText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -581,14 +582,15 @@ class UnifiedOcrRepository(context: Context) {
     /**
      * Search OCR text using FTS4.
      *
-     * @param query Search query (will be escaped for FTS)
+     * @param query Search query (each word matched as the start of a word, see [SearchText.ftsPrefixQuery])
      * @param limit Maximum results
      * @return List of search results
      */
     suspend fun searchText(query: String, limit: Int = 50): List<UnifiedOcrSearchResult> = withContext(Dispatchers.IO) {
         try {
-            val escapedQuery = escapeForFts(query)
-            dao.searchText(escapedQuery, limit)
+            val ftsQuery = SearchText.ftsPrefixQuery(query)
+            if (ftsQuery.isEmpty()) return@withContext emptyList()
+            dao.searchText(ftsQuery, limit)
         } catch (e: Exception) {
             Log.e(TAG, "Search failed: ${e.message}")
             emptyList()
@@ -596,7 +598,8 @@ class UnifiedOcrRepository(context: Context) {
     }
 
     /**
-     * Search within a specific source type.
+     * Search within a specific source type. Every word of [query] has to start a word of the
+     * page, accents and case ignored ("meet" finds "Meeting"): see [SearchText.ftsPrefixQuery].
      */
     suspend fun searchByType(
         query: String,
@@ -604,8 +607,9 @@ class UnifiedOcrRepository(context: Context) {
         limit: Int = 50
     ): List<UnifiedOcrSearchResult> = withContext(Dispatchers.IO) {
         try {
-            val escapedQuery = escapeForFts(query)
-            dao.searchTextByType(escapedQuery, sourceType.name, limit)
+            val ftsQuery = SearchText.ftsPrefixQuery(query)
+            if (ftsQuery.isEmpty()) return@withContext emptyList()
+            dao.searchTextByType(ftsQuery, sourceType.name, limit)
         } catch (e: Exception) {
             Log.e(TAG, "Search by type failed: ${e.message}")
             emptyList()

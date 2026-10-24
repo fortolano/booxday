@@ -779,32 +779,12 @@ interface TaskDao {
     @Query("SELECT taskPageIndex FROM task WHERE pageId = :pageId LIMIT 1")
     fun getTaskPageIndexByPageId(pageId: String): Int?
 
-    /**
-     * Search tasks by word-boundary match on text content.
-     * Matches "Mary" at start of field or after a space — NOT inside "primary".
-     */
+    /** The columns the search dialog matches in memory (search/SearchCandidates); tasks with text only. */
     @Query("""
-        SELECT * FROM task
-        WHERE typedText LIKE :query || '%' OR typedText LIKE '% ' || :query || '%'
-           OR convertedText LIKE :query || '%' OR convertedText LIKE '% ' || :query || '%'
-           OR recognizedText LIKE :query || '%' OR recognizedText LIKE '% ' || :query || '%'
-        ORDER BY dayDate DESC
-        LIMIT :limit
+        SELECT id, pageId, dayDate, typedText, convertedText, recognizedText FROM task
+        WHERE typedText IS NOT NULL OR convertedText IS NOT NULL OR recognizedText IS NOT NULL
     """)
-    suspend fun searchTasksExact(query: String, limit: Int = 30): List<Task>
-
-    /**
-     * Search tasks by substring match (partial/fuzzy).
-     */
-    @Query("""
-        SELECT * FROM task
-        WHERE typedText LIKE '%' || :query || '%'
-           OR convertedText LIKE '%' || :query || '%'
-           OR recognizedText LIKE '%' || :query || '%'
-        ORDER BY dayDate DESC
-        LIMIT :limit
-    """)
-    suspend fun searchTasksPartial(query: String, limit: Int = 30): List<Task>
+    suspend fun getSearchRows(): List<com.boox.day.search.TaskSearchRow>
 }
 
 /**
