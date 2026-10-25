@@ -1267,8 +1267,8 @@ class PageView(
         // But ALWAYS emit for different pageIds (e.g., when changing pages)
         val timeSinceLastEmit = now - lastPersistEmitTime
         if (pageId == currentPageId && timeSinceLastEmit < MIN_EMIT_INTERVAL_MS) {
-            // Skip emit - we already cached the bitmap above, and
-            // downstream deduplication (500ms) will handle the final persist
+            // Skip emit - we already cached the bitmap above, and the save scheduled by the
+            // previous emit runs once edits pause, from this same bitmap
             return
         }
 

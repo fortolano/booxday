@@ -370,6 +370,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        // Page images still waiting for the pen to rest: save them before the app can be killed
+        PageDataManager.flushAllPendingPersists()
         // The tablet is often put to sleep right after: bring the sleep-screen agenda up to date
         com.boox.day.sleepscreen.SleepAgenda.onAppBackground(this)
     }

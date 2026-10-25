@@ -202,6 +202,8 @@ fun deletePage(context: Context, pageId: String) {
         }
 
         appRepository.pageRepository.delete(pageId)
+        // A save still waiting for the pen to rest would write the images back
+        PageDataManager.cancelPendingPersist(pageId)
         File(appContext.filesDir, "pages/previews/thumbs/$pageId").delete()
         // full previews are named "<pageId>-sy<scroll>.png" (and "<pageId>" in older versions)
         ensurePreviewsFullFolder(appContext).listFiles { f -> f.name.startsWith(pageId) }?.forEach { it.delete() }

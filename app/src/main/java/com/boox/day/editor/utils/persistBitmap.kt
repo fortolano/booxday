@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.core.content.FileProvider
 import androidx.core.graphics.scale
 import com.boox.day.R
+import com.boox.day.data.PageDataManager
 import com.boox.day.data.ensurePreviewsFullFolder
 import com.boox.day.utils.logCallStack
 import com.boox.day.utils.TaggedLog
@@ -177,10 +178,13 @@ fun persistBitmapFullAtomic(
  * - Require non-null scroll (so we can derive file name); if null -> return null
  * - File name must match encoded scroll.y used during persist
  * - Backward compatibility: if encoded file not found and scrollY != 0, attempt legacy filename (without suffix)
+ * - A save still waiting for the pen to rest runs first (search, AI and the sleep screen read this),
+ *   so call it off the main thread
  */
 fun loadPersistBitmap(
     context: Context, pageID: String, scroll: Offset?, zoom: Float?, requireExactMatch: Boolean
 ): Bitmap? {
+    PageDataManager.flushPendingPersist(pageID)
     val dir = ensurePreviewsFullFolder(context)
 
     // Exact match path: enforce zoom/scroll checks and precise encoded filename

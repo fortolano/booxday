@@ -51,6 +51,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
@@ -427,9 +428,10 @@ object PageDataManager {
         while (bitmapCache.size > MAX_CACHE_ENTRIES || bitmapCache.values.sumOf {
                 if (it.bitmap.isRecycled) 0L else it.bitmap.allocationByteCount.toLong()
             } > pageCacheBytes) {
-            // Find oldest non-protected entry (LinkedHashMap maintains insertion/access order)
+            // Find oldest non-protected entry (LinkedHashMap maintains insertion/access order).
+            // A page whose image still waits for the pen to rest keeps its bitmap until saved.
             val victim = bitmapCache.entries.firstOrNull { (key, _) ->
-                !protectedPages.contains(key.pageId)
+                !protectedPages.contains(key.pageId) && !hasPendingPersist(key.pageId)
             }
             if (victim != null) {
                 log.d("CACHE_EVICT: Removing ${victim.key.pageId}@${victim.key.width}x${victim.key.height}")
@@ -1032,10 +1034,13 @@ object PageDataManager {
 
     val saveTopic = MutableSharedFlow<String>()
 
-    // PERFORMANCE FIX: Track last persist time per page to deduplicate rapid emissions
-    // This prevents the "bitmap storm" where 28+ emissions flood the IO pool
-    private val lastPersistedTime = ConcurrentHashMap<String, Long>()
-    private const val MIN_PERSIST_INTERVAL_MS = 500L  // Skip if same page persisted within 500ms
+    // A page image is saved once its edits have paused this long (Oct 2026). The old 500 ms throttle
+    // saved on the first stroke and then about twice a second while writing: each save copies the
+    // ~10 MB page bitmap and encodes a full PNG and a JPEG (~200 ms of CPU, about a quarter of a
+    // core while writing on the Go 10.3), and it could skip the last state. Readers flush first.
+    private const val PERSIST_QUIET_MS = 2_000L
+    @Volatile
+    private var persistDebouncer: PerKeyDebouncer? = null
 
     // CRITICAL FIX: Ensure only ONE collector is running globally
     // Previously, every PageView init called collectAndPersistBitmapsBatch(),
@@ -1054,76 +1059,81 @@ object PageDataManager {
         collectorStarted = true
         log.i("Starting persist collector (single instance)")
 
+        val debouncer = PerKeyDebouncer(scope + Dispatchers.IO, PERSIST_QUIET_MS) { pageId ->
+            persistPageBitmap(context, pageId)
+        }
+        persistDebouncer = debouncer
         scope.launch(Dispatchers.IO) {
-            // PERFORMANCE FIX: Removed chunked() batching - it wasn't effective
-            // Instead, use time-based deduplication per page with ATOMIC check-and-update
-            saveTopic.collect { pageId ->
-                val now = System.currentTimeMillis()
+            saveTopic.collect { pageId -> debouncer.schedule(pageId) }
+        }
+    }
 
-                // PERFORMANCE FIX: Use atomic compute() to prevent race condition
-                // The previous check-then-act pattern allowed multiple threads to pass
-                // the time check simultaneously, causing duplicate persists
-                val shouldPersist = lastPersistedTime.compute(pageId) { _, lastTime ->
-                    val last = lastTime ?: 0L
-                    if (now - last >= MIN_PERSIST_INTERVAL_MS) {
-                        now  // Update timestamp - this thread wins, should persist
-                    } else {
-                        last // Keep old timestamp - skip persist
-                    }
-                } == now
+    /** A page image still waiting for the pen to rest is saved now, so a reader gets every stroke. */
+    fun flushPendingPersist(pageId: String) {
+        persistDebouncer?.flush(pageId)
+    }
 
-                if (!shouldPersist) {
-                    // Deduplication working - skipping redundant persist
-                    // (removed log.d to eliminate hot-path log spam)
-                    return@collect
-                }
+    /** Saves every waiting page image: the app is going to the background and may be killed. */
+    fun flushAllPendingPersists() {
+        val debouncer = persistDebouncer ?: return
+        dataLoadingScope.launch(Dispatchers.IO) { debouncer.flushAll() }
+    }
 
-                // Skip during transition (Layer 3)
-                if (isTransitioning) {
-                    log.d("PERSIST_SKIP: Transition in progress for $pageId")
-                    return@collect
-                }
+    /** The page is being deleted: its waiting image must not be written back. */
+    fun cancelPendingPersist(pageId: String) {
+        persistDebouncer?.cancel(pageId)
+    }
 
-                // Get entry and validate (Layer 4 - isClean check)
-                val entry = getCacheEntry(pageId)
-                if (entry == null || entry.bitmap.isRecycled) {
-                    log.d("PERSIST_SKIP: No valid entry for $pageId")
-                    return@collect
-                }
+    private fun hasPendingPersist(pageId: String): Boolean = persistDebouncer?.isPending(pageId) == true
 
-                if (!entry.isClean) {
-                    log.d("PERSIST_SKIP: Entry not clean for $pageId")
-                    return@collect
-                }
+    private fun persistPageBitmap(context: Context, pageId: String) {
+        if (PagePersistenceGate.isDeleting(pageId)) return
 
-                // Create snapshot (Layer 4)
-                val snapshot: Bitmap? = try {
-                    synchronized(entry.bitmap) {
-                        entry.bitmap.copy(entry.bitmap.config ?: Bitmap.Config.ARGB_8888, false)
-                    }
-                } catch (e: Exception) {
-                    log.e("PERSIST_SKIP: Snapshot failed for $pageId: ${e.message}")
-                    null
-                }
+        // Skip during transition (Layer 3), and save once it has settled
+        if (isTransitioning) {
+            log.d("PERSIST_SKIP: Transition in progress for $pageId, will retry")
+            persistDebouncer?.schedule(pageId)
+            return
+        }
 
-                if (snapshot == null) return@collect
+        // Get entry and validate (Layer 4 - isClean check)
+        val entry = getCacheEntry(pageId)
+        if (entry == null || entry.bitmap.isRecycled) {
+            log.d("PERSIST_SKIP: No valid entry for $pageId")
+            return
+        }
 
-                val currentZoomLevel = pageZoom[pageId]
-                val currentScroll = pageScroll[pageId]
+        if (!entry.isClean) {
+            log.d("PERSIST_SKIP: Entry not clean for $pageId")
+            return
+        }
 
-                if (PERF_LOGS) log.i("PERSIST: Persisting SNAPSHOT for $pageId")
-
-                try {
-                    persistBitmapFullAtomic(context, snapshot, pageId, currentScroll, currentZoomLevel)
-                    persistBitmapThumbnail(context, snapshot, pageId)
-
-                    // Trigger Digital Ink extraction for Task pages (debounced, fire-and-forget)
-                    val density = context.resources.displayMetrics.density
-                    TaskTextExtractor.getInstanceOrNull()?.onPageChanged(pageId, density)
-                } finally {
-                    snapshot.recycle()
-                }
+        // Create snapshot (Layer 4)
+        val snapshot: Bitmap? = try {
+            synchronized(entry.bitmap) {
+                entry.bitmap.copy(entry.bitmap.config ?: Bitmap.Config.ARGB_8888, false)
             }
+        } catch (e: Exception) {
+            log.e("PERSIST_SKIP: Snapshot failed for $pageId: ${e.message}")
+            null
+        }
+
+        if (snapshot == null) return
+
+        val currentZoomLevel = pageZoom[pageId]
+        val currentScroll = pageScroll[pageId]
+
+        if (PERF_LOGS) log.i("PERSIST: Persisting SNAPSHOT for $pageId")
+
+        try {
+            persistBitmapFullAtomic(context, snapshot, pageId, currentScroll, currentZoomLevel)
+            persistBitmapThumbnail(context, snapshot, pageId)
+
+            // Trigger Digital Ink extraction for Task pages (debounced, fire-and-forget)
+            val density = context.resources.displayMetrics.density
+            TaskTextExtractor.getInstanceOrNull()?.onPageChanged(pageId, density)
+        } finally {
+            snapshot.recycle()
         }
     }
 
@@ -1176,8 +1186,8 @@ object PageDataManager {
 
         log.i("PERSIST: Force persisting SNAPSHOT for $pageId")
 
-        // Update deduplication timestamp
-        lastPersistedTime[pageId] = System.currentTimeMillis()
+        // This save supersedes one still waiting for the pen to rest
+        persistDebouncer?.cancel(pageId)
 
         try {
             persistBitmapFullAtomic(context, snapshot, pageId, currentScroll, currentZoomLevel)
@@ -1885,6 +1895,11 @@ object PageDataManager {
             log.d("Skipping removal of active page: pageId=$pageId, currentPage=$currentPage, isActive=$isActive")
             return false
         }
+        if (hasPendingPersist(pageId)) {
+            // Its bitmap is needed for the save waiting for the pen to rest
+            log.d("Skipping removal of page $pageId: image save pending")
+            return false
+        }
         synchronized(accessLock) {
             strokes.remove(pageId)
             images.remove(pageId)
@@ -1912,8 +1927,6 @@ object PageDataManager {
             }
             stopObservingBackground(pageId)
         }
-        // Clean up persist tracking (outside lock - ConcurrentHashMap is thread-safe)
-        lastPersistedTime.remove(pageId)
         return true
     }
 
@@ -1999,8 +2012,8 @@ object PageDataManager {
 
                 // Check against ALL protected pages, not just currentPage
                 val isActive = protectedPages.contains(pageId)
-                if (isActive || pageId == currentPage) {
-                    continue // Skip active pages
+                if (isActive || pageId == currentPage || hasPendingPersist(pageId)) {
+                    continue // Skip active pages and pages whose image save is pending
                 }
                 candidates.add(pageId)
             }
@@ -2097,7 +2110,8 @@ object PageDataManager {
     private fun freeMemory(cacheSizeLimit: Int): Boolean {
         log.d("freeMemory($cacheSizeLimit)")
         synchronized(accessLock) {
-            val pagesToRemove = strokes.keys.filter { it != currentPage }
+            // A page whose image save is pending keeps its bitmap until saved (a few seconds)
+            val pagesToRemove = strokes.keys.filter { it != currentPage && !hasPendingPersist(it) }
             for (pageId in pagesToRemove) {
                 if (currentCacheSizeMB <= cacheSizeLimit) break
                 log.d("Clearing page (all except current) $pageId, requested by freeMemory")
