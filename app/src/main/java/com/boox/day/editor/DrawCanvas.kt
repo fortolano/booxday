@@ -482,6 +482,11 @@ class DrawCanvas(
                 System.currentTimeMillis() - lastStylusActivityMs < PALM_REJECTION_WINDOW_MS
         }
 
+        // How long the pen must rest before completed strokes are posted to the surface.
+        // Above the ~190 ms a stroke's live ink stays on the panel, well below the system's own
+        // pen-up repaint (~570 ms). See schedulePenRestBlit().
+        private const val PEN_REST_BLIT_DELAY_MS = 250L
+
         // Signal when strokes/images are added or removed (for updating calendar badges)
         val contentChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
@@ -817,31 +822,21 @@ class DrawCanvas(
                                     scaledPoints
                                 )
                                 // ╔══════════════════════════════════════════════════════════════════════════╗
-                                // ║  CRITICAL FIX - DO NOT REMOVE - FLICK BUG FIX (December 2025)            ║
+                                // ║  FLICK BUG FIX (Dec 2025), TIMING CHANGED (Oct 2026) - read before edit  ║
                                 // ║                                                                          ║
-                                // ║  This drawCanvasToView() call MUST remain here. Removing it causes the   ║
-                                // ║  "first stroke flick" bug on empty canvases.                             ║
+                                // ║  The stroke must reach the surface before the system's pen-up repaint    ║
+                                // ║  (~570 ms after the last pen-up), which repaints from the surface. The   ║
+                                // ║  old 500 ms history blit came too late: on an empty canvas the stroke    ║
+                                // ║  flashed white ("first stroke flick").                                   ║
                                 // ║                                                                          ║
-                                // ║  ROOT CAUSE: The Onyx SDK removes its raw drawing layer when             ║
-                                // ║  onEndRawDrawing fires. Without this call, the SurfaceView still shows   ║
-                                // ║  the OLD content (no stroke yet) because drawCanvasToView() was only     ║
-                                // ║  called 500ms later via debounced commitToHistory().                     ║
+                                // ║  It must NOT reach it after every stroke: each SurfaceView post is an    ║
+                                // ║  e-ink commit, and the next stroke's live ink queues behind it (100-300  ║
+                                // ║  ms with no ink, Go 10.3 trace, Oct 2026).                               ║
                                 // ║                                                                          ║
-                                // ║  THE TIMELINE WITHOUT THIS FIX:                                          ║
-                                // ║  1. User draws stroke (SDK shows it in raw layer)                        ║
-                                // ║  2. handleDraw() writes stroke to bitmap (in memory only)                ║
-                                // ║  3. User lifts stylus → onEndRawDrawing fires                            ║
-                                // ║  4. SDK removes raw layer → SurfaceView visible (WITHOUT stroke!)        ║
-                                // ║  5. 500ms later → commitToHistory() → drawCanvasToView() (too late)      ║
-                                // ║  Result: User sees white flash where stroke should be                    ║
-                                // ║                                                                          ║
-                                // ║  WHY ONLY ON EMPTY CANVAS: When canvas has existing strokes, the         ║
-                                // ║  SurfaceView already shows similar content, so the transition is less    ║
-                                // ║  jarring. On empty canvas, it's white → stroke → white → stroke = FLICK  ║
-                                // ║                                                                          ║
-                                // ║  See: .claude/FLICK_BUG_FIX.md and docs/FLICK_BUG_DOCUMENTATION.md       ║
+                                // ║  So the system-ink backend posts once the pen has rested (250 ms). The   ║
+                                // ║  Android pen backend draws its own ink and keeps the immediate post.     ║
                                 // ╚══════════════════════════════════════════════════════════════════════════╝
-                                drawCanvasToView(null)
+                                if (androidPenBackend) drawCanvasToView(null) else schedulePenRestBlit()
                             } else {
                                 // Scribble-to-erase detected - refresh erased area
                                 drawCanvasToView(erasedByScribbleDirtyRect)
@@ -1081,6 +1076,11 @@ class DrawCanvas(
     private var lastKnownMemoMode: Boolean? = null
     @Volatile private var deferredStartupRawDrawingOpen = false
     private var deferredStartupRawDrawingJob: Job? = null
+    private var penRestBlitJob: Job? = null
+    // A completed stroke is in the page bitmap but not yet on the surface. The generation lets a
+    // full blit that started before the latest stroke leave the flag set.
+    @Volatile private var surfaceStale = false
+    @Volatile private var surfaceStaleGeneration = 0
 
     private fun beginStylusContact() {
         stylusContact.begin(canvasOwnerId())
@@ -1090,6 +1090,34 @@ class DrawCanvas(
     private fun finishStylusContact() {
         if (stylusContact.end(canvasOwnerId())) {
             lastStylusActivityMs = System.currentTimeMillis()
+            // A pen-rest blit skipped while this contact lasted must still run.
+            if (surfaceStale) schedulePenRestBlit()
+        }
+    }
+
+    /**
+     * Posts the completed strokes to the surface once the pen has rested, not after every stroke.
+     *
+     * On BOOX a SurfaceView post becomes an e-ink commit. The commit waits until the previous
+     * stroke's live ink has finished (~190 ms), and the next stroke's live ink queues behind it:
+     * a stroke started soon after the last one showed no ink for 100-300 ms (Go 10.3 trace,
+     * Oct 2026). BOOX Notes and Notable post nothing while the pen is writing.
+     * The post must still come before the system's pen-up repaint (~570 ms after the last pen-up),
+     * which repaints from the surface: a post that late was the "first stroke flick" (Dec 2025).
+     */
+    private fun schedulePenRestBlit() {
+        surfaceStaleGeneration++
+        surfaceStale = true
+        penRestBlitJob?.cancel()
+        val pageId = page.currentPageId
+        penRestBlitJob = coroutineScope.launch(Dispatchers.Main) {
+            delay(PEN_REST_BLIT_DELAY_MS)
+            // A stroke in progress re-arms this when it ends; another full blit may have run already.
+            if (stylusContact.isActive || !surfaceStale || page.currentPageId != pageId) return@launch
+            withDrawingLock("pen-rest-blit") {
+                // The pen may have come down while this waited for the lock.
+                if (!stylusContact.isActive) drawCanvasToView(null)
+            }
         }
     }
 
@@ -1813,9 +1841,11 @@ class DrawCanvas(
                 )
             }
             strokeHistoryBatch.clear()
-            // History changes no pixels. The completed stroke already blitted immediately.
-            // Its delayed history commit must not post a full surface over the next live stroke.
-            if (!stylusContact.isActive) {
+            // History changes no pixels. The pen-rest blit shows the strokes: post here only when none
+            // is pending (the Android pen backend keeps its old post), never over a live stroke.
+            // Its 500 ms debounce can end right after a stroke, while the user is still writing.
+            val penRestBlitPending = penRestBlitJob?.isActive == true
+            if (!stylusContact.isActive && (androidPenBackend || (surfaceStale && !penRestBlitPending))) {
                 drawCanvasToView(null)
             }
         }
@@ -2021,6 +2051,7 @@ class DrawCanvas(
         }
 
         var unlockAttempted = false
+        val staleGeneration = surfaceStaleGeneration
         try {
             // 1PX MISMATCH FIX: Clear canvas to white first to prevent black artifacts.
             // This ensures any gap between bitmap and surface is white, not uninitialized black pixels.
@@ -2046,6 +2077,10 @@ class DrawCanvas(
             // finish rendering
             unlockAttempted = true
             surfaceHolder.unlockCanvasAndPost(canvas)
+            if (zoneToRedraw.width() >= surfaceWidth && zoneToRedraw.height() >= surfaceHeight &&
+                staleGeneration == surfaceStaleGeneration) {
+                surfaceStale = false
+            }
             return true
         } catch (e: IllegalStateException) {
             logSurfaceSkip("drawCanvasToView.post", "unlockCanvasAndPost failed: ${e.message}")
