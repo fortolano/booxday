@@ -1178,14 +1178,23 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
         onResult: (EventOperationResult<Unit>) -> Unit
     ) {
         try {
-            val canDeleteFromOutlook = event.syncEnabled &&
-                event.providerId == ProviderId.OUTLOOK.key &&
-                !event.accountId.isNullOrBlank() &&
-                !event.providerEventId.isNullOrBlank() &&
-                !event.providerCalendarId.isNullOrBlank()
+            // Outlook events, and Google events that know their account (Oct 2026), are deleted
+            // through the account's own credential. The Google branch further down uses the last
+            // Google sign-in, which can be empty while the account syncs fine: it then skipped
+            // Google, deleted only the tablet copy, and the next sync brought the event back.
+            val deleteProvider = when (event.providerId) {
+                ProviderId.OUTLOOK.key -> ProviderId.OUTLOOK
+                ProviderId.GOOGLE.key -> ProviderId.GOOGLE
+                else -> null
+            }?.takeIf {
+                event.syncEnabled &&
+                    !event.accountId.isNullOrBlank() &&
+                    !event.providerEventId.isNullOrBlank() &&
+                    !event.providerCalendarId.isNullOrBlank()
+            }
 
-            if (canDeleteFromOutlook) {
-                Log.d(TAG, "Attempting Outlook delete for synced event: ${event.providerEventId}")
+            if (deleteProvider != null) {
+                Log.d(TAG, "Attempting ${deleteProvider.displayName} delete for synced event: ${event.providerEventId}")
                 val result = multiAccountSyncManager.deleteEvent(
                     accountId = event.accountId!!,
                     calendarId = event.providerCalendarId!!,
@@ -1200,7 +1209,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                         _lastOperationMessage.value = "Event deleted"
                         _lastOperationSuccess.value = true
                         _selectedEvent.value = null
-                        Log.i(TAG, "Synced event deleted (Outlook + local): ${event.id}")
+                        Log.i(TAG, "Synced event deleted (${deleteProvider.displayName} + local): ${event.id}")
                         _operationInProgress.value = false
                         onResult(EventOperationResult.Success(Unit))
                     },
@@ -1214,28 +1223,28 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                                 _lastOperationMessage.value = "Event will be deleted when online"
                                 _lastOperationSuccess.value = true
                                 _selectedEvent.value = null
-                                Log.i(TAG, "Synced event marked PENDING_DELETE for Outlook (offline): ${event.id}")
+                                Log.i(TAG, "Synced event marked PENDING_DELETE for ${deleteProvider.displayName} (offline): ${event.id}")
                                 _operationInProgress.value = false
                                 onResult(EventOperationResult.Success(Unit))
                             }
                             is CalendarProviderException.AuthenticationException -> {
-                                _lastOperationMessage.value = "Please sign in to ${ProviderId.OUTLOOK.displayName} again"
+                                _lastOperationMessage.value = "Please sign in to ${deleteProvider.displayName} again"
                                 _lastOperationSuccess.value = false
-                                Log.e(TAG, "Failed to delete synced Outlook event (auth): ${event.id}", e)
+                                Log.e(TAG, "Failed to delete synced ${deleteProvider.displayName} event (auth): ${event.id}", e)
                                 _operationInProgress.value = false
                                 onResult(EventOperationResult.Error(_lastOperationMessage.value!!, e))
                             }
                             is CalendarProviderException.PermissionException -> {
-                                _lastOperationMessage.value = "No permission for this ${ProviderId.OUTLOOK.displayName} calendar"
+                                _lastOperationMessage.value = "No permission for this ${deleteProvider.displayName} calendar"
                                 _lastOperationSuccess.value = false
-                                Log.e(TAG, "Failed to delete synced Outlook event (permission): ${event.id}", e)
+                                Log.e(TAG, "Failed to delete synced ${deleteProvider.displayName} event (permission): ${event.id}", e)
                                 _operationInProgress.value = false
                                 onResult(EventOperationResult.Error(_lastOperationMessage.value!!, e))
                             }
                             else -> {
                                 _lastOperationMessage.value = "Delete failed: ${e.message}"
                                 _lastOperationSuccess.value = false
-                                Log.e(TAG, "Failed to delete synced Outlook event: ${event.id}", e)
+                                Log.e(TAG, "Failed to delete synced ${deleteProvider.displayName} event: ${event.id}", e)
                                 _operationInProgress.value = false
                                 onResult(EventOperationResult.Error(_lastOperationMessage.value!!, e as? Exception))
                             }

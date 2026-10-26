@@ -26,6 +26,7 @@ import com.boox.day.sync.isGoogleTokenRefused
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.common.api.ApiException
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -393,6 +394,14 @@ class GoogleCalendarProvider(
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
+     * The account's own credential, as sync uses (Oct 2026). Create, update and delete used the
+     * last Google sign-in instead, which is empty once another account was added or the sign-in
+     * record was cleared, so saving failed with "Please sign in to Google again" while sync worked.
+     */
+    private suspend fun accountCredential(accountId: String): GoogleAccountCredential? =
+        accountDao.getById(accountId)?.email?.takeIf { it.isNotBlank() }?.let { authManager.getCredentialForAccount(it) }
+
+    /**
      * Create a new event in a Google Calendar.
      */
     override suspend fun createEvent(
@@ -401,9 +410,9 @@ class GoogleCalendarProvider(
         event: NewEventData
     ): Result<ProviderEvent> = withContext(Dispatchers.IO) {
         try {
-            // Use existing sync manager to create event
+            // Use existing sync manager to create event, with this account's own credential
             val eventData = event.copy(calendarId = calendarId)
-            val result = syncManager.createEvent(eventData)
+            val result = syncManager.createEvent(eventData, accountCredential(accountId))
 
             when (result) {
                 is EventOperationResult.Success -> {
@@ -447,7 +456,7 @@ class GoogleCalendarProvider(
         try {
             // Ensure eventId and calendarId match the data
             val eventData = event.copy(eventId = eventId, calendarId = calendarId)
-            val result = syncManager.updateEvent(eventData)
+            val result = syncManager.updateEvent(eventData, accountCredential(accountId))
 
             when (result) {
                 is EventOperationResult.Success -> {
@@ -488,7 +497,7 @@ class GoogleCalendarProvider(
         eventId: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val result = syncManager.deleteEvent(eventId, calendarId)
+            val result = syncManager.deleteEvent(eventId, calendarId, accountCredential(accountId))
 
             when (result) {
                 is EventOperationResult.Success -> {

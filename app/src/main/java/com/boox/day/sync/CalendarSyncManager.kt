@@ -442,11 +442,16 @@ class CalendarSyncManager(
     // ========== CREATE OPERATION ==========
 
     /**
-     * Create a new event on Google Calendar
+     * Create a new event on Google Calendar.
+     * [credential]: the account's own (GoogleAuthManager.getCredentialForAccount); without it, the
+     * last Google sign-in, which is empty once another account was added or signed out.
      */
-    suspend fun createEvent(data: NewEventData): EventOperationResult<CalendarEvent> = withContext(Dispatchers.IO) {
+    suspend fun createEvent(
+        data: NewEventData,
+        credential: GoogleAccountCredential? = null
+    ): EventOperationResult<CalendarEvent> = withContext(Dispatchers.IO) {
         try {
-            val service = getCalendarService()
+            val service = getCalendarService(credential)
                 ?: return@withContext EventOperationResult.NotSignedIn
 
             // Build the event
@@ -530,11 +535,14 @@ class CalendarSyncManager(
     // ========== UPDATE OPERATION ==========
 
     /**
-     * Update an existing event on Google Calendar
+     * Update an existing event on Google Calendar ([credential] as in [createEvent])
      */
-    suspend fun updateEvent(data: UpdateEventData): EventOperationResult<CalendarEvent> = withContext(Dispatchers.IO) {
+    suspend fun updateEvent(
+        data: UpdateEventData,
+        credential: GoogleAccountCredential? = null
+    ): EventOperationResult<CalendarEvent> = withContext(Dispatchers.IO) {
         try {
-            val service = getCalendarService()
+            val service = getCalendarService(credential)
                 ?: return@withContext EventOperationResult.NotSignedIn
 
             // Fetch the existing event first
@@ -624,11 +632,15 @@ class CalendarSyncManager(
     // ========== DELETE OPERATION ==========
 
     /**
-     * Delete an event from Google Calendar
+     * Delete an event from Google Calendar ([credential] as in [createEvent])
      */
-    suspend fun deleteEvent(eventId: String, calendarId: String): EventOperationResult<Unit> = withContext(Dispatchers.IO) {
+    suspend fun deleteEvent(
+        eventId: String,
+        calendarId: String,
+        credential: GoogleAccountCredential? = null
+    ): EventOperationResult<Unit> = withContext(Dispatchers.IO) {
         try {
-            val service = getCalendarService()
+            val service = getCalendarService(credential)
                 ?: return@withContext EventOperationResult.NotSignedIn
 
             Log.d(TAG, "Deleting event: $eventId from calendar: $calendarId")
