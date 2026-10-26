@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.ui.geometry.Offset
+import com.boox.day.data.ClearedPages
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.editor.state.EditorState
 import com.boox.day.editor.state.History
@@ -337,6 +338,9 @@ class EditorControlTower(
             page.clearAllContent()
             history.cleanHistory()
         }
+        // The other pages kept their ink in memory and on disk, and search kept their text (Oct 2026)
+        ClearedPages.forgetLoadedContent(page.context, memoPageIds - state.currentPageId)
+        scope.launch { ClearedPages.forgetSearchText(page.context, dayDate, memoPageIds) }
 
         // Notify changes
         DrawCanvas.contentChanged.tryEmit(Unit)
@@ -404,6 +408,7 @@ class EditorControlTower(
             dayPageRepo.clearPageContent(currentPageId)
             page.clearAllContent()
             history.cleanHistory()
+            scope.launch { ClearedPages.forgetSearchText(page.context, dayDate, listOf(currentPageId)) }
             DrawCanvas.contentChanged.tryEmit(Unit)
             scope.launch {
                 DrawCanvas.refreshUi.emit(Unit)
@@ -439,6 +444,7 @@ class EditorControlTower(
                 }
                 page.clearAllContent()
                 history.cleanHistory()
+                scope.launch { ClearedPages.forgetSearchText(page.context, dayDate, listOf(currentPageId)) }
                 DrawCanvas.contentChanged.tryEmit(Unit)
                 scope.launch {
                     DrawCanvas.refreshUi.emit(Unit)

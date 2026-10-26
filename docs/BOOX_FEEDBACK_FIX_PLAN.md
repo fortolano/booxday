@@ -398,6 +398,11 @@ The owner saw deleted content come back after going between the normal view and 
   - The owner's own steps (item 3) are still worth asking, in case there is a third way.
 - **Fix, once (1) and (2) show it:**
   - (a) In `clearMemoPages`, for every cleared page, not only the one on screen: `PageDataManager.clearPageData(pageId)` (strokes, images, text boxes and bitmaps in memory), `invalidatePreviewCache(pageId)`, and delete its saved preview files (as `TaskPagination.afterReflow` does). Mark each cleared page changed (`updatedAt`), or delete its search entries, so search forgets the text. Do the same search step in `clearCurrentPage`. Best done in one small shared function (for example `forgetPageContent(pageIds)`) with a Robolectric test: after a clear, nothing of those pages is left in memory, in previews, or in search.
+    - **Done (26 Oct):** `data/ClearedPages.kt`.
+      - `forgetLoadedContent` (pages not on screen) cancels a pending image save, then calls `clearPageData` and `invalidatePreviewCache`, and deletes the full image and thumbnail.
+      - `forgetSearchText` deletes the pages' MEMO search rows. The indexer then marks the empty page EMPTY with no AI read.
+      - It is called from "Clear All Memos Today", "Clear This Page" and the one-page "Delete Page" (which clears).
+      - Test: `ClearedPagesTest`. Not yet checked on a tablet.
   - (b) Wrap the "Clear All Tasks Today" confirm in `FullScreenState.exitThen { … }`, like the other Tasks tools. One line in `ToolbarMenu.kt`; `SharedToolbar` is untouched.
   - (b2, seen in the check) After "Clear All Tasks Today", even in the normal view, the page counter kept showing "2/2" until a day switch. Nothing reloads MainScreen's task page info after this clear. The "Delete tasks… → all pages" handler does reload it (`getOrCreateTasksForPage` → `currentTaskPageInfo`, MainScreen.kt ~4166–4180). Do the same after this clear.
     - Don't hook it to `TaskRepository.taskChanged` (MainScreen.kt:1686). That flow also fires for ink on task pages, so a reload there would add a database read while writing.
