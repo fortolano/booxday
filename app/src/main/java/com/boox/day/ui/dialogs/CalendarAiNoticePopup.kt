@@ -112,7 +112,7 @@ fun CalendarAiNoticePopup(
                     verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
                 ) {
                     NoticeText(
-                        "Plan My Day, Daily Summary, Weekly Summary and Smart Suggestions send your events (titles, times, " +
+                        "Optimize My Day, Daily Summary, Weekly Summary and Smart Suggestions send your events (titles, times, " +
                             "places, descriptions and the email addresses of invited people) with your tasks " +
                             "and notes to OpenRouter, on your OpenRouter account, and to the company that runs " +
                             "the AI model."

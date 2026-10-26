@@ -12,7 +12,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * The AI features that send the user's calendar to OpenRouter (Plan My Day, Daily Summary, Weekly
+ * The AI features that send the user's calendar to OpenRouter (Optimize My Day, called Plan My Day in
+ * the code, Daily Summary, Weekly
  * Summary, Smart Suggestions; Task Breakdown keeps only tasks) first say so once (Oct 2026, owner's decision for Google's verification): what is
  * sent, that free models may keep it, and how to keep it private (ui/dialogs/CalendarAiNoticePopup.kt).
  * Nothing is enforced: the user's models and OpenRouter account settings decide where it goes.
