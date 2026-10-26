@@ -773,6 +773,31 @@ The owner: "confusing and poorly designed", "ugly", "needs to be much nicer and 
 
 ---
 
+## Part 5: handed over from the Google verification session (26 Oct)
+
+The owner closed the second session; this session owns its open items. All its work is in main: last merge `8baa26a`.
+
+- **Tested by the owner on the Go 10.3:**
+  - Sync works with the narrower Google permission, with no reconnect.
+  - Saving, editing and deleting a Google event work and show up in Google Calendar.
+  - Still to check: the "AI and your calendar" notice. It should show once on Optimize My Day; Continue runs it; it doesn't show again. The tablet's build, `bee387e`, still says "Plan My Day" in that notice until the next install.
+- **Google verification, the owner's steps** (`docs/google-verification/README.md` has them all):
+  1. Set up a domain (github.io may be rejected).
+  2. Publish `site/index.html` and `site/privacy/index.html` to gh-pages.
+  3. Verify the domain in Search Console.
+  4. Fill in Branding, Data Access (scopes: openid, userinfo.email, userinfo.profile, calendar.events, calendar.calendarlist.readonly, drive.file) and Audience (Publish app) in the Cloud console.
+  5. Record the demo video (`demo-video-script.md`), then submit.
+
+  Release a version with the narrowed scopes **before** recording the video: the video must show the same permissions as the form. Keep the privacy policy true for any change that sends Google data somewhere new.
+- **Known, not fixed (owner decides):**
+  1. Older code still relies on Android's "last Google sign-in" record (`GoogleSignIn.getLastSignedInAccount`), which is empty on the Go 10.3 while the account syncs:
+     - `LocalEventService`: pushing events created offline in Cloud Sync;
+     - `GoogleAuthManager.isSignedIn()` users: `DriveBackupService.isAvailable` / `DataBackupDialog` (Drive backup may say "not signed in"), SyncWorker's older pull, `MigrationHelper`.
+     Worth checking Drive backup on the Go 10.3 first.
+  2. Possible, not confirmed: `GoogleCalendarProvider.getSignedInAccounts` adds the last Google sign-in back when it's missing from the database. A removed Google account that was the last one signed in may come back while another Google account stays connected. Needs a test with two accounts.
+  3. Logging: BooxDay is the chattiest app in the tablet's log (866 KB in a 256 KB buffer), so Android drops its lines first. Fewer log lines would help crash reports and debugging.
+- **Housekeeping (owner's OK first):** the worktree `.claude/worktrees/google-verification` (it holds git-ignored copies of `local.properties` and `keystore.properties`) and the branch `google-verification` can be removed: everything is merged.
+
 ## Tester checklist (every target tablet)
 
 Note the model, firmware (Settings → About), pen type and the BooxDay version.
