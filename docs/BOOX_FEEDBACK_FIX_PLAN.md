@@ -402,9 +402,14 @@ The owner saw deleted content come back after going between the normal view and 
       - `forgetLoadedContent` (pages not on screen) cancels a pending image save, then calls `clearPageData` and `invalidatePreviewCache`, and deletes the full image and thumbnail.
       - `forgetSearchText` deletes the pages' MEMO search rows. The indexer then marks the empty page EMPTY with no AI read.
       - It is called from "Clear All Memos Today", "Clear This Page" and the one-page "Delete Page" (which clears).
-      - Test: `ClearedPagesTest`. Not yet checked on a tablet.
+      - Test: `ClearedPagesTest`.
+      - **Checked on the Go 10.3 (26 Oct, debug build of `fe526c8`):**
+        - 28 Nov had 2 memo pages with ink. It opened on page 2, then I went to page 1 and cleared all: page 2 is **blank**.
+        - Search "hmmm" (a page 2 word) found the memo before the clear and gives "No results" after.
+        - Log: both MEMO search rows deleted. 30 s later the indexer logged "Skipping empty memo page" for both, with no AI read.
   - (b) Wrap the "Clear All Tasks Today" confirm in `FullScreenState.exitThen { … }`, like the other Tasks tools. One line in `ToolbarMenu.kt`; `SharedToolbar` is untouched.
-    - **Done (26 Oct):** wrapped in `ToolbarMenu.kt`. The menu's scope (`remember { CoroutineScope(Dispatchers.IO) }`) isn't tied to the menu's lifetime, so the clear still runs after full screen closes. Compiles. No JVM test (UI wrapper); not yet checked on a tablet.
+    - **Done (26 Oct):** wrapped in `ToolbarMenu.kt`. The menu's scope (`remember { CoroutineScope(Dispatchers.IO) }`) isn't tied to the menu's lifetime, so the clear still runs after full screen closes. Compiles. No JVM test (UI wrapper).
+      - **Checked on the Go 10.3 (26 Oct):** 8 Nov had 2 task pages and full screen showed 1/1. "Clear All Tasks Today" there logged, in this order: `back on pages of 10 rows`, `Clear task pages: pageCount=2`, `Deleted 1 extra pages`. The day then shows the normal view at 1/1, still after a day switch.
   - (b2, seen in the check) After "Clear All Tasks Today", even in the normal view, the page counter kept showing "2/2" until a day switch. Nothing reloads MainScreen's task page info after this clear. The "Delete tasks… → all pages" handler does reload it (`getOrCreateTasksForPage` → `currentTaskPageInfo`, MainScreen.kt ~4166–4180). Do the same after this clear.
     - Don't hook it to `TaskRepository.taskChanged` (MainScreen.kt:1686). That flow also fires for ink on task pages, so a reload there would add a database read while writing.
     - Use a one-time signal instead, sent only when a day's task pages are added or removed. MainScreen collects it in a `LaunchedEffect`, which compiles to its own class, so the root lambda doesn't grow.
@@ -413,7 +418,8 @@ The owner saw deleted content come back after going between the normal view and 
       - `TaskRepository.dayCleared` is sent once by `EditorControlTower.clearTaskPages`.
       - MainScreen collects it in a child coroutine of the existing `taskChanged` `LaunchedEffect`, so the root lambda doesn't grow. For the shown day it calls `loadTasksPage(date, 0)` plus `TasksCanvasRefresh.request()`, like the "Delete tasks… → all pages" handler.
       - It loads page 1, not the old index, because `getOrCreateTasksForPage` creates a page past the end.
-      - Compiles. Not yet checked on a tablet.
+      - Compiles.
+      - **Checked on the Go 10.3 (26 Oct):** right after that clear the counter shows 1/1, and the tab no longer says "Tasks · 2". No day switch needed.
   - (c) Only if the check shows it: send the database part of the clears through `PagePersistenceWriter`.
   - `PageDataManager` is in the protected list (`protectedPages`). `clearPageData` empties a page's lists in place and doesn't evict it, so page protection is unchanged. Say so to the owner before the change.
   - Runtime cost: none. It runs only when the user clears.
@@ -567,7 +573,11 @@ Help is a 12-topic split popup of about 4,500–5,000 words (`HelpDialog.kt`). I
   - **Cost:** none (only while searching).
   - **Test:** a Robolectric case in the FTS tests: a page with text and a synopsis gives a snippet from the text.
   - CLAUDE.md's search note ("COALESCE it (synopsis, else text)") changes with it.
-  - **Done (26 Oct):** both queries now use `COALESCE(NULLIF(snippet(…0…), ''), snippet(…2…), '')`, so the text comes first, then the synopsis, never NULL. Tests in `UnifiedOcrFtsConsistencyTest`: the Go 10.3 case, plus a page without text. The existing BOOX_NOTE expectation now comes from the text. CLAUDE.md note updated. The result title on a tablet is not yet checked.
+  - **Done (26 Oct):** both queries now use `COALESCE(NULLIF(snippet(…0…), ''), snippet(…2…), '')`, so the text comes first, then the synopsis, never NULL. Tests in `UnifiedOcrFtsConsistencyTest`: the Go 10.3 case, plus a page without text. The existing BOOX_NOTE expectation now comes from the text. CLAUDE.md note updated.
+    - **Checked on the Go 10.3 (26 Oct):** memo results are now titled with the handwriting:
+      - "privacy" → "Privacy and security monthly meeting", with "2:00 PM - 3:00 PM…" below (15 Oct memo);
+      - "hmmm" → "hmmm" (28 Nov memo, before the clear).
+      - Before the fix, these results read "TITLE: Untitled".
 - **"Today" in the clear actions means the day on screen (Ready, owner approves the words).**
   - The ≡ items "Clear All Memos Today" / "Clear All Tasks Today" and their confirm text ("This will clear all memo pages for today") clear the day being shown. In the check that was 8 Nov, not today.
   - Proposal: "Clear All Memos on This Day" / "Clear All Tasks on This Day", and in the confirm: "This clears every memo page of Sun 8 Nov. It can't be undone."
