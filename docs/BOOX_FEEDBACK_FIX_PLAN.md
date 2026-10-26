@@ -423,6 +423,12 @@ Review (1.0.37): `PERF_LOGS` is `false` in every build (`Logging.kt`), so lines 
    - Safe for saved settings and backups: settings are read with `coerceInputValues = true` (`Kv.kt:146`), so an older version reads "Saturday" as Sunday instead of failing.
    - The executor also checks every other week calculation (grep `DayOfWeek`, for example the weekly summary), so all of them follow the setting.
    - Recommendation: yes, together with 1.6 (same code, same tests). It's cheap, but only one user asked, so skipping it is also reasonable.
+   - **Done (26 Oct, owner's go-ahead):**
+     - `AppSettings.FirstDayOfWeek` carries its `java.time.DayOfWeek`, with `shiftFromSunday` and `weekStart(date)`. Saturday is the third value and a third option in Calendar & Sync.
+     - The month calendar, the two-week strip, the task and event date pickers, the weekly task stats and best week, Convert handwriting "this week", and the sleep screen's month grid all follow it. The sleep screen used the locale's first day before; the weekly stats were Monday to Sunday.
+     - Week numbers: a Saturday-first row is numbered by its middle day. Sunday and Monday rows are numbered as before.
+     - Left alone: the AI's weekday grouping and the "next Monday" text parsing, which aren't about where a week starts.
+     - Tests: `FirstDayOfWeekTest`, plus Saturday in `TaskDatePickerDaysTest`. Not yet seen on a tablet.
 8. **Before `targetSdk` 36:** Android 16 (Note Air 6C) ignores `screenOrientation="portrait"` on large screens at targetSdk 36. Plan for it before bumping.
    - Review (1.0.37): correct; the app targets 35 today (`app/build.gradle`).
 9. **CalDAV calendars: parked (owner, 26 Oct: "too much work for little benefit").** Nothing to do now. Kept here so the findings aren't lost:

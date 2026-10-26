@@ -186,6 +186,7 @@ internal data class CalendarDayInfo(
 private fun AppSettings.FirstDayOfWeek.calendarDay(): Int = when (this) {
     AppSettings.FirstDayOfWeek.Sunday -> Calendar.SUNDAY
     AppSettings.FirstDayOfWeek.Monday -> Calendar.MONDAY
+    AppSettings.FirstDayOfWeek.Saturday -> Calendar.SATURDAY
 }
 
 /** One-letter weekday headers, starting on the week start setting's day. */
@@ -197,11 +198,7 @@ internal fun weekdayInitials(firstDayOfWeek: AppSettings.FirstDayOfWeek): List<S
 
 /** Empty cells before [firstOfMonth] in a grid whose first column is [firstDayOfWeek] (also the event date picker). */
 internal fun leadingDays(firstOfMonth: LocalDate, firstDayOfWeek: AppSettings.FirstDayOfWeek): Int {
-    val firstColumn = when (firstDayOfWeek) {
-        AppSettings.FirstDayOfWeek.Sunday -> DayOfWeek.SUNDAY
-        AppSettings.FirstDayOfWeek.Monday -> DayOfWeek.MONDAY
-    }
-    return (firstOfMonth.dayOfWeek.value - firstColumn.value + 7) % 7
+    return (firstOfMonth.dayOfWeek.value - firstDayOfWeek.dayOfWeek.value + 7) % 7
 }
 
 /**

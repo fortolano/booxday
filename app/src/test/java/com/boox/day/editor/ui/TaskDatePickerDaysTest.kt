@@ -26,7 +26,7 @@ class TaskDatePickerDaysTest {
     @Test
     fun everyMonthFillsSixWeeksOfConsecutiveDaysFromTheWeekStart() {
         for (start in FirstDayOfWeek.entries) {
-            val firstColumn = if (start == FirstDayOfWeek.Monday) DayOfWeek.MONDAY else DayOfWeek.SUNDAY
+            val firstColumn = start.dayOfWeek
             for (month in 0..11) {
                 val days = generateCalendarDays(2026, month, start)
                 val dates = days.map { LocalDate.parse(it.dateString) }
@@ -45,6 +45,9 @@ class TaskDatePickerDaysTest {
         assertEquals(6, leadingDays(LocalDate.of(2026, 11, 1), FirstDayOfWeek.Monday))
         assertEquals(1, leadingDays(LocalDate.of(2026, 6, 1), FirstDayOfWeek.Sunday))
         assertEquals(0, leadingDays(LocalDate.of(2026, 6, 1), FirstDayOfWeek.Monday))
+        // Saturday start (Oct 2026): Sat, then the Sunday 1st / Sat, Sun, then the Monday 1st
+        assertEquals(1, leadingDays(LocalDate.of(2026, 11, 1), FirstDayOfWeek.Saturday))
+        assertEquals(2, leadingDays(LocalDate.of(2026, 6, 1), FirstDayOfWeek.Saturday))
         // And always as many as the task picker's days from the month before
         for (start in FirstDayOfWeek.entries) {
             for (month in 1..12) {
@@ -58,5 +61,6 @@ class TaskDatePickerDaysTest {
     fun theHeaderStartsOnTheSameDay() {
         assertEquals(listOf("S", "M", "T", "W", "T", "F", "S"), weekdayInitials(FirstDayOfWeek.Sunday))
         assertEquals(listOf("M", "T", "W", "T", "F", "S", "S"), weekdayInitials(FirstDayOfWeek.Monday))
+        assertEquals(listOf("S", "S", "M", "T", "W", "T", "F"), weekdayInitials(FirstDayOfWeek.Saturday))
     }
 }

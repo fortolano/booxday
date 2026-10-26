@@ -42,6 +42,8 @@ class SleepAgendaRenderer(private val spec: SleepAgendaStyle) {
         /** Today's memo page, or null. Shown on medium and large screens when it fits. */
         val memo: Bitmap? = null,
         val locale: Locale = Locale.getDefault(),
+        /** The month grid's first column: the app's week start setting, else the locale's (Oct 2026). */
+        val firstDayOfWeek: java.time.DayOfWeek? = null,
     )
 
     // ── Paints ────────────────────────────────────────────────────────────────────────────────
@@ -521,7 +523,7 @@ class SleepAgendaRenderer(private val spec: SleepAgendaStyle) {
         val label = date.month.getDisplayName(TextStyle.FULL, input.locale) + " " + date.year
         val gridW = min(right - left, spec.mm(if (spec.sizeClass == SleepSizeClass.COMPACT) 80f else 110f))
         val y = sectionHeader(canvas, label, null, left, top, left + gridW)
-        val firstDay = java.time.temporal.WeekFields.of(input.locale).firstDayOfWeek
+        val firstDay = input.firstDayOfWeek ?: java.time.temporal.WeekFields.of(input.locale).firstDayOfWeek
         val cellW = gridW / 7f
         val cellH = monthCell()
         val centre = { col: Int -> left + cellW * (col + 0.5f) }

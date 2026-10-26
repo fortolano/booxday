@@ -4253,8 +4253,9 @@ fun MainScreen(
                                     )
                                 com.boox.day.editor.ui.ConvertScope.THIS_WEEK -> {
                                     val today = java.time.LocalDate.parse(capturedDate)
-                                    val start = today.with(java.time.DayOfWeek.MONDAY).toString()
-                                    val end = today.with(java.time.DayOfWeek.SUNDAY).toString()
+                                    val weekStart = GlobalAppSettings.current.firstDayOfWeek.weekStart(today)
+                                    val start = weekStart.toString()
+                                    val end = weekStart.plusDays(6).toString()
                                     appRepository.taskRepository.convertHandwritingForDateRange(
                                         start, end, actualCanvasHeight
                                     )

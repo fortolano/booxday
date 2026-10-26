@@ -220,7 +220,7 @@ object TipsRepository {
         ),
         Tip(
             id = "calendar_first_day",
-            message = "Prefer Monday starts? Change the first day of the week in Settings → Calendar & Sync.",
+            message = "Prefer Monday or Saturday starts? Change the first day of the week in Settings → Calendar & Sync.",
             contexts = setOf(TipContext.CALENDAR)
         ),
         Tip(

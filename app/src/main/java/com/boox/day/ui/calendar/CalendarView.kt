@@ -1035,10 +1035,8 @@ fun DayOfWeekHeader(
 
     // Reorder days based on first day of week setting
     val daysOfWeek = remember(firstDayOfWeekSetting) {
-        when (firstDayOfWeekSetting) {
-            AppSettings.FirstDayOfWeek.Sunday -> baseDaysOfWeek
-            AppSettings.FirstDayOfWeek.Monday -> baseDaysOfWeek.drop(1) + baseDaysOfWeek.take(1)
-        }
+        val shift = firstDayOfWeekSetting.shiftFromSunday
+        baseDaysOfWeek.drop(shift) + baseDaysOfWeek.take(shift)
     }
 
     // Determine current day of week, adjusted for the firstDayOfWeek setting
@@ -1061,11 +1059,8 @@ fun DayOfWeekHeader(
             Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1
         }
 
-        // Adjust index based on first day of week setting
-        when (firstDayOfWeekSetting) {
-            AppSettings.FirstDayOfWeek.Sunday -> rawDayOfWeek
-            AppSettings.FirstDayOfWeek.Monday -> (rawDayOfWeek + 6) % 7  // Shift: Mon=0, Tue=1, ..., Sun=6
-        }
+        // Adjust index based on first day of week setting (Monday start: Mon=0 ... Sun=6)
+        (rawDayOfWeek - firstDayOfWeekSetting.shiftFromSunday + 7) % 7
     }
 
     // Wrap in Column to keep Row and bottom border together
@@ -1167,10 +1162,7 @@ fun CalendarGrid(
     // Raw first day of week (0 = Sunday)
     val rawFirstDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) - 1
     // Adjust for first day of week setting
-    val firstDayOfWeek = when (firstDayOfWeekSetting) {
-        AppSettings.FirstDayOfWeek.Sunday -> rawFirstDayOfWeek
-        AppSettings.FirstDayOfWeek.Monday -> (rawFirstDayOfWeek + 6) % 7  // Shift: Mon=0, Sun=6
-    }
+    val firstDayOfWeek = (rawFirstDayOfWeek - firstDayOfWeekSetting.shiftFromSunday + 7) % 7  // Monday start: Mon=0, Sun=6
 
     // Previous month info
     val prevMonthCalendar = remember(year, month) {
@@ -1208,9 +1200,11 @@ fun CalendarGrid(
             ) {
                 // Week number column (only when week numbers are shown, aligned with the header)
                 val weekNumber = if (weekNumbersShown) {
-                    // Calculate week number for first day of this row
+                    // Calculate week number for first day of this row. A Saturday-first row (Oct 2026) is
+                    // numbered by its middle day: its Saturday belongs to the week before in every numbering
                     val firstCellIndex = row * 7
-                    val firstDayOffset = firstCellIndex - firstDayOfWeek + 1
+                    val firstDayOffset = firstCellIndex - firstDayOfWeek + 1 +
+                        (if (firstDayOfWeekSetting == AppSettings.FirstDayOfWeek.Saturday) 3 else 0)
                     val weekCalendar = (calendar.clone() as Calendar).apply {
                         when {
                             firstDayOffset < 1 -> {

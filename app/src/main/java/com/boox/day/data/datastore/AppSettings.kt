@@ -261,9 +261,21 @@ data class AppSettings(
         Top, Bottom, // Left,Right,
     }
 
-    enum class FirstDayOfWeek {
-        Sunday,  // 0 - Calendar.SUNDAY
-        Monday   // 1 - Calendar.MONDAY
+    /**
+     * The first column of every calendar and date picker, and where "this week" starts (Oct 2026: Saturday
+     * added, plan 3.7; an older version reads a saved Saturday as Sunday, as settings tolerate unknown values).
+     */
+    enum class FirstDayOfWeek(val dayOfWeek: java.time.DayOfWeek) {
+        Sunday(java.time.DayOfWeek.SUNDAY),
+        Monday(java.time.DayOfWeek.MONDAY),
+        Saturday(java.time.DayOfWeek.SATURDAY);
+
+        /** How far a Sunday-first week list turns to start on this day: Sunday 0, Monday 1, Saturday 6. */
+        val shiftFromSunday: Int get() = dayOfWeek.value % 7
+
+        /** The first day of the week that holds [date]. */
+        fun weekStart(date: java.time.LocalDate): java.time.LocalDate =
+            date.with(java.time.temporal.TemporalAdjusters.previousOrSame(dayOfWeek))
     }
 
     enum class DateFormat {

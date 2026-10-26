@@ -344,7 +344,7 @@ private fun DisplayModeTabContent(
     // First Day of Week Setting (moved from General Settings)
     SettingCard(
         title = "First Day of Week",
-        description = "Choose which day starts the week on the calendar"
+        description = "Choose which day starts the week: on the calendars, in the date pickers and for this week's task stats"
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -359,6 +359,12 @@ private fun DisplayModeTabContent(
                 label = "Monday",
                 isSelected = firstDayOfWeek == AppSettings.FirstDayOfWeek.Monday,
                 onClick = { onFirstDayOfWeekChanged(AppSettings.FirstDayOfWeek.Monday) }
+            )
+            // Oct 2026 (plan 3.7), asked for on Reddit
+            RadioOption(
+                label = "Saturday",
+                isSelected = firstDayOfWeek == AppSettings.FirstDayOfWeek.Saturday,
+                onClick = { onFirstDayOfWeekChanged(AppSettings.FirstDayOfWeek.Saturday) }
             )
         }
     }

@@ -71,6 +71,7 @@ object SleepScreenPublisher {
                     digest = digest, widthPx = width, heightPx = height, nowMs = nowMs,
                     use24Hour = settings(app).timeFormat == AppSettings.TimeFormat.TwentyFourHour,
                     memo = memo,
+                    firstDayOfWeek = settings(app).firstDayOfWeek.dayOfWeek,
                 )
             )
             memo?.recycle()
@@ -108,6 +109,7 @@ object SleepScreenPublisher {
             SleepAgendaRenderer.Input(
                 digest = digest, widthPx = width, heightPx = height, nowMs = System.currentTimeMillis(),
                 use24Hour = settings(app).timeFormat == AppSettings.TimeFormat.TwentyFourHour, memo = memo,
+                firstDayOfWeek = settings(app).firstDayOfWeek.dayOfWeek,
             )
         ).also { memo?.recycle() }
     } catch (t: Throwable) {

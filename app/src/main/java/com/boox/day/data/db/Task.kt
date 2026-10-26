@@ -1552,12 +1552,12 @@ class TaskRepository(internal val context: Context) {
     }
 
     /**
-     * Get task statistics for the current week (Monday to Sunday).
+     * Get task statistics for the current week (from the first day of the week setting, Oct 2026).
      */
     fun getWeekStats(): PeriodStats {
         val today = java.time.LocalDate.now()
-        val startOfWeek = today.with(java.time.DayOfWeek.MONDAY)
-        val endOfWeek = today.with(java.time.DayOfWeek.SUNDAY)
+        val startOfWeek = com.boox.day.data.datastore.GlobalAppSettings.current.firstDayOfWeek.weekStart(today)
+        val endOfWeek = startOfWeek.plusDays(6)
         return getStatsForDateRange(startOfWeek.toString(), endOfWeek.toString(), "This Week")
     }
 
@@ -1575,8 +1575,8 @@ class TaskRepository(internal val context: Context) {
      * Get task statistics for a specific week containing the given date.
      */
     fun getWeekStatsForDate(date: java.time.LocalDate): PeriodStats {
-        val startOfWeek = date.with(java.time.DayOfWeek.MONDAY)
-        val endOfWeek = date.with(java.time.DayOfWeek.SUNDAY)
+        val startOfWeek = com.boox.day.data.datastore.GlobalAppSettings.current.firstDayOfWeek.weekStart(date)
+        val endOfWeek = startOfWeek.plusDays(6)
         val formatter = java.time.format.DateTimeFormatter.ofPattern("MMM d")
         val label = "${startOfWeek.format(formatter)} - ${endOfWeek.format(formatter)}"
         return getStatsForDateRange(startOfWeek.toString(), endOfWeek.toString(), label)
@@ -1686,16 +1686,17 @@ class TaskRepository(internal val context: Context) {
         val countsByDate = taskDao.getCompletedCountsByDate()
         if (countsByDate.isEmpty()) return null
 
-        // Group by week (Monday-Sunday)
+        // Group by week (from the first day of the week setting, Oct 2026)
+        val firstDayOfWeek = com.boox.day.data.datastore.GlobalAppSettings.current.firstDayOfWeek
         val weekCounts = mutableMapOf<java.time.LocalDate, Int>()
         for (entry in countsByDate) {
             val date = java.time.LocalDate.parse(entry.dayDate)
-            val weekStart = date.with(java.time.DayOfWeek.MONDAY)
+            val weekStart = firstDayOfWeek.weekStart(date)
             weekCounts[weekStart] = (weekCounts[weekStart] ?: 0) + entry.completedCount
         }
 
         val best = weekCounts.maxByOrNull { it.value } ?: return null
-        val weekEnd = best.key.with(java.time.DayOfWeek.SUNDAY)
+        val weekEnd = best.key.plusDays(6)
         val formatter = java.time.format.DateTimeFormatter.ofPattern("MMM d")
         val label = "${best.key.format(formatter)} - ${weekEnd.format(formatter)}"
         return BestRecord(label, best.value)

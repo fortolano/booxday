@@ -74,11 +74,7 @@ object CompactCalendarDimens {
 
 /** First day of the two-week window whose first row holds [anchorDate]. */
 fun compactWindowStart(anchorDate: LocalDate, firstDayOfWeekSetting: AppSettings.FirstDayOfWeek): LocalDate {
-    val firstDay = when (firstDayOfWeekSetting) {
-        AppSettings.FirstDayOfWeek.Sunday -> DayOfWeek.SUNDAY
-        AppSettings.FirstDayOfWeek.Monday -> DayOfWeek.MONDAY
-    }
-    return anchorDate.with(TemporalAdjusters.previousOrSame(firstDay))
+    return firstDayOfWeekSetting.weekStart(anchorDate)
 }
 
 /**
