@@ -1637,16 +1637,19 @@ fun AddEditEventDialog(
                     val daysInMonth = firstDayOfMonth.lengthOfMonth()
                     val startDayOfWeek = leadingDays(firstDayOfMonth, firstDayOfWeek)
 
+                    // Six rows of fixed-height cells, so every week of every month shows (Oct 2026): square
+                    // cells followed the popup's width, about 59 dp on the Go 10.3, and the 200 dp grid,
+                    // which can't scroll, showed only the first 3 weeks. Same cell height as the task picker.
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(7),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp),
+                            .height(EInkTheme.DatePicker.cellSize * 6),
                         userScrollEnabled = false
                     ) {
                         // Empty cells before first day
                         items(startDayOfWeek) {
-                            Box(modifier = Modifier.aspectRatio(1f))
+                            Box(modifier = Modifier.height(EInkTheme.DatePicker.cellSize))
                         }
 
                         // Days of month
@@ -1655,7 +1658,7 @@ fun AddEditEventDialog(
                             val isSelected = day == pickerDay
                             Box(
                                 modifier = Modifier
-                                    .aspectRatio(1f)
+                                    .height(EInkTheme.DatePicker.cellSize)
                                     .padding(2.dp)
                                     .background(
                                         if (isSelected) EInkTheme.DatePicker.selectedBackground else EInkTheme.Colors.background,

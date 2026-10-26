@@ -260,6 +260,10 @@ The steps don't depend on each other. Do them in this order (most user-visible f
 - **1.8:** a "Debug: crash now" report has `Firmware: 2026-04-21_15-48_4.2-rel_04212_ce95d3767` and `Pen: SurfaceFlinger`. In a report whose last 150 log lines held a sync line, the account address reads `f…@<domain>` (U+2026); no unmasked address anywhere. The test reports were deleted with Close afterwards.
 - **Found during the check, not changed (owner to decide):**
   1. **The event date picker shows only about 3 of a month's 5–6 weeks on the Go 10.3.** It was like this before 1.6. The grid is a non-scrolling `LazyVerticalGrid` with `.height(200.dp)` and square cells about 60 dp wide (the popup is 60% of the screen), so later weeks can't be reached; on 7 Nov the 16th–30th were hidden. The Go 6's narrower popup shows more, but probably not all. A fix: size the grid from the cell size (6 rows), or use plain rows instead of a lazy grid.
+     - **Fixed (26 Oct, owner's OK, own commit):**
+       - Cells now have a fixed height, `EInkTheme.DatePicker.cellSize` (36 dp, the task picker's cell height), and the grid is six of them tall, so every month fits and the popup keeps one height.
+       - Checked on the Go 10.3: October shows all 5 weeks, with today, the 26th, selected (before, it was out of view). November shows all 6 weeks, and picking 30 Nov fills the date field with "Monday, November 30, 2026".
+       - Not checked on the Go 6.
   2. **"Sign-in was cancelled." shows at the top of the Google tab's list.** The "+ Add Gmail Account" button is at the bottom, so with the list scrolled down the message is out of view.
 - **Tests:** `ConnectedAccountSelectionSurvivalTest` fails on this PC only for its SDK 36 run ("Android SDK 36 requires Java 21 (have Java 17)"). This was already the case, and none of the code here touches it.
 
