@@ -409,6 +409,11 @@ The owner saw deleted content come back after going between the normal view and 
     - Don't hook it to `TaskRepository.taskChanged` (MainScreen.kt:1686). That flow also fires for ink on task pages, so a reload there would add a database read while writing.
     - Use a one-time signal instead, sent only when a day's task pages are added or removed. MainScreen collects it in a `LaunchedEffect`, which compiles to its own class, so the root lambda doesn't grow.
     - Don't add a new parameter through `SharedToolbar` (close to its compile limit).
+    - **Done (26 Oct):**
+      - `TaskRepository.dayCleared` is sent once by `EditorControlTower.clearTaskPages`.
+      - MainScreen collects it in a child coroutine of the existing `taskChanged` `LaunchedEffect`, so the root lambda doesn't grow. For the shown day it calls `loadTasksPage(date, 0)` plus `TasksCanvasRefresh.request()`, like the "Delete tasks… → all pages" handler.
+      - It loads page 1, not the old index, because `getOrCreateTasksForPage` creates a page past the end.
+      - Compiles. Not yet checked on a tablet.
   - (c) Only if the check shows it: send the database part of the clears through `PagePersistenceWriter`.
   - `PageDataManager` is in the protected list (`protectedPages`). `clearPageData` empties a page's lists in place and doesn't evict it, so page protection is unchanged. Say so to the owner before the change.
   - Runtime cost: none. It runs only when the user clears.

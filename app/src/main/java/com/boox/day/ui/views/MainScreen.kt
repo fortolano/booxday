@@ -1683,6 +1683,16 @@ fun MainScreen(
     // Use collect (not collectLatest) to ensure both source and target dates are processed on task move
     val currentYearMonthState = rememberUpdatedState(currentYearMonth)
     LaunchedEffect(Unit) {
+        // ≡ "Clear All Tasks Today" (Oct 2026): the cleared day is back to one page. Show it, or the page
+        // count stays at the old total. Here, in this effect's own class: MainScreen's root lambda is full.
+        launch {
+            TaskRepository.dayCleared.collect { clearedDate ->
+                if (clearedDate == selectedDateState.value) {
+                    loadTasksPage(clearedDate, 0)
+                    TasksCanvasRefresh.request()
+                }
+            }
+        }
         TaskRepository.taskChanged.collect { changedDate ->
             // Only update if the changed date is in the current viewing month
             if (changedDate.startsWith(currentYearMonthState.value)) {

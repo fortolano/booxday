@@ -850,6 +850,16 @@ class TaskRepository(internal val context: Context) {
         private val _taskChanged = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 2)
         val taskChanged = _taskChanged.asSharedFlow()
 
+        // A day's tasks were cleared outside MainScreen's own handlers (≡ "Clear All Tasks Today", Oct
+        // 2026): MainScreen shows that day's first page again, so the page count isn't left stale.
+        // Sent once per clear, never while writing (taskChanged also fires for ink).
+        private val _dayCleared = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
+        val dayCleared = _dayCleared.asSharedFlow()
+
+        fun notifyDayCleared(date: String) {
+            _dayCleared.tryEmit(date)
+        }
+
         // PERFORMANCE: Cache for task page queries (saves ~25-260ms per cached hit).
         // One cache for the whole process (plan §13.2-6, Oct 2026): the app creates several
         // TaskRepository instances, and per-instance caches missed each other's invalidations.

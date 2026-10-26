@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import com.boox.day.data.db.TaskRepository
 import com.boox.day.data.db.TextAnnotation
 import com.boox.day.data.db.TextAnnotationRepository
 import java.util.Date
@@ -385,6 +386,8 @@ class EditorControlTower(
             page.clearAllContent()
             history.cleanHistory()
         }
+        // The day may have fewer pages now: MainScreen reloads its page count (Oct 2026)
+        TaskRepository.notifyDayCleared(dayDate)
 
         // Notify changes
         DrawCanvas.contentChanged.tryEmit(Unit)
