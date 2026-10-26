@@ -66,7 +66,7 @@ private fun AppUpdatePopup(state: State) {
         onDismissRequest = {
             when (state) {
                 is State.Available -> AppUpdateGate.notNow(context)
-                is State.Checking, is State.UpToDate, is State.Failed -> AppUpdateGate.close()
+                is State.Checking, is State.UpToDate, is State.Failed, is State.WhatsNew -> AppUpdateGate.close()
                 else -> Unit  // downloading or installing: only the buttons close it
             }
         },
@@ -102,7 +102,9 @@ private fun AppUpdatePopup(state: State) {
                                 modifier = Modifier.verticalScroll(notesScroll),
                                 verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
                             ) {
-                                Body("BooxDay ${state.info.version} is ready, with performance improvements and bug fixes.")
+                                // Oct 2026: the notes below say what changed (it said "performance improvements
+                        // and bug fixes" for every release)
+                        Body("BooxDay ${state.info.version} is ready.")
                                 if (state.info.notes.isNotEmpty()) {
                                     Text(
                                         text = "What's new",
@@ -146,6 +148,27 @@ private fun AppUpdatePopup(state: State) {
                                 "Then open BooxDay again."
                         )
                         Buttons(escape = "Close" to { AppUpdateGate.close() })
+                    }
+                    is State.WhatsNew -> {
+                        // The first start after an update (Oct 2026): that release's notes, once
+                        Title("BooxDay ${state.version}")
+                        val notesScroll = rememberScrollState()
+                        Box(modifier = Modifier.weight(1f, fill = false)) {
+                            Column(
+                                modifier = Modifier.verticalScroll(notesScroll),
+                                verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
+                            ) {
+                                Text(
+                                    text = "What's new",
+                                    fontSize = EInkTheme.Typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EInkTheme.Colors.primary
+                                )
+                                state.notes.forEach { Bullet(it) }
+                            }
+                            ScrollMoreBar(notesScroll)
+                        }
+                        Buttons(main = "Close" to { AppUpdateGate.close() })
                     }
                     is State.Failed -> {
                         Title(if (state.info == null) "Couldn't check for updates" else "Update not installed")

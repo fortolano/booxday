@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit
 object AppUpdateChecker {
     private const val TAG = "AppUpdateChecker"
     private const val LATEST_URL = "https://api.github.com/repos/fortolano/booxday/releases/latest"
+    private const val TAG_URL_PREFIX = "https://api.github.com/repos/fortolano/booxday/releases/tags/v"
     private const val MAX_NOTES = 6
 
     /** A release newer than the installed app. [sha256] is lower-case hex. */
@@ -71,13 +72,7 @@ object AppUpdateChecker {
     /** Asks GitHub for the latest release; [currentVersion] is what it is compared with. */
     suspend fun check(currentVersion: String = BuildConfig.VERSION_NAME): Result = withContext(Dispatchers.IO) {
         try {
-            val request = Request.Builder()
-                .url(LATEST_URL)
-                .header("Accept", "application/vnd.github+json")
-                .header("User-Agent", "BooxDay/${BuildConfig.VERSION_NAME}")
-                .get()
-                .build()
-            client.newCall(request).execute().use { response ->
+            client.newCall(gitHubRequest(LATEST_URL)).execute().use { response ->
                 if (!response.isSuccessful) return@withContext Result.Failed("HTTP ${response.code}")
                 val info = parseRelease(response.body?.string().orEmpty())
                     ?: return@withContext Result.Failed("no usable release")
@@ -88,6 +83,31 @@ object AppUpdateChecker {
             Result.Failed(e.message ?: "network error")
         }
     }
+
+    /**
+     * The "What's new" bullets of the published release v[version] (Oct 2026), for the first start
+     * after an update installed by hand, when the in-app updater saved none. Null when GitHub can't
+     * be reached or has no such release; asked once, never retried.
+     */
+    suspend fun releaseNotesFor(version: String): List<String>? = withContext(Dispatchers.IO) {
+        try {
+            client.newCall(gitHubRequest(TAG_URL_PREFIX + version)).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val release = json.decodeFromString(ReleaseDto.serializer(), response.body?.string().orEmpty())
+                if (release.draft || release.prerelease) null else releaseNotes(release.body)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Release notes for $version not loaded: ${e.message}")
+            null
+        }
+    }
+
+    private fun gitHubRequest(url: String): Request = Request.Builder()
+        .url(url)
+        .header("Accept", "application/vnd.github+json")
+        .header("User-Agent", "BooxDay/${BuildConfig.VERSION_NAME}")
+        .get()
+        .build()
 
     /**
      * The update a `releases/latest` answer offers, or null when it is a draft or prerelease, or has

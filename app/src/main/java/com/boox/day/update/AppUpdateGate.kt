@@ -39,6 +39,8 @@ object AppUpdateGate {
     private const val KEY_LAST_CHECK = "last_check_ms"
     private const val KEY_SNOOZE_UNTIL = "snooze_until_ms"
     private const val KEY_LAST_RUN_VERSION_CODE = "last_run_version_code"
+    private const val KEY_NOTES_VERSION = "notes_version"
+    private const val KEY_NOTES = "notes"
     private const val LAUNCH_DELAY_MS = 15_000L
     private const val DAY_MS = 24L * 60 * 60 * 1000
 
@@ -59,6 +61,41 @@ object AppUpdateGate {
 
         /** [info] is set when Try Again can start the download again. */
         data class Failed(val info: AppUpdateChecker.UpdateInfo?, val message: String) : State()
+
+        /** The first start after an update: that release's notes, once (Oct 2026). */
+        data class WhatsNew(val version: String, val notes: List<String>) : State()
+    }
+
+    /** What the first start of a version says about the update ([announcementFor]). */
+    sealed class Announcement {
+        object None : Announcement()
+        data class Notes(val version: String, val notes: List<String>) : Announcement()
+
+        /** Updated by hand: no notes were saved, so ask GitHub once, else the snackbar. */
+        object FetchNotes : Announcement()
+    }
+
+    /**
+     * Shown once per version: [lastCode] is the version code that ran before (0 on a fresh install,
+     * which the welcome screens cover). Notes the in-app updater saved for this very version come
+     * first ([savedVersion], [savedNotes]); without them the notes are fetched.
+     */
+    internal fun announcementFor(
+        lastCode: Long,
+        currentCode: Long,
+        currentVersion: String,
+        savedVersion: String?,
+        savedNotes: List<String>
+    ): Announcement = when {
+        lastCode !in 1 until currentCode -> Announcement.None
+        savedNotes.isNotEmpty() && savedVersion != null && sameVersion(savedVersion, currentVersion) ->
+            Announcement.Notes(currentVersion, savedNotes)
+        else -> Announcement.FetchNotes
+    }
+
+    private fun sameVersion(a: String, b: String): Boolean {
+        val x = AppUpdateChecker.parseVersion(a) ?: return false
+        return x == AppUpdateChecker.parseVersion(b)
     }
 
     var state by mutableStateOf<State>(State.Idle)
@@ -165,7 +202,7 @@ object AppUpdateGate {
         state = State.Idle
     }
 
-    /** Close on "up to date", a failure or the install screen. */
+    /** Close on "up to date", a failure, the install screen or What's new. */
     fun close() {
         if (state !is State.Downloading) state = State.Idle
     }
@@ -192,25 +229,57 @@ object AppUpdateGate {
 
     private suspend fun install(app: Context, info: AppUpdateChecker.UpdateInfo, apk: File) {
         state = State.Installing(info)
+        // The new version shows these notes once at its first start (written before Android stops the app)
+        withContext(Dispatchers.IO) {
+            prefs(app).edit()
+                .putString(KEY_NOTES_VERSION, info.version)
+                .putString(KEY_NOTES, info.notes.joinToString("\n"))
+                .commit()
+        }
         if (!AppUpdateInstaller.install(app, apk)) {
             state = State.Failed(info, "The update couldn't be installed. Try again, or download it from the website.")
         }
     }
 
-    /** Snackbar on the first start after any update (in-app or by hand). */
+    /**
+     * The first start after any update (in-app or by hand): that release's notes in the popup, once
+     * (Oct 2026; before, only the snackbar). Without notes, the snackbar as before.
+     */
     private fun announceIfUpdated(app: Context) {
         val prefs = prefs(app)
         val lastCode = prefs.getLong(KEY_LAST_RUN_VERSION_CODE, 0L)
         val currentCode = BuildConfig.VERSION_CODE.toLong()
         if (lastCode == currentCode) return
-        prefs.edit().putLong(KEY_LAST_RUN_VERSION_CODE, currentCode).apply()
-        if (lastCode in 1 until currentCode) {
-            scope.launch {
-                delay(3_000L)  // after the main screen is up
+        val announcement = announcementFor(
+            lastCode = lastCode,
+            currentCode = currentCode,
+            currentVersion = BuildConfig.VERSION_NAME,
+            savedVersion = prefs.getString(KEY_NOTES_VERSION, null),
+            savedNotes = prefs.getString(KEY_NOTES, null).orEmpty().split('\n').filter { it.isNotBlank() }
+        )
+        prefs.edit()
+            .putLong(KEY_LAST_RUN_VERSION_CODE, currentCode)
+            .remove(KEY_NOTES_VERSION)
+            .remove(KEY_NOTES)
+            .apply()
+        if (announcement == Announcement.None) return
+        scope.launch {
+            delay(3_000L)  // after the main screen is up
+            val notes = when (announcement) {
+                is Announcement.Notes -> announcement.notes
+                else -> AppUpdateChecker.parseVersion(BuildConfig.VERSION_NAME)
+                    ?.let { AppUpdateChecker.releaseNotesFor(it.joinToString(".")) }
+                    .orEmpty()
+            }
+            if (notes.isEmpty()) {
                 SnackState.globalSnackFlow.tryEmit(
                     SnackConf(text = "BooxDay was updated to ${BuildConfig.VERSION_NAME}.", duration = SnackConf.DURATION_STANDARD)
                 )
+                return@launch
             }
+            // Like the update offer: not in the middle of writing, nor over the crash popup
+            while (DrawCanvas.isStylusRecentlyActive() || com.boox.day.diagnostics.CrashReportGate.isOpen) delay(1_000L)
+            if (state is State.Idle) state = State.WhatsNew(BuildConfig.VERSION_NAME, notes)
         }
     }
 
