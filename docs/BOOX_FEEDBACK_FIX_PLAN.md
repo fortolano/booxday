@@ -384,6 +384,8 @@ Review (1.0.37): `PERF_LOGS` is `false` in every build (`Logging.kt`), so lines 
    - **Seen on the Go 10.3 (26 Oct, build `f0cad65`, the owner's test):** in New Event (`ui/dialogs/AddEditEventDialog.kt`) the Onyx keyboard (`com.onyx.kime`) covered the lower part of the dialog, so Save couldn't be reached until Back hid the keyboard. So it isn't only the task box.
      - Cause: the dialog is a centered `Popup`, 0.78–0.81 of the screen high, with the form scrolling and Cancel/Save fixed at the bottom (`AddEditEventDialog.kt:311–330`). Nothing in the app makes room for the keyboard: no `imePadding`, no `WindowInsets.ime`, no soft-input mode anywhere.
      - Likely the same in every popup with a text field and buttons low on the screen: the task text box (`TypeTaskDialog`), the AI key field, and the Search field less so (it sits at the top).
+     - **Done for New Event (26 Oct, `adebe93`), checked on the Go 10.3 (debug build of `7137c62`):** with the Onyx keyboard open, New Event moved up and fit above it: the Title field, Cancel and Create Event were visible, and the form scrolled inside (log: `KeyboardSpace: keyboard covers … px`). So a Compose popup does receive the keyboard's height on BOOX (Android 15). When the keyboard closed, the dialog went back to its normal size. Next: the other dialogs with text fields, one at a time (the task text box first), with `ui/components/keyboardHeight()`.
+     - Seen in passing: New Event has its own small grey "scroll for more" inside the Save to card (`AddEditEventDialog.kt` ~1359), which 4.4 missed.
      - Proposal, one dialog at a time and New Event first: while the keyboard is open, the popup moves to the top of the screen and shrinks to the space above the keyboard, so the field being typed in and Cancel/Save stay visible; the form scrolls inside. First try reading the keyboard height in the popup (`WindowInsets.ime`). If a Compose `Popup` doesn't receive it (likely, see above), use the activity window's insets, which edge-to-edge does deliver. Check on the Go 10.3 and the Go 6. Runtime cost: none outside typing.
 2. **Google Cloud console.**
    - Check that the Android OAuth client for `com.boox.day` has the **SHA-1 of the release key**. The executor can print it with `build-tools\36.0.0\apksigner.bat verify --print-certs booxday-release\booxday-1.0.36.apk`.
@@ -428,7 +430,8 @@ Review (1.0.37): `PERF_LOGS` is `false` in every build (`Logging.kt`), so lines 
      - The month calendar, the two-week strip, the task and event date pickers, the weekly task stats and best week, Convert handwriting "this week", and the sleep screen's month grid all follow it. The sleep screen used the locale's first day before; the weekly stats were Monday to Sunday.
      - Week numbers: a Saturday-first row is numbered by its middle day. Sunday and Monday rows are numbered as before.
      - Left alone: the AI's weekday grouping and the "next Monday" text parsing, which aren't about where a week starts.
-     - Tests: `FirstDayOfWeekTest`, plus Saturday in `TaskDatePickerDaysTest`. Not yet seen on a tablet.
+     - Tests: `FirstDayOfWeekTest`, plus Saturday in `TaskDatePickerDaysTest`.
+     - **Checked on the Go 10.3 (26 Oct, `7137c62`):** Calendar & Sync shows Sunday · Monday · Saturday. With Saturday, the month starts Sat … Fri (1 Oct on Thursday, today's weekday mark in the right column), and the event date picker shows S S M T W T F. Set back to Monday afterwards.
 8. **Before `targetSdk` 36:** Android 16 (Note Air 6C) ignores `screenOrientation="portrait"` on large screens at targetSdk 36. Plan for it before bumping.
    - Review (1.0.37): correct; the app targets 35 today (`app/build.gradle`).
 9. **CalDAV calendars: parked (owner, 26 Oct: "too much work for little benefit").** Nothing to do now. Kept here so the findings aren't lost:
@@ -773,7 +776,8 @@ The owner: "confusing and poorly designed", "ugly", "needs to be much nicer and 
   - A handled task keeps its card place as one line. The outcome is recorded when tapped and shown once MainScreen takes the task out, so a cancelled Delete or day picker leaves the card as it was.
   - The buttons are black-outlined, because `EinkSecondaryButton` has grey text.
   - Help's Task Management topic has a "Start Your Day" paragraph.
-  - Compiles. Not seen on a tablet yet.
+  - **Checked on the Go 10.3 (26 Oct, `7137c62`, test data):** it opens from the task actions menu with the header, the explanation, "Move all to today (2)" and two cards in the owner's handwriting. "Move to Today" on TASK B turned its card into "✓ Task B · Moved to today" and put the task on today's first row with its ink. "Move all" went away at one task left. "Decide Later" closed it, and "Buy bread and milk" stayed on 24 Oct.
+  - Found there: the dialog got shorter and re-centered, so its header moved down. Fixed: it never gets shorter while open (`onSizeChanged` and `heightIn(min)`). Built; not yet on the tablet.
 
 ### Part 4 order and tests
 1. 4.1 (checked 26 Oct; fix (a), (b), (b2)), the 4.10 search snippet, and 4.2: data, search and privacy first.

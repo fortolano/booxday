@@ -40,6 +40,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -179,6 +181,11 @@ fun StartDayReviewPopup(
 
     fun record(task: Task, outcome: String) { outcomes[task.id] = outcome }
 
+    // The dialog never gets shorter while open (seen on the Go 10.3): a handled card turns into one
+    // line, and a centered dialog that shrank moved its header down the screen
+    var tallestPx by remember { mutableStateOf(0) }
+    val density = LocalDensity.current
+
     Popup(
         alignment = Alignment.Center,
         onDismissRequest = onDismiss,
@@ -188,7 +195,8 @@ fun StartDayReviewPopup(
             modifier = Modifier
                 .fillMaxWidth(0.96f)
                 .widthIn(max = 640.dp)
-                .heightIn(max = EInkTheme.PopupOverlay.maxHeight)
+                .heightIn(min = with(density) { tallestPx.toDp() }, max = EInkTheme.PopupOverlay.maxHeight)
+                .onSizeChanged { if (it.height > tallestPx) tallestPx = it.height }
                 .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                 .border(1.5.dp, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                 .noRippleClickable { }  // taps inside don't dismiss
