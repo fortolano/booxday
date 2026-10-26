@@ -35,18 +35,21 @@ import com.boox.day.ui.theme.EInkTheme
  *
  * E-Ink optimized: Clear visual cue with down arrow and text.
  * The indicator disappears when user scrolls to the bottom.
+ *
+ * [wrapHeight] (Oct 2026): as tall as the content, up to the space given, for panels sized to
+ * their content. Otherwise it fills the space given.
  */
 @Composable
 fun ScrollableWithIndicator(
     modifier: Modifier = Modifier,
     scrollState: ScrollState = rememberScrollState(),
+    wrapHeight: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(modifier = if (wrapHeight) modifier else modifier.fillMaxSize()) {
         // Scrollable content
         Column(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = (if (wrapHeight) Modifier.fillMaxWidth() else Modifier.fillMaxSize())
                 .verticalScroll(scrollState)
         ) {
             content()

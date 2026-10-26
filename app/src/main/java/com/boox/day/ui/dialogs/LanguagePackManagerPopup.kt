@@ -60,6 +60,9 @@ fun LanguagePackManagerPopup(
                 modifier = Modifier
                     .fillMaxWidth(EInkTheme.PanelDialog.widthFraction)  // Oct 2026: was 0.87f
                     .fillMaxHeight(EInkTheme.PanelDialog.heightFraction)  // was 0.74f
+                    // Oct 2026 (owner): as tall as the list, up to the panel height, with the top
+                    // where a full panel's top is (the same place as Preferences' header)
+                    .wrapContentHeight(Alignment.Top)
                     .background(
                         EInkTheme.PopupOverlay.background,
                         RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
@@ -157,7 +160,7 @@ fun LanguagePackManagerPopup(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f, fill = false),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Split languages into pairs for 2-column layout

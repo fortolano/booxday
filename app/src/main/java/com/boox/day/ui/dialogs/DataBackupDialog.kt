@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -473,6 +474,9 @@ fun DataBackupDialog(
                 modifier = Modifier
                     .fillMaxWidth(EInkTheme.PanelDialog.widthFraction)  // Oct 2026: was 0.85f
                     .fillMaxHeight(EInkTheme.PanelDialog.heightFraction)  // was 0.75f
+                    // Oct 2026 (owner): as tall as the content, up to the panel height, with the
+                    // top where a full panel's top is, so the header and tabs never move
+                    .wrapContentHeight(Alignment.Top)
                     .background(EInkTheme.PopupOverlay.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                     .border(EInkTheme.PopupOverlay.borderWidth, EInkTheme.PopupOverlay.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                     .padding(EInkTheme.PopupOverlay.padding)
@@ -579,7 +583,7 @@ fun DataBackupDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
+                        .weight(1f, fill = false)
                 ) {
                     when (selectedTab) {
                         DataBackupTab.BackupRestore -> {
@@ -921,7 +925,8 @@ private fun MaintenanceContent(
     onWipeAllData: (() -> Unit)?
 ) {
     ScrollableWithIndicator(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxWidth(),
+        wrapHeight = true
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
@@ -1351,7 +1356,7 @@ private fun IntentSelectionContent(
     onRestoreSelected: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
     ) {
         // Question prompt
@@ -1387,9 +1392,9 @@ private fun IntentSelectionContent(
             )
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
 
-        // Storage summary at bottom
+        // Storage summary below the options (Oct 2026: the panel is as tall as its content)
         Divider(
             color = EInkTheme.Divider.subtleColor,
             thickness = EInkTheme.Divider.subtleThickness
@@ -1501,7 +1506,8 @@ private fun BackupDestinationContent(
     onSignInClick: () -> Unit
 ) {
     ScrollableWithIndicator(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxWidth(),
+        wrapHeight = true
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
@@ -1564,7 +1570,8 @@ private fun RestoreSourceContent(
     onSignInClick: () -> Unit
 ) {
     ScrollableWithIndicator(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxWidth(),
+        wrapHeight = true
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
@@ -1799,7 +1806,8 @@ private fun CloudBackupFlowContent(
     onSignOutClick: () -> Unit
 ) {
     ScrollableWithIndicator(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxWidth(),
+        wrapHeight = true
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
@@ -2007,7 +2015,8 @@ private fun CloudRestoreFlowContent(
     onRestoreBackup: (DriveBackupService.BackupInfo) -> Unit
 ) {
     ScrollableWithIndicator(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxWidth(),
+        wrapHeight = true
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
@@ -2190,7 +2199,7 @@ private fun BackupListItem(
 @Composable
 private fun BackupProgressContent(message: String) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxWidth().padding(vertical = EInkTheme.Global.padding),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -2236,7 +2245,7 @@ private fun BackupSuccessContent(
     onDone: () -> Unit
 ) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxWidth().padding(vertical = EInkTheme.Global.padding),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -2337,7 +2346,7 @@ private fun BackupErrorContent(
     onDone: () -> Unit
 ) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxWidth().padding(vertical = EInkTheme.Global.padding),
         contentAlignment = Alignment.Center
     ) {
         Column(

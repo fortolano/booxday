@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -186,6 +187,9 @@ fun CalendarSettingsDialog(
                 modifier = Modifier
                     .fillMaxWidth(EInkTheme.PanelDialog.widthFraction)  // Oct 2026: was 0.75f
                     .fillMaxHeight(EInkTheme.PanelDialog.heightFraction)  // was 0.70f
+                    // Oct 2026 (owner): as tall as the tab's content, up to the panel height, with
+                    // the top where a full panel's top is, so the header and tabs never move
+                    .wrapContentHeight(Alignment.Top)
                     .background(EInkTheme.PopupOverlay.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                     .border(EInkTheme.PopupOverlay.borderWidth, EInkTheme.PopupOverlay.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                     .padding(EInkTheme.PopupOverlay.padding)
@@ -278,7 +282,8 @@ fun CalendarSettingsDialog(
                 ScrollableWithIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
+                        .weight(1f, fill = false),
+                    wrapHeight = true
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
