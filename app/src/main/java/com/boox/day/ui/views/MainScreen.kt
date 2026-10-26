@@ -1494,6 +1494,7 @@ fun MainScreen(
                 com.boox.day.ui.AiKeyGate.isOpen ||
                 com.boox.day.update.AppUpdateGate.isOpen ||
                 com.boox.day.diagnostics.CrashReportGate.isOpen ||
+                com.boox.day.ui.GoogleReconnectGate.isOpen ||
                 com.boox.day.ui.FullScreenState.transitioning ||
                 onboardingDismissedAt == 0L
         }
@@ -2141,6 +2142,15 @@ fun MainScreen(
     com.boox.day.ui.dialogs.AppUpdateHost()
     // "BooxDay closed unexpectedly" after a crash (Oct 2026, diagnostics/CrashReportGate)
     com.boox.day.ui.dialogs.CrashReportHost()
+    // "Reconnect Google Calendar" for accounts signed in before the narrower scopes (Oct 2026,
+    // ui/GoogleReconnectGate): the same Google sign-in as Calendar Accounts → Reconnect
+    com.boox.day.ui.dialogs.GoogleReconnectHost(onReconnect = { accountType ->
+        activity?.let { act ->
+            scope.launch {
+                multiAccountSyncViewModel.getGoogleSignInIntent(act, accountType)?.let { multiProviderSignInLauncher.launch(it) }
+            }
+        }
+    })
     // Full screen (Oct 2026, ui/FullScreenState): Back, tidy-up before a switch, full redraw after it
     com.boox.day.ui.FullScreenEffects(tabManager = tabManager, onEnter = { isEventsExpanded = false })
 

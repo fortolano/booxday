@@ -236,6 +236,16 @@ class GoogleAuthManager(private val context: Context) {
     }
 
     /**
+     * Email of the signed-in Google account when it hasn't allowed [CALENDAR_SCOPES] yet (signed in
+     * with an older version, which asked for the full calendar scope), or null. Google needs that
+     * account to sign in once more (ui/GoogleReconnectGate).
+     */
+    fun calendarReconnectEmail(): String? {
+        val account = GoogleSignIn.getLastSignedInAccount(context) ?: return null
+        return if (hasCalendarScope(account)) null else account.email
+    }
+
+    /**
      * Check if account has the required Drive scope
      */
     fun hasDriveScope(): Boolean {
