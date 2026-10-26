@@ -120,6 +120,13 @@ private enum class PreferencesTab(val displayName: String, val stepNumber: Int) 
     AiStyle("AI Style", 5)
 }
 
+/**
+ * What closing the wizard saves (Oct 2026): the X, the back key and a tap outside keep the
+ * answers, through the same save as the Save button. Null when nothing changed: nothing is written.
+ */
+internal fun preferencesToSaveOnClose(initial: AiPreferences, current: AiPreferences): AiPreferences? =
+    if (current == initial) null else current.copy(setupComplete = true)
+
 @Composable
 fun AiPreferencesDialog(
     initialPreferences: AiPreferences,
@@ -131,6 +138,10 @@ fun AiPreferencesDialog(
 
     var selectedTab by remember { mutableStateOf(PreferencesTab.Priorities) }
     var preferences by remember { mutableStateOf(initialPreferences) }
+    val close = {
+        val toSave = preferencesToSaveOnClose(initialPreferences, preferences)
+        if (toSave != null) onSave(toSave) else onDismiss()
+    }
 
     // Voice input state
     var showVoiceInput by remember { mutableStateOf(false) }
@@ -148,7 +159,7 @@ fun AiPreferencesDialog(
 
     Popup(
         alignment = Alignment.Center,
-        onDismissRequest = onDismiss,
+        onDismissRequest = close,
         properties = PopupProperties(focusable = true)
     ) {
         Box(
@@ -171,7 +182,7 @@ fun AiPreferencesDialog(
                 DialogHeader(
                     // Voice setup sends audio to AI: needs the user's own OpenRouter key (Oct 2026)
                     onVoiceClick = { if (com.boox.day.ui.AiKeyGate.requireKey()) showVoiceInput = true },
-                    onClose = onDismiss
+                    onClose = close
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))

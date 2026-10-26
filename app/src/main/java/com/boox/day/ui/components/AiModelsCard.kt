@@ -41,7 +41,7 @@ val AiJob.label: String
 /** What the job covers, at the top of its model list. */
 val AiJob.description: String
     get() = when (this) {
-        AiJob.HANDWRITING -> "Reads your ink for Convert, Summaries, Translate and Memo to Tasks."
+        AiJob.HANDWRITING -> "Reads your ink for Recognize Handwriting, Summarize, Translate and Convert Memo to Tasks."
         AiJob.VOICE -> "Turns your speech into text for voice notes, events, tasks and preferences."
         AiJob.WRITING -> "Formats, summarizes and translates text, and turns memos into tasks."
         AiJob.PLANNING -> "Task suggestions and breakdowns, planning, voice events, and linking notes to events."

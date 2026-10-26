@@ -94,12 +94,12 @@ fun AiSettingsDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Psychology,
-                            contentDescription = "AI Assistant",
+                            contentDescription = null,
                             modifier = Modifier.size(24.dp),
                             tint = EInkTheme.Colors.primary
                         )
                         Text(
-                            text = "AI Assistant",
+                            text = "AI Settings",
                             fontSize = EInkTheme.PopupOverlay.titleFontSize,
                             fontWeight = FontWeight.Bold,
                             color = EInkTheme.PopupOverlay.titleColor
@@ -138,7 +138,7 @@ fun AiSettingsDialog(
                         // AI Features Master Toggle
                         SettingCard(
                             title = "AI Features",
-                            description = "Enable AI-powered tools like voice input, handwriting recognition, summaries, and smart suggestions"
+                            description = "Voice input and the AI tools in Memos and Tasks, such as Recognize Handwriting, Summarize, Translate and Smart Suggestions."
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -147,16 +147,16 @@ fun AiSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = if (aiEnabled) "Enabled" else "Disabled",
+                                        text = if (aiEnabled) "On" else "Off",
                                         fontSize = EInkTheme.Typography.bodyMedium,
                                         color = EInkTheme.Colors.darkGray
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = if (aiEnabled)
-                                            "Semantic insights (keywords, patterns) are sent to AI providers. Your full notes stay on your device."
+                                            "When you use an AI tool, its page images, text or voice clip are sent to OpenRouter, on your own account, to be read or answered."
                                         else
-                                            "Voice input and AI tools are turned off",
+                                            "Voice input and the AI tools are off. Nothing is sent for them.",
                                         fontSize = EInkTheme.Preferences.explanationFontSize,
                                         color = EInkTheme.Colors.gray
                                     )
@@ -173,14 +173,14 @@ fun AiSettingsDialog(
 
                         // Personalization Section
                         SettingCard(
-                            title = "AI Personalization",
-                            description = "Configure your preferences to get smarter, more relevant suggestions tailored to your lifestyle"
+                            title = "AI Preferences",
+                            description = "A few questions about your priorities and your day, so suggestions fit you."
                         ) {
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
                             ) {
                                 Text(
-                                    text = "Tell us about your priorities, schedule, and interests so AI features can provide personalized assistance.",
+                                    text = "Smart Suggestions and Optimize My Day use your answers. You can change them at any time; closing the questions keeps what you picked.",
                                     fontSize = EInkTheme.Preferences.explanationFontSize,
                                     color = EInkTheme.Colors.gray
                                 )
@@ -206,7 +206,7 @@ fun AiSettingsDialog(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "Configure AI Preferences",
+                                            text = "Set Up AI Preferences",
                                             fontSize = EInkTheme.Typography.button,
                                             fontWeight = FontWeight.Medium,
                                             color = if (aiEnabled) EInkTheme.Colors.white else EInkTheme.Colors.gray
@@ -222,7 +222,7 @@ fun AiSettingsDialog(
 
                                 if (!aiEnabled) {
                                     Text(
-                                        text = "Enable AI Features above to configure preferences",
+                                        text = "Turn on AI Features above to set up AI Preferences.",
                                         fontSize = EInkTheme.Preferences.explanationFontSize,
                                         color = EInkTheme.Colors.gray
                                     )
@@ -233,13 +233,13 @@ fun AiSettingsDialog(
                         // Privacy (Oct 2026): where AI requests go
                         SettingCard(
                             title = "Privacy",
-                            description = "Requests go from this tablet to OpenRouter and the provider that runs the model."
+                            description = "Boox Day sends nothing to its developer. AI requests go from this tablet to OpenRouter, on your own account, and to the company that runs the model. Reading pages for search also sends memo and Boox Notes pages, but only while Settings → Boox Notes → Enable Indexing is on."
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = EInkTheme.Global.touchTarget)
-                                    .noRippleClickable { OpenRouterLinks.open(context, OpenRouterLinks.BYOK) },
+                                    .noRippleClickable { OpenRouterLinks.open(context, OpenRouterLinks.KEYS) },
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
                             ) {
@@ -250,7 +250,7 @@ fun AiSettingsDialog(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = "Use your own Google, OpenAI or Anthropic keys (BYOK)",
+                                    text = "Get an OpenRouter key",
                                     fontSize = EInkTheme.Typography.bodyMedium,
                                     color = EInkTheme.Colors.primary,
                                     textDecoration = TextDecoration.Underline

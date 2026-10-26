@@ -339,6 +339,7 @@ Review (1.0.37): `PERF_LOGS` is `false` in every build (`Logging.kt`), so lines 
   - On a Tasks page and a Memos page with a lot of ink, read the `DrawCanvas.drawingLock` lines (`Waited Nms…`, `Held drawing lock for Nms…`) and `DigitalInkService` `Extraction complete … (Nms)`.
   - Only if a number is clearly high, propose a separate step. Examples: update `PageDataManager.indexStrokes` per stroke instead of rebuilding the whole map, or drop the double copy in MainScreen's `contentChanged` handler.
   - Review (1.0.37): these log lines exist as written. Work done per stroke today, all growing with the page's stroke count: `indexStrokes` rebuilds the page's whole id map on the main thread (it runs on PageView's scope); the Tasks cross-out collector copies the page's strokes and builds an id set on every `contentChanged` (Default dispatcher); the Memos "more below" check (`pageContentBottom`) runs on every `contentChanged`. Change them only with numbers.
+- **Owner, 26 Oct:** tested writing on the Go 10.3 debug build (1.0.37 plus the Part 1 and 4.1 fixes): "working great so far". No code for 2.2; it stays with the testers (checklist items 2 and 4).
 
 ### 2.3 A Tasks page sometimes isn't drawn after switching pages
 - **Likely causes:**
@@ -621,11 +622,28 @@ Help is a 12-topic split popup of about 4,500–5,000 words (`HelpDialog.kt`). I
       - Its button: "Set Up AI Preferences" (today "Configure AI Preferences", `:209`).
       - Wizard title: stays "AI Preferences" (`AiPreferencesDialog.kt:274`).
       - Help, the tips and the welcome popup then all say "Settings → AI Settings → AI Preferences".
+  - **AI words, one set everywhere (decided by Claude at the owner's request, 26 Oct).** Every text the user reads (dialogs, Help, tips, welcome, popups) uses these:
+    - **AI Settings:** the menu item and the dialog (key, models, the AI switch, preferences).
+    - **AI Preferences:** the card, its button "Set Up AI Preferences", and the wizard. Path: "Settings → AI Settings → AI Preferences".
+    - **AI Models:** the card; "model" for one of them.
+    - **AI features:** everything AI as a group, in sentences ("AI features need an OpenRouter key"). The switch's card is titled "AI Features". Replaces "AI tools" in sentences, "Smart AI Tools", "AI-powered tools" and "AI Assistant".
+    - **OpenRouter account** (who pays, where requests go), **OpenRouter key** (the key itself), **Connect OpenRouter** (the sign-in button). Not "API key", "BYOK" or "AI providers".
+    - **Read** for handwriting: tasks are "read on the tablet"; memo pages and Boox Notes pages are "read by AI". "AI page reads" for the monthly count. Not "OCR", "handwriting recognition" or "semantic".
+    - **Turn on / turn off**, not "enable / disable"; the switch status says "On" / "Off".
+    - **Feature names stay as the menus show them:** "AI tools" (the Memos AI button: Voice to Text, Recognize Handwriting, Summarize, Translate, Convert Memo to Tasks), "Task AI" (the Tasks AI button: Optimize My Day, Sort by Priority, Smart Suggestions, Break Down Task, Daily Summary, Weekly Summary), AI Style (a wizard tab), Smart Link.
+    - **Two switches, said plainly wherever privacy comes up:** the AI Features switch (AI Settings) turns voice input and the AI tools on or off. Reading pages for search has its own switch, Settings → Boox Notes → Enable Indexing (off by default). The AI Features switch does not stop indexing (`UnifiedOcrIdleProcessor.canProcess` checks only `ocrSettings.enabled`), so no text may say "nothing is sent with AI off". Whether the AI switch should also pause indexing is the owner's call (not changed).
+    - **Internal names never reach the user:** "SemanticGenius" becomes "Smart Link" (that Help topic is about linking notes to events); "AI Chief of Staff" goes; Help's voice text uses the Voice settings' own option names.
+    - No marketing words: "AI-powered", "magic", "game-changing" go.
 - **Answers can be lost:**
   - The wizard keeps answers in memory across its 5 tabs, but writes them only when Save is tapped on the last tab (`AiPreferencesDialog.kt:133, 240`). The X, the back key or a tap outside throws away every answer without asking (`:151, :320`).
   - **Owner decides:** save on close (recommended: no question, no lost answers), or a Save button on every tab.
   - **Decided (owner, 26 Oct): save on close.** Every way out saves the answers: the X, the back key, a tap outside and Save. They go through the same save call that Save uses today (`MainScreen.kt:3989–3991`). Save on the last tab stays. Closing without changing anything writes nothing. Test: closing with the X keeps a changed answer.
   - The pasted-key field (`ApiKeySettingsCard.kt:83`, `remember`) is lost when AI Settings closes. That's fine: a key should not linger.
+- **Done (26 Oct):**
+  - AI Settings: title "AI Settings"; the switch says "On" / "Off" and lists the real tool names; the card "AI Preferences" with "Set Up AI Preferences"; the Privacy card says where requests go and names the indexing switch; the link is "Get an OpenRouter key" (OpenRouter's keys page).
+  - The approved privacy meaning was kept, but "Nothing is sent with AI off" was not used: indexing has its own switch (see the AI words above).
+  - The AI Models card names the real menu items.
+  - The wizard: every way out goes through `preferencesToSaveOnClose` (`AiPreferencesDialog.kt`), which saves changed answers like Save does (`setupComplete = true`, so Smart Suggestions use them) and writes nothing when nothing changed. Test: `AiPreferencesCloseTest`.
 - **Keyboard:** the only text field (the key) is the first card, near the top, so the keyboard is unlikely to cover it. Covered by Part 3.1 if it does.
 - **Not changed:** every stored answer is read by an AI prompt (`TaskAiContextBuilderV1`, `TaskAiService.buildV3SystemPrompt`), so no question is dead. The hidden "Voice Setup" button (`if (false)`, `AiPreferencesDialog.kt:287`) stays as it is (rule 2: no unrelated cleanups); report it only.
 
