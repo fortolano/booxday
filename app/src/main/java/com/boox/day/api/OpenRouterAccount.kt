@@ -22,7 +22,7 @@ object OpenRouterAccount {
 
     private var freeOnlyUntilMs by mutableLongStateOf(0L)
 
-    /** True while paid models should be skipped: Boox Day's choice uses its free models. */
+    /** True while paid models should be skipped: BooxDay's choice uses its free models. */
     fun isFreeOnly(nowMs: Long = System.currentTimeMillis()): Boolean = nowMs < freeOnlyUntilMs
 
     /** What OpenRouter said about the key (`GET /api/v1/key`); a new key is always checked first. */

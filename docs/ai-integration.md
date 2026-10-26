@@ -1,4 +1,4 @@
-# Boox Day AI Integration Guide
+# BooxDay AI Integration Guide
 
 > **Last Verified**: December 2025
 > **Covers Files**: AiClient.kt, all feature services in ai/, TranscriptionService.kt, AudioRecorder.kt
@@ -8,7 +8,7 @@
 
 ## Overview
 
-Boox Day integrates AI for:
+BooxDay integrates AI for:
 - **Handwriting recognition** (OCR from canvas ink)
 - **Voice-to-text** (audio transcription)
 - **Smart event parsing** (natural language → structured calendar event)

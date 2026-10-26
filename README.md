@@ -14,7 +14,7 @@ BooxDay is free and open source under the [GNU General Public License v3.0](LICE
 - Search across memos, tasks and notes
 - Optional AI features (voice to event or task, handwriting to text, summaries, translation, task suggestions, search of handwritten pages) on your own [OpenRouter](https://openrouter.ai) account
 - Connect OpenRouter in a few taps from the app, or paste a key you already have. Without credit, AI uses OpenRouter's free models
-- Choose the AI model for each job, or leave Boox Day's choice. If your model fails, Boox Day's own model answers instead
+- Choose the AI model for each job, or leave BooxDay's choice. If your model fails, BooxDay's own model answers instead
 - Designed for e-ink: no animations, high contrast, large touch targets
 
 ## Screenshots

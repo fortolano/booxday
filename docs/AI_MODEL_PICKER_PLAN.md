@@ -4,7 +4,7 @@
 > merged into main (last: be04817). Kept as the record of what was decided and why.
 > Line numbers were checked on 15 Oct 2026 and drift; find code by name.
 > "Decided" = the owner chose it. "Proposed" = recommended at the time; all were then built.
-> Open: a spending limit on the "Boox Day" OpenRouter key (owner, later).
+> Open: a spending limit on the "BooxDay" OpenRouter key (owner, later).
 
 ---
 
@@ -13,7 +13,7 @@
 - AI works as soon as the user connects OpenRouter. Nothing to set up.
 - Users who want to can pick the OpenRouter model for each AI job, with its reasoning effort and
   output tokens. Everything else stays hidden and uses safe defaults.
-- A bad, blocked or retired model never breaks a feature: Boox Day's own models are always the backup.
+- A bad, blocked or retired model never breaks a feature: BooxDay's own models are always the backup.
 - Simple for users. Nothing like the old booxday.com admin page (three models per job, tiers, charts).
 
 ## 2. Decisions
@@ -24,11 +24,11 @@
 | 2 | Model row | Model name, lab, price in and out per 1M tokens | Decided |
 | 3 | After picking a model | Reasoning effort (built from the model's own options) and output tokens, with recommended values; the rest hidden | Decided |
 | 4 | Input tokens | Shown as information only (the API has no input setting) | Proposed |
-| 5 | Automatic setup | Every job starts on "Boox Day's choice"; two sets (with credit / no credit) | Decided in principle; sets proposed |
+| 5 | Automatic setup | Every job starts on "BooxDay's choice"; two sets (with credit / no credit) | Decided in principle; sets proposed |
 | 6 | Adding the key | "Connect OpenRouter" (OAuth PKCE) first, paste as backup | Decided |
 | 7 | Return from OpenRouter | One-page GitHub Pages site | Decided; live since 15 Oct 2026 |
 | 8 | Jobs | Five: Reading handwriting, Voice, Writing and summaries, Planning and suggestions, Search indexing | Proposed |
-| 9 | Failure note on the card | "Your model didn't answer last time; Boox Day's model was used" | Proposed |
+| 9 | Failure note on the card | "Your model didn't answer last time; BooxDay's model was used" | Proposed |
 
 ---
 
@@ -41,8 +41,8 @@ Where: AI Settings, OpenRouter key card (`ui/components/ApiKeySettingsCard.kt`),
 
 1. Tap **Connect OpenRouter**.
 2. The tablet's browser opens OpenRouter. Sign in or sign up (Google, GitHub or email).
-3. Tap **Authorize**. OpenRouter creates a key labelled "Boox Day".
-4. The return page shows **Open Boox Day**. Tap it. Boox Day saves the key (encrypted), checks it,
+3. Tap **Authorize**. OpenRouter creates a key labelled "BooxDay".
+4. The return page shows **Open BooxDay**. Tap it. BooxDay saves the key (encrypted), checks it,
    and shows "AI is ready".
 
 Backup: the existing paste field and Paste button stay, for keys made elsewhere. The same field also
@@ -60,12 +60,12 @@ when AI is off, like the Personalization button. One row per job:
 
 ```text
 AI Models
-Choose the model for each job. If it fails, Boox Day uses its own.
+Choose the model for each job. If it fails, BooxDay uses its own.
 
 Reading handwriting                                        >
-  GPT-5 Nano · Boox Day's choice
+  GPT-5 Nano · BooxDay's choice
 Voice                                                      >
-  Gemini 3.1 Flash Lite · Boox Day's choice
+  Gemini 3.1 Flash Lite · BooxDay's choice
 Writing and summaries                                      >
 Planning and suggestions                                   >
 Search indexing                                            >
@@ -82,7 +82,7 @@ Reading handwriting            Updated 2 h ago  [Refresh]  [X]
 Show:  [All] [Top paid] [Top free] [Top reasoning]
 Sort:  [Most popular v]
 
-Boox Day's choice: GPT-5 Nano                        (pinned)
+BooxDay's choice: GPT-5 Nano                        (pinned)
 DeepSeek V4.1 Flash
   DeepSeek · $0.15 in · $0.60 out per 1M tokens
 GLM 5.3 Flash
@@ -117,7 +117,7 @@ Can read up to 1,048,576 tokens. Can write up to 65,536.
                                    [Back]   [Use Model]
 ```
 
-Two buttons only, per `docs/DIALOG_RULEBOOK.md:392`. Back returns to the list. Going back to Boox Day's
+Two buttons only, per `docs/DIALOG_RULEBOOK.md:392`. Back returns to the list. Going back to BooxDay's
 choice = tap its pinned row, then Use Model.
 
 Hidden, with today's values: temperature (set per feature), other sampling settings, provider
@@ -125,17 +125,17 @@ routing (Search indexing stays on zero-data-retention providers), reasoning toke
 
 ### 3.5 Failure note (proposed)
 
-When a pick fails and Boox Day's model answers instead, the card row says so until the pick works
+When a pick fails and BooxDay's model answers instead, the card row says so until the pick works
 again. If a picked model is no longer on OpenRouter, the row says "No longer available".
 
 ---
 
-## 4. Automatic setup: "Boox Day's choice"
+## 4. Automatic setup: "BooxDay's choice"
 
-- Every job starts on Boox Day's choice. **Model names are not copied into the user's settings**:
+- Every job starts on BooxDay's choice. **Model names are not copied into the user's settings**:
   copies go stale. Example: today's voice backup `google/gemini-2.0-flash-lite-001`
   (`api/ModelConfigProvider.kt:58`) is retired (OpenRouter lists no providers for it).
-- Boox Day's choice is updated with app updates. The daily model list check skips models that are
+- BooxDay's choice is updated with app updates. The daily model list check skips models that are
   gone or retiring.
 - Two sets, chosen from what OpenRouter says about the key (`GET /api/v1/key`, no tokens):
   `is_free_tier` = the account never bought credit.
@@ -161,7 +161,7 @@ again. If a picked model is no longer on OpenRouter, the row says "No longer ava
 - Free models only from the account's allowed list (`GET /api/v1/models/user`): some free models
   run on providers that may keep or train on prompts, and OpenRouter has a separate account setting
   for free models.
-- Settings for Boox Day's choice: the same recommended reasoning effort and output tokens as for
+- Settings for BooxDay's choice: the same recommended reasoning effort and output tokens as for
   picks (sections 6 and 7). Today the app sends "reasoning on" (= Medium) for some models and nothing
   for others: compare on a few real pages before switching.
 - Planning's first model is a preview. OpenRouter can retire previews early; the daily check covers it.
@@ -263,9 +263,9 @@ Errors: 400 wrong method, 403 bad code or verifier, 403 expired (after 10 minute
   right `booxday-connect://` link, removes the code from the address bar, Copy Code works, and it
   loads nothing from other sites. Opened without a code it shows "Not connected".
   Never merge `gh-pages` into `main`.
-- Page: reads `code` and `state`; shows **Open Boox Day** (link to `booxday-connect://...`); below it,
-  the code with **Copy code** and "Paste it in Boox Day: AI Settings, OpenRouter key". No code (denied
-  or opened directly): "Not connected. Go back to Boox Day and try again."
+- Page: reads `code` and `state`; shows **Open BooxDay** (link to `booxday-connect://...`); below it,
+  the code with **Copy code** and "Paste it in BooxDay: AI Settings, OpenRouter key". No code (denied
+  or opened directly): "Not connected. Go back to BooxDay and try again."
 - Privacy: no external scripts, fonts or analytics; `<meta name="referrer" content="no-referrer">`;
   remove the code from the address bar after reading it (`history.replaceState`).
 - E-ink: black on white, large text and buttons, no animation.
@@ -290,7 +290,7 @@ Errors: 400 wrong method, 403 bad code or verifier, 403 expired (after 10 minute
 
 - `AppSettings.aiModels` (new group, same pattern as `ocrSettings`, `AppSettings.kt:208`). Per job:
   model id, name, lab, reasoning level, max output tokens, and the model's saved options (levels,
-  mandatory, max output, input limit, input types). Empty = Boox Day's choice. The settings JSON
+  mandatory, max output, input limit, input types). Empty = BooxDay's choice. The settings JSON
   already accepts new fields (`data/db/Kv.kt:144`), so no database change. Exported in backups:
   nothing secret.
 - Model list: cache file in the app's cache folder, with its download time.
@@ -301,7 +301,7 @@ Errors: 400 wrong method, 403 bad code or verifier, 403 expired (after 10 minute
 ## 10. Code changes by file
 
 Changed:
-- `api/ModelConfigProvider.kt`: chain = [user pick] + Boox Day's choice (credit or free set), no
+- `api/ModelConfigProvider.kt`: chain = [user pick] + BooxDay's choice (credit or free set), no
   duplicates; picks are always `AiModel.Custom` with the job's capabilities (never the old built-in
   lookup at `:162`, whose old capability lists can make `AiRequestBuilder.enableReasoning()` throw,
   `api/ai/AiRequestBuilder.kt:128`, e.g. from `booxnotes/BooxNoteIndexer.kt:4363`); skip models
@@ -311,7 +311,7 @@ Changed:
   limit is an error, never the reasoning text (`:139`); read OpenRouter's 402 reason (no credit vs
   in-flight budget vs key limit) (`:124`, `:190`).
 - `ai/AiRetryExecutor.kt`: no credit → skip paid, try free (`:96`); one pass for free-only accounts.
-- Single-model calls get a backup (pick, then Boox Day's choice): `speech/TranscriptionService.kt:420`,
+- Single-model calls get a backup (pick, then BooxDay's choice): `speech/TranscriptionService.kt:420`,
   `ai/VoiceTextParser.kt:73`, `ai/VoiceEventParser.kt:35`, `ai/VoicePreferencesParser.kt:51`,
   `ai/MemoContextExtractor.kt:181` and `:288`.
 - `ocr/OpenRouterOcrService.kt`: use the pick (`:54`), fall back to Gemini 3.1 Flash Lite on a model
@@ -369,7 +369,7 @@ Each UI step is shown to the owner before the next one starts.
 - Whether each tablet's browser opens `booxday-connect://` from the page button.
 - OpenRouter's sign-in and Authorize pages on e-ink.
 - Which free models the owner's account settings allow.
-- Quality with the recommended reasoning levels on a few real pages, before switching Boox Day's choice.
+- Quality with the recommended reasoning levels on a few real pages, before switching BooxDay's choice.
 
 ## 14. Also found (not part of this plan)
 

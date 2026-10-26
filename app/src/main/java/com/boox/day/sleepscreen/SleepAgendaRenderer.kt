@@ -166,7 +166,7 @@ class SleepAgendaRenderer(private val spec: SleepAgendaStyle) {
             return lw
         }
         val minGap = spec.mm(4f)
-        var right = "Updated $timeText  ·  Boox Day"
+        var right = "Updated $timeText  ·  BooxDay"
         if (leftWidth(true) + minGap + secondaryPaint.measureText(right) > w - 2 * margin) right = "Updated $timeText"
         val showStreak = leftWidth(true) + minGap + secondaryPaint.measureText(right) <= w - 2 * margin
         canvas.drawText(right, w - margin - secondaryPaint.measureText(right), baseline, secondaryPaint)

@@ -74,7 +74,7 @@ RULES:
 
     suspend fun recognizeText(bitmap: Bitmap): Result {
         val base64 = withContext(Dispatchers.Default) { encodeJpeg(bitmap) }
-        // The user's pick for search indexing, then Boox Day's model (Oct 2026); a model without a
+        // The user's pick for search indexing, then BooxDay's model (Oct 2026); a model without a
         // zero-data-retention provider fails here and the next one reads the page
         val models = ModelConfigProvider.getChain(AiJob.SEARCH_INDEXING)
         val response = AiRetryExecutor.executeWithBackup(models, promptForKey = false) { model ->
@@ -85,7 +85,7 @@ RULES:
                 jsonSchema("ocr_text", StructuredOutputSchemas.ocrTextWithLanguageSchema)
                 zeroDataRetention()
             }
-            // Boox Day's model reads with thinking off (not needed to read); a picked model uses
+            // BooxDay's model reads with thinking off (not needed to read); a picked model uses
             // the user's reasoning level
             if ((model as? AiModel.Custom)?.userChoice == true) {
                 request

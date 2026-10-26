@@ -18,7 +18,7 @@ import kotlinx.serialization.json.Json
 /**
  * Whether the model the user picked for a job failed last time (Oct 2026, plan step f): the AI
  * Models card then says so ("Didn't answer last time (model not found)..."), so a pick never fails
- * silently while Boox Day's choice answers instead.
+ * silently while BooxDay's choice answers instead.
  *
  * Only the model's own failures count; no internet, a key problem or a busy provider don't. Cleared
  * when the pick answers, and ignored once the job has another pick. Kept in a small preferences

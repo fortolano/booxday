@@ -9,7 +9,7 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 /**
- * Asks OpenRouter whether a key works before Boox Day relies on it (Oct 2026): `GET /api/v1/key`,
+ * Asks OpenRouter whether a key works before BooxDay relies on it (Oct 2026): `GET /api/v1/key`,
  * which uses no tokens and returns the key's spending limit when it has one.
  */
 object OpenRouterKeyCheck {

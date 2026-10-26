@@ -9,7 +9,7 @@ import org.junit.Test
 
 /**
  * Reading GitHub's `releases/latest` answer and comparing versions (Oct 2026). The release below is
- * the real v1.0.33 answer (22 Oct 2026), cut to the fields Boox Day reads plus a few it ignores.
+ * the real v1.0.33 answer (22 Oct 2026), cut to the fields BooxDay reads plus a few it ignores.
  */
 class AppUpdateCheckerTest {
 

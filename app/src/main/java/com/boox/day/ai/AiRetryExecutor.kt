@@ -15,7 +15,7 @@ import kotlin.coroutines.coroutineContext
 
 /**
  * Implements the **Rule of 3+3** for AI service calls:
- * - The job's models from ModelConfigProvider (the user's pick, then Boox Day's choice)
+ * - The job's models from ModelConfigProvider (the user's pick, then BooxDay's choice)
  * - 3 cycles through those models with 500ms delay between cycles
  * - User-friendly error when all attempts fail
  *

@@ -10,7 +10,7 @@ import java.time.LocalTime
 /**
  * Data models for the Agentic Planning System ("The Bridge").
  *
- * This system transforms Boox Day from a passive data viewer into an
+ * This system transforms BooxDay from a passive data viewer into an
  * intelligent "Chief of Staff" that proposes actionable optimizations
  * for the user's day.
  */

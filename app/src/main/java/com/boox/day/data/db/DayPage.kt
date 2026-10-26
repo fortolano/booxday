@@ -18,7 +18,7 @@ import java.util.UUID
 
 /**
  * DayPage maps a calendar date to one or more Pages.
- * This is the core data model for Boox Day - each day can have multiple pages of notes.
+ * This is the core data model for BooxDay - each day can have multiple pages of notes.
  * All stroke/image data is stored in the associated Page entities.
  */
 @Entity

@@ -42,7 +42,7 @@ fun CrashReportHost() {
 }
 
 /**
- * "Boox Day closed unexpectedly" (Oct 2026): shown once at the start after a crash. Buttons follow
+ * "BooxDay closed unexpectedly" (Oct 2026): shown once at the start after a crash. Buttons follow
  * docs/DIALOG_RULEBOOK.md: Close (escape, left), Copy Report, Report on GitHub (main, right).
  */
 @Composable
@@ -74,7 +74,7 @@ private fun CrashReportPopup(report: CrashReport) {
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
-                        text = "Boox Day closed unexpectedly",
+                        text = "BooxDay closed unexpectedly",
                         fontSize = EInkTheme.PopupOverlay.titleFontSize,
                         fontWeight = FontWeight.Bold,
                         color = EInkTheme.PopupOverlay.titleColor

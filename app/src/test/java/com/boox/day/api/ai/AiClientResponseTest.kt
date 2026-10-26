@@ -124,7 +124,7 @@ class AiClientResponseTest {
     }
 
     @Test
-    fun `Boox Day's models keep today's reasoning, and a feature's override still wins`() {
+    fun `BooxDay's models keep today's reasoning, and a feature's override still wins`() {
         val asked = aiRequest {
             model(model(userChoice = false))
             userMessage("Hi")
@@ -148,7 +148,7 @@ class AiClientResponseTest {
         assertEquals(8_192, aiRequest { model(picked); userMessage("Hi"); maxTokens(8_192) }.config.maxTokens)
         // A higher setting is kept
         assertEquals(20_000, aiRequest { model(model(true, maxTokens = 20_000)); userMessage("Hi"); maxTokens(8_192) }.config.maxTokens)
-        // Boox Day's models: the feature's value as before
+        // BooxDay's models: the feature's value as before
         assertEquals(2_000, aiRequest { model(model(false)); userMessage("Hi"); maxTokens(2_000) }.config.maxTokens)
     }
 }

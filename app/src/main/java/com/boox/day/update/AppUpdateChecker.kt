@@ -12,7 +12,7 @@ import okhttp3.Request
 import java.util.concurrent.TimeUnit
 
 /**
- * Finds a newer Boox Day release on GitHub (Oct 2026): `GET releases/latest` on the public API (no
+ * Finds a newer BooxDay release on GitHub (Oct 2026): `GET releases/latest` on the public API (no
  * login, 60 requests an hour per network). GitHub's "latest" is the newest published release that is
  * not a draft or prerelease. The release must carry the APK as `booxday-<version>.apk`, which GitHub
  * gives a SHA-256 digest; the download is checked against it (see CLAUDE.md "Releases").

@@ -9,7 +9,7 @@ import android.util.Log
 
 /**
  * The install session's result (Oct 2026, see [AppUpdateInstaller]). Android asking for the user's
- * confirmation arrives here as STATUS_PENDING_USER_ACTION with the screen to show; Boox Day is in
+ * confirmation arrives here as STATUS_PENDING_USER_ACTION with the screen to show; BooxDay is in
  * front, so it may open it. On success Android has already stopped the app.
  */
 class AppUpdateResultReceiver : BroadcastReceiver() {

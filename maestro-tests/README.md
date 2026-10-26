@@ -1,4 +1,4 @@
-# Maestro E2E Tests for Boox Day
+# Maestro E2E Tests for BooxDay
 
 Automated UI testing using [Maestro](https://maestro.mobile.dev/) on Boox e-ink devices.
 

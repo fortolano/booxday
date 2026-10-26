@@ -15,8 +15,8 @@ import java.io.File
 
 /**
  * Installs a checked update APK through a PackageInstaller session (Oct 2026). Android asks the
- * user once to allow Boox Day to install apps ("Install unknown apps"), and shows its own "Update
- * this app?" confirmation at least the first time; once Boox Day has installed itself, Android 12+
+ * user once to allow BooxDay to install apps ("Install unknown apps"), and shows its own "Update
+ * this app?" confirmation at least the first time; once BooxDay has installed itself, Android 12+
  * can update it without that confirmation. The result arrives in [AppUpdateResultReceiver]; on
  * success Android stops the app and replaces it.
  */
@@ -24,10 +24,10 @@ object AppUpdateInstaller {
     private const val TAG = "AppUpdateInstaller"
     const val ACTION_INSTALL_STATUS = "com.boox.day.update.INSTALL_STATUS"
 
-    /** True when the user allowed Boox Day to install apps. */
+    /** True when the user allowed BooxDay to install apps. */
     fun canInstall(context: Context): Boolean = context.packageManager.canRequestPackageInstalls()
 
-    /** Opens the "Install unknown apps" switch for Boox Day. */
+    /** Opens the "Install unknown apps" switch for BooxDay. */
     fun openInstallPermission(context: Context) {
         val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

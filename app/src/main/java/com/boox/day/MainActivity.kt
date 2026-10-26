@@ -145,7 +145,7 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        Log.i(TAG, "Boox Day started")
+        Log.i(TAG, "BooxDay started")
 
 
         val snackState = SnackState()

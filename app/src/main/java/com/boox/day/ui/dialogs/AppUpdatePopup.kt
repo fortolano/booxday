@@ -85,11 +85,11 @@ private fun AppUpdatePopup(state: State) {
                     State.Idle -> Unit
                     State.Checking -> {
                         Title("Checking for updates")
-                        Body("Asking for the latest version of Boox Day…")
+                        Body("Asking for the latest version of BooxDay…")
                         Buttons(escape = "Close" to { AppUpdateGate.close() })
                     }
                     State.UpToDate -> {
-                        Title("Boox Day is up to date")
+                        Title("BooxDay is up to date")
                         Body(stringResource(R.string.app_latest_version) + " (version ${BuildConfig.VERSION_NAME})")
                         Buttons(main = "Close" to { AppUpdateGate.close() })
                     }
@@ -101,7 +101,7 @@ private fun AppUpdatePopup(state: State) {
                                 .verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
                         ) {
-                            Body("Boox Day ${state.info.version} is ready, with performance improvements and bug fixes.")
+                            Body("BooxDay ${state.info.version} is ready, with performance improvements and bug fixes.")
                             if (state.info.notes.isNotEmpty()) {
                                 Text(
                                     text = "What's new",
@@ -120,10 +120,10 @@ private fun AppUpdatePopup(state: State) {
                     }
                     is State.NeedsPermission -> {
                         Title("One-time permission")
-                        Body("To install updates, Boox Day needs your permission once:")
+                        Body("To install updates, BooxDay needs your permission once:")
                         Bullet("Tap Open Settings.")
                         Bullet("Turn on \"Allow from this source\".")
-                        Bullet("Come back to Boox Day. The update then starts by itself.")
+                        Bullet("Come back to BooxDay. The update then starts by itself.")
                         Buttons(
                             escape = "Not Now" to { AppUpdateGate.notNow(context) },
                             main = "Open Settings" to { AppUpdateGate.openInstallPermission(context) }
@@ -131,7 +131,7 @@ private fun AppUpdatePopup(state: State) {
                     }
                     is State.Downloading -> {
                         Title("Downloading update")
-                        Body("Boox Day ${state.info.version}: ${state.percent}%")
+                        Body("BooxDay ${state.info.version}: ${state.percent}%")
                         ProgressBar(state.percent)
                         Body("This takes a minute or two on Wi-Fi.")
                         Buttons(escape = "Cancel" to { AppUpdateGate.cancel() })
@@ -139,8 +139,8 @@ private fun AppUpdatePopup(state: State) {
                     is State.Installing -> {
                         Title("Installing update")
                         Body(
-                            "Boox Day will close and update itself. If Android asks, tap Update. " +
-                                "Then open Boox Day again."
+                            "BooxDay will close and update itself. If Android asks, tap Update. " +
+                                "Then open BooxDay again."
                         )
                         Buttons(escape = "Close" to { AppUpdateGate.close() })
                     }

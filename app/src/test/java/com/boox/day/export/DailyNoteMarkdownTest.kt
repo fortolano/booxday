@@ -152,7 +152,7 @@ class DailyNoteMarkdownTest {
         DailyNoteWriter.write(context, "2026-10-24.md") { DailyNoteMarkdown.merge(it, block2, DailyNoteMarkdown.frontMatter(changed)) }
 
         val text = file.readText()
-        assertTrue(text.startsWith("---\ndate: 2026-10-24\nsource: Boox Day\n---\n"))
+        assertTrue(text.startsWith("---\ndate: 2026-10-24\nsource: BooxDay\n---\n"))
         assertTrue(text.contains("- [x] (A) Call dentist"))
         assertTrue(text.trimEnd().endsWith("Added in Obsidian."))
         assertEquals(1, Regex("booxday:start").findAll(text).count())

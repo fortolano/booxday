@@ -1,7 +1,7 @@
-# Boox Day Quick Reference
+# BooxDay Quick Reference
 
 > **Last Verified**: December 2025
-> **For**: Developers and AI agents working on Boox Day
+> **For**: Developers and AI agents working on BooxDay
 > **See Also**: CLAUDE.md (ultra-quick ref), memory.md (detailed ref)
 
 ---

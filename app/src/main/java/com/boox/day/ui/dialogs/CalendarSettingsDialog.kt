@@ -47,7 +47,7 @@ import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 
 /**
- * Unified Calendar Settings Dialog for Boox Day
+ * Unified Calendar Settings Dialog for BooxDay
  *
  * RESTRUCTURED (Dec 2025 - Settings Redesign Phase 3):
  * - Display & Mode: First Day of Week, Show Week Numbers, Sync Mode
@@ -436,7 +436,7 @@ private fun DisplayModeTabContent(
                 color = EInkTheme.Colors.darkGray
             )
             Text(
-                text = "• Use Boox Day as your only calendar",
+                text = "• Use BooxDay as your only calendar",
                 fontSize = EInkTheme.Typography.bodySmall,
                 color = EInkTheme.Colors.darkGray
             )

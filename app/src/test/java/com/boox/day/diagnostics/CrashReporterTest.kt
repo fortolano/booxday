@@ -50,7 +50,7 @@ class CrashReporterTest {
         assertSame(error, handedOn)
         val report = CrashReporter.pending(context)
         assertNotNull(report)
-        assertTrue(report!!.text, report.text.startsWith("Boox Day stopped unexpectedly."))
+        assertTrue(report!!.text, report.text.startsWith("BooxDay stopped unexpectedly."))
         assertTrue(report.text.contains("Exception: java.lang.IllegalStateException"))
         assertTrue(report.text.contains("Message: page missing"))
         assertTrue(report.text.contains("Stack trace:"))

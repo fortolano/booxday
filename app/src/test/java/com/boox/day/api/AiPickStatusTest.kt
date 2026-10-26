@@ -72,7 +72,7 @@ class AiPickStatusTest {
     }
 
     @Test
-    fun `Boox Day's own models never set it`() {
+    fun `BooxDay's own models never set it`() {
         val booxDay = AiModel.Custom("google/gemini-3.1-flash-lite", "Gemini", AiJob.VOICE.capabilities, AiConfig())
         AiPickStatus.noteResult(booxDay, AiResponse.Error.ApiError(404, "gone"))
         assertEquals(emptyMap<AiJob, AiPickStatus.Failure>(), AiPickStatus.failures)

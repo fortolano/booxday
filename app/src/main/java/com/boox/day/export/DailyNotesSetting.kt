@@ -55,7 +55,7 @@ fun DailyNotesSetting() {
     SettingCard(
         title = "Daily notes (Markdown)",
         description = "A text file for each day with your events, tasks and memo text, for Obsidian or other " +
-            "notes apps. Text you add outside Boox Day's part of the file is kept."
+            "notes apps. Text you add outside BooxDay's part of the file is kept."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)) {
             Row(

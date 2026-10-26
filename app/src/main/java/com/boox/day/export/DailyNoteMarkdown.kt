@@ -13,7 +13,7 @@ import java.util.Locale
  * The Markdown daily note (Oct 2026, idea from CrossInk's "My Clippings.txt"): one file per day
  * with the schedule, the tasks and the text of the memo pages, for Obsidian and other notes apps.
  *
- * Boox Day's part sits between [START] and [END]. Writing the note again replaces only that part,
+ * BooxDay's part sits between [START] and [END]. Writing the note again replaces only that part,
  * so whatever the user added around it in their notes app stays. Front matter (date, source) is
  * written once, when the file is new.
  */
@@ -24,10 +24,10 @@ object DailyNoteMarkdown {
     fun fileName(digest: DayDigest): String = "${digest.date}.md"
 
     /** The note's front matter, for a new file. */
-    fun frontMatter(digest: DayDigest): String = "---\ndate: ${digest.date}\nsource: Boox Day\n---\n"
+    fun frontMatter(digest: DayDigest): String = "---\ndate: ${digest.date}\nsource: BooxDay\n---\n"
 
     /**
-     * Boox Day's part of the note, markers included. [memoWaitReason]: why handwriting is not read
+     * BooxDay's part of the note, markers included. [memoWaitReason]: why handwriting is not read
      * yet, if reading is waiting (e.g. "no internet (Wi-Fi is off)", `IndexingStatus`).
      */
     fun block(
@@ -102,7 +102,7 @@ object DailyNoteMarkdown {
         }
 
     /**
-     * The file's new content: [block] in place of the old Boox Day part, or added at the end of a
+     * The file's new content: [block] in place of the old BooxDay part, or added at the end of a
      * file that has none, or a new file with front matter.
      */
     fun merge(existing: String?, block: String, frontMatter: String): String {

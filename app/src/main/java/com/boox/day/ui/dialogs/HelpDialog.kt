@@ -51,7 +51,7 @@ import androidx.compose.ui.window.PopupProperties
 import com.boox.day.ui.theme.EInkTheme
 
 /**
- * Help Dialog for Boox Day
+ * Help Dialog for BooxDay
  * Split-screen layout: Left navigation (30%) + Right content (70%)
  * Optimized for e-ink display with high contrast and clear typography
  */
@@ -689,7 +689,7 @@ private fun SmartAIToolsContent() {
     SectionHeader("Smart AI Tools")
 
     SectionSubtitle("Your Personal AI Chief of Staff")
-    BodyText("Boox Day includes a suite of AI features designed to understand how you work and help you be more productive. The AI learns your patterns, respects your preferences, and gives suggestions that actually fit your life.")
+    BodyText("BooxDay includes a suite of AI features designed to understand how you work and help you be more productive. The AI learns your patterns, respects your preferences, and gives suggestions that actually fit your life.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
@@ -896,7 +896,7 @@ private fun VoiceInputContent() {
     SectionHeader("Voice Input")
 
     SectionSubtitle("Speak instead of type.")
-    BodyText("Boox Day lets you speak naturally to create memos, events, and tasks.")
+    BodyText("BooxDay lets you speak naturally to create memos, events, and tasks.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 

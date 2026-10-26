@@ -26,7 +26,7 @@ object SignInErrorText {
         network == NetworkState.NO_INTERNET -> AiProblem.NO_INTERNET.message
         statusCode == NETWORK_ERROR -> "Couldn't reach Google. Check the internet connection, then try again."
         statusCode == DEVELOPER_ERROR ->
-            "Google didn't accept Boox Day's sign-in (code 10). This is a setup problem in Boox Day, " +
+            "Google didn't accept BooxDay's sign-in (code 10). This is a setup problem in BooxDay, " +
                 "not your account. Please report it on GitHub."
         statusCode == SIGN_IN_FAILED ->
             "Google sign-in failed. Turn on Google Play in the BOOX settings and make sure Google Play " +

@@ -16,7 +16,7 @@ import com.boox.day.R
 import com.boox.day.notifications.NotificationChannelManager
 
 /**
- * Boox Day was just replaced by a newer version (MY_PACKAGE_REPLACED, Oct 2026). Android doesn't let
+ * BooxDay was just replaced by a newer version (MY_PACKAGE_REPLACED, Oct 2026). Android doesn't let
  * an app open itself from the background, so a notification brings the user back in one tap.
  * Nothing shows when notifications are off; the app then simply waits on the home screen.
  */
@@ -39,7 +39,7 @@ class AppUpdatedReceiver : BroadcastReceiver() {
             )
             val notification = NotificationCompat.Builder(context, NotificationChannelManager.CHANNEL_ID_APP_UPDATES)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("Boox Day updated to ${BuildConfig.VERSION_NAME}")
+                .setContentTitle("BooxDay updated to ${BuildConfig.VERSION_NAME}")
                 .setContentText("Tap to open.")
                 .setContentIntent(open)
                 .setAutoCancel(true)

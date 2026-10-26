@@ -47,9 +47,9 @@ enum class AiProblem(val message: String, val shortText: String, val indexingWai
     KEY_REJECTED(AiResponse.Error.KeyRejected().message, "OpenRouter key not accepted", indexingWaits = true),
     NO_CREDIT(AiResponse.Error.OutOfCredit.NO_CREDIT_MESSAGE, "no OpenRouter credit", indexingWaits = true),
 
-    /** Boox Day's own cap on AI page reads for search (OcrQuotaManager): the rest wait for next month */
+    /** BooxDay's own cap on AI page reads for search (OcrQuotaManager): the rest wait for next month */
     MONTHLY_LIMIT(
-        "Boox Day reads up to $MONTHLY_READS pages a month with AI. The rest are read next month.",
+        "BooxDay reads up to $MONTHLY_READS pages a month with AI. The rest are read next month.",
         "monthly limit of $MONTHLY_READS AI page reads reached",
         indexingWaits = true
     ),

@@ -25,7 +25,7 @@ import com.boox.day.io.ExportLayout
 import com.boox.day.ui.theme.EInkTheme
 
 /**
- * Export dialog for Boox Day - modern E-Ink optimized design with gray palette.
+ * Export dialog for BooxDay - modern E-Ink optimized design with gray palette.
  * Uses EInkTheme.ModernDialog for consistent, refined styling.
  */
 @Composable

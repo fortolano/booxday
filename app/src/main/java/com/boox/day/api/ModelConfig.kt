@@ -3,7 +3,7 @@ package com.boox.day.api
 import kotlinx.serialization.Serializable
 
 /**
- * One of Boox Day's own AI models. The lists per AI job (AiJob) are in ModelConfigProvider.
+ * One of BooxDay's own AI models. The lists per AI job (AiJob) are in ModelConfigProvider.
  */
 @Serializable
 data class ModelEntry(

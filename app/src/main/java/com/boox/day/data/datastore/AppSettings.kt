@@ -151,7 +151,7 @@ data class AppSettings(
     // AI Features - allow users to disable all AI-powered features (voice input, OCR, summaries, etc.)
     val aiEnabled: Boolean = true,                    // Enabled by default
 
-    /** The OpenRouter model the user picked for each AI job; empty = Boox Day's choice (Oct 2026) */
+    /** The OpenRouter model the user picked for each AI job; empty = BooxDay's choice (Oct 2026) */
     val aiModels: AiModelChoices = AiModelChoices(),
 
     // Boox Notes Integration baseline flag (kept for compatibility).

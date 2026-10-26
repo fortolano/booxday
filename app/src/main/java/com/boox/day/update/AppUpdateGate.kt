@@ -208,7 +208,7 @@ object AppUpdateGate {
             scope.launch {
                 delay(3_000L)  // after the main screen is up
                 SnackState.globalSnackFlow.tryEmit(
-                    SnackConf(text = "Boox Day was updated to ${BuildConfig.VERSION_NAME}.", duration = SnackConf.DURATION_STANDARD)
+                    SnackConf(text = "BooxDay was updated to ${BuildConfig.VERSION_NAME}.", duration = SnackConf.DURATION_STANDARD)
                 )
             }
         }
@@ -241,7 +241,7 @@ object AppUpdateGate {
         }
         if (!AppUpdateInstaller.canInstall(app)) {
             AppUpdateInstaller.openInstallPermission(app)
-            state = State.Failed(null, "Allow installs from Boox Day, then tap the debug button again.")
+            state = State.Failed(null, "Allow installs from BooxDay, then tap the debug button again.")
             return
         }
         job?.cancel()

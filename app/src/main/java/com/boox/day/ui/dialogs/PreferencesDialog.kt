@@ -834,7 +834,7 @@ private fun BatteryOptimizationWarningCard(
             // Explanation
             Text(
                 text = "Boox devices restrict background tasks by default. To ensure notifications " +
-                        "are delivered reliably, please exempt Boox Day from battery optimization.",
+                        "are delivered reliably, please exempt BooxDay from battery optimization.",
                 fontSize = EInkTheme.Preferences.explanationFontSize,
                 color = EInkTheme.Colors.darkGray
             )
@@ -1247,7 +1247,7 @@ private fun BatteryExemptionExplanationDialog(
                         )
 
                         Text(
-                            text = "To fix this, Android will ask you to allow Boox Day to run in the background.",
+                            text = "To fix this, Android will ask you to allow BooxDay to run in the background.",
                             fontSize = EInkTheme.Typography.bodyMedium,
                             color = EInkTheme.Colors.darkGray
                         )
@@ -1268,7 +1268,7 @@ private fun BatteryExemptionExplanationDialog(
                                 .padding(EInkTheme.Global.paddingMedium)
                         ) {
                             Text(
-                                text = "This will NOT drain your battery. Boox Day only wakes briefly " +
+                                text = "This will NOT drain your battery. BooxDay only wakes briefly " +
                                         "to deliver scheduled notifications.",
                                 fontSize = EInkTheme.Preferences.explanationFontSize,
                                 fontWeight = FontWeight.Medium,

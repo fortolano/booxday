@@ -95,7 +95,7 @@ object AiClient {
 
     /**
      * What a paid model's answer says about the account's credit (Oct 2026): a refusal for credit
-     * makes Boox Day's choice use free models for a while (OpenRouterAccount), an answer ends that.
+     * makes BooxDay's choice use free models for a while (OpenRouterAccount), an answer ends that.
      */
     internal fun noteCreditState(modelId: String, result: AiResponse<String>) {
         if (OpenRouterAccount.isFreeModel(modelId)) return

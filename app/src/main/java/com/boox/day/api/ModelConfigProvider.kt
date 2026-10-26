@@ -11,7 +11,7 @@ import com.boox.day.data.datastore.GlobalAppSettings
  *
  * 1. The model the user picked for the job in AI Settings, with its reasoning level and output
  *    tokens ([userModel]).
- * 2. Boox Day's choice: tested models in this file, which follow app updates instead of being
+ * 2. BooxDay's choice: tested models in this file, which follow app updates instead of being
  *    copied into the user's settings. While the account has no credit ([OpenRouterAccount]) it is
  *    the free set, so AI keeps working on free models.
  *
@@ -22,7 +22,7 @@ object ModelConfigProvider {
     private const val TAG = "ModelConfigProvider"
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // BOOX DAY'S CHOICE
+    // BOOXDAY'S CHOICE
     // Checked against OpenRouter's models list on 15 Oct 2026 (all listed, none retiring).
     // The reasoning params are kept with the entries but not sent (see toReasoningConfig).
     // ═══════════════════════════════════════════════════════════════════════════
@@ -64,9 +64,9 @@ object ModelConfigProvider {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * Models for [job] in the order to try: the user's pick, then Boox Day's choice. Models that
+     * Models for [job] in the order to try: the user's pick, then BooxDay's choice. Models that
      * OpenRouter's recent list no longer has, or that the account's settings block, are skipped
-     * (OpenRouterModelCatalog); Boox Day's choice is never skipped down to nothing.
+     * (OpenRouterModelCatalog); BooxDay's choice is never skipped down to nothing.
      */
     fun getChain(job: AiJob): List<AiModel> {
         val pick = userModel(job)?.takeIf { isUsable(it.id) }
@@ -85,11 +85,11 @@ object ModelConfigProvider {
         return (listed == null || modelId in listed) && (allowed == null || modelId in allowed)
     }
 
-    /** Boox Day's choice for [job]; [freeOnly] = the free set. */
+    /** BooxDay's choice for [job]; [freeOnly] = the free set. */
     fun defaultChain(job: AiJob, freeOnly: Boolean): List<ModelEntry> =
         (if (freeOnly) NO_CREDIT else WITH_CREDIT).getValue(job)
 
-    /** The first of Boox Day's models for [job] right now (the model list's pinned row). */
+    /** The first of BooxDay's models for [job] right now (the model list's pinned row). */
     fun defaultModel(job: AiJob): AiModel = usableDefaults(job).first()
 
     /**
@@ -158,7 +158,7 @@ object ModelConfigProvider {
      * - {"effort": "medium"} for OpenAI models → ReasoningConfig.withEffort("medium")
      * - {"enabled": true} for other models → ReasoningConfig.enabled()
      *
-     * Not called (Oct 2026): Boox Day's choice still sends reasoning as the features ask for it.
+     * Not called (Oct 2026): BooxDay's choice still sends reasoning as the features ask for it.
      */
     fun toReasoningConfig(entry: ModelEntry): ReasoningConfig? {
         val param = entry.reasoning ?: return null
@@ -170,7 +170,7 @@ object ModelConfigProvider {
     }
 
     /**
-     * One of Boox Day's models as an AiModel: a matching built-in model (GPT-5 Nano), otherwise a
+     * One of BooxDay's models as an AiModel: a matching built-in model (GPT-5 Nano), otherwise a
      * custom model with the job's capabilities.
      */
     private fun toAiModel(entry: ModelEntry, job: AiJob): AiModel {

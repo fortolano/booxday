@@ -30,7 +30,7 @@ import java.time.format.DateTimeFormatter
 /**
  * The Agentic Planning Service - "The Bridge"
  *
- * Transforms the Boox Day app from a passive data viewer into an intelligent
+ * Transforms the BooxDay app from a passive data viewer into an intelligent
  * "Chief of Staff" that proposes actionable optimizations for the user's day.
  *
  * This service:

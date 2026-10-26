@@ -242,7 +242,7 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    text = "Opens OpenRouter in the browser: sign in, tap Authorize, then tap Open Boox Day.",
+                    text = "Opens OpenRouter in the browser: sign in, tap Authorize, then tap Open BooxDay.",
                     fontSize = EInkTheme.Typography.bodySmall,
                     color = EInkTheme.Colors.darkGray
                 )

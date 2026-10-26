@@ -14,7 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/** The models each AI job tries: the user's pick first, then Boox Day's choice. */
+/** The models each AI job tries: the user's pick first, then BooxDay's choice. */
 class ModelConfigProviderTest {
 
     private lateinit var savedSettings: AppSettings
@@ -64,7 +64,7 @@ class ModelConfigProviderTest {
         )
         OpenRouterAccount.onPaidRequestRefused()
         assertEquals(listOf("google/gemma-4-31b-it:free"), ModelConfigProvider.getReasoningFallbackChain().map { it.id })
-        // Nothing of Boox Day's allowed: keep the list rather than send no request at all
+        // Nothing of BooxDay's allowed: keep the list rather than send no request at all
         listed("x/other", allowed = listOf("x/other"))
         assertEquals(2, ModelConfigProvider.getReasoningFallbackChain().size)
     }
@@ -87,7 +87,7 @@ class ModelConfigProviderTest {
     }
 
     @Test
-    fun `without a pick every job uses Boox Day's choice`() {
+    fun `without a pick every job uses BooxDay's choice`() {
         pick(AiJob.WRITING, null)
         assertEquals(
             listOf("openai/gpt-5-nano", "google/gemini-3.1-flash-lite", "nvidia/nemotron-3-super-120b-a12b:free"),

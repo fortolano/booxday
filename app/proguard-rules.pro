@@ -1,4 +1,4 @@
-# ProGuard rules for Boox Day
+# ProGuard rules for BooxDay
 # Generated for R8 optimization (Phase 4 APK size reduction)
 
 #==============================================================================
@@ -305,7 +305,7 @@
 -dontwarn com.google.api.client.googleapis.**
 
 # SDK 1.5.8 optional references retained by the SDK-wide keep rule above.
-# Boox Day does not use the SDK Wi-Fi UI, fastjson 1.x compatibility,
+# BooxDay does not use the SDK Wi-Fi UI, fastjson 1.x compatibility,
 # Apache LDAP hostname parsing or Kerberos/SPNEGO authentication.
 # Keep these scoped to R8's reported classes; never suppress all missing classes.
 -dontwarn com.alibaba.fastjson.JSONArray

@@ -417,7 +417,7 @@ class TranscriptionService(
             return TranscriptionResult.Error("No audio recorded")
         }
 
-        // The voice job's models: the user's pick, then Boox Day's choice (a backup since Oct 2026)
+        // The voice job's models: the user's pick, then BooxDay's choice (a backup since Oct 2026)
         val audioModels = ModelConfigProvider.getAudioFallbackChain()
         Log.d(TAG, "Transcribing with ${audioModels.map { it.id }} (${audioBase64.length} chars)")
 

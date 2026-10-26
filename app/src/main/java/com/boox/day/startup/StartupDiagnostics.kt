@@ -34,7 +34,7 @@ data class StartupFailureReport(
     val timestamp: String
 ) {
     fun toSupportDescription(): String = buildString {
-        appendLine("Boox Day failed during startup.")
+        appendLine("BooxDay failed during startup.")
         appendLine()
         appendLine("Summary: $summary")
         appendLine("Stage: ${stage.label}")

@@ -5,7 +5,7 @@ import com.boox.day.api.ReasoningOptions
 import kotlinx.serialization.Serializable
 
 /**
- * The OpenRouter model the user picked for each AI job (Oct 2026). Null = Boox Day's choice,
+ * The OpenRouter model the user picked for each AI job (Oct 2026). Null = BooxDay's choice,
  * which follows app updates (ModelConfigProvider). Saved with the app settings and exported in
  * backups: nothing here is secret.
  */

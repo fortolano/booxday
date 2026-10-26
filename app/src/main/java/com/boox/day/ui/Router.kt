@@ -125,7 +125,7 @@ private val splashTaglines = listOf(
 )
 
 /**
- * Main Router for Boox Day
+ * Main Router for BooxDay
  *
  * Navigation structure:
  * - "main" - Calendar + Drawing canvas (default start)

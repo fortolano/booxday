@@ -1,4 +1,4 @@
-# Boox Day UI Patterns & E-Ink Development Guide
+# BooxDay UI Patterns & E-Ink Development Guide
 
 > **Last Verified**: December 2025
 > **Covers Files**: EInkTheme.kt, all dialog files, Toolbar.kt, MainScreen.kt
@@ -8,7 +8,7 @@
 
 ## Overview
 
-Boox Day is optimized for E-Ink displays, which have unique constraints compared to LCD/OLED screens. This guide covers:
+BooxDay is optimized for E-Ink displays, which have unique constraints compared to LCD/OLED screens. This guide covers:
 - E-Ink display characteristics and constraints
 - Design patterns specific to E-Ink
 - EInkTheme usage
@@ -40,7 +40,7 @@ Boox Day is optimized for E-Ink displays, which have unique constraints compared
 | **A2** (Animation) | Fast (~120ms) | Medium (4 levels) | UI transitions |
 | **FULL** (Complete) | Slow (~500ms) | Perfect | Eliminate ghosting |
 
-**Boox Day Strategy**:
+**BooxDay Strategy**:
 - Use **FULL refresh** on Dialog show/hide (avoids scrim ghosting)
 - Use **DU/A2** for drawing (fast stylus response)
 - Minimize animations (triggers GC16 refresh cascades)

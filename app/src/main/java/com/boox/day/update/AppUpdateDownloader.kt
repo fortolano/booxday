@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Downloads a release APK into `cacheDir/updates` and checks it before anything installs it
- * (Oct 2026): the size and SHA-256 GitHub published, then that it is Boox Day, newer than the
+ * (Oct 2026): the size and SHA-256 GitHub published, then that it is BooxDay, newer than the
  * installed app and signed with the same key. Android checks the key again when installing; doing
  * it here gives a plain message instead of a cryptic install failure. `cacheDir` is never in a
  * backup, and Android may clear it when storage runs low (the download then simply starts over).
@@ -132,7 +132,7 @@ object AppUpdateDownloader {
         }
 
     /**
-     * Checks that [apk] is Boox Day, newer than the installed version and signed with the same key.
+     * Checks that [apk] is BooxDay, newer than the installed version and signed with the same key.
      * Deletes the file when it is not.
      */
     fun checkPackage(context: Context, apk: File): Result {
@@ -151,7 +151,7 @@ object AppUpdateDownloader {
         val flags = PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES
         val archive = pm.getPackageArchiveInfo(apk.path, flags)
             ?: return "The downloaded file is not a valid app. Try again."
-        if (archive.packageName != context.packageName) return "The downloaded file is not Boox Day."
+        if (archive.packageName != context.packageName) return "The downloaded file is not BooxDay."
         val installed = pm.getPackageInfo(context.packageName, flags)
         if (archive.longVersionCode <= installed.longVersionCode) {
             return "This update is not newer than the version you have."
@@ -159,12 +159,12 @@ object AppUpdateDownloader {
         val archiveSigners = signerDigests(archive)
         val installedSigners = signerDigests(installed)
         if (archiveSigners.isEmpty() || archiveSigners != installedSigners) {
-            return "This update is not signed like your installed Boox Day, so it was not installed."
+            return "This update is not signed like your installed BooxDay, so it was not installed."
         }
         return null
     }
 
-    /** SHA-256 of each signing certificate (current signers; Boox Day has one key, no rotation). */
+    /** SHA-256 of each signing certificate (current signers; BooxDay has one key, no rotation). */
     private fun signerDigests(info: PackageInfo): Set<String> {
         val signing = info.signingInfo
         @Suppress("DEPRECATION")

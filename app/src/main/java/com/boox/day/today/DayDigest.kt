@@ -3,7 +3,7 @@ package com.boox.day.today
 import java.time.LocalDate
 
 /**
- * One day of Boox Day in plain data (Oct 2026): what the sleep-screen agenda
+ * One day of BooxDay in plain data (Oct 2026): what the sleep-screen agenda
  * (sleepscreen/) and the Markdown daily note show. Built by [DayDigestLoader].
  */
 data class DayDigest(

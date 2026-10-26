@@ -62,7 +62,7 @@ fun ClearSyncedDataDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "This will remove all synced calendar events (Google and Outlook) that Boox Day has cached locally.\n\n" +
+                    text = "This will remove all synced calendar events (Google and Outlook) that BooxDay has cached locally.\n\n" +
                             "Your events on Google Calendar and Outlook Calendar will not be deleted.",
                     fontSize = EInkTheme.Typography.bodyMedium,
                     color = EInkTheme.Colors.primary,

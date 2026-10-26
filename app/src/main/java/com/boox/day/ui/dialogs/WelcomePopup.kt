@@ -38,7 +38,7 @@ import com.boox.day.ui.theme.EInkTheme
 
 /**
  * First-run welcome popup shown once after installation.
- * Engaging introduction to Boox Day with feature highlights and
+ * Engaging introduction to BooxDay with feature highlights and
  * direction to badged settings for personalization.
  *
  * Part of Play Store launch onboarding (Jan 2026).
@@ -91,7 +91,7 @@ fun WelcomePopup(
 
                 // Main title
                 Text(
-                    text = "Welcome to Boox Day",
+                    text = "Welcome to BooxDay",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = EInkTheme.Colors.primary
@@ -182,7 +182,7 @@ fun WelcomePopup(
 
                     // Encouragement text
                     Text(
-                        text = "We recommend configuring these marked settings first to unlock Boox Day's full potential. When you have a moment, explore the other settings too!",
+                        text = "We recommend configuring these marked settings first to unlock BooxDay's full potential. When you have a moment, explore the other settings too!",
                         fontSize = 12.sp,
                         color = EInkTheme.Colors.darkGray,
                         textAlign = TextAlign.Center,

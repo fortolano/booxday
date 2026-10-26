@@ -23,9 +23,9 @@ enum class AiJob(
     val recommendedReasoning: String,
     /** Room for the answer itself, before reasoning is added (today's values) */
     val answerTokens: Int,
-    /** Temperature when the feature sets none (Boox Day's models and picked ones) */
+    /** Temperature when the feature sets none (BooxDay's models and picked ones) */
     val temperature: Float,
-    /** Output tokens for Boox Day's own models when the feature sets none (today's values) */
+    /** Output tokens for BooxDay's own models when the feature sets none (today's values) */
     val defaultMaxTokens: Int
 ) {
     HANDWRITING(setOf(AiCapability.VISION, AiCapability.JSON_OUTPUT), "image", "low", 4_000, 0.3f, 4096),

@@ -75,7 +75,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.Locale
 
-/** The pinned row's key: Boox Day's choice (no pick saved for the job). */
+/** The pinned row's key: BooxDay's choice (no pick saved for the job). */
 private const val BOOX_DAY_CHOICE = ""
 
 /**
@@ -87,7 +87,7 @@ private val FILTERS_AND_SORT_ONE_ROW = 560.dp
 /**
  * One AI job's model list (Oct 2026, plan step d), opened from the AI Models card: OpenRouter's
  * models that can do the job, with search, Show, Sort and at most 200 rows
- * ([OpenRouterModelCatalog]). Boox Day's choice is pinned first; Use Model on it removes the
+ * ([OpenRouterModelCatalog]). BooxDay's choice is pinned first; Use Model on it removes the
  * pick. Next on a model opens its settings step ([ModelSettingsStep], plan step e), whose Use
  * Model saves the pick.
  *
@@ -124,7 +124,7 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
     // The settings step (plan step e) for this model, or null while the list shows
     var settingsFor by remember { mutableStateOf<CatalogModel?>(null) }
 
-    /** Saves the job's pick (null = Boox Day's choice) and closes. */
+    /** Saves the job's pick (null = BooxDay's choice) and closes. */
     fun save(choice: AiModelChoice?) {
         // A new pick starts without the old one's failure note (plan step f)
         if (choice?.id != currentPick?.id) AiPickStatus.clear(job)
@@ -269,7 +269,7 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
                     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                         item(key = "boox-day-choice") {
                             ModelRow(
-                                title = "Boox Day's choice: $defaultName",
+                                title = "BooxDay's choice: $defaultName",
                                 detail = "Tested models, with backups. Follows app updates.",
                                 selected = selectedKey == BOOX_DAY_CHOICE,
                                 inUse = currentPick == null || inUseId != currentPick.id
@@ -307,7 +307,7 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
                     }
                 }
 
-                // ── Buttons: Boox Day's choice saves at once; a model goes to its settings ──
+                // ── Buttons: BooxDay's choice saves at once; a model goes to its settings ──
                 val selectedModel = snapshot?.models?.firstOrNull { it.id == selectedKey }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -371,7 +371,7 @@ private fun ColumnScope.ModelSettingsStep(
         Text(text = OpenRouterModelCatalog.priceLine(model), fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.darkGray)
         if (OpenRouterAccount.isFreeOnly() && !model.isFree) {
             Text(
-                text = "Your account has no credit: this model won't answer until you add credit. Boox Day's free models answer meanwhile.",
+                text = "Your account has no credit: this model won't answer until you add credit. BooxDay's free models answer meanwhile.",
                 fontSize = EInkTheme.Typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = EInkTheme.Colors.primary

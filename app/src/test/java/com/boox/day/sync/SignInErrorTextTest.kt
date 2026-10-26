@@ -18,7 +18,7 @@ class SignInErrorTextTest {
             SignInErrorText.google(7, online)
         )
         assertEquals(
-            "Google didn't accept Boox Day's sign-in (code 10). This is a setup problem in Boox Day, " +
+            "Google didn't accept BooxDay's sign-in (code 10). This is a setup problem in BooxDay, " +
                 "not your account. Please report it on GitHub.",
             SignInErrorText.google(10, online)
         )

@@ -133,7 +133,7 @@ The steps don't depend on each other. Do them in this order (most user-visible f
   |---|---|
   | No Wi-Fi / no internet | Same words as AiProblem |
   | Code 7 | "Couldn't reach Google. Check the internet connection." |
-  | Code 10 | "Google didn't accept Boox Day's sign-in (code 10). This is a setup problem in Boox Day, not your account. Please report it on GitHub." |
+  | Code 10 | "Google didn't accept BooxDay's sign-in (code 10). This is a setup problem in BooxDay, not your account. Please report it on GitHub." |
   | Code 12500 | "Google sign-in failed. Make sure Google Play services is up to date, then try again." |
   | Code 12501 | "Sign-in was cancelled." (shown, so something visible happens) |
   | Code 12502 | "Sign-in is already in progress." |
@@ -167,13 +167,13 @@ The steps don't depend on each other. Do them in this order (most user-visible f
 - **Cause:** `ocr/UnifiedOcrPipeline.kt` returns `BUDGET_EXHAUSTED` on `!quotaManager.canReadWithAi()` (1000 reads a month) without calling `IndexingStatus.onWaiting`. The settings line then says "N items pending • Processing during idle time" forever (`ui/dialogs/BooxNotesSettingsDialog.kt`).
   - The other budget check, `canIndexNewPage`, always returns true, so leave it alone.
 - **Change:**
-  - Add `AiProblem.MONTHLY_LIMIT`. Message: "Boox Day reads up to 1000 pages a month with AI. The rest will be read next month." Short text: "monthly limit of 1000 AI page reads reached". Update every exhaustive `when` on `AiProblem`.
+  - Add `AiProblem.MONTHLY_LIMIT`. Message: "BooxDay reads up to 1000 pages a month with AI. The rest will be read next month." Short text: "monthly limit of 1000 AI page reads reached". Update every exhaustive `when` on `AiProblem`.
   - Call `IndexingStatus.onWaiting(MONTHLY_LIMIT)` on that path.
 - **Tests:** extend `api/ai/AiProblemTest.kt`. If `processPageWithResult` can be reached without Android, add a pipeline test for the limit path. Otherwise say it wasn't covered.
 - **Review (1.0.37):** confirmed. The card above the status line already shows "AI page reads this month: N of 1000", but the status line still says "N items pending • Processing during idle time". There is no exhaustive `when` on `AiProblem` in the app. `AiProblemTest` requires `indexingWaits = true` for every problem except `MODEL_FAILED`, so `MONTHLY_LIMIT` needs `indexingWaits = true`. The short text also appears in the daily notes (`export/DailyNotes.kt`). Runtime cost: none.
   - Not reported in these words. The closest reports (Mar and Jun 2026, Tab Ultra C Pro, old builds) are a library of 500+ notes whose indexing "never completes". At 1000 reads a month, a library that size takes months even after this fix. Whether heavy users may raise the limit is the owner's call; this step only makes the wait visible.
 - **Done (26 Oct, texts approved by the owner):**
-  - `AiProblem.MONTHLY_LIMIT` has the message "Boox Day reads up to 1000 pages a month with AI. The rest are read next month." and the short text "monthly limit of 1000 AI page reads reached". The number comes from `OcrQuotaManager.MONTHLY_AI_READ_LIMIT`; `indexingWaits = true`.
+  - `AiProblem.MONTHLY_LIMIT` has the message "BooxDay reads up to 1000 pages a month with AI. The rest are read next month." and the short text "monthly limit of 1000 AI page reads reached". The number comes from `OcrQuotaManager.MONTHLY_AI_READ_LIMIT`; `indexingWaits = true`.
   - `UnifiedOcrPipeline` calls `IndexingStatus.onWaiting(MONTHLY_LIMIT)` on that path.
   - The Boox Notes status line becomes "Waiting: monthly limit of 1000 AI page reads reached • N items will be read later", and the daily note says the same.
   - Test: `AiProblemTest` (new case). The pipeline path itself isn't unit-tested: `UnifiedOcrPipeline` needs Android repositories and the quota manager.
@@ -423,9 +423,9 @@ Review (1.0.37): `PERF_LOGS` is `false` in every build (`Logging.kt`), so lines 
    - Review (1.0.37): correct; the app targets 35 today (`app/build.gradle`).
 9. **CalDAV calendars: parked (owner, 26 Oct: "too much work for little benefit").** Nothing to do now. Kept here so the findings aren't lost:
    - **Asked by:** 4 Reddit users since Dec 2025 (CalDAV twice, Nextcloud, WebDAV).
-   - **BOOX's own calendar can't be shared.** Checked on the Go 10.3, firmware 4.2 of 21 Apr 2026, read-only. The calendar is part of BOOX Mail (`com.onyx.mail`). It has its own CalDAV client (dav4jvm + ical4j) but keeps the calendars in its own private database (`CalendarModel`, `CalendarEventModel`). It doesn't use Android's shared calendar store and offers no way for other apps to read it. So Boox Day can't read CalDAV accounts set up there.
+   - **BOOX's own calendar can't be shared.** Checked on the Go 10.3, firmware 4.2 of 21 Apr 2026, read-only. The calendar is part of BOOX Mail (`com.onyx.mail`). It has its own CalDAV client (dav4jvm + ical4j) but keeps the calendars in its own private database (`CalendarModel`, `CalendarEventModel`). It doesn't use Android's shared calendar store and offers no way for other apps to read it. So BooxDay can't read CalDAV accounts set up there.
    - **Route 2 (small):** read Android's shared calendar store. CalDAV users would add their account in DAVx⁵ (free on F-Droid, about $5–6.50 on Google Play). Android expands repeating events itself.
-   - **Route 1 (large):** a CalDAV client inside Boox Day, like BOOX's calendar.
+   - **Route 1 (large):** a CalDAV client inside BooxDay, like BOOX's calendar.
    - **If it is picked up:** `ProviderId.fromKey` reads an unknown provider as Google, so an older version restoring a newer backup would mistake the new account for a Google one. Give it a safe fallback first.
 
 ---
@@ -549,27 +549,19 @@ Heights below are estimates from the code, not measured. Take a Go 6 screenshot 
   - Says "Semantic search finds notes by meaning" (`:410`). Search matches words and word starts, with synonyms (`search/SearchText.ftsPrefixQuery`, `SearchDialog.kt:76`). The same claim is in `TipsRepository.kt:401` and `HelpDialog.kt:856`.
 - **WelcomePopup:** the "Settings → AI Assistant" path is already in 1.5. Two smaller things:
   - It writes "Boox Day", where the welcome title and the start screen write "BooxDay". **Owner decides** one spelling.
-  - **Decided (owner, 26 Oct): "Boox Day"** in every text the user sees. Today both spellings are used: "Boox Day" in about 44 code strings, and "BooxDay" in about 28 code strings and in `strings.xml`:
-    - the home-screen name, `app_name`;
-    - the welcome title, `welcome_view_title`;
-    - the About texts.
-  - Change all of the visible ones, the home-screen name included.
-  - Don't change the names users never see, or that other things depend on:
-    - the package `com.boox.day`;
-    - the repo name `booxday`;
-    - the APK file name `booxday-1.0.N.apk` (the in-app updater looks for exactly this name);
-    - tag names `v1.0.N`;
-    - class names and log tags.
-  - The GitHub release title (CLAUDE.md: "BooxDay 1.0.N") can become "Boox Day 1.0.N" from the next release on; the updater doesn't read it. Update the release format in CLAUDE.md to match.
+  - ~~Decided (owner, 26 Oct): "Boox Day"~~ **Changed by the owner the same day: "BooxDay"** everywhere, in the app and its content.
+    - **Done (26 Oct):** every "BooxDay" in the tracked files became "BooxDay": 170 places in 80 files (texts the user reads, code comments, tests, README, docs, the OpenRouter key label `OpenRouterConnect.KEY_LABEL`, the daily note front matter `source:`). `app_name`, `welcome_view_title` and the About texts already said "BooxDay". Lines above that quote the old texts were updated too. The GitHub release title stays "BooxDay 1.0.N" (CLAUDE.md).
+    - Not changed, as before: the package `com.boox.day`, the repo `booxday`, the APK name `booxday-1.0.N.apk`, tags `v1.0.N`, ids such as notification channel ids.
+    - "Boox Notes" stays: that is BOOX's notes app, not this app's name.
   - It doesn't mention Help.
-- **Update popup:** every update says "Boox Day X is ready, with performance improvements and bug fixes." (hard-coded, `AppUpdatePopup.kt:104`), even for a feature release. **Fix:** "Boox Day X is ready." and let the release notes below it speak.
+- **Update popup:** every update says "BooxDay X is ready, with performance improvements and bug fixes." (hard-coded, `AppUpdatePopup.kt:104`), even for a feature release. **Fix:** "BooxDay X is ready." and let the release notes below it speak.
 - **What's New:** the app has none. The old What's New center was removed in DB v29 (`Migrations.kt:733–736`); comments in `CalendarView.kt` 592, 670 and 864 still point to it. Release notes reach users only in the update popup, before they update (at most 6 bullets). **Owner decides:** keep it that way (recommended: no new screen), or after an update show the notes once (a new flag like `onboardingDismissedAt`; that is a new feature). The stale comments can go with any edit to those lines.
   - **Decided (owner, 26 Oct): show the release notes once after an update.** Design:
-    - **When:** the app already knows the first start after an update (`AppUpdateGate.announceIfUpdated`, which today shows the snackbar "Boox Day was updated to X."). That start shows a popup instead of the snackbar. It is shown once per version: the stored version code is already updated there. A fresh install shows nothing; the welcome screens cover it.
+    - **When:** the app already knows the first start after an update (`AppUpdateGate.announceIfUpdated`, which today shows the snackbar "BooxDay was updated to X."). That start shows a popup instead of the snackbar. It is shown once per version: the stored version code is already updated there. A fresh install shows nothing; the welcome screens cover it.
     - **Where the notes come from:**
       1. In-app update: the updater already has the notes (`AppUpdateChecker.UpdateInfo.notes`, the release's `- ` bullets, at most 6). Save them in the update prefs, with the version, right before installing.
       2. Installed by hand (APK from GitHub): nothing was saved. Then fetch that version's release once (`releases/tags/v<versionName>`, the same parsing as the update check), only if online. If that fails, show the old snackbar and nothing more. Never retry.
-    - **Popup:** the update popup's frame and size (fits the Go 6, buttons fixed, 4.4 bar). Title "Boox Day 1.0.N", heading "What's new", the bullets, and one button, "Close".
+    - **Popup:** the update popup's frame and size (fits the Go 6, buttons fixed, 4.4 bar). Title "BooxDay 1.0.N", heading "What's new", the bullets, and one button, "Close".
     - **Timing:** wait like the update popup does: not while the pen is active or the crash popup is open, and after the welcome screens.
     - **Release notes rule:** the bullets are now read right after the update too, so keep them short and plain (the CLAUDE.md release notes format already says so).
     - **Runtime cost:** one prefs read at start (already done there). The network call happens only on the first start after an update installed by hand.
@@ -677,7 +669,7 @@ Help is a 12-topic split popup of about 4,500–5,000 words (`HelpDialog.kt`). I
   - The ≡ items "Clear All Memos Today" / "Clear All Tasks Today" and their confirm text ("This will clear all memo pages for today") clear the day being shown. In the check that was 8 Nov, not today.
   - Proposal: "Clear All Memos on This Day" / "Clear All Tasks on This Day", and in the confirm: "This clears every memo page of Sun 8 Nov. It can't be undone."
   - Check the ≡ menu width on the Go 6: `ToolbarMenu.kt:82` notes the old label already wrapped at 230 dp.
-- **Opening Boox Day by `am start` fails while BOOX has it frozen.** After a force-stop, BOOX's app freeze disabled it (`enabled=3`), and `am start` said "No activity found". Opening it from the BOOX launcher icon unfreezes it. This is a note for testing, not an app fault.
+- **Opening BooxDay by `am start` fails while BOOX has it frozen.** After a force-stop, BOOX's app freeze disabled it (`enabled=3`), and `am start` said "No activity found". Opening it from the BOOX launcher icon unfreezes it. This is a note for testing, not an app fault.
 
 ### Part 4 order and tests
 1. 4.1 (checked 26 Oct; fix (a), (b), (b2)), the 4.10 search snippet, and 4.2: data, search and privacy first.

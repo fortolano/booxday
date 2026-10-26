@@ -140,7 +140,7 @@ class EditorState(
 //            }
 //        }
 
-    var isToolbarOpen by mutableStateOf(true) // Always open in Boox Day
+    var isToolbarOpen by mutableStateOf(true) // Always open in BooxDay
 
     // OPTION C: Whether this canvas has an internal toolbar (for TouchHelper limit rect calculation)
     // Set to false for MemosCanvasArea/TasksCanvasArea where SharedToolbar is external

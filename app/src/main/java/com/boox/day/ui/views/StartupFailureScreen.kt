@@ -53,7 +53,7 @@ fun StartupFailureScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Boox Day couldn't finish opening on this device.",
+            text = "BooxDay couldn't finish opening on this device.",
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(12.dp))

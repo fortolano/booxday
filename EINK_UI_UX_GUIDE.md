@@ -1,4 +1,4 @@
-# E-Ink UI/UX Guide for Boox Day
+# E-Ink UI/UX Guide for BooxDay
 
 Purpose
 This guide turns the E-Ink constraints and `EInkTheme.kt` tokens into practical rules

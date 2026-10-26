@@ -47,7 +47,7 @@ object VoicePreferencesParser {
     private fun getReasoningModels(): List<AiModel> =
         ModelConfigProvider.getReasoningFallbackChain()
 
-    /** The voice job's models: the user's pick, then Boox Day's choice (a backup since Oct 2026) */
+    /** The voice job's models: the user's pick, then BooxDay's choice (a backup since Oct 2026) */
     private fun getAudioModels(): List<AiModel> =
         ModelConfigProvider.getAudioFallbackChain()
 

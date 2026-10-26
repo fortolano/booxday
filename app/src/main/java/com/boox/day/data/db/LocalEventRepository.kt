@@ -19,7 +19,7 @@ import java.util.Collections
 /**
  * Repository for LocalEvent - provides clean API for data access with LRU caching.
  *
- * This is the PRIMARY event repository for Boox Day, serving as the source of truth
+ * This is the PRIMARY event repository for BooxDay, serving as the source of truth
  * for all calendar events (both local-only and synced with Google).
  *
  * Key differences from CalendarEventRepository:

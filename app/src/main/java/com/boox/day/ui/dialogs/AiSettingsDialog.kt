@@ -233,7 +233,7 @@ fun AiSettingsDialog(
                         // Privacy (Oct 2026): where AI requests go
                         SettingCard(
                             title = "Privacy",
-                            description = "Boox Day sends nothing to its developer. AI requests go from this tablet to OpenRouter, on your own account, and to the company that runs the model. Reading pages for search also sends memo and Boox Notes pages, but only while Settings → Boox Notes → Enable Indexing is on."
+                            description = "BooxDay sends nothing to its developer. AI requests go from this tablet to OpenRouter, on your own account, and to the company that runs the model. Reading pages for search also sends memo and Boox Notes pages, but only while Settings → Boox Notes → Enable Indexing is on."
                         ) {
                             Row(
                                 modifier = Modifier

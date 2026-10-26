@@ -18,7 +18,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
 /**
- * Google Authentication Manager for Boox Day
+ * Google Authentication Manager for BooxDay
  * Handles OAuth 2.0 authentication for:
  * - Calendar sync (CALENDAR scope for read-write)
  * - Cloud backup (DRIVE_FILE scope for app-specific files)

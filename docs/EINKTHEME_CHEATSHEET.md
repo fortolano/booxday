@@ -1,6 +1,6 @@
 # EInkTheme Cheat Sheet
 
-> **Boox Day** - E-Ink Optimized Design System for Android/Compose
+> **BooxDay** - E-Ink Optimized Design System for Android/Compose
 > **Last Updated**: December 2025
 
 ---

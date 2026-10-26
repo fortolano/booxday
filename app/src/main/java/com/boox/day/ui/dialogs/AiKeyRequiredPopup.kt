@@ -151,7 +151,7 @@ fun AiKeyRequiredPopup(
                         )
                     }
                     Text(
-                        text = "AI features in Boox Day run on your own OpenRouter account. OpenRouter bills you " +
+                        text = "AI features in BooxDay run on your own OpenRouter account. OpenRouter bills you " +
                             "for what you use. With the default models a typical action costs about a cent or less.",
                         fontSize = EInkTheme.Typography.bodyMedium,
                         color = EInkTheme.Colors.primary
@@ -218,7 +218,7 @@ fun OpenRouterKeySteps(context: Context, lastStepTitle: String, lastStepDetail: 
         KeyStep(
             number = 3,
             title = "Create a key",
-            detail = " named \"Boox Day\" and copy it. You can give it a spending limit."
+            detail = " named \"BooxDay\" and copy it. You can give it a spending limit."
         ) {
             StepLink(text = "openrouter.ai/settings/keys") { OpenRouterLinks.open(context, OpenRouterLinks.KEYS) }
         }

@@ -309,7 +309,7 @@ private data class MemoToTasksInsertPlan(
 )
 
 /**
- * Main screen for Boox Day - combines calendar view with drawing canvas
+ * Main screen for BooxDay - combines calendar view with drawing canvas
  * Layout: Top Toolbar -> Calendar (40%) -> Drawing Toolbar -> Drawing Canvas (60%)
  */
 
@@ -2139,7 +2139,7 @@ fun MainScreen(
     com.boox.day.meetings.MeetingNotesHost()
     // In-app update popup (Oct 2026, update/AppUpdateGate)
     com.boox.day.ui.dialogs.AppUpdateHost()
-    // "Boox Day closed unexpectedly" after a crash (Oct 2026, diagnostics/CrashReportGate)
+    // "BooxDay closed unexpectedly" after a crash (Oct 2026, diagnostics/CrashReportGate)
     com.boox.day.ui.dialogs.CrashReportHost()
     // Full screen (Oct 2026, ui/FullScreenState): Back, tidy-up before a switch, full redraw after it
     com.boox.day.ui.FullScreenEffects(tabManager = tabManager, onEnter = { isEventsExpanded = false })

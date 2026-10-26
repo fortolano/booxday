@@ -12,7 +12,7 @@ import android.util.Log
 import java.io.ByteArrayOutputStream
 
 /**
- * Google Drive Backup Service for Boox Day.
+ * Google Drive Backup Service for BooxDay.
  *
  * Handles cloud backup operations:
  * - Creating/finding the BooxDay backup folder

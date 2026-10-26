@@ -43,7 +43,7 @@ class OpenRouterConnectTest {
         assertEquals("https://fortolano.github.io/booxday/openrouter/", params["callback_url"])
         assertEquals("chal-lenge", params["code_challenge"])
         assertEquals("S256", params["code_challenge_method"])
-        assertEquals("Boox Day", params["key_label"])
+        assertEquals("BooxDay", params["key_label"])
         assertEquals("st_ate", params["state"])
     }
 

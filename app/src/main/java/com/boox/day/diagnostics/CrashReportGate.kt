@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 import java.net.URLEncoder
 
 /**
- * The "Boox Day closed unexpectedly" popup's state (Oct 2026), like AppUpdateGate: MainActivity
+ * The "BooxDay closed unexpectedly" popup's state (Oct 2026), like AppUpdateGate: MainActivity
  * checks for a saved [CrashReport] at start; MainScreen shows ui/dialogs/CrashReportPopup while
  * [report] is set and keeps raw drawing off meanwhile.
  */
@@ -99,6 +99,6 @@ object CrashReportGate {
 
     private fun copyToClipboard(context: Context, text: String) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("Boox Day crash report", text))
+        clipboard.setPrimaryClip(ClipData.newPlainText("BooxDay crash report", text))
     }
 }

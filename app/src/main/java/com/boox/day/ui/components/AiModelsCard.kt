@@ -50,7 +50,7 @@ val AiJob.description: String
 
 /**
  * AI Models (Oct 2026, plan steps c and d): which OpenRouter model each AI job uses right now, the
- * user's pick or Boox Day's choice (ModelConfigProvider). Each row opens the job's model list
+ * user's pick or BooxDay's choice (ModelConfigProvider). Each row opens the job's model list
  * ([ModelPickerPopup]). Greyed out, and not tappable, while AI Features is off.
  *
  * Reads Compose state (the settings, OpenRouterAccount and the model list), so a new pick, the
@@ -66,13 +66,13 @@ fun AiModelsCard(aiEnabled: Boolean, modifier: Modifier = Modifier) {
 
     SettingCard(
         title = "AI Models",
-        description = "Choose the model for each job. If it fails, Boox Day uses its own.",
+        description = "Choose the model for each job. If it fails, BooxDay uses its own.",
         modifier = modifier
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)) {
             if (OpenRouterAccount.isFreeOnly()) {
                 Text(
-                    text = "No credit: Boox Day's choice uses free models.",
+                    text = "No credit: BooxDay's choice uses free models.",
                     fontSize = EInkTheme.Typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = textColor
@@ -83,7 +83,7 @@ fun AiModelsCard(aiEnabled: Boolean, modifier: Modifier = Modifier) {
                 val source = when {
                     inUse.waitsForCredit -> "waits for credit"
                     inUse.isUserChoice -> "Your choice"
-                    else -> "Boox Day's choice"
+                    else -> "BooxDay's choice"
                 }
                 Row(
                     modifier = Modifier
@@ -106,19 +106,19 @@ fun AiModelsCard(aiEnabled: Boolean, modifier: Modifier = Modifier) {
                         )
                         inUse.unavailablePick?.let { pick ->
                             Text(
-                                text = "$pick is no longer available, so Boox Day's choice is used.",
+                                text = "$pick is no longer available, so BooxDay's choice is used.",
                                 fontSize = EInkTheme.Typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = textColor
                             )
                         }
-                        // Plan step f: the pick failed last time and Boox Day's models answered
+                        // Plan step f: the pick failed last time and BooxDay's models answered
                         val failure = if (inUse.isUserChoice) {
                             AiPickStatus.failureFor(job, GlobalAppSettings.current.aiModels.forJob(job)?.id)
                         } else null
                         failure?.let {
                             Text(
-                                text = "Didn't answer last time (${it.reason}), so Boox Day's choice was used.",
+                                text = "Didn't answer last time (${it.reason}), so BooxDay's choice was used.",
                                 fontSize = EInkTheme.Typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = textColor

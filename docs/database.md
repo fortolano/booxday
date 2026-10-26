@@ -1,4 +1,4 @@
-# Boox Day Database Reference
+# BooxDay Database Reference
 
 > **Last Verified**: March 2026
 > **Covers Files**: Db.kt, all entity files, all DAO files
@@ -9,7 +9,7 @@
 
 ## Overview
 
-Boox Day uses Room (SQLite) for local storage. The database is stored in **internal storage** (no external storage permission needed). Reset via: `adb shell pm clear com.boox.day`.
+BooxDay uses Room (SQLite) for local storage. The database is stored in **internal storage** (no external storage permission needed). Reset via: `adb shell pm clear com.boox.day`.
 
 **Key Characteristics**:
 - **24 entities** (as of v25)
@@ -557,7 +557,7 @@ data class BooxNoteIndex(
 
 #### BooxNoteLink
 
-**Purpose**: Links between Boox Day pages and Boox Notes pages.
+**Purpose**: Links between BooxDay pages and Boox Notes pages.
 
 **Schema**:
 ```kotlin
