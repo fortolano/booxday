@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -53,10 +54,38 @@ class CrashReporterTest {
         assertTrue(report.text.contains("Exception: java.lang.IllegalStateException"))
         assertTrue(report.text.contains("Message: page missing"))
         assertTrue(report.text.contains("Stack trace:"))
+        assertTrue(report.text.contains("Pen: not started")) // no canvas in this test
         assertTrue(report.crashedAtMs > 0)
 
         CrashReporter.clear(context)
         assertNull(CrashReporter.pending(context))
+    }
+
+    @Test
+    fun reportNamesFirmwareAndPenNearTheTopAndMasksEmails() {
+        val text = CrashReporter.buildReport(
+            "main",
+            IllegalStateException("no calendar for jane.doe@example.com"),
+            listOf("10-26 10:13:10.807 I GoogleCalendarProvider: Google sign-in successful: jane.doe@example.com"),
+            0L,
+            penBackend = "Android pen / EPD"
+        )
+
+        assertTrue(text.contains("\nFirmware: "))
+        assertTrue(text.contains("\nPen: Android pen / EPD\n"))
+        assertTrue(text.indexOf("Pen: ") < text.indexOf("Stack trace:"))
+        assertFalse(text.contains("jane.doe@example.com"))
+        assertTrue(text.contains("Message: no calendar for j…@example.com"))
+        assertTrue(text.contains("Google sign-in successful: j…@example.com"))
+        // The shortened GitHub issue keeps the pen line
+        assertTrue(CrashReportGate.issueBody(text + "x".repeat(20_000)).contains("Pen: Android pen / EPD"))
+    }
+
+    @Test
+    fun maskingLeavesEverythingButEmailsAlone() {
+        val other = "com.boox.day.editor.PageView@5f3a2b, 10 @ 3pm, user@host"
+        assertEquals(other, CrashReporter.maskEmails(other))
+        assertEquals("a…@b.co and x…@mail.example.org", CrashReporter.maskEmails("a@b.co and x.y+z@mail.example.org"))
     }
 
     @Test

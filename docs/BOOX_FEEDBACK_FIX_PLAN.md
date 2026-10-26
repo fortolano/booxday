@@ -235,6 +235,11 @@ The steps don't depend on each other. Do them in this order (most user-visible f
 - **Tests:** extend `diagnostics/CrashReporterTest.kt`.
 - **Review (1.0.37):** confirmed. `createTouchHelper` only logs the backend once at start, so the line is usually gone from the report's last 150 log lines. The backend is "Android pen / EPD" whenever `DeviceFeatureUtil.hasStylus()` is false, which is exactly the case to spot on unknown pens. Runtime cost: none (one field set when the TouchHelper is created).
   - **Privacy (report only, no change here):** the report's log lines can contain the account email (18 log calls print one, for example "Google sign-in successful: <email>"). "Report on GitHub" puts up to 4,000 characters of the report into a public issue form. Before asking testers for reports, decide whether to mask emails in the report or warn in the popup.
+- **Done (26 Oct; the owner chose masking):**
+  - `OnyxCompat.penBackend` is "not started" until `createTouchHelper` sets "SurfaceFlinger" or "Android pen / EPD". That's one field write when a canvas starts, not on the pen path.
+  - `CrashReporter.buildReport` adds `Firmware: ${Build.DISPLAY}` and `Pen: …` after `Device:`, so the shortened GitHub issue keeps them.
+  - The whole report goes through `CrashReporter.maskEmails` before it is saved: "jane.doe@example.com" becomes "j…@example.com" in the message, the stack and the log lines. Object ids such as `PageView@5f3a2b` and "user@host" are left alone.
+  - Test: `CrashReporterTest` (5, 2 of them new).
 
 ### 1.9 Manifest: microphone not required
 - Add `<uses-feature android:name="android.hardware.microphone" android:required="false"/>` to `AndroidManifest.xml`. `RECORD_AUDIO` otherwise implies a microphone, which is one reason Play once marked BOOX tablets "not compatible".
@@ -380,6 +385,7 @@ Review (1.0.37): `PERF_LOGS` is `false` in every build (`Logging.kt`), so lines 
 5. **Optional small feature: About → "Copy recent log"** in release builds. It reuses CrashReporter's own-log capture, so testers without adb can send logs. Recommended before the tester call.
    - Review (1.0.37): runtime cost is none until it is tapped (it runs `logcat -d --pid` once, like `CrashReporter.recentLogLines`). Same privacy note as 1.8: the log can contain the account email and calendar names, so say so next to the button, or mask emails.
    - Recommendation (26 Oct): yes, with email addresses masked (`f…@gmail.com`). Use the same masking for the crash report in 1.8, which answers that open privacy question too. The masking runs only when a report is made, so it costs nothing at runtime.
+   - 26 Oct: the owner chose to mask emails; done in the crash report (1.8, `CrashReporter.maskEmails`). "Copy recent log" itself is not decided yet; if added, reuse `maskEmails`.
 6. **Go 6 Android version.** CLAUDE.md says Android 13, but reviews say the Go 6 Gen II ships Android 11. Next time it's connected, run `adb -s 6d029feb shell getprop ro.build.version.release`. If it's 11 and has no white screen, the white screen is about timing or firmware, not Android 11.
    - Review (1.0.37): **answered without the tablet** (it wasn't connected). Both statements are true. The Go 6 Gen II shipped with Android 11. Onyx has been rolling out an Android 13 update in batches since 24 Sep 2026 (The eBook Reader, 24 Sep; Notebookcheck). The owner's unit runs 13 (CLAUDE.md), so it has the update. Units not yet updated are the only target tablets on Android 11. The getprop check is still worth one line next time it is connected. The white-screen reports came from Tab models, not from a Go 6 (2.1).
 7. **Saturday week start** was asked for on Reddit; today only Sunday and Monday exist. Add it or not.

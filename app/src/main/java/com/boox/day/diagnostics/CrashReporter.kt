@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Process
 import android.util.Log
 import com.boox.day.BuildConfig
+import com.boox.day.compat.OnyxCompat
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -77,8 +78,19 @@ object CrashReporter {
         reportFile(context).delete()
     }
 
-    /** The report text. Plain words first, details after, like StartupFailureReport. */
-    internal fun buildReport(threadName: String, error: Throwable, logLines: List<String>, nowMs: Long): String =
+    /**
+     * The report text. Plain words first, details after, like StartupFailureReport. Firmware and pen
+     * backend sit near the top (Oct 2026), where the shortened GitHub issue keeps them: untested pens
+     * (EMR, unknown active pens) are what reports are most needed for. Email addresses are masked
+     * ([maskEmails]): "Report on GitHub" makes the report public.
+     */
+    internal fun buildReport(
+        threadName: String,
+        error: Throwable,
+        logLines: List<String>,
+        nowMs: Long,
+        penBackend: String = OnyxCompat.penBackend
+    ): String = maskEmails(
         buildString {
             appendLine("Boox Day stopped unexpectedly.")
             appendLine()
@@ -88,6 +100,8 @@ object CrashReporter {
             appendLine("App Version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}, ${BuildConfig.BUILD_TYPE})")
             appendLine("Android: ${Build.VERSION.RELEASE ?: "unknown"} (SDK ${Build.VERSION.SDK_INT})")
             appendLine("Device: ${Build.MANUFACTURER ?: "unknown"} ${Build.MODEL ?: "unknown"}")
+            appendLine("Firmware: ${Build.DISPLAY ?: "unknown"}")
+            appendLine("Pen: $penBackend")
             appendLine("Time: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(nowMs))}")
             appendLine()
             appendLine("Stack trace:")
@@ -98,6 +112,13 @@ object CrashReporter {
                 logLines.forEach { appendLine(it) }
             }
         }
+    )
+
+    // An email address: kept is its first letter and its domain, enough to tell accounts apart
+    private val EMAIL = Regex("""([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})""")
+
+    /** "jane.doe@example.com" → "j…@example.com" (the log prints account emails, e.g. at sign-in). */
+    internal fun maskEmails(text: String): String = EMAIL.replace(text, "$1…@$2")
 
     private fun save(context: Context, text: String) {
         val dir = File(context.filesDir, DIR).apply { mkdirs() }

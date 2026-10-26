@@ -52,12 +52,21 @@ object OnyxCompat {
 
     fun usesAndroidPenInput(context: Context): Boolean = !DeviceFeatureUtil.hasStylus(context)
 
+    /**
+     * The pen backend chosen at the last [createTouchHelper], for the crash report (Oct 2026): it is
+     * logged only once at start, so it was usually gone from the report's last log lines.
+     */
+    @Volatile
+    var penBackend: String = "not started"
+        private set
+
     fun createTouchHelper(view: SurfaceView, callback: RawInputCallback, androidPen: Boolean): TouchHelper {
         // The SDK detector identifies its direct raw-reader devices, not all pen hardware.
         // Unrecognized/active pens use actual Android stylus events via APP_PEN, never finger input.
         val feature = if (androidPen) TouchHelper.FEATURE_APP_PEN_TOUCH_RENDER
             else TouchHelper.FEATURE_SF_TOUCH_RENDER
-        Log.i(TAG, "Creating BOOX pen backend: " + if (androidPen) "Android pen / EPD" else "SurfaceFlinger")
+        penBackend = if (androidPen) "Android pen / EPD" else "SurfaceFlinger"
+        Log.i(TAG, "Creating BOOX pen backend: $penBackend")
         return TouchHelper.create(view, feature, callback)
     }
 }
