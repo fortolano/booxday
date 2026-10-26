@@ -2,8 +2,11 @@ package com.boox.day.api.ai
 
 import com.boox.day.api.NetworkState
 import com.boox.day.api.NetworkStatus
+import com.boox.day.ocr.OcrQuotaManager
 import java.net.SocketTimeoutException
 import kotlin.coroutines.cancellation.CancellationException
+
+private const val MONTHLY_READS = OcrQuotaManager.MONTHLY_AI_READ_LIMIT
 
 /**
  * Why an AI request failed, in the user's words (Oct 2026). Before this, no Wi-Fi, OpenRouter being
@@ -43,6 +46,13 @@ enum class AiProblem(val message: String, val shortText: String, val indexingWai
     NO_KEY(AiResponse.Error.NoApiKey().message, "no OpenRouter key", indexingWaits = true),
     KEY_REJECTED(AiResponse.Error.KeyRejected().message, "OpenRouter key not accepted", indexingWaits = true),
     NO_CREDIT(AiResponse.Error.OutOfCredit.NO_CREDIT_MESSAGE, "no OpenRouter credit", indexingWaits = true),
+
+    /** Boox Day's own cap on AI page reads for search (OcrQuotaManager): the rest wait for next month */
+    MONTHLY_LIMIT(
+        "Boox Day reads up to $MONTHLY_READS pages a month with AI. The rest are read next month.",
+        "monthly limit of $MONTHLY_READS AI page reads reached",
+        indexingWaits = true
+    ),
 
     /** The request reached a model, which refused it or gave no usable answer */
     MODEL_FAILED(

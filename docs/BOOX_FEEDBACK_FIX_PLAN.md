@@ -172,6 +172,11 @@ The steps don't depend on each other. Do them in this order (most user-visible f
 - **Tests:** extend `api/ai/AiProblemTest.kt`. If `processPageWithResult` can be reached without Android, add a pipeline test for the limit path. Otherwise say it wasn't covered.
 - **Review (1.0.37):** confirmed. The card above the status line already shows "AI page reads this month: N of 1000", but the status line still says "N items pending • Processing during idle time". There is no exhaustive `when` on `AiProblem` in the app. `AiProblemTest` requires `indexingWaits = true` for every problem except `MODEL_FAILED`, so `MONTHLY_LIMIT` needs `indexingWaits = true`. The short text also appears in the daily notes (`export/DailyNotes.kt`). Runtime cost: none.
   - Not reported in these words. The closest reports (Mar and Jun 2026, Tab Ultra C Pro, old builds) are a library of 500+ notes whose indexing "never completes". At 1000 reads a month, a library that size takes months even after this fix. Whether heavy users may raise the limit is the owner's call; this step only makes the wait visible.
+- **Done (26 Oct, texts approved by the owner):**
+  - `AiProblem.MONTHLY_LIMIT` has the message "Boox Day reads up to 1000 pages a month with AI. The rest are read next month." and the short text "monthly limit of 1000 AI page reads reached". The number comes from `OcrQuotaManager.MONTHLY_AI_READ_LIMIT`; `indexingWaits = true`.
+  - `UnifiedOcrPipeline` calls `IndexingStatus.onWaiting(MONTHLY_LIMIT)` on that path.
+  - The Boox Notes status line becomes "Waiting: monthly limit of 1000 AI page reads reached • N items will be read later", and the daily note says the same.
+  - Test: `AiProblemTest` (new case). The pipeline path itself isn't unit-tested: `UnifiedOcrPipeline` needs Android repositories and the quota manager.
 
 ### 1.4 Say where an exported PDF was saved
 - **Cause:** `io/ExportEngine.kt` (`saveInternal`) and `io/CompactExportEngine.kt` return only `"Saved $name"`.

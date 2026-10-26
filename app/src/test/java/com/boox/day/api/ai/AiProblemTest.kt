@@ -72,6 +72,17 @@ class AiProblemTest {
     }
 
     @Test
+    fun `the monthly read limit is said as the reason indexing waits`() {
+        assertEquals(
+            "Boox Day reads up to 1000 pages a month with AI. The rest are read next month.",
+            AiProblem.MONTHLY_LIMIT.message
+        )
+        // The Boox Notes status line: "Waiting: <shortText> • N items will be read later"
+        assertEquals("monthly limit of 1000 AI page reads reached", AiProblem.MONTHLY_LIMIT.shortText)
+        assertTrue(AiProblem.MONTHLY_LIMIT.indexingWaits)
+    }
+
+    @Test
     fun `indexing waits on everything but a model failure`() {
         AiProblem.entries.forEach { problem ->
             if (problem == AiProblem.MODEL_FAILED) assertFalse(problem.indexingWaits) else assertTrue(problem.name, problem.indexingWaits)

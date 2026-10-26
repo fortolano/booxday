@@ -185,6 +185,8 @@ class UnifiedOcrPipeline(private val context: Context) {
         }
         if (!quotaManager.canReadWithAi()) {
             Log.w(TAG, "Monthly AI read limit reached (${quotaManager.getAiReadsThisMonth()}/${quotaManager.monthlyAiReadLimit})")
+            // Said as the reason (Oct 2026): the settings line kept saying "processing during idle time"
+            IndexingStatus.onWaiting(AiProblem.MONTHLY_LIMIT)
             return ProcessResult.BUDGET_EXHAUSTED
         }
 
