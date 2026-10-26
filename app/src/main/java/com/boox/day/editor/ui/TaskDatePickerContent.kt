@@ -26,6 +26,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import com.boox.day.data.datastore.AppSettings
+import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.ui.theme.EInkTheme
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -125,12 +127,13 @@ fun TaskDatePickerContent(
 
         Spacer(modifier = Modifier.height(theme.navToWeekdaySpacing))
 
-        // Day of week headers
+        // Day of week headers, from the week start setting like the main calendar (Oct 2026)
+        val firstDayOfWeek = GlobalAppSettings.current.firstDayOfWeek
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            listOf("S", "M", "T", "W", "T", "F", "S").forEach { day ->
+            weekdayInitials(firstDayOfWeek).forEach { day ->
                 Text(
                     text = day,
                     fontSize = theme.weekdayFontSize,
@@ -145,8 +148,8 @@ fun TaskDatePickerContent(
         Spacer(modifier = Modifier.height(theme.weekdayToGridSpacing))
 
         // Calendar grid
-        val calendarDays = remember(displayedYear, displayedMonth) {
-            generateCalendarDays(displayedYear, displayedMonth)
+        val calendarDays = remember(displayedYear, displayedMonth, firstDayOfWeek) {
+            generateCalendarDays(displayedYear, displayedMonth, firstDayOfWeek)
         }
 
         LazyVerticalGrid(
@@ -177,11 +180,29 @@ internal data class CalendarDayInfo(
     val isToday: Boolean
 )
 
+/** Calendar.DAY_OF_WEEK of the first column for the week start setting. */
+private fun AppSettings.FirstDayOfWeek.calendarDay(): Int = when (this) {
+    AppSettings.FirstDayOfWeek.Sunday -> Calendar.SUNDAY
+    AppSettings.FirstDayOfWeek.Monday -> Calendar.MONDAY
+}
+
+/** One-letter weekday headers, starting on the week start setting's day. */
+internal fun weekdayInitials(firstDayOfWeek: AppSettings.FirstDayOfWeek): List<String> {
+    val sundayFirst = listOf("S", "M", "T", "W", "T", "F", "S")
+    val shift = firstDayOfWeek.calendarDay() - Calendar.SUNDAY
+    return sundayFirst.drop(shift) + sundayFirst.take(shift)
+}
+
 /**
  * Generate calendar days for a given month.
- * Returns 42 days (6 weeks) to fill the grid consistently.
+ * Returns 42 days (6 weeks) to fill the grid consistently. The first column is [firstDayOfWeek]
+ * (Oct 2026: it was always Sunday, whatever the setting).
  */
-internal fun generateCalendarDays(year: Int, month: Int): List<CalendarDayInfo> {
+internal fun generateCalendarDays(
+    year: Int,
+    month: Int,
+    firstDayOfWeek: AppSettings.FirstDayOfWeek = AppSettings.FirstDayOfWeek.Sunday
+): List<CalendarDayInfo> {
     val days = mutableListOf<CalendarDayInfo>()
     val calendar = Calendar.getInstance()
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
@@ -190,12 +211,12 @@ internal fun generateCalendarDays(year: Int, month: Int): List<CalendarDayInfo> 
     val todayString = dateFormat.format(today.time)
 
     calendar.set(year, month, 1)
-    val firstDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+    val monthStartDay = calendar.get(Calendar.DAY_OF_WEEK)
     val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
     calendar.add(Calendar.MONTH, -1)
     val daysInPrevMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-    val prevMonthDaysToShow = firstDayOfWeek - 1
+    val prevMonthDaysToShow = (monthStartDay - firstDayOfWeek.calendarDay() + 7) % 7
 
     // Previous month days
     for (i in prevMonthDaysToShow downTo 1) {

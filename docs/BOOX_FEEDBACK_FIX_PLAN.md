@@ -180,6 +180,11 @@ The steps don't depend on each other. Do them in this order (most user-visible f
 - **Change:** read `GlobalAppSettings.current.firstDayOfWeek`. Rotate the header and offset the first day as `ui/calendar/CalendarView.kt` does (`(raw + 6) % 7` for Monday).
 - **Tests:** add `editor/ui/TaskDatePickerDaysTest.kt` for `generateCalendarDays`. Use a known month with a Sunday start and a Monday start, including a month that starts on a Sunday.
 - **Review (1.0.37):** confirmed. The one change covers all four places that use the picker: `TaskDueDateDialog`, `TaskOperationDialog`, `BooxNoteEventPicker` and the popup in the same file. 6 leading days plus 31 still fit in the 42 cells. Runtime cost: none. Found in the code; the one week-start request on Reddit was for Saturday (3.7).
+- **Done (26 Oct):**
+  - `generateCalendarDays` takes the `FirstDayOfWeek` setting (leading days = `(dayOfWeek − start + 7) % 7`). The header comes from `weekdayInitials(start)`. The picker reads `GlobalAppSettings.current.firstDayOfWeek`.
+  - Taking the enum means a Saturday value (3.7) needs only a new `when` branch.
+  - Test: `TaskDatePickerDaysTest` (4: Sunday-start and Monday-start months, all 12 months × both settings fill 42 consecutive days from the right weekday, header).
+  - **Not in this step:** the event date picker in `AddEditEventDialog.kt` (~1617–1633) is Sunday-first too (its own header and `dayOfWeek.value % 7`). Reported to the owner.
 
 ### 1.7 The end-time list opens at the chosen hour
 - **Cause:** `ui/dialogs/AddEditEventDialog.kt` `TimeSelector` (hour `DropdownMenu`) always lists from 00 at the top.
