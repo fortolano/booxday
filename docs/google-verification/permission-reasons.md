@@ -23,7 +23,7 @@ Nothing shares calendars, changes sharing settings, or creates or deletes whole 
 - `https://www.googleapis.com/auth/calendar.events`: "View and edit events on all your calendars." Covers `events.list/get/insert/update/delete`.
 - `https://www.googleapis.com/auth/calendar.calendarlist.readonly`: "See the list of Google calendars you're subscribed to." Covers `calendarList.list/get`.
 
-**Done on branch `google-verification`** (`GoogleAuthManager.CALENDAR_SCOPES`, pinned by `GoogleCalendarScopesTest`), not released yet. Release it before recording the video: the video must show the same permissions as the form. People already signed in must allow the new permissions once: a "Reconnect Google Calendar" popup asks them at start (`ui/GoogleReconnectGate`), and Calendar Accounts shows Reconnect.
+**Done** (`GoogleAuthManager.CALENDAR_SCOPES`, pinned by `GoogleCalendarScopesTest`), in `main`, not released yet. Release it before recording the video: the video must show the same permissions as the form. People already signed in keep syncing without being asked again: Google gives the narrower access to accounts that granted the full scope (checked on the Go 10.3, 26 Oct 2026). If Google ever refuses a token (access withdrawn), Calendar Accounts shows Reconnect.
 
 `calendar.events.owned` ("calendars you own") would be narrower still, but it can't read calendars shared with the user (family, work, holidays), which BooxDay shows. So `calendar.events` is the narrowest that keeps the app working.
 

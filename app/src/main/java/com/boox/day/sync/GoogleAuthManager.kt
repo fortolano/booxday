@@ -36,9 +36,19 @@ class GoogleAuthManager(private val context: Context) {
         // events on the user's calendars (events list/get/insert/update/delete) and read the
         // calendar list (calendarList list/get). The full "calendar" scope also allows sharing and
         // creating or deleting calendars, which BooxDay never did. Accounts that granted the old
-        // scope must allow these once (Calendar Accounts → Reconnect).
+        // full scope (1.0.37 and older) keep working: Google gives them tokens for these without
+        // asking again (Go 10.3, 26 Oct 2026: 8 calendars and 618 events synced, no prompt).
         const val CALENDAR_LIST_READONLY = "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
         val CALENDAR_SCOPES = listOf(CalendarScopes.CALENDAR_EVENTS, CALENDAR_LIST_READONLY)
+
+        /**
+         * True when [granted] scopes cover calendar sync: the two narrow scopes, or the old full
+         * calendar scope, which includes them. A sign-in record from an older version lists only
+         * the full scope; requiring the narrow ones there turned isSignedIn() false, which switches
+         * off pushing tablet events to Google, editing synced events and Drive backup.
+         */
+        fun coversCalendarAccess(granted: Collection<String>): Boolean =
+            granted.containsAll(CALENDAR_SCOPES) || CalendarScopes.CALENDAR in granted
 
         // Sync frequency options (shared for sync and backup)
         const val FREQUENCY_1_HOUR = "1 hour"
@@ -226,23 +236,11 @@ class GoogleAuthManager(private val context: Context) {
     }
 
     /**
-     * Check if account has the required calendar scopes ([CALENDAR_SCOPES])
+     * Check if account has calendar access ([coversCalendarAccess]: the narrow scopes, or the old
+     * full scope from an older version's sign-in)
      */
     private fun hasCalendarScope(account: GoogleSignInAccount): Boolean {
-        return GoogleSignIn.hasPermissions(
-            account,
-            *CALENDAR_SCOPES.map { Scope(it) }.toTypedArray()
-        )
-    }
-
-    /**
-     * Email of the signed-in Google account when it hasn't allowed [CALENDAR_SCOPES] yet (signed in
-     * with an older version, which asked for the full calendar scope), or null. Google needs that
-     * account to sign in once more (ui/GoogleReconnectGate).
-     */
-    fun calendarReconnectEmail(): String? {
-        val account = GoogleSignIn.getLastSignedInAccount(context) ?: return null
-        return if (hasCalendarScope(account)) null else account.email
+        return coversCalendarAccess(account.grantedScopes.map { it.scopeUri })
     }
 
     /**

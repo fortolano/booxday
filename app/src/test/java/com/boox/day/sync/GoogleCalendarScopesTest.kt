@@ -27,6 +27,20 @@ class GoogleCalendarScopesTest {
     }
 
     @Test
+    fun `old full calendar scope still counts as signed in`() {
+        val email = "https://www.googleapis.com/auth/userinfo.email"
+        val driveFile = "https://www.googleapis.com/auth/drive.file"
+        // A sign-in record from 1.0.37 or older lists only the full scope
+        assertTrue(GoogleAuthManager.coversCalendarAccess(listOf("https://www.googleapis.com/auth/calendar", driveFile, email)))
+        // A sign-in with this version
+        assertTrue(GoogleAuthManager.coversCalendarAccess(GoogleAuthManager.CALENDAR_SCOPES + driveFile))
+        // Partial or calendar-less records are not enough
+        assertFalse(GoogleAuthManager.coversCalendarAccess(listOf("https://www.googleapis.com/auth/calendar.events", driveFile)))
+        assertFalse(GoogleAuthManager.coversCalendarAccess(listOf("https://www.googleapis.com/auth/calendar.readonly", driveFile)))
+        assertFalse(GoogleAuthManager.coversCalendarAccess(listOf(driveFile, email)))
+    }
+
+    @Test
     fun `refused Google token is an authentication error`() {
         val refused = GoogleAuthIOException(GoogleAuthException("NeedPermission"))
         assertTrue(refused.isGoogleTokenRefused())
