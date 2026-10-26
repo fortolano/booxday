@@ -6,7 +6,7 @@ import com.boox.day.ocr.model.OcrSource
 import java.io.File
 
 /**
- * Memo pages whose content was just cleared ("Clear All Memos Today", "Clear This Page"), once their
+ * Memo pages whose content was just cleared ("Clear This Day's Memos", "Clear This Page"), once their
  * strokes, images and text boxes are deleted from the database (Oct 2026).
  *
  * Until then a cleared page that wasn't on screen kept its ink in memory: a loaded page is shown from

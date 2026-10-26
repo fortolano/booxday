@@ -678,6 +678,7 @@ Help is a 12-topic split popup of about 4,500–5,000 words (`HelpDialog.kt`). I
   - The ≡ items "Clear All Memos Today" / "Clear All Tasks Today" and their confirm text ("This will clear all memo pages for today") clear the day being shown. In the check that was 8 Nov, not today.
   - Proposal: "Clear All Memos on This Day" / "Clear All Tasks on This Day", and in the confirm: "This clears every memo page of Sun 8 Nov. It can't be undone."
   - Check the ≡ menu width on the Go 6: `ToolbarMenu.kt:82` notes the old label already wrapped at 230 dp.
+  - **Done (26 Oct):** the ≡ items say "Clear This Day's Memos" / "Clear This Day's Tasks" (the proposal "Clear All Memos on This Day" is 6 letters longer and would wrap in the 260 dp menu). The confirm names the date in the user's date format (`DateTimeFormatUtils.formatDateFullFromString`): "This clears every memo page of Sunday, November 8, 2026. It can't be undone." Compiles; the Go 6 menu still to see.
 - **Opening BooxDay by `am start` fails while BOOX has it frozen.** After a force-stop, BOOX's app freeze disabled it (`enabled=3`), and `am start` said "No activity found". Opening it from the BOOX launcher icon unfreezes it. This is a note for testing, not an app fault.
 
 ### 4.11 Voice to Text: free Google speech, and the real AI model (owner, 26 Oct; Done)
@@ -722,7 +723,7 @@ Review (1.0.37): testers should be on 1.0.37 or later; items 2 and 4 now ask abo
 9. **If it crashes:** reopen the app → "Copy Report", and send it.
 10. **Single strokes on an empty Memos page:** does a stroke ever flash white or vanish for a moment after the pen lifts? (1.0.37 posts strokes 250 ms after the pen rests; on the Go 10.3 the system's own repaint comes at about 570 ms, other tablets may differ.)
 
-11. **Clear All Memos Today** with 3 memo pages, then open page 2: is it empty? **Clear All Tasks Today** in full screen, then leave full screen: is the page count right? (Part 4.1)
+11. **Clear This Day's Memos** with 3 memo pages, then open page 2: is it empty? **Clear This Day's Tasks** in full screen, then leave full screen: is the page count right? (Part 4.1)
 12. **Dialogs on a small screen:** can every dialog be closed, and is it clear when more is below? (Part 4.3–4.5)
 
 ## Verification summary

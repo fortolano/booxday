@@ -850,7 +850,7 @@ class TaskRepository(internal val context: Context) {
         private val _taskChanged = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 2)
         val taskChanged = _taskChanged.asSharedFlow()
 
-        // A day's tasks were cleared outside MainScreen's own handlers (≡ "Clear All Tasks Today", Oct
+        // A day's tasks were cleared outside MainScreen's own handlers (≡ "Clear This Day's Tasks", Oct
         // 2026): MainScreen shows that day's first page again, so the page count isn't left stale.
         // Sent once per clear, never while writing (taskChanged also fires for ink).
         private val _dayCleared = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)

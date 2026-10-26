@@ -73,13 +73,15 @@ import com.boox.day.ui.dialogs.ShowSimpleConfirmationDialog
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 import com.boox.day.ui.views.EditorTab
+import com.boox.day.utils.DateTimeFormatUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
  * Width of the toolbar menu (≡) and of the tool menus shown in it (Oct 2026): wide enough for
- * "Clear All Memos Today" on one line, which wrapped at the 230 dp of EInkTheme.PopupMenu.width.
+ * "Clear This Day's Memos" on one line ("Clear All Memos Today" wrapped at the 230 dp of
+ * EInkTheme.PopupMenu.width).
  */
 private val TOOLBAR_MENU_WIDTH = 260.dp
 
@@ -115,8 +117,8 @@ class ToolbarMenuTool(
  *   with its own menu opens it in place of the list (a back row returns), so no popup ever opens
  *   from inside this one.
  * - Then the page items:
- *   - **Memos tab**: Screen Refresh, Export Pages, Clear This Page, Delete Page, Clear All Memos Today
- *   - **Tasks tab**: Screen Refresh, Share/Export Tasks, Delete Page, Clear All Tasks Today
+ *   - **Memos tab**: Screen Refresh, Export Pages, Clear This Page, Delete Page, Clear This Day's Memos
+ *   - **Tasks tab**: Screen Refresh, Share/Export Tasks, Delete Page, Clear This Day's Tasks
  *
  * Page operations (Clear This Page, Delete Page) moved here from Eraser menu.
  *
@@ -285,11 +287,14 @@ fun ToolbarMenu(
         )
     }
 
-    // Confirmation: Clear All Memos Today
+    // The clears work on the day on screen, which is often not today (Oct 2026: they said "Today")
+    val shownDay = state.dayDate?.let { DateTimeFormatUtils.formatDateFullFromString(it) } ?: "this day"
+
+    // Confirmation: Clear This Day's Memos
     if (showClearMemosConfirmation) {
         ShowSimpleConfirmationDialog(
-            title = "Clear All Memos Today",
-            message = "This will clear all memo pages for today. This action cannot be undone.",
+            title = "Clear This Day's Memos",
+            message = "This clears every memo page of $shownDay. It can't be undone.",
             confirmButtonText = "Clear All",
             cancelButtonText = "Cancel",
             onConfirm = {
@@ -309,11 +314,11 @@ fun ToolbarMenu(
         )
     }
 
-    // Confirmation: Clear All Tasks Today
+    // Confirmation: Clear This Day's Tasks
     if (showClearTasksConfirmation) {
         ShowSimpleConfirmationDialog(
-            title = "Clear All Tasks Today",
-            message = "This will clear all task pages for today. This action cannot be undone.",
+            title = "Clear This Day's Tasks",
+            message = "This clears every task page of $shownDay. It can't be undone.",
             confirmButtonText = "Clear All",
             cancelButtonText = "Cancel",
             onConfirm = {
@@ -446,7 +451,7 @@ fun ToolbarMenu(
                         when (activeTab) {
                             EditorTab.Memos -> {
                                 MenuItem(
-                                    label = "Clear All Memos Today",
+                                    label = "Clear This Day's Memos",
                                     icon = Icons.Default.DeleteSweep
                                 ) {
                                     showClearMemosConfirmation = true
@@ -454,7 +459,7 @@ fun ToolbarMenu(
                             }
                             EditorTab.Tasks -> {
                                 MenuItem(
-                                    label = "Clear All Tasks Today",
+                                    label = "Clear This Day's Tasks",
                                     icon = Icons.Default.DeleteSweep
                                 ) {
                                     showClearTasksConfirmation = true
