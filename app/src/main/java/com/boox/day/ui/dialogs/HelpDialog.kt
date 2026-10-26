@@ -525,6 +525,11 @@ private fun TaskManagementContent() {
     BulletPoint("Tick the checkbox: the row gets a line through it.")
     BulletPoint("The flame in the calendar header counts the days in a row on which you finished a task. Tap it for your stats. On small screens it is in the Settings menu (Task streak).")
     BulletPoint("≡ → Clear This Day's Tasks empties the task pages of the day on screen.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("Start Your Day")
+    BodyText("The first time you open today's tasks, BooxDay lists the tasks from earlier days that aren't done. Move each to today, tomorrow or another day, mark it done or delete it, or move them all to today at once. Decide Later leaves them on their day; the task actions menu opens the list again (Start-the-day review).")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -19,14 +19,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Divider
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -35,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -50,7 +54,8 @@ import com.boox.day.data.db.TaskRepository
 import com.boox.day.editor.drawing.drawStroke
 import com.boox.day.editor.utils.calculateRowBounds
 import com.boox.day.editor.utils.extractStrokesForRow
-import com.boox.day.ui.components.EinkSecondaryButton
+import com.boox.day.ui.components.DialogCloseButton
+import com.boox.day.ui.dialogs.ActionButton
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 import com.boox.day.ui.theme.LayoutProfiles
@@ -63,9 +68,10 @@ import java.util.Locale
 
 /*
  * Start-the-day review (plan T4 §13.6B, Oct 2026): opens once, the first time today's Tasks are
- * shown each day, and from the task actions menu. Lists unfinished tasks from earlier days — each
- * in the user's own handwriting, with Today · Tomorrow · Pick day · Done · Delete — and tasks due
- * today that were written on other days (tap → go to the task). Paginated, no scrolling.
+ * shown each day, and from the task actions menu. Lists unfinished tasks from earlier days, each
+ * in the user's own handwriting with Move to Today · Tomorrow · Other day… · Done · Delete, and tasks
+ * due today that were written on other days (tap → go to the task). Paginated, no scrolling.
+ * Redesigned 26 Oct 2026 (feedback plan 4.12), see StartDayReviewPopup.
  */
 
 /** What the review shows. */
@@ -137,6 +143,13 @@ private sealed class ReviewPage {
     data class Due(val tasks: List<Task>) : ReviewPage()
 }
 
+/*
+ * Oct 2026 (plan 4.12; the owner found it confusing and plain): it says why it opened and what it
+ * asks. Each task has one black main action (Move to Today), Tomorrow and Other day… beside it, and
+ * Done and Delete set apart with icons. A handled task keeps its place as one line ("Moved to today"),
+ * so the page doesn't jump on e-ink. Move all to today handles the rest at once; Decide Later says
+ * the tasks stay on their day. Black on white only: grey labels looked disabled.
+ */
 @Composable
 fun StartDayReviewPopup(
     data: StartDayReviewData,
@@ -149,13 +162,22 @@ fun StartDayReviewPopup(
     onDismiss: () -> Unit
 ) {
     val compact = LayoutProfiles.isNarrowScreen
-    val pages = remember(data) {
-        data.unfinished.chunked(if (compact) 3 else 4).map { ReviewPage.Unfinished(it) } +
-            data.dueToday.chunked(if (compact) 5 else 7).map { ReviewPage.Due(it) }
+    // The tasks as the review opened: MainScreen takes a handled task out of [data] at once (or after
+    // the day picker / delete confirmation), and the card then turns into its one-line outcome
+    val shownUnfinished = remember { data.unfinished }
+    val shownDue = remember { data.dueToday }
+    val outcomes = remember { mutableStateMapOf<String, String>() }
+    val openIds = remember(data) { (data.unfinished + data.dueToday).map { it.id }.toSet() }
+    val pages = remember {
+        shownUnfinished.chunked(if (compact) 3 else 4).map { ReviewPage.Unfinished(it) } +
+            shownDue.chunked(if (compact) 5 else 7).map { ReviewPage.Due(it) }
     }
     var pageIndex by remember { mutableStateOf(0) }
     val shownIndex = pageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
     val today = remember(data.today) { LocalDate.parse(data.today) }
+    val firstDuePage = pages.indexOfFirst { it is ReviewPage.Due }
+
+    fun record(task: Task, outcome: String) { outcomes[task.id] = outcome }
 
     Popup(
         alignment = Alignment.Center,
@@ -166,70 +188,146 @@ fun StartDayReviewPopup(
             modifier = Modifier
                 .fillMaxWidth(0.96f)
                 .widthIn(max = 640.dp)
+                .heightIn(max = EInkTheme.PopupOverlay.maxHeight)
                 .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                .border(
-                    EInkTheme.ModernDialog.borderWidth,
-                    EInkTheme.ModernDialog.borderColor,
-                    RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
-                )
+                .border(1.5.dp, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                 .noRippleClickable { }  // taps inside don't dismiss
                 .padding(EInkTheme.ModernDialog.padding)
         ) {
+            // Header: what this is, today's date, and the X
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.WbSunny,
+                    contentDescription = null,
+                    tint = EInkTheme.Colors.primary,
+                    modifier = Modifier.size(26.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "Start your day",
+                    fontSize = EInkTheme.ModernDialog.titleFontSize,
+                    fontWeight = FontWeight.Bold,
+                    color = EInkTheme.Colors.primary,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = today.format(DateTimeFormatter.ofPattern("EEEE, d MMM", Locale.getDefault())),
+                    fontSize = EInkTheme.Typography.bodySmall,
+                    color = EInkTheme.Colors.primary
+                )
+                DialogCloseButton(onClose = onDismiss)
+            }
             Text(
-                text = "Start the day",
-                fontSize = EInkTheme.ModernDialog.titleFontSize,
-                fontWeight = FontWeight.Bold,
-                color = EInkTheme.ModernDialog.titleColor
+                text = when {
+                    data.isEmpty && outcomes.isEmpty() -> "Nothing left over from earlier days."
+                    shownUnfinished.isNotEmpty() ->
+                        "These tasks from earlier days aren't done yet. Choose what to do with each, or leave them where they are."
+                    else -> "These tasks are due today but were written on other days."
+                },
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.primary,
+                modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
             )
-            Text(
-                text = today.format(DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.getDefault())),
-                fontSize = EInkTheme.Typography.bodySmall,
-                color = EInkTheme.Colors.gray
-            )
-            Spacer(Modifier.height(10.dp))
 
             when (val page = pages.getOrNull(shownIndex)) {
-                null -> Text(
-                    text = "All caught up — nothing left over from earlier days.",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.primary,
-                    modifier = Modifier.padding(vertical = 24.dp)
-                )
+                null -> Unit
                 is ReviewPage.Unfinished -> {
-                    SectionTitle("Unfinished from earlier days (${data.unfinished.size})")
-                    page.tasks.forEach { task ->
-                        UnfinishedItem(
-                            task = task,
-                            today = today,
-                            inkFor = inkFor,
-                            onMove = onMove,
-                            onPickDay = onPickDay,
-                            onDone = onDone,
-                            onDelete = onDelete
+                    val stillOpen = data.unfinished
+                    if (stillOpen.size >= 2) {
+                        OutlinedChoice(
+                            text = "Move all to today (${stillOpen.size})",
+                            onClick = {
+                                stillOpen.forEach { task ->
+                                    record(task, "Moved to today")
+                                    onMove(task, today.toString())
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
                         )
+                    }
+                    page.tasks.forEach { task ->
+                        if (task.id in openIds) {
+                            UnfinishedCard(
+                                task = task,
+                                inkFor = inkFor,
+                                onToday = { record(task, "Moved to today"); onMove(task, today.toString()) },
+                                onTomorrow = { record(task, "Moved to tomorrow"); onMove(task, today.plusDays(1).toString()) },
+                                onOtherDay = { record(task, "Moved to another day"); onPickDay(task) },
+                                onDone = { record(task, "Marked done"); onDone(task) },
+                                onDelete = { record(task, "Deleted"); onDelete(task) }
+                            )
+                        } else {
+                            HandledLine(task = task, outcome = outcomes[task.id] ?: "Done", inkFor = inkFor)
+                        }
+                    }
+                    if (firstDuePage > 0) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = EInkTheme.Global.touchTarget)
+                                .noRippleClickable { pageIndex = firstDuePage },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Also due today: ${shownDue.size} written on other days",
+                                fontSize = EInkTheme.Typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = EInkTheme.Colors.primary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = "Show them",
+                                tint = EInkTheme.Colors.primary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
                 }
                 is ReviewPage.Due -> {
-                    SectionTitle("Due today, written on other days (${data.dueToday.size})")
+                    SectionTitle("Due today, written on other days (${shownDue.size})")
                     page.tasks.forEach { task -> DueItem(task = task, onOpenTask = onOpenTask) }
                 }
             }
 
-            Divider(color = EInkTheme.Colors.borderStrong, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 8.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+                    .height(1.dp)
+                    .background(EInkTheme.Colors.primary)
+            )
+            Spacer(Modifier.height(10.dp))
 
-            // [Close] on the left (DIALOG_RULEBOOK); page arrows on the right
+            // Footer: Decide Later (the escape, left) and what it means; page arrows on the right.
+            // Once everything is handled: "All set for today." and a black Close.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                EinkSecondaryButton(text = "Close", onClick = onDismiss, width = 120.dp)
-                Spacer(Modifier.weight(1f))
-                if (pages.size > 1) {
-                    PagerArrow(left = true, enabled = shownIndex > 0) { pageIndex = shownIndex - 1 }
+                if (data.isEmpty) {
                     Text(
-                        text = "${shownIndex + 1}/${pages.size}",
-                        fontSize = EInkTheme.Typography.bodyMedium,
+                        text = "All set for today.",
+                        fontSize = EInkTheme.Typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
                         color = EInkTheme.Colors.primary,
-                        modifier = Modifier.padding(horizontal = 8.dp)
+                        modifier = Modifier.weight(1f)
                     )
-                    PagerArrow(left = false, enabled = shownIndex < pages.size - 1) { pageIndex = shownIndex + 1 }
+                    ActionButton(text = "Close", onClick = onDismiss)
+                } else {
+                    OutlinedChoice(text = "Decide Later", onClick = onDismiss)
+                    Text(
+                        text = "They stay on their day. Open this again from the task actions menu.",
+                        fontSize = EInkTheme.Typography.bodySmall,
+                        color = EInkTheme.Colors.primary,
+                        modifier = Modifier.weight(1f).padding(horizontal = 10.dp)
+                    )
+                    if (pages.size > 1) {
+                        PagerArrow(left = true, enabled = shownIndex > 0) { pageIndex = shownIndex - 1 }
+                        Text(
+                            text = "${shownIndex + 1} of ${pages.size}",
+                            fontSize = EInkTheme.Typography.bodyMedium,
+                            color = EInkTheme.Colors.primary
+                        )
+                        PagerArrow(left = false, enabled = shownIndex < pages.size - 1) { pageIndex = shownIndex + 1 }
+                    }
                 }
             }
         }
@@ -247,37 +345,148 @@ private fun SectionTitle(text: String) {
     )
 }
 
+/** One unfinished task: what was written, where it's from, and what to do with it. */
 @Composable
-private fun UnfinishedItem(
+private fun UnfinishedCard(
     task: Task,
-    today: LocalDate,
     inkFor: suspend (Task) -> Bitmap?,
-    onMove: (Task, String) -> Unit,
-    onPickDay: (Task) -> Unit,
-    onDone: (Task) -> Unit,
-    onDelete: (Task) -> Unit
+    onToday: () -> Unit,
+    onTomorrow: () -> Unit,
+    onOtherDay: () -> Unit,
+    onDone: () -> Unit,
+    onDelete: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+    val shape = RoundedCornerShape(10.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 10.dp)
+            .border(1.dp, EInkTheme.Colors.primary, shape)
+            .padding(12.dp)
+    ) {
+        TaskContent(task = task, inkFor = inkFor)
         Text(
             text = buildString {
-                append(dayLabel(task.dayDate))
-                TaskDueDates.toLocalDate(task.dueDay)?.let { append(" · due ${it.format(DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()))}") }
-                if (task.migrationCount > 0) append(" · moved ${task.migrationCount}×")
+                append("From ${dayLabel(task.dayDate)}")
+                TaskDueDates.toLocalDate(task.dueDay)?.let { append(" · due ${it.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault()))}") }
+                when (task.migrationCount) {
+                    0 -> Unit
+                    1 -> append(" · put off once")
+                    else -> append(" · put off ${task.migrationCount} times")
+                }
             },
             fontSize = EInkTheme.Typography.bodySmall,
-            color = EInkTheme.Colors.gray
+            color = EInkTheme.Colors.primary,
+            modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
         )
-        TaskContent(task = task, inkFor = inkFor)
-        Spacer(Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            val action = Modifier.weight(1f)
-            EinkSecondaryButton(text = "Today", onClick = { onMove(task, today.toString()) }, modifier = action, width = 0.dp)
-            EinkSecondaryButton(text = "Tomorrow", onClick = { onMove(task, today.plusDays(1).toString()) }, modifier = action, width = 0.dp)
-            EinkSecondaryButton(text = "Pick day", onClick = { onPickDay(task) }, modifier = action, width = 0.dp)
-            EinkSecondaryButton(text = "Done", onClick = { onDone(task) }, modifier = action, width = 0.dp)
-            EinkSecondaryButton(text = "Delete", onClick = { onDelete(task) }, modifier = action, width = 0.dp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ActionButton(text = "Move to Today", onClick = onToday, modifier = Modifier.weight(1.4f))
+            OutlinedChoice(text = "Tomorrow", onClick = onTomorrow, modifier = Modifier.weight(1f))
+            OutlinedChoice(text = "Other day…", onClick = onOtherDay, modifier = Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 2.dp)
+                    .width(1.dp)
+                    .height(EInkTheme.Button.height)
+                    .background(EInkTheme.Colors.primary)
+            )
+            IconChoice(icon = Icons.Default.Check, label = "Done", onClick = onDone)
+            IconChoice(icon = Icons.Default.Delete, label = "Delete", onClick = onDelete)
         }
-        Divider(color = EInkTheme.Colors.borderStrong, thickness = 0.5.dp, modifier = Modifier.padding(top = 10.dp))
+    }
+}
+
+/** A handled task keeps its place as one line, so the page doesn't move. */
+@Composable
+private fun HandledLine(task: Task, outcome: String, inkFor: suspend (Task) -> Bitmap?) {
+    val text = task.typedText?.takeIf { it.isNotBlank() } ?: task.convertedText?.takeIf { it.isNotBlank() }
+        ?: task.recognizedText?.takeIf { it.isNotBlank() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 10.dp)
+            .border(1.dp, EInkTheme.Colors.primary, RoundedCornerShape(10.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = null,
+            tint = EInkTheme.Colors.primary,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Box(modifier = Modifier.weight(1f)) {
+            if (text != null) {
+                Text(
+                    text = text,
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    color = EInkTheme.Colors.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            } else {
+                val ink by produceState<Bitmap?>(initialValue = null, task.id) { value = inkFor(task) }
+                ink?.let {
+                    Image(
+                        bitmap = it.asImageBitmap(),
+                        contentDescription = "Handwritten task",
+                        contentScale = ContentScale.Fit,
+                        alignment = Alignment.CenterStart,
+                        modifier = Modifier.fillMaxWidth().height(28.dp)
+                    )
+                }
+            }
+        }
+        Text(
+            text = outcome,
+            fontSize = EInkTheme.Typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = EInkTheme.Colors.primary
+        )
+    }
+}
+
+/** A black outlined button with black text (the shared secondary button's grey text looks disabled). */
+@Composable
+private fun OutlinedChoice(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .height(EInkTheme.Button.height)
+            .border(1.dp, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius))
+            .noRippleClickable { onClick() }
+            .padding(horizontal = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = EInkTheme.Typography.button,
+            fontWeight = FontWeight.Medium,
+            color = EInkTheme.Colors.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/** Done and Delete: an icon over a short label, set apart from the moves. */
+@Composable
+private fun IconChoice(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .height(EInkTheme.Button.height)
+            .widthIn(min = 56.dp)
+            .border(1.dp, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius))
+            .noRippleClickable { onClick() }
+            .padding(horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = EInkTheme.Colors.primary, modifier = Modifier.size(20.dp))
+        Text(text = label, fontSize = EInkTheme.Typography.labelMedium, color = EInkTheme.Colors.primary)
     }
 }
 
@@ -304,7 +513,7 @@ private fun TaskContent(task: Task, inkFor: suspend (Task) -> Bitmap?) {
             contentDescription = fallback ?: "Handwritten task",
             contentScale = ContentScale.Fit,
             alignment = Alignment.CenterStart,
-            modifier = Modifier.fillMaxWidth().height(52.dp)
+            modifier = Modifier.fillMaxWidth().height(56.dp)
         )
     } else {
         Text(
@@ -339,14 +548,19 @@ private fun DueItem(task: Task, onOpenTask: (Task) -> Unit) {
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "written ${dayLabel(task.dayDate)}",
+                text = "Written ${dayLabel(task.dayDate)}",
                 fontSize = EInkTheme.Typography.bodySmall,
-                color = EInkTheme.Colors.gray
+                color = EInkTheme.Colors.primary
             )
         }
+        Text(
+            text = "Go to task",
+            fontSize = EInkTheme.Typography.bodySmall,
+            color = EInkTheme.Colors.primary
+        )
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = "Go to task",
+            contentDescription = null,
             tint = EInkTheme.Colors.primary,
             modifier = Modifier.size(28.dp)
         )
@@ -371,5 +585,5 @@ private fun PagerArrow(left: Boolean, enabled: Boolean, onClick: () -> Unit) {
 }
 
 private fun dayLabel(dayDate: String): String =
-    runCatching { LocalDate.parse(dayDate).format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())) }
+    runCatching { LocalDate.parse(dayDate).format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault())) }
         .getOrDefault(dayDate)

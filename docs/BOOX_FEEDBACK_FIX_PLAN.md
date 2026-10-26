@@ -768,6 +768,12 @@ The owner: "confusing and poorly designed", "ugly", "needs to be much nicer and 
   - **Theme:** `EInkTheme.PopupOverlay` width and title, no grey for meaning, the 4.4 bar if a page is taller than the screen.
   - **Owner decides:** (a) keep opening it by itself each morning, or add a Preferences switch "Review unfinished tasks each morning" (on by default; recommended); (b) "Move all to today", yes or no; (c) Undo on the one-line notes, now or later.
   - **Cost:** nothing outside the dialog; the pen path is untouched. Check on the Go 10.3 and the Go 6 (on the Go 6, 3 tasks to a page).
+- **Done (26 Oct, after the owner saw the mockup; (b) "Move all to today" included, (a) the Preferences switch and (c) Undo not built, still the owner's call):**
+  - `editor/ui/StartDayReview.kt` is redesigned as proposed. The loader and the MainScreen side are unchanged: the same callbacks, and "Move all" calls the same move once per task.
+  - A handled task keeps its card place as one line. The outcome is recorded when tapped and shown once MainScreen takes the task out, so a cancelled Delete or day picker leaves the card as it was.
+  - The buttons are black-outlined, because `EinkSecondaryButton` has grey text.
+  - Help's Task Management topic has a "Start Your Day" paragraph.
+  - Compiles. Not seen on a tablet yet.
 
 ### Part 4 order and tests
 1. 4.1 (checked 26 Oct; fix (a), (b), (b2)), the 4.10 search snippet, and 4.2: data, search and privacy first.
