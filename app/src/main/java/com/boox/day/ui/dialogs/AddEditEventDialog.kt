@@ -313,8 +313,13 @@ fun AddEditEventDialog(
         onDismissRequest = onDismiss,
         properties = PopupProperties(focusable = true)
     ) {
+        // While the on-screen keyboard is open (Oct 2026, plan 3.1), the dialog fits in the space
+        // above it, so Cancel and Save stay visible; the form scrolls inside
+        val keyboard = com.boox.day.ui.components.keyboardHeight()
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = keyboard),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -323,7 +328,8 @@ fun AddEditEventDialog(
                     // Extra height when sync section visible; narrow screens (Go 6, Oct 2026) use the panel
                     // height so the form needs less scrolling
                     .fillMaxHeight(
-                        if (com.boox.day.ui.theme.LayoutProfiles.isNarrowScreen) EInkTheme.PanelDialog.heightFraction
+                        if (keyboard > 0.dp) 0.96f
+                        else if (com.boox.day.ui.theme.LayoutProfiles.isNarrowScreen) EInkTheme.PanelDialog.heightFraction
                         else if (showSyncToggle || isEditingSyncedEvent) 0.81f else 0.78f
                     )
                     .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
