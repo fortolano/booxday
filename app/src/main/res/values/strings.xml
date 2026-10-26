@@ -99,7 +99,7 @@
     <string name="details_notebook_linked_to">Linked to: %1$s</string>
     <!-- Welcome Screen - Header -->
     <string name="welcome_view_title">Welcome to BooxDay</string>
-    <string name="welcome_view_subtitle">Your AI-powered e-ink planner.\nBuilt exclusively for Boox tablets.</string>
+    <string name="welcome_view_subtitle">Your calendar, memos and tasks in one place.\nMade for Boox tablets.</string>
 
     <!-- Welcome Screen - AI Chief of Staff Highlight -->
     <string name="welcome_view_ai_highlight_title">Your Personal AI Chief of Staff</string>

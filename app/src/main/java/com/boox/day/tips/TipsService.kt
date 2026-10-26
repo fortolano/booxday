@@ -95,7 +95,8 @@ object TipsService {
                 delay(intervalMs)
                 // Re-check setting in case it changed
                 if (GlobalAppSettings.current.tipsEnabled) {
-                    showNextTip()
+                    // Oct 2026: not over the first-start welcome popup (open until onboardingDismissedAt is set)
+                    if (GlobalAppSettings.current.onboardingDismissedAt != 0L) showNextTip()
                 } else {
                     Log.d(TAG, "Tips disabled during timer, stopping")
                     break

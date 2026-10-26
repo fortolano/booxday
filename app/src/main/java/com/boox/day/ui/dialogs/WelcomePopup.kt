@@ -34,6 +34,10 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.R
 import com.boox.day.ui.noRippleClickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.boox.day.ui.components.ScrollMoreBar
 import com.boox.day.ui.theme.EInkTheme
 
 /**
@@ -64,9 +68,13 @@ fun WelcomePopup(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
+            // Oct 2026: token width and a height cap; the content scrolls and the button stays
+            // (it was 380 dp wide with no height limit)
+            val scrollState = rememberScrollState()
             Column(
                 modifier = Modifier
-                    .width(380.dp)
+                    .width(EInkTheme.PopupOverlay.width)
+                    .heightIn(max = EInkTheme.PopupOverlay.maxHeight)
                     .background(
                         EInkTheme.Colors.background,
                         RoundedCornerShape(12.dp)
@@ -79,141 +87,149 @@ fun WelcomePopup(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Large app icon (no tint to preserve original colors)
-                Icon(
-                    painter = painterResource(R.drawable.ic_launcher_foreground_vector),
-                    contentDescription = null,
-                    modifier = Modifier.size(80.dp),
-                    tint = androidx.compose.ui.graphics.Color.Unspecified
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Main title
-                Text(
-                    text = "Welcome to BooxDay",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = EInkTheme.Colors.primary
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Tagline
-                Text(
-                    text = "Your e-ink planner, reimagined",
-                    fontSize = 14.sp,
-                    fontStyle = FontStyle.Italic,
-                    color = EInkTheme.Colors.gray
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Feature highlights
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            EInkTheme.Colors.offWhite,
-                            RoundedCornerShape(8.dp)
-                        )
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    FeatureRow(
-                        icon = { Icon(Icons.Default.Draw, null, Modifier.size(20.dp), tint = EInkTheme.Colors.primary) },
-                        text = "Handwrite memos & tasks with your stylus"
-                    )
-                    FeatureRow(
-                        icon = { Icon(Icons.Default.CalendarMonth, null, Modifier.size(20.dp), tint = EInkTheme.Colors.primary) },
-                        text = "Sync calendars from Google & Outlook"
-                    )
-                    FeatureRow(
-                        icon = { Icon(Icons.Default.AutoAwesome, null, Modifier.size(20.dp), tint = EInkTheme.Colors.primary) },
-                        text = "AI-powered voice input & smart suggestions"
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Setup guidance section
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(
-                            1.dp,
-                            EInkTheme.Colors.borderStrong,
-                            RoundedCornerShape(8.dp)
-                        )
-                        .padding(14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Badge indicator row
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                Box(modifier = Modifier.weight(1f, fill = false)) {
+                    Column(
+                        modifier = Modifier.verticalScroll(scrollState),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // Large app icon (no tint to preserve original colors)
                         Icon(
-                            imageVector = Icons.Default.Settings,
+                            painter = painterResource(R.drawable.ic_launcher_foreground_vector),
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = EInkTheme.Colors.primary
+                            modifier = Modifier.size(80.dp),
+                            tint = androidx.compose.ui.graphics.Color.Unspecified
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Main title
                         Text(
-                            text = "Look for ",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
+                            text = "Welcome to BooxDay",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
                             color = EInkTheme.Colors.primary
                         )
-                        Box(
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Tagline
+                        Text(
+                            text = "Your calendar, memos and tasks in one place",
+                            fontSize = 14.sp,
+                            fontStyle = FontStyle.Italic,
+                            color = EInkTheme.Colors.gray
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Feature highlights
+                        Column(
                             modifier = Modifier
-                                .size(10.dp)
-                                .background(EInkTheme.Colors.primary, CircleShape)
-                        )
-                        Text(
-                            text = " badges in Settings",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = EInkTheme.Colors.primary
-                        )
-                    }
-
-                    // Encouragement text
-                    Text(
-                        text = "We recommend configuring these marked settings first to unlock BooxDay's full potential. When you have a moment, explore the other settings too!",
-                        fontSize = 12.sp,
-                        color = EInkTheme.Colors.darkGray,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 16.sp
-                    )
-
-                    // AI preferences tip
-                    Row(
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                EInkTheme.Colors.offWhite,
-                                RoundedCornerShape(6.dp)
+                                .fillMaxWidth()
+                                .background(
+                                    EInkTheme.Colors.offWhite,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            FeatureRow(
+                                icon = { Icon(Icons.Default.Draw, null, Modifier.size(20.dp), tint = EInkTheme.Colors.primary) },
+                                text = "Write memos and tasks with the pen"
                             )
-                            .padding(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = EInkTheme.Colors.primary
-                        )
-                        Text(
-                            text = "Pro tip: Set up your AI preferences in Settings → AI Settings → AI Preferences for personalized planning and smarter suggestions.",
-                            fontSize = 12.sp,
-                            color = EInkTheme.Colors.darkGray,
-                            lineHeight = 16.sp
-                        )
+                            FeatureRow(
+                                icon = { Icon(Icons.Default.CalendarMonth, null, Modifier.size(20.dp), tint = EInkTheme.Colors.primary) },
+                                text = "See your Google and Outlook calendars"
+                            )
+                            FeatureRow(
+                                icon = { Icon(Icons.Default.AutoAwesome, null, Modifier.size(20.dp), tint = EInkTheme.Colors.primary) },
+                                text = "Voice input, and AI features on your own OpenRouter account"
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Setup guidance section
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(
+                                    1.dp,
+                                    EInkTheme.Colors.borderStrong,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Badge indicator row
+                            Row(
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = EInkTheme.Colors.primary
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Look for ",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = EInkTheme.Colors.primary
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .background(EInkTheme.Colors.primary, CircleShape)
+                                )
+                                Text(
+                                    text = " badges in Settings",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = EInkTheme.Colors.primary
+                                )
+                            }
+
+                            // Encouragement text
+                            Text(
+                                text = "Start with the settings that have a dot. Settings \u2192 Help explains every feature.",
+                                fontSize = 12.sp,
+                                color = EInkTheme.Colors.darkGray,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 16.sp
+                            )
+
+                            // AI preferences tip
+                            Row(
+                                verticalAlignment = Alignment.Top,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        EInkTheme.Colors.offWhite,
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = EInkTheme.Colors.primary
+                                )
+                                Text(
+                                    text = "Tip: with an OpenRouter key, Settings → AI Settings → AI Preferences makes suggestions fit your day.",
+                                    fontSize = 12.sp,
+                                    color = EInkTheme.Colors.darkGray,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
                     }
+                    ScrollMoreBar(scrollState)
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))

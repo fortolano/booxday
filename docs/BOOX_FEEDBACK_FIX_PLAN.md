@@ -549,6 +549,11 @@ Heights below are estimates from the code, not measured. Take a Go 6 screenshot 
 - **Update popup:** fits. Capped at 0.82 of the screen height, with the title and buttons fixed (`AppUpdatePopup.kt`, `EInkTheme.kt:717–720`). Only the 4.4 bar is missing.
 - **Crash report popup:** three buttons in one row on a 460 dp popup ("Close", "Copy Report", "Report on GitHub"; `CrashReportPopup.kt:88–107`). Check on the Go 6 that no label wraps.
 - **Tips:** they appear as a snackbar, not a dialog. Tips are on by default, every hour (`AppSettings.kt:148`), and don't check whether the welcome popup is still open (`TipsService.kt:137–153`). Small fix: no tip while the welcome popup is up.
+- **Done (26 Oct):**
+  - WelcomeView: "Get Started" sits below the scrolling part (`weight(1f)` box), with the 4.4 bar over the bottom of the scrolling part.
+  - WelcomePopup: `EInkTheme.PopupOverlay.width` and `maxHeight`; the content scrolls with the bar, the button stays.
+  - Tips: the timer skips a tip while `onboardingDismissedAt` is 0 (the welcome popup is open).
+  - Compiles. Go 6 screenshots of both, and the crash popup buttons, still to take.
 
 ### 4.6 What the start screens and the update popup say (Ready to draft; owner approves)
 
@@ -576,6 +581,13 @@ Heights below are estimates from the code, not measured. Take a Go 6 screenshot 
     - **Tests:** a JVM test for the choice: saved notes, then fetch, then snackbar only, and shown once.
     - **Done (26 Oct):** `AppUpdateGate.State.WhatsNew`, shown by the existing `AppUpdateHost`, so MainScreen needed no change (its `AppUpdateGate.isOpen` check already keeps raw drawing off). `install()` saves the version and its bullets (`commit()`, before Android stops the app). `announcementFor()` picks: saved notes for this version, else one fetch of `releases/tags/v<version>` (`AppUpdateChecker.releaseNotesFor`), else the old snackbar; it is shown once because the version code is stored at that start. The popup: "BooxDay 1.0.N", "What's new", the bullets, Close. Test: `AppUpdateAnnouncementTest`. The update offer now says "BooxDay X is ready." Not seen on a tablet yet.
 - Rewrite the welcome texts from what the app does today, using CLAUDE.md's feature list (calendar and accounts, Memos and Tasks, full screen, search, Boox Notes and Smart Link, AI on your own OpenRouter account, sleep screen, daily notes, updates). Short, no marketing words, nothing presented as new that isn't. The executor drafts and the owner approves before code.
+  - **Done (26 Oct, texts pre-approved by the owner):**
+    - WelcomeView subtitle: "Your calendar, memos and tasks in one place. Made for Boox tablets." (was "Your AI-powered e-ink planner").
+    - The AI card is "AI features": "Smart Suggestions and Optimize My Day, from your calendar and notes" / "Run on your own OpenRouter account, added in AI Settings" (was "AI Chief of Staff").
+    - Boox Notes card: "Smart Link connects your notes to calendar events" / "Search finds the words in your handwritten notes" (was "semantic search finds notes by meaning").
+    - The false permissions card is now "Also in BooxDay": Full screen, Sleep screen, Daily notes, Updates, and "Settings → Help explains every feature."
+    - WelcomePopup: "Your calendar, memos and tasks in one place"; "Write memos and tasks with the pen"; "See your Google and Outlook calendars"; "Voice input, and AI features on your own OpenRouter account"; "Start with the settings that have a dot. Settings → Help explains every feature."; "Tip: with an OpenRouter key, Settings → AI Settings → AI Preferences makes suggestions fit your day."
+    - The search claim in Help and the tips goes with 4.7.
 
 ### 4.7 Help is out of date (Ready to draft; owner approves)
 

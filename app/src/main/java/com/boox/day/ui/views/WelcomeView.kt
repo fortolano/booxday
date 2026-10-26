@@ -60,6 +60,7 @@ import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.db.KvProxy
 import com.boox.day.editor.utils.setRecommendedMode
 import com.boox.day.ui.noRippleClickable
+import com.boox.day.ui.components.ScrollMoreBar
 import com.boox.day.ui.theme.EInkTheme
 
 /**
@@ -74,128 +75,137 @@ import com.boox.day.ui.theme.EInkTheme
 @Composable
 fun WelcomeView(navController: NavController) {
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
 
     // Auto-set optimal refresh mode for e-ink display
     LaunchedEffect(Unit) {
         setRecommendedMode()
     }
 
-    Box(
+    // Oct 2026: "Get Started" stays below the scrolling part, with the "Scroll for more" bar, so it is
+    // always on screen (on the Go 6 it was below the edge, with no hint)
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(EInkTheme.Colors.background)
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .weight(1f)
+                .fillMaxWidth()
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // App Icon (actual BooxDay logo)
-            Icon(
-                painter = painterResource(R.drawable.ic_launcher_foreground_vector),
-                contentDescription = "BooxDay",
-                modifier = Modifier.size(80.dp),
-                tint = Color.Unspecified
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Welcome Title
-            Text(
-                text = stringResource(R.string.welcome_view_title),
-                fontSize = EInkTheme.Typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = EInkTheme.Colors.primary,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Tagline
-            Text(
-                text = stringResource(R.string.welcome_view_subtitle),
-                fontSize = EInkTheme.Typography.bodyLarge,
-                color = EInkTheme.Colors.darkGray,
-                textAlign = TextAlign.Center,
-                lineHeight = EInkTheme.Typography.bodyLarge * 1.4f
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // Features Grid (2x2)
-            FeaturesGrid()
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Feature Highlights - AI + Boox Notes side by side
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                AiChiefOfStaffHighlight(modifier = Modifier.weight(1f))
-                BooxNotesHighlight(modifier = Modifier.weight(1f))
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Permissions Card - Quick setup info
-            PermissionsCard()
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // Get Started Button
-            Box(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .background(
-                        EInkTheme.Colors.primary,
-                        RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                    )
-                    .noRippleClickable {
-                        KvProxy(context).setAppSettings(
-                            GlobalAppSettings.current.copy(showWelcome = false)
-                        )
-                        // Navigate to main and remove welcome from backstack
-                        // NOTE: Do NOT call refreshScreen() here - GC refresh captures the current
-                        // screen state (WelcomeView) and redraws it during the 1-2s refresh cycle,
-                        // causing a "flash" effect while MainScreen tries to render underneath.
-                        navController.navigate("main") {
-                            popUpTo("welcome") { inclusive = true }
-                        }
-                    },
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = stringResource(R.string.welcome_view_continue),
-                    fontSize = EInkTheme.Typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = EInkTheme.Colors.white
+                Spacer(modifier = Modifier.height(40.dp))
+
+                // App Icon (actual BooxDay logo)
+                Icon(
+                    painter = painterResource(R.drawable.ic_launcher_foreground_vector),
+                    contentDescription = "BooxDay",
+                    modifier = Modifier.size(80.dp),
+                    tint = Color.Unspecified
                 )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Welcome Title
+                Text(
+                    text = stringResource(R.string.welcome_view_title),
+                    fontSize = EInkTheme.Typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = EInkTheme.Colors.primary,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Tagline
+                Text(
+                    text = stringResource(R.string.welcome_view_subtitle),
+                    fontSize = EInkTheme.Typography.bodyLarge,
+                    color = EInkTheme.Colors.darkGray,
+                    textAlign = TextAlign.Center,
+                    lineHeight = EInkTheme.Typography.bodyLarge * 1.4f
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // Features Grid (2x2)
+                FeaturesGrid()
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Feature Highlights - AI + Boox Notes side by side
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    AiFeaturesHighlight(modifier = Modifier.weight(1f))
+                    BooxNotesHighlight(modifier = Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // More features, and where Help is
+                AlsoInBooxDayCard()
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Disclaimer
+                Text(
+                    text = "An independent app for Boox devices",
+                    fontSize = EInkTheme.Typography.labelSmall,
+                    color = EInkTheme.Colors.gray,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Made for Boox lovers, by Boox lovers",
+                    fontSize = EInkTheme.Typography.labelSmall,
+                    color = EInkTheme.Colors.gray,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
+            ScrollMoreBar(scrollState)
+        }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Disclaimer
+        // Get Started Button
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 32.dp, vertical = 16.dp)
+                .fillMaxWidth()
+                .height(52.dp)
+                .background(
+                    EInkTheme.Colors.primary,
+                    RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
+                )
+                .noRippleClickable {
+                    KvProxy(context).setAppSettings(
+                        GlobalAppSettings.current.copy(showWelcome = false)
+                    )
+                    // Navigate to main and remove welcome from backstack
+                    // NOTE: Do NOT call refreshScreen() here - GC refresh captures the current
+                    // screen state (WelcomeView) and redraws it during the 1-2s refresh cycle,
+                    // causing a "flash" effect while MainScreen tries to render underneath.
+                    navController.navigate("main") {
+                        popUpTo("welcome") { inclusive = true }
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                text = "An independent app for Boox devices",
-                fontSize = EInkTheme.Typography.labelSmall,
-                color = EInkTheme.Colors.gray,
-                textAlign = TextAlign.Center
+                text = stringResource(R.string.welcome_view_continue),
+                fontSize = EInkTheme.Typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = EInkTheme.Colors.white
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "Made for Boox lovers, by Boox lovers",
-                fontSize = EInkTheme.Typography.labelSmall,
-                color = EInkTheme.Colors.gray,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -298,11 +308,11 @@ private fun FeatureChip(
 }
 
 /**
- * AI Chief of Staff highlight card - the flagship AI feature showcase.
+ * AI features highlight card (Oct 2026: was "AI Chief of Staff").
  * Compact version for side-by-side layout with Boox Notes card.
  */
 @Composable
-private fun AiChiefOfStaffHighlight(modifier: Modifier = Modifier) {
+private fun AiFeaturesHighlight(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .background(
@@ -338,7 +348,7 @@ private fun AiChiefOfStaffHighlight(modifier: Modifier = Modifier) {
             }
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = "AI Chief of Staff",
+                text = "AI features",
                 fontSize = EInkTheme.Typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = EInkTheme.Colors.primary
@@ -348,15 +358,15 @@ private fun AiChiefOfStaffHighlight(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(12.dp))
 
         // Feature bullets (condensed to 2)
-        HighlightBullet("Smart Suggestions based on your schedule and notes")
+        HighlightBullet("Smart Suggestions and Optimize My Day, from your calendar and notes")
         Spacer(modifier = Modifier.height(6.dp))
-        HighlightBullet("Daily & Weekly AI summaries to keep you on track")
+        HighlightBullet("Run on your own OpenRouter account, added in AI Settings")
     }
 }
 
 /**
- * Boox Notes Integration highlight card - shows Smart Link and semantic search.
- * Matches AI Chief of Staff card styling for side-by-side layout.
+ * Boox Notes Integration highlight card - shows Smart Link and search.
+ * Matches the AI features card styling for side-by-side layout.
  */
 @Composable
 private fun BooxNotesHighlight(modifier: Modifier = Modifier) {
@@ -405,9 +415,9 @@ private fun BooxNotesHighlight(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(12.dp))
 
         // Feature bullets
-        HighlightBullet("Smart Link auto-connects your notes to calendar events")
+        HighlightBullet("Smart Link connects your notes to calendar events")
         Spacer(modifier = Modifier.height(6.dp))
-        HighlightBullet("Semantic search finds notes by meaning, not just keywords")
+        HighlightBullet("Search finds the words in your handwritten notes")
     }
 }
 
@@ -434,11 +444,12 @@ private fun HighlightBullet(text: String) {
 }
 
 /**
- * Permissions card - friendly overview of permissions needed for full features.
+ * More features, and where Help is (Oct 2026: this card listed permissions the app would ask for,
+ * but nothing asks at this point).
  * E-ink optimized with clean icons and high contrast.
  */
 @Composable
-private fun PermissionsCard() {
+private fun AlsoInBooxDayCard() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -465,7 +476,7 @@ private fun PermissionsCard() {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Quick Setup for Full Features",
+                text = "Also in BooxDay",
                 fontSize = EInkTheme.Typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = EInkTheme.Colors.primary
@@ -474,40 +485,36 @@ private fun PermissionsCard() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Intro text
-        Text(
-            text = "To unlock AI features and Boox Notes integration, you'll be asked to grant a few permissions:",
-            fontSize = EInkTheme.Typography.labelMedium,
-            color = EInkTheme.Colors.darkGray,
-            lineHeight = EInkTheme.Typography.labelMedium * 1.3f
+        // Feature items
+        FeatureItem(
+            icon = Icons.Outlined.Draw,
+            label = "Full screen",
+            description = "more room to write"
         )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Permission items
-        PermissionItem(
+        Spacer(modifier = Modifier.height(6.dp))
+        FeatureItem(
+            icon = Icons.Outlined.CalendarMonth,
+            label = "Sleep screen",
+            description = "your day while the tablet sleeps"
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        FeatureItem(
             icon = Icons.Outlined.Folder,
-            label = "Folder access",
-            description = "for Boox Notes integration"
+            label = "Daily notes",
+            description = "each day as a Markdown file"
         )
         Spacer(modifier = Modifier.height(6.dp))
-        PermissionItem(
-            icon = Icons.Outlined.Mic,
-            label = "Microphone",
-            description = "for voice input"
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        PermissionItem(
+        FeatureItem(
             icon = Icons.Outlined.Sync,
-            label = "Background running",
-            description = "keeps calendar in sync"
+            label = "Updates",
+            description = "install from inside the app"
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
         // Footer
         Text(
-            text = "That's it \u2014 just a few taps!",
+            text = "Settings \u2192 Help explains every feature.",
             fontSize = EInkTheme.Typography.labelSmall,
             color = EInkTheme.Colors.gray,
             modifier = Modifier.fillMaxWidth(),
@@ -517,7 +524,7 @@ private fun PermissionsCard() {
 }
 
 @Composable
-private fun PermissionItem(
+private fun FeatureItem(
     icon: ImageVector,
     label: String,
     description: String
