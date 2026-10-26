@@ -113,7 +113,7 @@ class LocalEventRepository(context: Context) {
      */
     suspend fun preWarmCacheForMonth(yearMonth: String): Set<String> {
         val start = System.currentTimeMillis()
-        val datesWithEvents = dao.getDaysWithEventsForMonth(yearMonth)
+        val datesWithEvents = getDatesWithEventsForMonth(yearMonth)
         var cachedCount = 0
         datesWithEvents.forEach { date ->
             if (!eventsCache.containsKey(date)) {
@@ -242,10 +242,12 @@ class LocalEventRepository(context: Context) {
     fun observeEventsForDay(dayId: String): Flow<List<LocalEvent>> = dao.observeEventsForDay(dayId)
 
     /**
-     * Get dates with events for a month (for calendar badges).
+     * Days of a month with events (for calendar badges): every day an event covers, not only its first.
      */
-    suspend fun getDatesWithEventsForMonth(yearMonth: String): Set<String> =
-        dao.getDaysWithEventsForMonth(yearMonth).toSet()
+    suspend fun getDatesWithEventsForMonth(yearMonth: String): Set<String> {
+        val (firstDay, lastDay) = monthDayRange(yearMonth)
+        return daysCoveredInMonth(dao.getDaySpans(firstDay, lastDay), yearMonth)
+    }
 
     /**
      * Get all dates with events (for calendar badges).

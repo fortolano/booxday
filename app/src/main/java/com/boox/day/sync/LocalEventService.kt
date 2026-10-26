@@ -7,6 +7,7 @@ import com.boox.day.data.db.LocalEvent
 import com.boox.day.data.db.LocalEventRepository
 import com.boox.day.data.db.SyncStatus
 import com.boox.day.data.model.ProviderId
+import com.boox.day.data.model.timedEventLastDay
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -103,7 +104,8 @@ class LocalEventService(
         val endDayId = if (endTime != null) {
             val endDate = java.time.Instant.ofEpochMilli(endTime).atZone(ZoneId.systemDefault()).toLocalDate()
             val startDate = LocalDate.parse(dayId)
-            val inclusiveEnd = if (isAllDay) endDate.minusDays(1) else endDate
+            // Timed: the same rule as sync, so an event ending at midnight stays on one day (Oct 2026)
+            val inclusiveEnd = if (isAllDay) endDate.minusDays(1) else timedEventLastDay(startTime, endTime)
             val finalEnd = if (inclusiveEnd.isBefore(startDate)) startDate else inclusiveEnd
             finalEnd.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
         } else {

@@ -80,6 +80,29 @@ class EventConvertersTest {
     }
 
     @Test
+    fun `a timed event ending at midnight stays on its day in both sync paths`() {
+        withDefaultTimeZone("America/Los_Angeles") {
+            val startMillis = startOfDayMillis("2026-11-07") + 22 * 3_600_000L // 22:00
+            val endMillis = startOfDayMillis("2026-11-08")                        // 00:00 the next day
+            val googleEvent = Event().apply {
+                id = "late-event"
+                summary = "Late call"
+                start = EventDateTime().setDateTime(DateTime(startMillis))
+                end = EventDateTime().setDateTime(DateTime(endMillis))
+            }
+
+            // CalendarSyncManager (Google) and MultiAccountSyncManager (every provider) both write endDayId
+            val google = googleEvent.toLocalEvent(testCalendarInfo)!!
+            val provider = com.boox.day.data.model.ProviderEvent(id = "late-event", calendarId = "cal",
+                title = "Late call", startTime = startMillis, endTime = endMillis)
+
+            assertEquals("2026-11-07", google.dayId)
+            assertEquals("2026-11-07", google.endDayId)
+            assertEquals(google.endDayId, provider.endDayId)
+        }
+    }
+
+    @Test
     fun `toLocalEvent converts all-day event correctly`() {
         withDefaultTimeZone("America/Los_Angeles") {
             val googleEvent = Event().apply {

@@ -2,6 +2,7 @@ package com.boox.day.sync
 
 import com.boox.day.data.db.LocalEvent
 import com.boox.day.data.db.SyncStatus
+import com.boox.day.data.model.timedEventLastDay
 import com.google.api.services.calendar.model.Event
 import com.google.api.services.calendar.model.EventAttendee
 import com.google.api.services.calendar.model.EventDateTime
@@ -69,9 +70,7 @@ internal fun Event.extractGoogleEventTiming(): GoogleEventTiming? {
         val startDate = Instant.ofEpochMilli(startMillis).atZone(systemZoneId()).toLocalDate()
         val endMillis = endDateTime?.value ?: endDateOnly?.value
         val endDayId = if (endMillis != null) {
-            val endDate = Instant.ofEpochMilli(endMillis).atZone(systemZoneId()).toLocalDate()
-            val finalEnd = if (endDate.isBefore(startDate)) startDate else endDate
-            finalEnd.format(DateTimeFormatter.ISO_LOCAL_DATE)
+            timedEventLastDay(startMillis, endMillis, systemZoneId()).format(DateTimeFormatter.ISO_LOCAL_DATE)
         } else {
             startDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
         }

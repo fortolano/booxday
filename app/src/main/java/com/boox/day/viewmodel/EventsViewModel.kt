@@ -328,6 +328,18 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
+     * Dates with events in a month and the months before and after it: the grid shows days of both
+     * (Oct 2026). The month load (CacheWarmupCoordinator) covers all three, so the refresh after a
+     * sync must too, or the neighbouring days lose their dots.
+     */
+    suspend fun getDatesWithEventsAroundMonth(yearMonth: String): Set<String> {
+        val month = java.time.YearMonth.parse(yearMonth)
+        return listOf(month.minusMonths(1), month, month.plusMonths(1))
+            .flatMap { getDatesWithEventsForMonth(it.toString()) }
+            .toSet()
+    }
+
+    /**
      * Set the currently selected event
      */
     fun selectEvent(event: CalendarEvent?) {

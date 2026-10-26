@@ -1910,7 +1910,7 @@ fun MainScreen(
         val hasAccounts = isSignedIn || hasAnyExternalAccount
         if (anySyncComplete && hasAccounts) {
             val eventDates = withContext(Dispatchers.IO) {
-                eventsViewModel.getDatesWithEventsForMonth(currentYearMonth)
+                eventsViewModel.getDatesWithEventsAroundMonth(currentYearMonth)
             }
             datesWithEvents = eventDates
         }

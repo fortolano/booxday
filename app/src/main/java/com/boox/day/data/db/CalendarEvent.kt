@@ -212,16 +212,17 @@ interface CalendarEventDao {
     suspend fun getDatesWithEventsFiltered(): List<String>
 
     /**
-     * Get distinct dates with events for a month, filtered to enabled calendars.
-     * Uses same INNER JOIN as getByDayIdFiltered for badge/grid consistency.
+     * First and last day of every event overlapping [firstDay]..[lastDay], filtered to enabled
+     * calendars. Same join and day condition as getByDayIdFiltered, for badge/grid consistency
+     * (EventBadgeDays.kt expands them into days).
      */
     @Query("""
-        SELECT DISTINCT ce.dayId FROM calendar_events ce
+        SELECT DISTINCT ce.dayId, ce.endDayId FROM calendar_events ce
         INNER JOIN calendar_selections cs
             ON ce.accountId = cs.accountId AND ce.calendarId = cs.calendarId
-        WHERE ce.dayId LIKE :yearMonth || '%' AND cs.isFetchEnabled = 1
+        WHERE ce.dayId <= :lastDay AND ce.endDayId >= :firstDay AND cs.isFetchEnabled = 1
     """)
-    suspend fun getDatesWithEventsForMonthFiltered(yearMonth: String): List<String>
+    suspend fun getDaySpansFiltered(firstDay: String, lastDay: String): List<EventDaySpan>
 
     /**
      * Delete cloud events with empty accountId (legacy sync artifacts).
@@ -464,7 +465,7 @@ class CalendarEventRepository(context: Context) {
      */
     suspend fun preWarmCacheForMonth(yearMonth: String): Set<String> {
         val start = System.currentTimeMillis()
-        val datesWithEvents = dao.getDatesWithEventsForMonthFiltered(yearMonth)
+        val datesWithEvents = getDatesWithEventsForMonth(yearMonth)
         var cachedCount = 0
         datesWithEvents.forEach { date ->
             if (!eventsCache.containsKey(date)) {
@@ -612,11 +613,13 @@ class CalendarEventRepository(context: Context) {
     suspend fun getDatesWithEvents(): Set<String> = dao.getDatesWithEventsFiltered().toSet()
 
     /**
-     * Get dates with events for a specific month (for calendar badges).
+     * Days of a month with events (for calendar badges): every day an event covers, not only its first.
      * Uses filtered query (INNER JOIN calendar_selections) for badge/grid consistency.
      */
-    suspend fun getDatesWithEventsForMonth(yearMonth: String): Set<String> =
-        dao.getDatesWithEventsForMonthFiltered(yearMonth).toSet()
+    suspend fun getDatesWithEventsForMonth(yearMonth: String): Set<String> {
+        val (firstDay, lastDay) = monthDayRange(yearMonth)
+        return daysCoveredInMonth(dao.getDaySpansFiltered(firstDay, lastDay), yearMonth)
+    }
 
     /**
      * Get distinct calendars from cache

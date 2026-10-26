@@ -285,10 +285,14 @@ interface LocalEventDao {
     suspend fun getDaysWithEvents(startDayId: String, endDayId: String): List<String>
 
     /**
-     * Get distinct dates that have events for a specific month
+     * First and last day of every event overlapping [firstDay]..[lastDay], with the day list's
+     * condition (EventBadgeDays.kt expands them into days for the calendar dots)
      */
-    @Query("SELECT DISTINCT dayId FROM local_events WHERE dayId LIKE :yearMonth || '%' AND syncStatus != 'PENDING_DELETE'")
-    suspend fun getDaysWithEventsForMonth(yearMonth: String): List<String>
+    @Query("""
+        SELECT DISTINCT dayId, endDayId FROM local_events
+        WHERE dayId <= :lastDay AND endDayId >= :firstDay AND syncStatus != 'PENDING_DELETE'
+    """)
+    suspend fun getDaySpans(firstDay: String, lastDay: String): List<EventDaySpan>
 
     // ========== Reactive queries (Flow) ==========
 

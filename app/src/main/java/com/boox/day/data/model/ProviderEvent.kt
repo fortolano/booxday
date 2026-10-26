@@ -57,14 +57,16 @@ data class ProviderEvent(
     /**
      * Get the end day ID (yyyy-MM-dd format, inclusive) for multi-day event support.
      * For all-day events, provider end dates are EXCLUSIVE (e.g., Mon-Fri ends Saturday),
-     * so we subtract 1 day. For timed events, use the end time's date directly.
+     * so we subtract 1 day. Timed events end on the day their end falls on, or the day before
+     * when they end at exactly midnight ([timedEventLastDay]).
      * Falls back to dayId if no end time.
      */
     val endDayId: String
         get() {
             if (endTime == null) return dayId
+            if (!isAllDay) return timedEventLastDay(startTime, endTime).format(DATE_FORMATTER)
             val endDate = java.time.Instant.ofEpochMilli(endTime).atZone(ZoneId.systemDefault()).toLocalDate()
-            val inclusiveEnd = if (isAllDay) endDate.minusDays(1) else endDate
+            val inclusiveEnd = endDate.minusDays(1)
             val finalEnd = if (inclusiveEnd.isBefore(startDate)) startDate else inclusiveEnd
             return finalEnd.format(DATE_FORMATTER)
         }

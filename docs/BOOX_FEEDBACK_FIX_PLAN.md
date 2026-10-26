@@ -113,6 +113,13 @@ The steps don't depend on each other. Do them in this order (most user-visible f
   - **Existing rows:** every sync writes all fetched events (`eventRepository.cacheEvents`), so rows inside the sync window get the new `endDayId` at the next sync, and no migration is needed. `smartLinkFieldsChanged` compares `endDayId`, so those days are re-linked once (in the background).
   - **Runtime cost:** nothing on the pen path. One range query per month on IO (at month change and after sync), at most 31 days per event.
   - **Tests:** `SmartLinkDateRangesTest` and `EventConvertersTest` exist; add the DAO test (Robolectric) as written, plus a test that both Google paths give the same `endDayId`.
+  - **Done (26 Oct):**
+    - The month queries are now `CalendarEventDao.getDaySpansFiltered` and `LocalEventDao.getDaySpans` (`dayId <= :lastDay AND endDayId >= :firstDay`). `data/db/EventBadgeDays.kt` expands them, cut to the month. Both repositories' `getDatesWithEventsForMonth` and `preWarmCacheForMonth` use them, so the warmup also caches the covered days.
+    - MainScreen's after-sync refresh calls the new `EventsViewModel.getDatesWithEventsAroundMonth` (three months), inside its `LaunchedEffect`.
+    - Midnight end: `data/model/EventDays.kt` `timedEventLastDay`, called by `EventConverters`, `ProviderEvent.endDayId` and `LocalEventService.createEvent`.
+    - The unused all-dates queries are left alone.
+    - Tests: `EventDaysTest` (4), `EventBadgeDaysTest` (3: week, from last month, into next month, hidden calendar, blank end day, long event, local and deleted local events; dots compared with the day list for all 30 days), and a new `EventConvertersTest` case (both sync paths agree on the midnight end). All pass, with `SmartLinkDateRangesTest`.
+    - Not checked on a tablet.
 
 ### 1.2 Google sign-in errors in plain words
 - **Cause:**
