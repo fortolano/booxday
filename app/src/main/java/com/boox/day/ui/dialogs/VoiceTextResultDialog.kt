@@ -4,6 +4,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.boox.day.ui.components.keyboardHeight
 import com.boox.day.ui.noRippleClickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
@@ -53,8 +56,14 @@ fun VoiceTextResultDialog(
         onDismissRequest = onDismiss,
         properties = PopupProperties(focusable = true)
     ) {
+        // This Popup is centered on the canvas area, low on the screen, and gets no keyboard room
+        // of its own: while the keyboard is open, center it in the space above the keyboard so
+        // the actions stay visible (scrolls if a small screen can't fit it)
+        val keyboard = keyboardHeight()
         Box(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (keyboard > 0.dp) Modifier.fillMaxHeight().padding(bottom = keyboard) else Modifier),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -62,6 +71,7 @@ fun VoiceTextResultDialog(
                     .fillMaxWidth(EInkTheme.ModernDialog.widthFraction)
                     .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                     .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+                    .verticalScroll(rememberScrollState())
                     .padding(EInkTheme.ModernDialog.padding)
             ) {
                 // Header

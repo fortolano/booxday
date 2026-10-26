@@ -68,6 +68,7 @@ import com.boox.day.data.db.KvProxy
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.components.ScrollMoreIndicator
 import com.boox.day.ui.components.description
+import com.boox.day.ui.components.keyboardHeight
 import com.boox.day.ui.components.label
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
@@ -138,11 +139,14 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         properties = PopupProperties(focusable = true)
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // The Popup gets no keyboard room of its own: leave the keyboard's height free at the
+        // bottom and use the rest, so the search field and the buttons stay above the keyboard
+        val keyboard = keyboardHeight()
+        Box(modifier = Modifier.fillMaxSize().padding(bottom = keyboard), contentAlignment = Alignment.Center) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth(EInkTheme.PanelDialog.widthFraction)
-                    .fillMaxHeight(EInkTheme.PanelDialog.heightFraction)
+                    .fillMaxHeight(if (keyboard > 0.dp) 0.96f else EInkTheme.PanelDialog.heightFraction)
                     .background(EInkTheme.PopupOverlay.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                     .border(EInkTheme.PopupOverlay.borderWidth, EInkTheme.PopupOverlay.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                     .padding(EInkTheme.PopupOverlay.padding),

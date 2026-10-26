@@ -17,8 +17,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
 import androidx.compose.material.Icon
@@ -70,6 +72,7 @@ import com.boox.day.ui.components.CloudBackupCard
 import com.boox.day.ui.components.EInkToggle
 import com.boox.day.ui.components.ExistingBackupDetectedCard
 import com.boox.day.ui.components.LocalBackupCard
+import com.boox.day.ui.components.keyboardHeight
 import com.boox.day.ui.components.LocalRestoreConfirmationPopup
 import com.boox.day.ui.components.RestoreCard
 import com.boox.day.ui.components.ScrollableWithIndicator
@@ -1039,8 +1042,10 @@ private fun WipeAllDataConfirmationDialog(
         onDismissRequest = onDismiss,
         properties = PopupProperties(focusable = true)
     ) {
+        // The Popup gets no keyboard room of its own: center in the space above the keyboard
+        // so the typed word and the buttons stay visible (scrolls if a small screen can't fit it)
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(bottom = keyboardHeight()),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -1048,6 +1053,7 @@ private fun WipeAllDataConfirmationDialog(
                     .fillMaxWidth(0.8f)
                     .background(EInkTheme.Colors.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                     .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+                    .verticalScroll(rememberScrollState())
                     .padding(EInkTheme.Global.padding),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
