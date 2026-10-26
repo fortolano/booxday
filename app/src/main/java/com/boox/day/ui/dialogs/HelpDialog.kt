@@ -935,11 +935,11 @@ private fun VoiceInputContent() {
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
 
-    BulletItem("Google Speech Recognition", "Free. Used whenever the Google Search app is installed.")
+    BulletItem("Google Speech Recognition", "Free, with no key or credit. Used whenever the tablet has Google's speech recognition: from the Google Search app, or Google's speech services that some BOOX tablets come with.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    BulletItem("AI on OpenRouter", "Used when the Google Search app is not installed. Runs on your own OpenRouter account, with the voice model from AI Settings → AI Models.")
+    BulletItem("AI on OpenRouter", "Only for tablets without Google's speech recognition. Runs on your own OpenRouter account, with the Voice model from AI Settings → AI Models; Settings → Voice-to-Text shows which one.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
@@ -981,7 +981,7 @@ private fun VoiceInputContent() {
     // ─────────────────────────────────────────────────────────────────────────
     SectionSubheader("Privacy & Data")
     BodyText("Your voice is turned into text by one of two services:")
-    BulletPoint("Google Speech: the speech service in the Google Search app. Google may process the audio on its servers.")
+    BulletPoint("Google Speech: Google's speech service on the tablet. Google may process the audio on its servers.")
     BulletPoint("AI on OpenRouter: the audio clip goes to OpenRouter, on your own account, and to the company that runs the model.")
     BodyText("BooxDay keeps no recordings: the audio is held in memory only until it is turned into text.")
 }

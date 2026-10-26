@@ -671,6 +671,21 @@ Help is a 12-topic split popup of about 4,500–5,000 words (`HelpDialog.kt`). I
   - Check the ≡ menu width on the Go 6: `ToolbarMenu.kt:82` notes the old label already wrapped at 230 dp.
 - **Opening BooxDay by `am start` fails while BOOX has it frozen.** After a force-stop, BOOX's app freeze disabled it (`enabled=3`), and `am start` said "No activity found". Opening it from the BOOX launcher icon unfreezes it. This is a note for testing, not an app fault.
 
+### 4.11 Voice to Text: free Google speech, and the real AI model (owner, 26 Oct; Done)
+
+The owner asked to check Settings → Voice-to-Text: it showed a fixed "Gemini 2.5 AI", and free Google speech should keep working.
+- **How voice works (checked in the code):** `TranscriptionService` uses Android's `SpeechRecognizer` (the tablet's default speech service, free, no key) when `isSpeechRecognitionAvailable()` (the Google Search app is installed, or Android reports a speech service); otherwise AI on OpenRouter with the VOICE job's models (`ModelConfigProvider.getAudioFallbackChain`: the user's pick, then BooxDay's choice, Gemini 3.1 Flash Lite or a free model without credit). "Gemini 2.5" was never used.
+- **Checked on the Go 10.3 (read-only, 26 Oct):** no Google Search app. Its speech service is Google's speech app `com.google.android.tts` (`voice_recognition_service`), which the firmware ships and makes visible to every app (`dumpsys package queries`: forceQueryable; "system apps queryable: false"). That is why free voice works there.
+- **Found:**
+  1. The manifest declared neither the speech service nor the Google Search app in `<queries>`. Since Android 11 an app sees a speech service only when it declares `android.speech.RecognitionService` there (AOSP `SpeechRecognizer.createSpeechRecognizer` docs). So on a BOOX where Google speech comes from a Google Search app the user installed, BooxDay can't see it: Voice settings say "Requires Google Search app" and voice falls back to paid AI or asks to configure. Inferred from Android's rules and the Go 10.3 table; not tested on such a tablet.
+  2. A saved AI choice kept using AI (and credit) after Google speech became available, while Voice settings said Google is used and offered AI only without it.
+  3. Texts: "Gemini 2.5 AI", "2x daily limits", "Free | On-device", "Ready (Google Search installed)" on a tablet without it.
+- **Fix (Done):**
+  - Manifest `<queries>`: the `RecognitionService` intent and `com.google.android.googlequicksearchbox`. No runtime cost.
+  - `voiceSource()` (`TranscriptionService.kt`): Google speech whenever the tablet has it; AI only when chosen and there is none. Test: `VoiceSourceTest`.
+  - Voice settings: the AI option is "AI on OpenRouter" and shows the model in use from AI Models ("Model: Gemini 3.1 Flash Lite, BooxDay's choice. Change it in AI Settings → AI Models."); Google Speech says "Ready on this tablet", free, and that Google may process the audio on its servers. Help's voice section says the same.
+- **Tablet check:** open Settings → Voice-to-Text on the Go 10.3 (Google Speech ready, the AI option shows the model) and record a voice task. On a tablet with the Google Search app installed by the user, voice should now use Google speech.
+
 ### Part 4 order and tests
 1. 4.1 (checked 26 Oct; fix (a), (b), (b2)), the 4.10 search snippet, and 4.2: data, search and privacy first.
 2. 4.3, then 4.4: Boox Notes first, then the shared bar, which needs the owner's OK on its look.

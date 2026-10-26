@@ -322,7 +322,7 @@ enum class VoiceTextMode {
     /** Force SpeechRecognizer only. Fails if Google Search app not installed. */
     SPEECH_RECOGNIZER,
 
-    /** Force Gemini AI transcription. Subject to daily limits (3 free, 20 Pro). */
+    /** AI transcription on the user's OpenRouter key, only while the tablet has no speech recognition (voiceSource). */
     GEMINI
 }
 

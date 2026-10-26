@@ -29,7 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
  *         ▼
  *         │
  *         ├──► VoiceInputService (SpeechRecognizer - free, unlimited)
- *         │    └── Uses Google's SpeechRecognizer (requires Google Search app)
+ *         │    └── The tablet's SpeechRecognizer (Google Search app or Google's speech services)
  *         │
  *         └──► AudioRecorder + Gemini AI (on the user's OpenRouter key)
  *              └── Records audio locally, sends to Gemini for transcription
@@ -57,8 +57,8 @@ import kotlinx.coroutines.flow.asStateFlow
  * - Dialog shows: Install Google Search OR Use Gemini
  *
  * **Flow C: Gemini-Only User**
- * - Valid choice for users who prefer AI transcription
- * - No daily limit: it runs on the user's own OpenRouter key (Oct 2026)
+ * - Only on tablets without speech recognition: Google's is used whenever it is there ([voiceSource])
+ * - No daily limit: it runs on the user's own OpenRouter key and the VOICE job's model (Oct 2026)
  *
  * @param context Android context
  * @param audioRecorder AudioRecorder instance (used only in Gemini mode)
@@ -190,30 +190,19 @@ class TranscriptionService(
         Log.i(TAG, "startTranscribing: mode=${settings.voiceTextMode}, speechRecognitionAvailable=$speechRecognitionAvailable")
 
         // ─────────────────────────────────────────────────────────────────────
-        // STEP 1: Validate configuration based on scenario matrix
+        // STEP 1 + 2: Choose the service (voiceSource) and check what it needs
         // ─────────────────────────────────────────────────────────────────────
 
-        when (settings.voiceTextMode) {
-            VoiceTextMode.AUTO -> {
-                if (!speechRecognitionAvailable) {
-                    // No speech recognition available + AUTO = must configure
-                    Log.w(TAG, "AUTO mode without speech recognition - needs configuration")
-                    return StartResult.NeedsConfiguration
-                }
-                // Speech recognition available + AUTO = proceed with SpeechRecognizer
-                Log.d(TAG, "AUTO mode with speech recognition available - will use SpeechRecognizer")
+        when (voiceSource(settings.voiceTextMode, speechRecognitionAvailable)) {
+            null -> {
+                Log.w(TAG, "${settings.voiceTextMode} mode without speech recognition - needs configuration")
+                return StartResult.NeedsConfiguration
             }
 
-            VoiceTextMode.SPEECH_RECOGNIZER -> {
-                if (!speechRecognitionAvailable) {
-                    // User chose SpeechRecognizer but it's unavailable
-                    Log.w(TAG, "SPEECH_RECOGNIZER mode without speech recognition - needs configuration")
-                    return StartResult.NeedsConfiguration
-                }
-                Log.d(TAG, "SPEECH_RECOGNIZER mode - speech recognition available")
-            }
+            TranscriptionSource.SPEECH_RECOGNIZER ->
+                Log.d(TAG, "${settings.voiceTextMode} mode, speech recognition available - will use SpeechRecognizer")
 
-            VoiceTextMode.GEMINI -> {
+            TranscriptionSource.GEMINI -> {
                 // AI transcription runs on the user's own OpenRouter key (Oct 2026)
                 if (!com.boox.day.security.UserOpenRouterKey.hasKey) {
                     Log.w(TAG, "GEMINI mode without an OpenRouter key")
@@ -224,15 +213,7 @@ class TranscriptionService(
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // STEP 2: Determine which service to use
-        // ─────────────────────────────────────────────────────────────────────
-
-        val useSpeechRecognizer = when (settings.voiceTextMode) {
-            VoiceTextMode.AUTO -> speechRecognitionAvailable
-            VoiceTextMode.SPEECH_RECOGNIZER -> true
-            VoiceTextMode.GEMINI -> false
-        }
+        val useSpeechRecognizer = speechRecognitionAvailable
 
         // ─────────────────────────────────────────────────────────────────────
         // STEP 3: Start the appropriate service (MUTUALLY EXCLUSIVE!)
@@ -494,8 +475,21 @@ sealed class TranscriptionResult {
 /**
  * Source of the transcription.
  */
+/**
+ * Which service voice uses (Oct 2026). Google's speech recognition whenever the tablet has it
+ * (the Google Search app, or Google's speech services that some BOOX tablets ship with): it is free,
+ * and Voice settings offer AI only without it. So an AI choice saved while no speech recognition was
+ * found stops costing OpenRouter credit once it is found. AI only when the user chose it; null =
+ * the user has to choose first (Voice settings).
+ */
+internal fun voiceSource(mode: VoiceTextMode, speechRecognitionAvailable: Boolean): TranscriptionSource? = when {
+    speechRecognitionAvailable -> TranscriptionSource.SPEECH_RECOGNIZER
+    mode == VoiceTextMode.GEMINI -> TranscriptionSource.GEMINI
+    else -> null
+}
+
 enum class TranscriptionSource {
-    /** Android SpeechRecognizer (via Google Search app) - free, unlimited */
+    /** Android SpeechRecognizer (the tablet's speech service, from Google) - free */
     SPEECH_RECOGNIZER,
 
     /** Gemini AI transcription on the user's own OpenRouter key */

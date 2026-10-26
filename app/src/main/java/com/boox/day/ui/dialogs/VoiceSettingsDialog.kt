@@ -36,6 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import com.boox.day.api.AiJob
+import com.boox.day.api.ModelConfigProvider
 import com.boox.day.data.datastore.VoiceTextMode
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
@@ -48,8 +50,10 @@ import com.boox.day.ui.theme.EInkTheme
  * - Via Settings menu for manual configuration
  *
  * Options:
- * 1. Google Speech Recognition (SpeechRecognizer) - Free, requires Google Search app
- * 2. Gemini 2.5 AI - On the user's own OpenRouter key, no daily limit
+ * 1. Google Speech Recognition (SpeechRecognizer) - free; the Google Search app, or Google's speech
+ *    services that some BOOX tablets ship with. [hasGoogleSearchApp] = the tablet has either.
+ * 2. AI on OpenRouter - the VOICE job's model (AI Models), on the user's own key; only without 1
+ *    (TranscriptionService.voiceSource)
  */
 @Composable
 fun VoiceSettingsDialog(
@@ -120,7 +124,7 @@ fun VoiceSettingsDialog(
                 // Recommendation tip
                 Text(
                     text = if (hasGoogleSearchApp)
-                        "Google Speech is ready. It is free and is used first."
+                        "This tablet has Google's speech recognition. It is free and is always used first."
                     else
                         "Tip: install the Google Search app for free speech to text.",
                     fontSize = EInkTheme.Typography.bodySmall,
@@ -133,8 +137,8 @@ fun VoiceSettingsDialog(
                     title = "Google Speech Recognition",
                     isSelected = selectedMode == VoiceTextMode.AUTO || selectedMode == VoiceTextMode.SPEECH_RECOGNIZER,
                     isAvailable = hasGoogleSearchApp,
-                    statusText = if (hasGoogleSearchApp) "Ready (Google Search installed)" else "Requires Google Search app",
-                    descriptionText = "Free | Google may process the audio on its servers",
+                    statusText = if (hasGoogleSearchApp) "Ready on this tablet" else "Needs the Google Search app",
+                    descriptionText = "Free: no key or OpenRouter credit needed. Google may process the audio on its servers.",
                     showInstallButton = !hasGoogleSearchApp,
                     onSelect = {
                         if (hasGoogleSearchApp) {
@@ -147,17 +151,17 @@ fun VoiceSettingsDialog(
                     }
                 )
 
-                // Option 2: Gemini AI
+                // Option 2: AI on OpenRouter, with the model the voice job uses now (Oct 2026: the
+                // title said "Gemini 2.5 AI" whatever the AI Models card had)
+                val voiceModel = ModelConfigProvider.modelInUse(AiJob.VOICE)
                 val geminiStatusText = if (hasGoogleSearchApp) {
-                    "The Google Search app is installed, so BooxDay uses Google Speech, which is free."
+                    "Not used while Google Speech is ready, which is free"
                 } else {
                     "Runs on your own OpenRouter account"
                 }
-                val geminiDescriptionText = if (hasGoogleSearchApp) {
-                    "Available when the Google Search app is not installed."
-                } else {
-                    "Uses the voice model from AI Models | Billed to your OpenRouter account"
-                }
+                val geminiDescriptionText = "Model: ${voiceModel.name}, " +
+                    (if (voiceModel.isUserChoice) "your choice" else "BooxDay's choice") +
+                    ". Change it in AI Settings → AI Models."
                 VoiceOptionCard(
                     title = "AI on OpenRouter",
                     isSelected = selectedMode == VoiceTextMode.GEMINI,

@@ -57,7 +57,7 @@ import com.boox.day.ui.theme.EInkTheme
  * Sections:
  * - General: Preferences
  * - Calendar: Calendar & Sync, Calendar Accounts
- * - AI & Voice: AI Assistant, Voice-to-Text
+ * - AI & Voice: AI Settings, Voice-to-Text
  * - Data: Data & Backup, Boox Notes
  * - Info: Task streak (narrow screens), Help, About
  *

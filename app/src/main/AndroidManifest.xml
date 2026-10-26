@@ -44,6 +44,14 @@
              without these the check fails and sign-in returns 12500 at once (Oct 2026) -->
         <package android:name="com.android.vending" />
         <package android:name="com.google.android.gms" />
+        <!-- Free voice to text (Oct 2026): since Android 11 an app only sees the tablet's speech
+             service when it declares it here (SpeechRecognizer.createSpeechRecognizer docs). The
+             Go 10.3 worked without it only because its Google speech app comes with the firmware,
+             which makes it visible to every app; a Google Search app the user installed is not. -->
+        <package android:name="com.google.android.googlequicksearchbox" />
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
     </queries>
 
     <application
