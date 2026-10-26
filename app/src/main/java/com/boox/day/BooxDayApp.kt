@@ -77,6 +77,7 @@ class BooxDayApp : Application() {
         runSafeStartupStep("Notification scheduling") { initNotificationScheduling() }
         runSafeStartupStep("OCR config") { reconcileOcrConfig() }
         runSafeStartupStep("Calendar migration startup") { runCalendarMigration() }
+        runSafeStartupStep("Removed calendar accounts cleanup") { deleteRemovedCalendarAccounts() }
         runSafeStartupStep("Digital Ink startup") { initDigitalInk() }
         runSafeStartupStep("Semantic indexing startup") { initSemanticIndexing() }
         runSafeStartupStep("Pending calendar push") { requestPendingCalendarPush() }
@@ -105,6 +106,20 @@ class BooxDayApp : Application() {
         }
     }
 
+    /**
+     * Oct 2026: "Remove account" used to only mark a calendar account inactive, which kept its email,
+     * name and calendar choices on the tablet. It deletes them now; this clears rows left that way.
+     */
+    private fun deleteRemovedCalendarAccounts() {
+        applicationScope.launch(Dispatchers.IO) {
+            try {
+                AppDatabase.getDatabase(this@BooxDayApp).connectedAccountDao().deleteInactive()
+            } catch (e: Exception) {
+                Log.w("BooxDayApp", "Removed calendar accounts cleanup failed: ${e.message}")
+            }
+        }
+    }
+
     /** The user's own OpenRouter key (the only key AI features use), read from encrypted storage off the main thread. */
     private fun initUserOpenRouterKey() {
         com.boox.day.security.UserOpenRouterKey.init(this)
@@ -115,6 +130,8 @@ class BooxDayApp : Application() {
         com.boox.day.api.OpenRouterModelCatalog.init(this)
         // Oct 2026: whether a picked AI model failed last time (AI Models card)
         com.boox.day.api.AiPickStatus.init(this)
+        // Oct 2026: the once-only "AI and your calendar" notice (ui/CalendarAiNotice)
+        com.boox.day.ui.CalendarAiNotice.init(this)
         // Oct 2026: whether Wi-Fi is on, to say why an AI request failed
         com.boox.day.api.NetworkStatus.init(this)
     }

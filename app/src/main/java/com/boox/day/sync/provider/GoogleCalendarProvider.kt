@@ -22,6 +22,7 @@ import com.boox.day.sync.NewEventData
 import com.boox.day.sync.SyncResult
 import com.boox.day.sync.UpdateEventData
 import com.boox.day.sync.deletedCalendarIds
+import com.boox.day.sync.isGoogleTokenRefused
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.common.api.ApiException
@@ -70,6 +71,7 @@ class GoogleCalendarProvider(
 
     companion object {
         private const val TAG = "GoogleCalendarProvider"
+        private const val GOOGLE_SIGN_IN_NEEDED = "Google needs you to sign in again"
     }
 
     override val providerId: ProviderId = ProviderId.GOOGLE
@@ -355,7 +357,13 @@ class GoogleCalendarProvider(
                 }
 
                 is SyncResult.Error -> {
-                    Result.failure(CalendarProviderException.ProviderException(syncResult.message, cause = syncResult.exception))
+                    // A refused token must reach the account as an auth error, or Calendar
+                    // Accounts shows a generic error instead of Reconnect
+                    if (syncResult.exception?.isGoogleTokenRefused() == true) {
+                        Result.failure(CalendarProviderException.AuthenticationException(GOOGLE_SIGN_IN_NEEDED, syncResult.exception))
+                    } else {
+                        Result.failure(CalendarProviderException.ProviderException(syncResult.message, cause = syncResult.exception))
+                    }
                 }
 
                 is SyncResult.PartialSuccess -> {
@@ -728,10 +736,11 @@ class GoogleCalendarProvider(
      * Wrap exceptions in CalendarProviderException.
      */
     private fun wrapException(e: Exception): CalendarProviderException {
-        return when (e) {
-            is CalendarProviderException -> e
-            is java.net.UnknownHostException -> CalendarProviderException.NetworkException("No network connection", e)
-            is java.net.SocketTimeoutException -> CalendarProviderException.NetworkException("Connection timeout", e)
+        return when {
+            e is CalendarProviderException -> e
+            e.isGoogleTokenRefused() -> CalendarProviderException.AuthenticationException(GOOGLE_SIGN_IN_NEEDED, e)
+            e is java.net.UnknownHostException -> CalendarProviderException.NetworkException("No network connection", e)
+            e is java.net.SocketTimeoutException -> CalendarProviderException.NetworkException("Connection timeout", e)
             else -> CalendarProviderException.ProviderException(e.message ?: "Unknown error", cause = e)
         }
     }

@@ -63,7 +63,7 @@ class ConnectedAccountSelectionSurvivalTest {
     fun reconnectingARemovedAccountSavesTheNewRecord() = runBlocking {
         accounts.upsert(account("old-id", "me@example.com"))
         selections.upsertAll(listOf(selection("old-id", "work", enabled = true)))
-        accounts.deactivate("old-id") // "Remove account" only marks it inactive
+        accounts.deactivate("old-id") // How "Remove account" left it before Oct 2026
 
         // Sign-in finds no active account for the email and creates a new one (new random id)
         accounts.upsert(account("new-id", "me@example.com"))
@@ -83,6 +83,36 @@ class ConnectedAccountSelectionSurvivalTest {
         accounts.deleteByEmail("me@example.com")
 
         assertTrue(selections.getByAccountId("acc-1").isEmpty())
+    }
+
+    @Test
+    fun removingAnAccountDeletesItsRecordAndChoices() = runBlocking {
+        accounts.upsert(account("acc-1", "me@example.com", displayName = "Me"))
+        accounts.upsert(account("acc-2", "other@example.com"))
+        selections.upsertAll(listOf(selection("acc-1", "work", enabled = true), selection("acc-2", "home", enabled = true)))
+
+        // What MultiAccountSyncManager.removeAccount does since Oct 2026
+        accounts.deleteById("acc-1")
+
+        assertEquals("no email or name left on the tablet", null, accounts.getById("acc-1"))
+        assertTrue(selections.getByAccountId("acc-1").isEmpty())
+        assertEquals("other accounts are untouched", 1, selections.getByAccountId("acc-2").size)
+        assertEquals("other@example.com", accounts.getById("acc-2")?.email)
+    }
+
+    @Test
+    fun startupCleanupDeletesAccountsLeftInactive() = runBlocking {
+        accounts.upsert(account("removed", "old@example.com"))
+        accounts.upsert(account("kept", "me@example.com"))
+        selections.upsertAll(listOf(selection("removed", "work", enabled = true), selection("kept", "home", enabled = true)))
+        accounts.deactivate("removed") // Left by "Remove account" before Oct 2026
+
+        accounts.deleteInactive()
+
+        assertEquals(null, accounts.getById("removed"))
+        assertTrue(selections.getByAccountId("removed").isEmpty())
+        assertTrue(accounts.getById("kept")!!.isActive)
+        assertEquals(1, selections.getByAccountId("kept").size)
     }
 
     private fun account(id: String, email: String, displayName: String? = null) = ConnectedAccountEntity(

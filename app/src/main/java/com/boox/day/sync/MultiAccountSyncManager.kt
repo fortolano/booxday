@@ -264,8 +264,7 @@ class MultiAccountSyncManager(
      * This will:
      * 1. Sign out from the provider
      * 2. Delete cached events for this account
-     * 3. Delete calendar selections (via CASCADE)
-     * 4. Deactivate the account record
+     * 3. Delete the account record, and with it its calendar selections (CASCADE)
      */
     suspend fun removeAccount(accountId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -285,9 +284,9 @@ class MultiAccountSyncManager(
             // Delete cached events for this account
             eventRepository.removeEventsForAccount(accountId)
 
-            // Calendar selections are deleted via CASCADE when account is deactivated
-            // Deactivate account (provider.removeAccount already does this, but ensure it)
-            accountDao.deactivate(accountId)
+            // Delete the record (Oct 2026; it was only deactivated, which kept the email, name and
+            // calendar choices on the tablet). Calendar selections go with it via CASCADE.
+            accountDao.deleteById(accountId)
 
             Log.i(TAG, "Account removed successfully: ${account.email}")
             Result.success(Unit)

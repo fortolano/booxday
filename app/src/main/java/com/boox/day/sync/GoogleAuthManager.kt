@@ -20,7 +20,7 @@ import kotlin.coroutines.resume
 /**
  * Google Authentication Manager for BooxDay
  * Handles OAuth 2.0 authentication for:
- * - Calendar sync (CALENDAR scope for read-write)
+ * - Calendar sync ([CALENDAR_SCOPES]: read-write events, read the calendar list)
  * - Cloud backup (DRIVE_FILE scope for app-specific files)
  *
  * Architecture: Single sign-in with independent feature toggles.
@@ -31,6 +31,14 @@ class GoogleAuthManager(private val context: Context) {
     companion object {
         private const val TAG = "GoogleAuthManager"
         private const val PREFS_NAME = "boox_day_google_auth"
+
+        // Least access sync needs (Oct 2026, for Google's OAuth verification): read and write
+        // events on the user's calendars (events list/get/insert/update/delete) and read the
+        // calendar list (calendarList list/get). The full "calendar" scope also allows sharing and
+        // creating or deleting calendars, which BooxDay never did. Accounts that granted the old
+        // scope must allow these once (Calendar Accounts → Reconnect).
+        const val CALENDAR_LIST_READONLY = "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
+        val CALENDAR_SCOPES = listOf(CalendarScopes.CALENDAR_EVENTS, CALENDAR_LIST_READONLY)
 
         // Sync frequency options (shared for sync and backup)
         const val FREQUENCY_1_HOUR = "1 hour"
@@ -81,13 +89,14 @@ class GoogleAuthManager(private val context: Context) {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
             .requestScopes(
-                Scope(CalendarScopes.CALENDAR),  // FULL calendar access for sync
+                Scope(CalendarScopes.CALENDAR_EVENTS),
+                Scope(CALENDAR_LIST_READONLY),
                 Scope(DriveScopes.DRIVE_FILE)    // App-specific Drive files for backup
             )
             .build()
 
         googleSignInClient = GoogleSignIn.getClient(context, gso)
-        Log.i(TAG, "GoogleAuthManager initialized with CALENDAR + DRIVE_FILE scopes")
+        Log.i(TAG, "GoogleAuthManager initialized with calendar events + calendar list + DRIVE_FILE scopes")
     }
 
     private fun prefsOrNull(): SharedPreferences? = encryptedPrefs.getOrNull()
@@ -146,14 +155,14 @@ class GoogleAuthManager(private val context: Context) {
 
     /**
      * Get Google Account Credential for API calls
-     * Uses FULL CALENDAR scope for read-write operations
+     * Uses [CALENDAR_SCOPES] (events read-write, calendar list read)
      */
     fun getCredential(): GoogleAccountCredential? {
         val account = GoogleSignIn.getLastSignedInAccount(context) ?: return null
 
         return GoogleAccountCredential.usingOAuth2(
             context,
-            listOf(CalendarScopes.CALENDAR)  // FULL access for CRUD
+            CALENDAR_SCOPES
         ).apply {
             selectedAccount = account.account
         }
@@ -168,7 +177,7 @@ class GoogleAuthManager(private val context: Context) {
     fun getCredentialForAccount(email: String): GoogleAccountCredential {
         return GoogleAccountCredential.usingOAuth2(
             context,
-            listOf(CalendarScopes.CALENDAR)
+            CALENDAR_SCOPES
         ).apply {
             selectedAccount = Account(email, "com.google")
         }
@@ -217,13 +226,23 @@ class GoogleAuthManager(private val context: Context) {
     }
 
     /**
-     * Check if account has the required calendar scope
+     * Check if account has the required calendar scopes ([CALENDAR_SCOPES])
      */
     private fun hasCalendarScope(account: GoogleSignInAccount): Boolean {
         return GoogleSignIn.hasPermissions(
             account,
-            Scope(CalendarScopes.CALENDAR)
+            *CALENDAR_SCOPES.map { Scope(it) }.toTypedArray()
         )
+    }
+
+    /**
+     * Email of the signed-in Google account when it hasn't allowed [CALENDAR_SCOPES] yet (signed in
+     * with an older version, which asked for the full calendar scope), or null. Google needs that
+     * account to sign in once more (ui/GoogleReconnectGate).
+     */
+    fun calendarReconnectEmail(): String? {
+        val account = GoogleSignIn.getLastSignedInAccount(context) ?: return null
+        return if (hasCalendarScope(account)) null else account.email
     }
 
     /**
