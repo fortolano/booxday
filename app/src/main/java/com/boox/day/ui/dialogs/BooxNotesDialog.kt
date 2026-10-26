@@ -25,7 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -64,6 +63,7 @@ import com.boox.day.data.db.UnifiedOcrRepository
 import com.boox.day.ocr.model.Domain
 import com.boox.day.ocr.model.Intent
 import com.boox.day.ocr.model.OcrSource
+import com.boox.day.ui.components.DialogCloseButton
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.state.CalendarSourceFilter
 import com.boox.day.ui.theme.EInkTheme
@@ -499,6 +499,7 @@ fun BooxNotesDialog(
                         pageCount = pageCount,
                         onPageChange = { pageIndex = it },
                         onBack = { readerOpen = false },
+                        onClose = onDismiss,
                         onOpenInBooxNotes = { openInBooxNotes(note) },
                         modifier = Modifier
                             .weight(1f)
@@ -534,6 +535,7 @@ fun BooxNotesDialog(
                             unlinkedCount = unlinked.size,
                             indexingNote = if (isOcrIndexingInProgress) "Handwriting is still being read, so suggestions may change." else null,
                             onBack = { showSuggestions = false },
+                            onClose = onDismiss,
                             onLinkStrong = { linkStrong(it) },
                             onLink = { linkSuggestion(it.note, it.suggestion, SmartLinkDecisionMode.MANUAL_ACCEPT_SUGGESTION) },
                             onSkip = { skip(it) },
@@ -758,19 +760,7 @@ private fun BooxNotesHeader(
                 onDateChange = onDateChange
             )
         }
-        Box(
-            modifier = Modifier
-                .size(EInkTheme.Global.touchTarget)
-                .noRippleClickable(onClick = onClose),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Close",
-                tint = EInkTheme.Colors.primary,
-                modifier = Modifier.size(28.dp)
-            )
-        }
+        DialogCloseButton(onClose = onClose)
     }
 }
 

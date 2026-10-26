@@ -522,6 +522,7 @@ These are wrong when AI is on. Memo pages are read by AI on the user's own OpenR
 - Leave the event picker and the bulk-link confirm as they are. They are small confirm popups with a "Cancel" button, which is the rulebook's escape (`docs/DIALOG_RULEBOOK.md`); adding an X there would make two exits.
 - **Go 6 check:** the list header holds the title, the Day/All switch, "Checking for new notes…", the date and the X, and the title has no weight. Check that the X isn't squeezed at 572 dp. If it is, let the status text shrink, not the X.
 - Frame size is fine: it fills the screen minus fixed insets (`EInkTheme.BooxNotes`, width 0.97). Only the event picker has a fixed cap (560 dp, `pickerMaxHeight`); it fits the Go 6 (772 dp).
+- **Done (26 Oct):** the reader and the suggestions headers end with the same X as the list header; back still goes one step. The Blocked state's button says "Back". The X is one shared `ui/components/DialogCloseButton` (4.9: now used 3 times), also used by the list header. Compiles; the Go 6 header width is still to check on the tablet.
 
 ### 4.4 Showing that more is below (Ready; shared look decided 26 Oct)
 
@@ -650,6 +651,7 @@ Help is a 12-topic split popup of about 4,500–5,000 words (`HelpDialog.kt`). I
 - There is no shared dialog header today. About 30 dialogs build their own title and X (private `DialogHeader`s in AgenticPlanDialog, CalendarSyncSettingsDialog and AiPreferencesDialog; `HelpHeader`; `AboutHeader`; `BooxNotesHeader`).
 - Don't unify them in this plan. Do only what 4.3–4.5 need, with the same pieces: the X from `BooxNotesHeader` (44 dp, `Icons.Default.Close`), the 4.4 bar, sizes from `EInkTheme` tokens, and buttons fixed below the scrolling part.
 - If the X is needed in 3 or more places, move it into one small `DialogCloseButton(onClose)` in `ui/components/`. Otherwise copy the 10 lines.
+  - **Done (26 Oct):** needed 3 times by 4.3, so it is `ui/components/DialogCloseButton.kt`.
 
 ### 4.10 Seen during the 4.1 check (26 Oct, Go 10.3)
 

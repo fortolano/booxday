@@ -43,6 +43,7 @@ import com.boox.day.booxnotes.CrossDayLinkSuggestion
 import com.boox.day.booxnotes.LinkConfidence
 import com.boox.day.data.db.BooxNoteIndex
 import com.boox.day.data.db.CalendarEvent
+import com.boox.day.ui.components.DialogCloseButton
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
@@ -410,6 +411,7 @@ internal fun BooxNoteReader(
     pageCount: Int,
     onPageChange: (Int) -> Unit,
     onBack: () -> Unit,
+    onClose: () -> Unit,
     onOpenInBooxNotes: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -417,6 +419,7 @@ internal fun BooxNoteReader(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
     ) {
+        // Back goes to the note list, the X closes Boox Notes (Oct 2026)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
@@ -449,6 +452,7 @@ internal fun BooxNoteReader(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            DialogCloseButton(onClose = onClose)
         }
         NotePageView(
             page = page,

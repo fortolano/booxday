@@ -41,6 +41,7 @@ import com.boox.day.booxnotes.LinkConfidence
 import com.boox.day.data.db.BooxNoteIndex
 import com.boox.day.data.db.SmartLinkPreflightState
 import com.boox.day.data.db.SmartLinkPreflightStatus
+import com.boox.day.ui.components.DialogCloseButton
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
@@ -76,6 +77,7 @@ internal fun BooxNotesSuggestionsView(
     unlinkedCount: Int,
     indexingNote: String?,
     onBack: () -> Unit,
+    onClose: () -> Unit,
     onLinkStrong: (List<SuggestionItem>) -> Unit,
     onLink: (SuggestionItem) -> Unit,
     onSkip: (SuggestionItem) -> Unit,
@@ -88,7 +90,7 @@ internal fun BooxNotesSuggestionsView(
     var confirmBulk by remember { mutableStateOf(false) }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)) {
-        // Header: back, title, scope, bulk link
+        // Header: back, title, scope, bulk link, X (Oct 2026: back goes to the notes, X closes)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -124,12 +126,13 @@ internal fun BooxNotesSuggestionsView(
             if (content == SuggestionsContent.Ready && strongItems.isNotEmpty()) {
                 ActionButton(text = "Link ${strongItems.size} strong…", onClick = { confirmBulk = true })
             }
+            DialogCloseButton(onClose = onClose)
         }
 
         when (content) {
             SuggestionsContent.Checking -> CenterMessage("Checking your calendar…")
 
-            is SuggestionsContent.Blocked -> SmartLinkBlocked(status = content.status, onClose = onBack, onOpenCalendarAccounts = onOpenCalendarAccounts)
+            is SuggestionsContent.Blocked -> SmartLinkBlocked(status = content.status, onBack = onBack, onOpenCalendarAccounts = onOpenCalendarAccounts)
 
             is SuggestionsContent.Finding -> Column(
                 modifier = Modifier
@@ -395,7 +398,7 @@ private fun BulkLinkConfirm(count: Int, onCancel: () -> Unit, onConfirm: () -> U
 
 /** Why Smart Link can't run, and where to fix it (from the calendar check) */
 @Composable
-private fun SmartLinkBlocked(status: SmartLinkPreflightStatus, onClose: () -> Unit, onOpenCalendarAccounts: () -> Unit) {
+private fun SmartLinkBlocked(status: SmartLinkPreflightStatus, onBack: () -> Unit, onOpenCalendarAccounts: () -> Unit) {
     val (title, body, hint) = when (status.state) {
         SmartLinkPreflightState.SERVER_SMART_LINK_DISABLED -> Triple(
             "Smart Link is turned off",
@@ -444,12 +447,12 @@ private fun SmartLinkBlocked(status: SmartLinkPreflightStatus, onClose: () -> Un
         Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
         if (accountsFix) {
             Row(modifier = Modifier.fillMaxWidth()) {
-                EinkSecondaryButton(text = "Close", onClick = onClose, modifier = Modifier.weight(0.4f))
+                EinkSecondaryButton(text = "Back", onClick = onBack, modifier = Modifier.weight(0.4f))
                 Spacer(modifier = Modifier.weight(0.1f))
                 ActionButton(text = "Open Calendar Accounts", onClick = onOpenCalendarAccounts, modifier = Modifier.weight(0.5f))
             }
         } else {
-            EinkSecondaryButton(text = "Close", onClick = onClose)
+            EinkSecondaryButton(text = "Back", onClick = onBack)
         }
     }
 }
