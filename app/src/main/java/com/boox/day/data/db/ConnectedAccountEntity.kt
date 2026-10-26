@@ -138,6 +138,17 @@ interface ConnectedAccountDao {
     suspend fun deleteByEmail(email: String)
 
     /**
+     * "Remove account" (Oct 2026): deletes the row, so the email and name don't stay on the tablet;
+     * its calendar_selections go with it (ON DELETE CASCADE). Removing used to only [deactivate].
+     */
+    @Query("DELETE FROM connected_accounts WHERE id = :accountId")
+    suspend fun deleteById(accountId: String)
+
+    /** Accounts left inactive by "Remove account" before Oct 2026. No query reads inactive rows. */
+    @Query("DELETE FROM connected_accounts WHERE isActive = 0")
+    suspend fun deleteInactive()
+
+    /**
      * Update last sync timestamp.
      */
     @Query("UPDATE connected_accounts SET lastSyncAt = :timestamp WHERE id = :accountId")

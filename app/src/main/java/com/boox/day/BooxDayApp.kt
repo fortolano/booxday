@@ -77,6 +77,7 @@ class BooxDayApp : Application() {
         runSafeStartupStep("Notification scheduling") { initNotificationScheduling() }
         runSafeStartupStep("OCR config") { reconcileOcrConfig() }
         runSafeStartupStep("Calendar migration startup") { runCalendarMigration() }
+        runSafeStartupStep("Removed calendar accounts cleanup") { deleteRemovedCalendarAccounts() }
         runSafeStartupStep("Digital Ink startup") { initDigitalInk() }
         runSafeStartupStep("Semantic indexing startup") { initSemanticIndexing() }
         runSafeStartupStep("Pending calendar push") { requestPendingCalendarPush() }
@@ -101,6 +102,20 @@ class BooxDayApp : Application() {
                 com.boox.day.tasks.TaskPagination.normalizeStrayDays()
             } catch (e: Exception) {
                 Log.w("BooxDayApp", "Tasks pages check failed: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Oct 2026: "Remove account" used to only mark a calendar account inactive, which kept its email,
+     * name and calendar choices on the tablet. It deletes them now; this clears rows left that way.
+     */
+    private fun deleteRemovedCalendarAccounts() {
+        applicationScope.launch(Dispatchers.IO) {
+            try {
+                AppDatabase.getDatabase(this@BooxDayApp).connectedAccountDao().deleteInactive()
+            } catch (e: Exception) {
+                Log.w("BooxDayApp", "Removed calendar accounts cleanup failed: ${e.message}")
             }
         }
     }
