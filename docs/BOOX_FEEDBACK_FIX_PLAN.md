@@ -567,6 +567,7 @@ Help is a 12-topic split popup of about 4,500–5,000 words (`HelpDialog.kt`). I
   - **Cost:** none (only while searching).
   - **Test:** a Robolectric case in the FTS tests: a page with text and a synopsis gives a snippet from the text.
   - CLAUDE.md's search note ("COALESCE it (synopsis, else text)") changes with it.
+  - **Done (26 Oct):** both queries now use `COALESCE(NULLIF(snippet(…0…), ''), snippet(…2…), '')`, so the text comes first, then the synopsis, never NULL. Tests in `UnifiedOcrFtsConsistencyTest`: the Go 10.3 case, plus a page without text. The existing BOOX_NOTE expectation now comes from the text. CLAUDE.md note updated. The result title on a tablet is not yet checked.
 - **"Today" in the clear actions means the day on screen (Ready, owner approves the words).**
   - The ≡ items "Clear All Memos Today" / "Clear All Tasks Today" and their confirm text ("This will clear all memo pages for today") clear the day being shown. In the check that was 8 Nov, not today.
   - Proposal: "Clear All Memos on This Day" / "Clear All Tasks on This Day", and in the confirm: "This clears every memo page of Sun 8 Nov. It can't be undone."

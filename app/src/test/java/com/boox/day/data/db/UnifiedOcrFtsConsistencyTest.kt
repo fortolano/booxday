@@ -91,10 +91,31 @@ class UnifiedOcrFtsConsistencyTest {
 
         val all = dao.searchText("\"mary\"").associate { it.sourceType to it.snippet }
         assertEquals("Lunch with <b>Mary</b> at noon", all["MEMO"])
-        assertEquals("Call <b>Mary</b> back", all["BOOX_NOTE"])
+        assertEquals("<b>Mary</b> call", all["BOOX_NOTE"])
 
         val memos = dao.searchTextByType("\"mary\"", OcrSource.MEMO.name)
         assertEquals(listOf("Lunch with <b>Mary</b> at noon"), memos.map { it.snippet })
+    }
+
+    @Test
+    fun theSnippetComesFromThePageTextNotTheSmartLinkSynopsis() = runBlocking {
+        // A memo as stored on the Go 10.3: the synopsis is SynopsisGenerator's fixed block, which the
+        // result card showed as "TITLE: Untitled" (Oct 2026)
+        val synopsis = "TITLE: Untitled\nTOPICS: MISC\nKEYWORDS: attempt, write, slow"
+        dao.upsertOcrText(text(OcrSource.MEMO, "This is my second attempt").copy(synopsis = synopsis))
+
+        assertEquals(listOf("This is my second <b>attempt</b>"), dao.searchText("\"attempt\"").map { it.snippet })
+        assertEquals(
+            listOf("This is my second <b>attempt</b>"),
+            dao.searchTextByType("\"attempt\"", OcrSource.MEMO.name).map { it.snippet }
+        )
+    }
+
+    @Test
+    fun aPageWithoutTextGetsItsSnippetFromTheSynopsis() = runBlocking {
+        dao.upsertOcrText(text(OcrSource.BOOX_NOTE, "").copy(synopsis = "Call Mary back"))
+
+        assertEquals(listOf("Call <b>Mary</b> back"), dao.searchText("\"mary\"").map { it.snippet })
     }
 
     @Test

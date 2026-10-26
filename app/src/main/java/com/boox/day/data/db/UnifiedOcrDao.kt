@@ -319,11 +319,13 @@ interface UnifiedOcrDao {
             ot.pageId,
             ot.sourceTitle,
             ot.sourceDate,
-            -- From the synopsis; from the text when the synopsis is NULL (pages stored
-            -- without a semantic bundle), where snippet() returns NULL for a non-null field
+            -- From the page text (Oct 2026). The synopsis is the fixed block Smart Link reads
+            -- ("TITLE: ... TOPICS: ..."), which the result card showed as its title. The synopsis
+            -- only when the text gives nothing; snippet() returns NULL for a NULL synopsis.
             COALESCE(
+                NULLIF(snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 0, 32), ''),
                 snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 2, 32),
-                snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 0, 32)
+                ''
             ) as snippet,
             0 as score,
             ot.domain,
@@ -359,11 +361,13 @@ interface UnifiedOcrDao {
             ot.pageId,
             ot.sourceTitle,
             ot.sourceDate,
-            -- From the synopsis; from the text when the synopsis is NULL (pages stored
-            -- without a semantic bundle), where snippet() returns NULL for a non-null field
+            -- From the page text (Oct 2026). The synopsis is the fixed block Smart Link reads
+            -- ("TITLE: ... TOPICS: ..."), which the result card showed as its title. The synopsis
+            -- only when the text gives nothing; snippet() returns NULL for a NULL synopsis.
             COALESCE(
+                NULLIF(snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 0, 32), ''),
                 snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 2, 32),
-                snippet(unified_ocr_text_fts, '<b>', '</b>', '...', 0, 32)
+                ''
             ) as snippet,
             0 as score,
             ot.domain,
