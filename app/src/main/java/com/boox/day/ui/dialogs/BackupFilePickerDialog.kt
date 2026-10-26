@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.ui.noRippleClickable
+import com.boox.day.ui.components.ScrollMoreIndicator
 import com.boox.day.ui.theme.EInkTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -255,31 +256,7 @@ fun BackupFilePickerDialog(
 
                     // Scroll indicator
                     if (canScrollMore && !isLoading && items.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .background(Color.White)
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Scroll for more",
-                                    modifier = Modifier.size(16.dp),
-                                    tint = EInkTheme.Colors.gray
-                                )
-                                Text(
-                                    text = "Scroll for more",
-                                    fontSize = EInkTheme.Typography.bodySmall,
-                                    color = EInkTheme.Colors.gray
-                                )
-                            }
-                        }
+                        Box(modifier = Modifier.align(Alignment.BottomCenter)) { ScrollMoreIndicator() }
                     }
                 }
             }

@@ -48,6 +48,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import com.boox.day.ui.components.ScrollMoreBar
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.ScrollState
 import com.boox.day.ui.theme.EInkTheme
 
 /**
@@ -188,48 +191,52 @@ private fun NavigationMenu(
     onSectionSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        modifier = modifier
-            .background(EInkTheme.Colors.background)
-    ) {
-        itemsIndexed(sections) { index, section ->
-            val isSelected = index == selectedIndex
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = EInkTheme.Global.touchTarget)
-                    .noRippleClickable { onSectionSelected(index) }
-                    .background(
-                        if (isSelected) EInkTheme.Colors.primary
-                        else EInkTheme.Colors.background
+    val listState = rememberLazyListState()
+    Box(modifier = modifier.background(EInkTheme.Colors.background)) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            itemsIndexed(sections) { index, section ->
+                val isSelected = index == selectedIndex
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = EInkTheme.Global.touchTarget)
+                        .noRippleClickable { onSectionSelected(index) }
+                        .background(
+                            if (isSelected) EInkTheme.Colors.primary
+                            else EInkTheme.Colors.background
+                        )
+                        .padding(horizontal = EInkTheme.Global.padding, vertical = EInkTheme.Global.paddingMedium),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
+                ) {
+                    Icon(
+                        imageVector = section.icon,
+                        contentDescription = null,
+                        tint = if (isSelected) EInkTheme.Colors.background
+                               else EInkTheme.Colors.darkGray,
+                        modifier = Modifier.size(20.dp)
                     )
-                    .padding(horizontal = EInkTheme.Global.padding, vertical = EInkTheme.Global.paddingMedium),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
-            ) {
-                Icon(
-                    imageVector = section.icon,
-                    contentDescription = null,
-                    tint = if (isSelected) EInkTheme.Colors.background
-                           else EInkTheme.Colors.darkGray,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = section.title,
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isSelected) EInkTheme.Colors.background
-                            else EInkTheme.Colors.primary
-                )
-            }
+                    Text(
+                        text = section.title,
+                        fontSize = EInkTheme.Typography.bodyMedium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) EInkTheme.Colors.background
+                                else EInkTheme.Colors.primary
+                    )
+                }
 
-            if (index < sections.lastIndex) {
-                Divider(
-                    color = EInkTheme.Colors.lightGray,
-                    thickness = EInkTheme.Global.borderWidth
-                )
+                if (index < sections.lastIndex) {
+                    Divider(
+                        color = EInkTheme.Colors.lightGray,
+                        thickness = EInkTheme.Global.borderWidth
+                    )
+                }
             }
         }
+        ScrollMoreBar(listState)
     }
 }
 
@@ -238,9 +245,11 @@ private fun HelpContent(
     sectionIndex: Int,
     modifier: Modifier = Modifier
 ) {
-    // E-Ink: use ScrollableWithIndicator for scroll feedback
+    // E-Ink: use ScrollableWithIndicator for scroll feedback. Each topic opens at its top (Oct 2026:
+    // one scroll state for all topics kept the last topic's position)
     ScrollableWithIndicator(
-        modifier = modifier
+        modifier = modifier,
+        scrollState = remember(sectionIndex) { ScrollState(0) }
     ) {
         Column(
             modifier = Modifier

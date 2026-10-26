@@ -533,6 +533,13 @@ These are wrong when AI is on. Memo pages are read by AI on the user's own OpenR
   - **Decided (owner, 26 Oct):** yes. A white bar with a 1 dp black line on top, a black down arrow (20 dp, up from 16) and the black text "Scroll for more". Keep its height (about 32 dp) so it covers no more of the content than today. It still disappears at the end of the list.
 - Runtime cost: none. `derivedStateOf` recomposes only the bar, and only when "more below" changes; the dialogs are open while it runs.
 - Help: when the topic changes, the content may keep the old scroll position (one `ScrollState` for all topics). Reset it per topic, so each topic opens at its top. Inferred from the code; check on the tablet.
+- **Done (26 Oct):**
+  - The shared bar (`ScrollMoreIndicator`) is white with a 1 dp black line on top, black 20 dp arrows and black "Scroll for more" on one line (in a narrow column the second arrow gives way), about 43 dp high as before.
+  - One helper for both kinds of scrolling: `BoxScope.ScrollMoreBar(state)` (`ScrollState` or `LazyListState`), used by `ScrollableWithIndicator`.
+  - Added to: the Boox Notes day list and all-notes list, the Smart Link suggestions, the reader's text page, the event picker, the date menu, Boox Notes settings, Help's topic list and the update popup. The full-screen welcome comes with 4.5.
+  - The three hand-made grey copies (Search, the attachment picker, the backup file picker) now use the shared bar, so the look is the same everywhere.
+  - Help: each topic opens at its top (`remember(sectionIndex) { ScrollState(0) }`).
+  - Compiles. Still to see on the Go 6 (look, Help's narrow list) and the Go 10.3.
 
 ### 4.5 First-start and update screens on small tablets (Check first on the Go 6, then Ready)
 

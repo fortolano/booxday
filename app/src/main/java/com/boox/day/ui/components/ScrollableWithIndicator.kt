@@ -2,12 +2,15 @@ package com.boox.day.ui.components
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -39,11 +42,6 @@ fun ScrollableWithIndicator(
     scrollState: ScrollState = rememberScrollState(),
     content: @Composable () -> Unit
 ) {
-    // Detect if there's more content to scroll
-    val canScrollForward by remember {
-        derivedStateOf { scrollState.canScrollForward }
-    }
-
     Box(modifier = modifier.fillMaxSize()) {
         // Scrollable content
         Column(
@@ -55,10 +53,21 @@ fun ScrollableWithIndicator(
         }
 
         // "Scroll for more" indicator at bottom (no animation for E-Ink)
-        if (canScrollForward) {
-            Box(modifier = Modifier.align(Alignment.BottomCenter)) {
-                ScrollMoreIndicator()
-            }
+        ScrollMoreBar(scrollState)
+    }
+}
+
+/**
+ * The "Scroll for more" bar at the bottom of a [BoxScope], shown only while [state] has more below
+ * (Oct 2026). Works for plain scrolling ([ScrollState]) and lists ([androidx.compose.foundation.lazy.LazyListState]):
+ * put it in the Box that holds the scrolling content, after the content.
+ */
+@Composable
+fun BoxScope.ScrollMoreBar(state: ScrollableState) {
+    val canScrollForward by remember(state) { derivedStateOf { state.canScrollForward } }
+    if (canScrollForward) {
+        Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+            ScrollMoreIndicator()
         }
     }
 }
@@ -67,44 +76,52 @@ fun ScrollableWithIndicator(
  * Visual indicator showing there's more content below.
  * Features a down arrow and "Scroll for more" text.
  *
- * E-Ink optimized: Uses solid white background instead of gradient.
- * Gradients cause dithering artifacts on e-ink displays.
+ * E-Ink optimized: solid white, no gradient (gradients dither on e-ink). Oct 2026 (owner): black on
+ * white with a thin black line on top, like the rest of the meaning in the app; it was grey text on
+ * an off-white chip, which users missed. About the same height as before (~43 dp).
  * Also used by the toolbar menu (≡) when it is taller than the space below the bar (Oct 2026).
  */
 @Composable
 internal fun ScrollMoreIndicator() {
-    // Solid white background - NO gradient (causes dithering on E-Ink)
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(EInkTheme.Colors.white)
-            .padding(vertical = 6.dp),
-        contentAlignment = Alignment.Center
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(EInkTheme.Colors.primary)
+        )
         Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .background(EInkTheme.Colors.offWhite)
-                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .fillMaxWidth()
+                .padding(vertical = 11.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = "Scroll down",
-                tint = EInkTheme.Colors.darkGray,
-                modifier = Modifier.size(16.dp)
+                tint = EInkTheme.Colors.primary,
+                modifier = Modifier.size(20.dp)
             )
             Text(
                 text = "Scroll for more",
                 fontSize = EInkTheme.Typography.labelMedium,
                 fontWeight = FontWeight.Medium,
-                color = EInkTheme.Colors.darkGray
+                color = EInkTheme.Colors.primary,
+                // One line: in a narrow column (Help's topic list on the Go 6) the second arrow
+                // gives way instead of the bar growing taller
+                maxLines = 1,
+                softWrap = false
             )
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
-                tint = EInkTheme.Colors.darkGray,
-                modifier = Modifier.size(16.dp)
+                tint = EInkTheme.Colors.primary,
+                modifier = Modifier.size(20.dp)
             )
         }
     }

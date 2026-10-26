@@ -40,6 +40,7 @@ import com.boox.day.update.AppUpdateGate
 import com.boox.day.update.AppUpdateGate.State
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.noRippleClickable
+import com.boox.day.ui.components.ScrollMoreBar
 import com.boox.day.ui.theme.EInkTheme
 
 /**
@@ -95,23 +96,25 @@ private fun AppUpdatePopup(state: State) {
                     }
                     is State.Available -> {
                         Title("Update available")
-                        Column(
-                            modifier = Modifier
-                                .weight(1f, fill = false)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
-                        ) {
-                            Body("BooxDay ${state.info.version} is ready, with performance improvements and bug fixes.")
-                            if (state.info.notes.isNotEmpty()) {
-                                Text(
-                                    text = "What's new",
-                                    fontSize = EInkTheme.Typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = EInkTheme.Colors.primary
-                                )
-                                state.info.notes.forEach { Bullet(it) }
+                        val notesScroll = rememberScrollState()
+                        Box(modifier = Modifier.weight(1f, fill = false)) {
+                            Column(
+                                modifier = Modifier.verticalScroll(notesScroll),
+                                verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
+                            ) {
+                                Body("BooxDay ${state.info.version} is ready, with performance improvements and bug fixes.")
+                                if (state.info.notes.isNotEmpty()) {
+                                    Text(
+                                        text = "What's new",
+                                        fontSize = EInkTheme.Typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = EInkTheme.Colors.primary
+                                    )
+                                    state.info.notes.forEach { Bullet(it) }
+                                }
+                                Body("${megabytes(state.info)} download. Your memos, tasks and settings stay as they are.")
                             }
-                            Body("${megabytes(state.info)} download. Your memos, tasks and settings stay as they are.")
+                            ScrollMoreBar(notesScroll)
                         }
                         Buttons(
                             escape = "Not Now" to { AppUpdateGate.notNow(context) },

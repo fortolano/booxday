@@ -37,6 +37,7 @@ import com.boox.day.data.db.CalendarEvent
 import com.boox.day.editor.ui.TaskDatePickerContent
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.noRippleClickable
+import com.boox.day.ui.components.ScrollMoreBar
 import com.boox.day.ui.theme.EInkTheme
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
@@ -112,61 +113,63 @@ internal fun BooxNoteEventPicker(
             )
             Divider(color = EInkTheme.Colors.primary, thickness = EInkTheme.Global.borderWidth)
 
-            Column(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                when (currentStep) {
-                    PickerStep.Nearby -> {
-                        val events = nearby
-                        if (events == null) {
-                            PickerNote("Loading events…")
-                        } else {
-                            val sameDay = events
-                                .filter { it.dayId == note.originalDate }
-                                .sortedWith(
-                                    compareBy<CalendarEvent> { it.isAllDay }
-                                        .thenBy { abs(it.startTime - note.originalTimestamp) }
-                                )
-                            val around = events
-                                .filter { it.dayId != note.originalDate }
-                                .sortedWith(compareBy<CalendarEvent> { it.dayId }.thenBy { it.isAllDay }.thenBy { it.startTime })
-                            PickerSection("Same day · ${formatDayShort(note.originalDate)}")
-                            if (sameDay.isEmpty()) PickerNote("No events on this day")
-                            sameDay.forEach { event ->
-                                PickerEventRow(note, event, showDay = false, linkedEventId, suggestedEventId) { onPick(event) }
+            val pickerScroll = rememberScrollState()
+            Box(modifier = Modifier.weight(1f, fill = false)) {
+                Column(
+                    modifier = Modifier.verticalScroll(pickerScroll)
+                ) {
+                    when (currentStep) {
+                        PickerStep.Nearby -> {
+                            val events = nearby
+                            if (events == null) {
+                                PickerNote("Loading events…")
+                            } else {
+                                val sameDay = events
+                                    .filter { it.dayId == note.originalDate }
+                                    .sortedWith(
+                                        compareBy<CalendarEvent> { it.isAllDay }
+                                            .thenBy { abs(it.startTime - note.originalTimestamp) }
+                                    )
+                                val around = events
+                                    .filter { it.dayId != note.originalDate }
+                                    .sortedWith(compareBy<CalendarEvent> { it.dayId }.thenBy { it.isAllDay }.thenBy { it.startTime })
+                                PickerSection("Same day · ${formatDayShort(note.originalDate)}")
+                                if (sameDay.isEmpty()) PickerNote("No events on this day")
+                                sameDay.forEach { event ->
+                                    PickerEventRow(note, event, showDay = false, linkedEventId, suggestedEventId) { onPick(event) }
+                                }
+                                PickerSection("Within ${BooxNoteIndexer.DAY_MODE_SEARCH_DAYS} days")
+                                if (around.isEmpty()) PickerNote("No events in the days around it")
+                                around.forEach { event ->
+                                    PickerEventRow(note, event, showDay = true, linkedEventId, suggestedEventId) { onPick(event) }
+                                }
+                                PickAnotherDayRow { step = PickerStep.Calendar }
                             }
-                            PickerSection("Within ${BooxNoteIndexer.DAY_MODE_SEARCH_DAYS} days")
-                            if (around.isEmpty()) PickerNote("No events in the days around it")
-                            around.forEach { event ->
-                                PickerEventRow(note, event, showDay = true, linkedEventId, suggestedEventId) { onPick(event) }
+                        }
+
+                        PickerStep.Calendar -> TaskDatePickerContent(
+                            currentDate = note.originalDate,
+                            selectedDate = null,
+                            onDateSelected = { step = PickerStep.Day(it) }
+                        )
+
+                        is PickerStep.Day -> {
+                            PickerSection("Events on ${formatDayShort(currentStep.date)}")
+                            val events = dayEvents
+                            when {
+                                events == null -> PickerNote("Loading events…")
+                                events.isEmpty() -> PickerNote("No events on this day")
+                                else -> events
+                                    .sortedWith(compareBy<CalendarEvent> { it.isAllDay }.thenBy { it.startTime })
+                                    .forEach { event ->
+                                        PickerEventRow(note, event, showDay = false, linkedEventId, suggestedEventId) { onPick(event) }
+                                    }
                             }
                             PickAnotherDayRow { step = PickerStep.Calendar }
                         }
                     }
-
-                    PickerStep.Calendar -> TaskDatePickerContent(
-                        currentDate = note.originalDate,
-                        selectedDate = null,
-                        onDateSelected = { step = PickerStep.Day(it) }
-                    )
-
-                    is PickerStep.Day -> {
-                        PickerSection("Events on ${formatDayShort(currentStep.date)}")
-                        val events = dayEvents
-                        when {
-                            events == null -> PickerNote("Loading events…")
-                            events.isEmpty() -> PickerNote("No events on this day")
-                            else -> events
-                                .sortedWith(compareBy<CalendarEvent> { it.isAllDay }.thenBy { it.startTime })
-                                .forEach { event ->
-                                    PickerEventRow(note, event, showDay = false, linkedEventId, suggestedEventId) { onPick(event) }
-                                }
-                        }
-                        PickAnotherDayRow { step = PickerStep.Calendar }
-                    }
                 }
+                ScrollMoreBar(pickerScroll)
             }
 
             Row(

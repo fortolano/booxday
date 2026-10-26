@@ -63,6 +63,7 @@ import com.boox.day.data.db.UnifiedOcrSearchResult
 import com.boox.day.ocr.model.OcrSource
 import com.boox.day.search.SearchCandidates
 import com.boox.day.ui.noRippleClickable
+import com.boox.day.ui.components.ScrollMoreIndicator
 import com.boox.day.ui.theme.EInkTheme
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
@@ -348,41 +349,7 @@ fun SearchDialog(
 
                         // "Scroll for more" indicator (matches AboutDialog pattern)
                         if (canScrollForward) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .fillMaxWidth()
-                                    .background(EInkTheme.Colors.white)
-                                    .padding(vertical = 6.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .background(EInkTheme.Colors.offWhite)
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.KeyboardArrowDown,
-                                        contentDescription = "Scroll down",
-                                        tint = EInkTheme.Colors.darkGray,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = "Scroll for more",
-                                        fontSize = EInkTheme.Typography.labelMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        color = EInkTheme.Colors.darkGray
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.KeyboardArrowDown,
-                                        contentDescription = null,
-                                        tint = EInkTheme.Colors.darkGray,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
+                            Box(modifier = Modifier.align(Alignment.BottomCenter)) { ScrollMoreIndicator() }
                         }
                     }
                 }

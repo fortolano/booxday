@@ -58,6 +58,8 @@ import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.components.formatDomainLabel
 import com.boox.day.ui.components.formatIntentLabel
 import com.boox.day.ui.noRippleClickable
+import com.boox.day.ui.components.ScrollMoreBar
+import androidx.compose.foundation.layout.fillMaxSize
 import com.boox.day.ui.theme.EInkTheme
 import kotlinx.serialization.json.Json
 
@@ -182,19 +184,24 @@ internal fun BooxNotesDayList(
                 color = EInkTheme.Colors.primary
             )
         }
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(theme.rowSpacing)
-        ) {
-            items(notes, key = { it.uniqueId }) { note ->
-                BooxNoteRow(
-                    note = note,
-                    selected = note.uniqueId == selectedId,
-                    showDay = false,
-                    state = rowState(note),
-                    onClick = { onSelect(note) }
-                )
+        val dayListState = rememberLazyListState()
+        Box(modifier = Modifier.weight(1f)) {
+            LazyColumn(
+                state = dayListState,
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(theme.rowSpacing)
+            ) {
+                items(notes, key = { it.uniqueId }) { note ->
+                    BooxNoteRow(
+                        note = note,
+                        selected = note.uniqueId == selectedId,
+                        showDay = false,
+                        state = rowState(note),
+                        onClick = { onSelect(note) }
+                    )
+                }
             }
+            ScrollMoreBar(dayListState)
         }
         if (suggestionCount > 0) {
             EinkSecondaryButton(
@@ -323,37 +330,40 @@ internal fun BooxNotesAllList(
                 )
             }
         } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(theme.rowSpacing)
-            ) {
-                items(
-                    items = entries,
-                    key = { entry ->
+            Box(modifier = Modifier.weight(1f)) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(theme.rowSpacing)
+                ) {
+                    items(
+                        items = entries,
+                        key = { entry ->
+                            when (entry) {
+                                is AllNotesEntry.Month -> "month_${entry.label}"
+                                is AllNotesEntry.Note -> entry.note.uniqueId
+                            }
+                        }
+                    ) { entry ->
                         when (entry) {
-                            is AllNotesEntry.Month -> "month_${entry.label}"
-                            is AllNotesEntry.Note -> entry.note.uniqueId
+                            is AllNotesEntry.Month -> Text(
+                                text = entry.label,
+                                fontSize = theme.monthHeaderFontSize,
+                                fontWeight = FontWeight.Bold,
+                                color = EInkTheme.Colors.primary,
+                                modifier = Modifier.padding(top = EInkTheme.Global.paddingSmall)
+                            )
+                            is AllNotesEntry.Note -> BooxNoteRow(
+                                note = entry.note,
+                                selected = entry.note.uniqueId == selectedId,
+                                showDay = true,
+                                state = rowState(entry.note),
+                                onClick = { onSelect(entry.note) }
+                            )
                         }
                     }
-                ) { entry ->
-                    when (entry) {
-                        is AllNotesEntry.Month -> Text(
-                            text = entry.label,
-                            fontSize = theme.monthHeaderFontSize,
-                            fontWeight = FontWeight.Bold,
-                            color = EInkTheme.Colors.primary,
-                            modifier = Modifier.padding(top = EInkTheme.Global.paddingSmall)
-                        )
-                        is AllNotesEntry.Note -> BooxNoteRow(
-                            note = entry.note,
-                            selected = entry.note.uniqueId == selectedId,
-                            showDay = true,
-                            state = rowState(entry.note),
-                            onClick = { onSelect(entry.note) }
-                        )
-                    }
                 }
+                ScrollMoreBar(listState)
             }
         }
 

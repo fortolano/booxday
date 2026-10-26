@@ -72,6 +72,7 @@ import com.boox.day.ui.noRippleClickable
 import androidx.compose.material.icons.filled.Close
 import com.boox.day.ui.components.SettingCard
 import com.boox.day.ui.noRippleClickable
+import com.boox.day.ui.components.ScrollMoreBar
 import com.boox.day.ui.theme.EInkTheme
 import kotlinx.coroutines.delay
 
@@ -159,265 +160,105 @@ fun BooxNotesSettingsDialog(
                 .noRippleClickable { onDismiss() },
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier
-                    // Oct 2026: panel size, capped and scrolling (it had no height limit and ran off
-                    // a small screen)
-                    .fillMaxWidth(EInkTheme.PanelDialog.widthFraction)
-                    .heightIn(max = EInkTheme.PanelDialog.maxHeight)
-                    .noRippleClickable { /* consume clicks */ }
-                    .background(
-                        EInkTheme.PopupOverlay.background,
-                        RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
-                    )
-                    .border(
-                        EInkTheme.PopupOverlay.borderWidth,
-                        EInkTheme.PopupOverlay.borderColor,
-                        RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
-                    )
-                    .verticalScroll(rememberScrollState())
-                    .padding(EInkTheme.PopupOverlay.padding)
-            ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.boox_b_letter),
-                            contentDescription = "Boox Notes",
-                            modifier = Modifier.size(24.dp),
-                            tint = EInkTheme.Colors.primary
-                        )
-                        Text(
-                            text = "Boox Notes Integration",
-                            fontSize = EInkTheme.PopupOverlay.titleFontSize,
-                            fontWeight = FontWeight.Bold,
-                            color = EInkTheme.PopupOverlay.titleColor
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(EInkTheme.Global.touchTarget)
-                            .noRippleClickable(onClick = onDismiss),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            modifier = Modifier.size(28.dp),
-                            tint = EInkTheme.Colors.primary
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                // Description
-                Text(
-                    text = "Link your Boox Notes to calendar events. View and access notes directly from BooxDay.",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.darkGray
+            val settingsScroll = rememberScrollState()
+            Box(modifier = Modifier
+                // Oct 2026: panel size, capped and scrolling (it had no height limit and ran off
+                // a small screen); the "Scroll for more" bar sits inside the border
+                .fillMaxWidth(EInkTheme.PanelDialog.widthFraction)
+                .heightIn(max = EInkTheme.PanelDialog.maxHeight)
+                .noRippleClickable { /* consume clicks */ }
+                .background(
+                    EInkTheme.PopupOverlay.background,
+                    RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
                 )
-
-                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                // Boox Notes baseline card (always included)
-                SettingCard(
-                    title = "Boox Notes",
-                    description = if (hasPermission) {
-                        "Your Boox notes show up on the days you wrote them"
-                    } else {
-                        "Requires 'All Files Access' permission"
-                    }
+                .border(
+                    EInkTheme.PopupOverlay.borderWidth,
+                    EInkTheme.PopupOverlay.borderColor,
+                    RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
+                )) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(settingsScroll)
+                        .padding(EInkTheme.PopupOverlay.padding)
                 ) {
+                    // Header
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = when {
-                                hasPermission && GlobalAppSettings.isBooxNotesScanning -> "Scanning"
-                                hasPermission && GlobalAppSettings.isBooxNotesReady -> "Active"
-                                hasPermission -> "Preparing"
-                                else -> "Setup Required"
-                            },
-                            fontSize = EInkTheme.Typography.bodyMedium,
-                            color = EInkTheme.Colors.darkGray
-                        )
-                        EinkSecondaryButton(
-                            text = if (hasPermission) "Scan Now" else "Grant Access",
-                            onClick = {
-                                if (!hasPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                    try {
-                                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                            data = Uri.parse("package:${localContext.packageName}")
-                                        }
-                                        allFilesAccessLauncher.launch(intent)
-                                    } catch (e: Exception) {
-                                        try {
-                                            val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                                            allFilesAccessLauncher.launch(intent)
-                                        } catch (e2: Exception) {
-                                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                                data = Uri.parse("package:${localContext.packageName}")
-                                            }
-                                            allFilesAccessLauncher.launch(intent)
-                                        }
-                                    }
-                                } else {
-                                    onScanNeeded?.invoke()
-                                }
-                            },
-                            enabled = !GlobalAppSettings.isBooxNotesScanning
-                        )
-                    }
-                }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.boox_b_letter),
+                                contentDescription = "Boox Notes",
+                                modifier = Modifier.size(24.dp),
+                                tint = EInkTheme.Colors.primary
+                            )
+                            Text(
+                                text = "Boox Notes Integration",
+                                fontSize = EInkTheme.PopupOverlay.titleFontSize,
+                                fontWeight = FontWeight.Bold,
+                                color = EInkTheme.PopupOverlay.titleColor
+                            )
+                        }
 
-                // Permission status / warning
-                if (!hasPermission) {
+                        Box(
+                            modifier = Modifier
+                                .size(EInkTheme.Global.touchTarget)
+                                .noRippleClickable(onClick = onDismiss),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                modifier = Modifier.size(28.dp),
+                                tint = EInkTheme.Colors.primary
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-                    // Permission instructions card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = EInkTheme.Colors.background,
-                        border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.darkGray),
-                        elevation = 0.dp,
-                        shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
+                    // Description
+                    Text(
+                        text = "Link your Boox Notes to calendar events. View and access notes directly from BooxDay.",
+                        fontSize = EInkTheme.Typography.bodyMedium,
+                        color = EInkTheme.Colors.darkGray
+                    )
+
+                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+                    // Boox Notes baseline card (always included)
+                    SettingCard(
+                        title = "Boox Notes",
+                        description = if (hasPermission) {
+                            "Your Boox notes show up on the days you wrote them"
+                        } else {
+                            "Requires 'All Files Access' permission"
+                        }
                     ) {
-                        Column(
-                            modifier = Modifier.padding(EInkTheme.Global.paddingMedium)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Header
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = "Permission needed",
-                                    modifier = Modifier.size(20.dp),
-                                    tint = EInkTheme.Colors.primary
-                                )
-                                Text(
-                                    text = "One-Time Setup Required",
-                                    fontSize = EInkTheme.Typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = EInkTheme.Colors.primary
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                            // Step-by-step instructions
                             Text(
-                                text = "To access your Boox Notes, please grant file access permission:",
-                                fontSize = EInkTheme.Preferences.explanationFontSize,
-                                fontWeight = FontWeight.Medium,
-                                color = EInkTheme.Colors.primary
+                                text = when {
+                                    hasPermission && GlobalAppSettings.isBooxNotesScanning -> "Scanning"
+                                    hasPermission && GlobalAppSettings.isBooxNotesReady -> "Active"
+                                    hasPermission -> "Preparing"
+                                    else -> "Setup Required"
+                                },
+                                fontSize = EInkTheme.Typography.bodyMedium,
+                                color = EInkTheme.Colors.darkGray
                             )
-
-                            Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
-
-                            // Step 1
-                            Row(
-                                verticalAlignment = Alignment.Top,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "1.",
-                                    fontSize = EInkTheme.Preferences.explanationFontSize,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = EInkTheme.Colors.darkGray
-                                )
-                                Text(
-                                    text = "Tap the button below to open Android settings",
-                                    fontSize = EInkTheme.Preferences.explanationFontSize,
-                                    color = EInkTheme.Colors.darkGray
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            // Step 2
-                            Row(
-                                verticalAlignment = Alignment.Top,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "2.",
-                                    fontSize = EInkTheme.Preferences.explanationFontSize,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = EInkTheme.Colors.darkGray
-                                )
-                                Text(
-                                    text = "Toggle \"Allow access to manage all files\" to ON",
-                                    fontSize = EInkTheme.Preferences.explanationFontSize,
-                                    color = EInkTheme.Colors.darkGray
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            // Step 3
-                            Row(
-                                verticalAlignment = Alignment.Top,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "3.",
-                                    fontSize = EInkTheme.Preferences.explanationFontSize,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = EInkTheme.Colors.darkGray
-                                )
-                                Text(
-                                    text = "Tap \"\u2190 All files access\" at the top to return",
-                                    fontSize = EInkTheme.Preferences.explanationFontSize,
-                                    color = EInkTheme.Colors.darkGray
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
-
-                            // Result note with B icon
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = "The",
-                                    fontSize = EInkTheme.Preferences.explanationFontSize,
-                                    color = EInkTheme.Colors.darkGray
-                                )
-                                Icon(
-                                    painter = painterResource(R.drawable.boox_b_letter),
-                                    contentDescription = "B button",
-                                    modifier = Modifier.size(16.dp),
-                                    tint = EInkTheme.Colors.primary
-                                )
-                                Text(
-                                    text = "button in the toolbar will then be enabled.",
-                                    fontSize = EInkTheme.Preferences.explanationFontSize,
-                                    color = EInkTheme.Colors.darkGray
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                            // Action button
-                            ActionButton(
-                                text = "Open Permission Settings",
-                                modifier = Modifier.fillMaxWidth(),
+                            EinkSecondaryButton(
+                                text = if (hasPermission) "Scan Now" else "Grant Access",
                                 onClick = {
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                    if (!hasPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                                         try {
                                             val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
                                                 data = Uri.parse("package:${localContext.packageName}")
@@ -434,89 +275,253 @@ fun BooxNotesSettingsDialog(
                                                 allFilesAccessLauncher.launch(intent)
                                             }
                                         }
+                                    } else {
+                                        onScanNeeded?.invoke()
                                     }
+                                },
+                                enabled = !GlobalAppSettings.isBooxNotesScanning
+                            )
+                        }
+                    }
+
+                    // Permission status / warning
+                    if (!hasPermission) {
+                        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+                        // Permission instructions card
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = EInkTheme.Colors.background,
+                            border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.darkGray),
+                            elevation = 0.dp,
+                            shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(EInkTheme.Global.paddingMedium)
+                            ) {
+                                // Header
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = "Permission needed",
+                                        modifier = Modifier.size(20.dp),
+                                        tint = EInkTheme.Colors.primary
+                                    )
+                                    Text(
+                                        text = "One-Time Setup Required",
+                                        fontSize = EInkTheme.Typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = EInkTheme.Colors.primary
+                                    )
                                 }
-                            )
+
+                                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+                                // Step-by-step instructions
+                                Text(
+                                    text = "To access your Boox Notes, please grant file access permission:",
+                                    fontSize = EInkTheme.Preferences.explanationFontSize,
+                                    fontWeight = FontWeight.Medium,
+                                    color = EInkTheme.Colors.primary
+                                )
+
+                                Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
+
+                                // Step 1
+                                Row(
+                                    verticalAlignment = Alignment.Top,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "1.",
+                                        fontSize = EInkTheme.Preferences.explanationFontSize,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = EInkTheme.Colors.darkGray
+                                    )
+                                    Text(
+                                        text = "Tap the button below to open Android settings",
+                                        fontSize = EInkTheme.Preferences.explanationFontSize,
+                                        color = EInkTheme.Colors.darkGray
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                // Step 2
+                                Row(
+                                    verticalAlignment = Alignment.Top,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "2.",
+                                        fontSize = EInkTheme.Preferences.explanationFontSize,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = EInkTheme.Colors.darkGray
+                                    )
+                                    Text(
+                                        text = "Toggle \"Allow access to manage all files\" to ON",
+                                        fontSize = EInkTheme.Preferences.explanationFontSize,
+                                        color = EInkTheme.Colors.darkGray
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                // Step 3
+                                Row(
+                                    verticalAlignment = Alignment.Top,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "3.",
+                                        fontSize = EInkTheme.Preferences.explanationFontSize,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = EInkTheme.Colors.darkGray
+                                    )
+                                    Text(
+                                        text = "Tap \"\u2190 All files access\" at the top to return",
+                                        fontSize = EInkTheme.Preferences.explanationFontSize,
+                                        color = EInkTheme.Colors.darkGray
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
+
+                                // Result note with B icon
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "The",
+                                        fontSize = EInkTheme.Preferences.explanationFontSize,
+                                        color = EInkTheme.Colors.darkGray
+                                    )
+                                    Icon(
+                                        painter = painterResource(R.drawable.boox_b_letter),
+                                        contentDescription = "B button",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = EInkTheme.Colors.primary
+                                    )
+                                    Text(
+                                        text = "button in the toolbar will then be enabled.",
+                                        fontSize = EInkTheme.Preferences.explanationFontSize,
+                                        color = EInkTheme.Colors.darkGray
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+                                // Action button
+                                ActionButton(
+                                    text = "Open Permission Settings",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                            try {
+                                                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                                    data = Uri.parse("package:${localContext.packageName}")
+                                                }
+                                                allFilesAccessLauncher.launch(intent)
+                                            } catch (e: Exception) {
+                                                try {
+                                                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                                                    allFilesAccessLauncher.launch(intent)
+                                                } catch (e2: Exception) {
+                                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                        data = Uri.parse("package:${localContext.packageName}")
+                                                    }
+                                                    allFilesAccessLauncher.launch(intent)
+                                                }
+                                            }
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
-                }
 
-                // Scanning progress
-                if (hasPermission && GlobalAppSettings.isBooxNotesScanning) {
-                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+                    // Scanning progress
+                    if (hasPermission && GlobalAppSettings.isBooxNotesScanning) {
+                        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = EInkTheme.Colors.offWhite,
-                        border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.borderStrong),
-                        elevation = 0.dp,
-                        shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(EInkTheme.Global.paddingMedium),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = EInkTheme.Colors.offWhite,
+                            border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.borderStrong),
+                            elevation = 0.dp,
+                            shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
                         ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = EInkTheme.Colors.primary,
-                                strokeWidth = 2.dp
-                            )
-                            Text(
-                                text = "Scanning Boox Notes...",
-                                fontSize = EInkTheme.Typography.bodyMedium,
-                                color = EInkTheme.Colors.darkGray
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(EInkTheme.Global.paddingMedium),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = EInkTheme.Colors.primary,
+                                    strokeWidth = 2.dp
+                                )
+                                Text(
+                                    text = "Scanning Boox Notes...",
+                                    fontSize = EInkTheme.Typography.bodyMedium,
+                                    color = EInkTheme.Colors.darkGray
+                                )
+                            }
                         }
                     }
-                }
 
-                // First-run status (permission granted, waiting for first successful scan)
-                if (hasPermission && !GlobalAppSettings.isBooxNotesScanning && !GlobalAppSettings.isBooxNotesReady) {
-                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+                    // First-run status (permission granted, waiting for first successful scan)
+                    if (hasPermission && !GlobalAppSettings.isBooxNotesScanning && !GlobalAppSettings.isBooxNotesReady) {
+                        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = EInkTheme.Colors.offWhite,
-                        border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.borderStrong),
-                        elevation = 0.dp,
-                        shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(EInkTheme.Global.paddingMedium),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = EInkTheme.Colors.offWhite,
+                            border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.borderStrong),
+                            elevation = 0.dp,
+                            shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = "Preparing",
-                                modifier = Modifier.size(20.dp),
-                                tint = EInkTheme.Colors.primary
-                            )
-                            Text(
-                                text = "Permission granted. Run a scan to load your Boox notes.",
-                                fontSize = EInkTheme.Typography.bodyMedium,
-                                color = EInkTheme.Colors.darkGray
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(EInkTheme.Global.paddingMedium),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = "Preparing",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = EInkTheme.Colors.primary
+                                )
+                                Text(
+                                    text = "Permission granted. Run a scan to load your Boox notes.",
+                                    fontSize = EInkTheme.Typography.bodyMedium,
+                                    color = EInkTheme.Colors.darkGray
+                                )
+                            }
                         }
                     }
-                }
 
-                // Handwriting reading (pages read by AI on the user's OpenRouter key)
-                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-                OcrSettingsSection(
-                    onIndexNow = onIndexNow,
-                    onClearIndex = onClearIndex,
-                    onOcrSettingsChanged = onOcrSettingsChanged,
-                    processingState = ocrProcessingState,
-                    ocrRepository = ocrRepository,
-                    indexingControlsEnabled = hasPermission,
-                    isStandaloneWithoutOcrKey = isStandaloneWithoutOcrKey
-                )
+                    // Handwriting reading (pages read by AI on the user's OpenRouter key)
+                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+                    OcrSettingsSection(
+                        onIndexNow = onIndexNow,
+                        onClearIndex = onClearIndex,
+                        onOcrSettingsChanged = onOcrSettingsChanged,
+                        processingState = ocrProcessingState,
+                        ocrRepository = ocrRepository,
+                        indexingControlsEnabled = hasPermission,
+                        isStandaloneWithoutOcrKey = isStandaloneWithoutOcrKey
+                    )
+                }
+                ScrollMoreBar(settingsScroll)
             }
         }
     }

@@ -66,6 +66,8 @@ import com.boox.day.ocr.model.OcrSource
 import com.boox.day.ui.components.DialogCloseButton
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.state.CalendarSourceFilter
+import com.boox.day.ui.components.ScrollMoreBar
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.boox.day.ui.theme.EInkTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -826,42 +828,47 @@ private fun BooxNotesDateControl(
                 onDismissRequest = { open = false },
                 properties = PopupProperties(focusable = true)
             ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .width(EInkTheme.PopupPanel.width)
-                        .heightIn(max = EInkTheme.PopupPanel.maxHeight)
-                        .background(EInkTheme.PopupMenu.background)
-                        .border(EInkTheme.PopupMenu.borderWidth, EInkTheme.PopupMenu.borderColor)
-                ) {
-                    items(datesWithNotes, key = { it }) { day ->
-                        val selected = day == currentDate
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(EInkTheme.MenuItem.height)
-                                .background(if (selected) EInkTheme.MenuItem.selectedBackground else EInkTheme.PopupMenu.background)
-                                .noRippleClickable {
-                                    open = false
-                                    onDateChange(day)
-                                }
-                                .padding(horizontal = EInkTheme.MenuItem.horizontalPadding),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val color = if (selected) EInkTheme.MenuItem.selectedTextColor else EInkTheme.MenuItem.textColor
-                            Text(
-                                text = formatDayShort(day),
-                                fontSize = EInkTheme.MenuItem.fontSize,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                color = color,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                text = plural(noteCountByDate[day] ?: 0, "note"),
-                                fontSize = EInkTheme.Typography.bodyMedium,
-                                color = color
-                            )
+                val dateMenuState = rememberLazyListState()
+                Box(modifier = Modifier
+                    .width(EInkTheme.PopupPanel.width)
+                    .heightIn(max = EInkTheme.PopupPanel.maxHeight)
+                    .background(EInkTheme.PopupMenu.background)
+                    .border(EInkTheme.PopupMenu.borderWidth, EInkTheme.PopupMenu.borderColor)) {
+                    LazyColumn(
+                        state = dateMenuState,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(datesWithNotes, key = { it }) { day ->
+                            val selected = day == currentDate
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(EInkTheme.MenuItem.height)
+                                    .background(if (selected) EInkTheme.MenuItem.selectedBackground else EInkTheme.PopupMenu.background)
+                                    .noRippleClickable {
+                                        open = false
+                                        onDateChange(day)
+                                    }
+                                    .padding(horizontal = EInkTheme.MenuItem.horizontalPadding),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val color = if (selected) EInkTheme.MenuItem.selectedTextColor else EInkTheme.MenuItem.textColor
+                                Text(
+                                    text = formatDayShort(day),
+                                    fontSize = EInkTheme.MenuItem.fontSize,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    color = color,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = plural(noteCountByDate[day] ?: 0, "note"),
+                                    fontSize = EInkTheme.Typography.bodyMedium,
+                                    color = color
+                                )
+                            }
                         }
                     }
+                    ScrollMoreBar(dateMenuState)
                 }
             }
         }

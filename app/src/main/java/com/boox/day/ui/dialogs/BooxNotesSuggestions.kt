@@ -44,6 +44,8 @@ import com.boox.day.data.db.SmartLinkPreflightStatus
 import com.boox.day.ui.components.DialogCloseButton
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.noRippleClickable
+import com.boox.day.ui.components.ScrollMoreBar
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.boox.day.ui.theme.EInkTheme
 
 // Smart Link suggestions of the Boox Notes dialog (Oct 2026), shown in place of the lists (no second
@@ -222,41 +224,46 @@ private fun SuggestionList(
     val groups = remember(items) {
         items.groupBy { it.note.originalDate }.toSortedMap(compareByDescending { it })
     }
-    LazyColumn(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(EInkTheme.BooxNotes.cardSpacing)
-    ) {
-        groups.forEach { (date, dayItems) ->
-            item(key = "day_$date") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = EInkTheme.Global.paddingSmall),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
-                ) {
-                    Text(
-                        text = formatDayFull(date),
-                        fontSize = EInkTheme.Typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = EInkTheme.Colors.primary
-                    )
-                    Divider(
-                        color = EInkTheme.Colors.primary,
-                        thickness = EInkTheme.Global.borderWidth,
-                        modifier = Modifier.weight(1f)
+    val listState = rememberLazyListState()
+    Box(modifier = modifier) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(EInkTheme.BooxNotes.cardSpacing)
+        ) {
+            groups.forEach { (date, dayItems) ->
+                item(key = "day_$date") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = EInkTheme.Global.paddingSmall),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
+                    ) {
+                        Text(
+                            text = formatDayFull(date),
+                            fontSize = EInkTheme.Typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = EInkTheme.Colors.primary
+                        )
+                        Divider(
+                            color = EInkTheme.Colors.primary,
+                            thickness = EInkTheme.Global.borderWidth,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                items(dayItems, key = { "${it.note.uniqueId}_${it.suggestion.event.id}" }) { item ->
+                    SuggestionCard(
+                        item = item,
+                        onLink = { onLink(item) },
+                        onSkip = { onSkip(item) },
+                        onOpenNote = { onOpenNote(item.note) }
                     )
                 }
             }
-            items(dayItems, key = { "${it.note.uniqueId}_${it.suggestion.event.id}" }) { item ->
-                SuggestionCard(
-                    item = item,
-                    onLink = { onLink(item) },
-                    onSkip = { onSkip(item) },
-                    onOpenNote = { onOpenNote(item.note) }
-                )
-            }
         }
+        ScrollMoreBar(listState)
     }
 }
 

@@ -46,6 +46,7 @@ import com.boox.day.data.db.CalendarEvent
 import com.boox.day.ui.components.DialogCloseButton
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.noRippleClickable
+import com.boox.day.ui.components.ScrollMoreBar
 import com.boox.day.ui.theme.EInkTheme
 
 // Note pane of the Boox Notes dialog (Oct 2026): title and when, one link row, then the page itself as
@@ -320,15 +321,21 @@ private fun NotePageView(
                         .fillMaxSize()
                         .padding(2.dp)
                 )
-                result is BooxNotePreviewResult.TextPreview -> Text(
-                    text = result.text,
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.primary,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(EInkTheme.Global.padding)
-                        .verticalScroll(rememberScrollState())
-                )
+                result is BooxNotePreviewResult.TextPreview -> {
+                    val textScroll = rememberScrollState()
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = result.text,
+                            fontSize = EInkTheme.Typography.bodyMedium,
+                            color = EInkTheme.Colors.primary,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(EInkTheme.Global.padding)
+                                .verticalScroll(textScroll)
+                        )
+                        ScrollMoreBar(textScroll)
+                    }
+                }
                 else -> PageMessage(
                     (result as? BooxNotePreviewResult.Unavailable)?.diagnostics?.message ?: "This page can't be shown."
                 )
