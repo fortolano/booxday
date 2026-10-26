@@ -662,7 +662,7 @@ class ExportEngine(
                 else -> throw IOException("Unsupported Uri scheme: ${dest.scheme}")
             }
 
-            "Saved $displayName"
+            ExportFolderLabel.savedMessage(displayName, ExportFolderLabel.of(folderUri))
         } catch (e: Exception) {
             Log.e(TAG, "Save error: ${e.message}")
             "Error saving $displayName"

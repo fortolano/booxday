@@ -183,6 +183,12 @@ The steps don't depend on each other. Do them in this order (most user-visible f
 - **Change:** return `"Saved $name to <folder>"`, using the existing `export/DailyNoteWriter.folderLabel` style (for example "Documents/BooxDay/…"). Check that the snackbar (`ui/SnackBar.kt`) fits two lines on the Go 6.
 - **Tests:** a small JUnit test for the label function, if it's pure. Otherwise check by hand on a tablet.
 - **Review (1.0.37):** confirmed (`saveInternal`, and `savePdfDocument` in two places). `DailyNoteWriter.folderLabel` reads the daily-notes folder setting, so it can't be reused as is. Add a small label function for the export folder: a `file://` path under Documents becomes "Documents/BooxDay/…", and a picked folder shows its document id after ':'. Written to take a path string, it is unit-testable. Runtime cost: none. Reported 13 Dec: an exported memo, and no idea where the PDF went.
+- **Done (26 Oct, text approved by the owner):**
+  - `io/ExportFolderLabel`: `of(uri, storageRoot)`, plus the pure `forPath` / `forDocumentId` / `savedMessage`.
+  - `ExportEngine.saveInternal` and both `CompactExportEngine.savePdfDocument` branches now say "Saved <file> to <folder>". When the folder can't be named, the message stays "Saved <file>".
+  - The folder name "BooxDay" is the real folder on the tablet; it stays.
+  - Test: `ExportFolderLabelTest` (3, Robolectric).
+  - **Manual check still to do:** the two-line snackbar on the Go 6.
 
 ### 1.5 Tips that point to the wrong menu
 - `tips/TipsRepository.kt`: the backup tip says "Settings > Advanced", but the menu item is **Data & Backup** (`ui/calendar/SettingsMenu.kt`), card "Google Drive".

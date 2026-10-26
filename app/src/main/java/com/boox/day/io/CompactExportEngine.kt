@@ -560,7 +560,7 @@ class CompactExportEngine(
                         pdfDocument.writeTo(out)
                     }
                     log.i("Saved compact PDF: ${file.absolutePath}")
-                    "Saved $fileName"
+                    ExportFolderLabel.savedMessage(fileName, ExportFolderLabel.of(folderUri))
                 }
                 else -> {
                     // For content:// URIs, use ContentResolver
@@ -571,7 +571,7 @@ class CompactExportEngine(
                             pdfDocument.writeTo(out)
                         }
                         log.i("Saved compact PDF via ContentResolver")
-                        "Saved $fileName"
+                        ExportFolderLabel.savedMessage(fileName, ExportFolderLabel.of(folderUri))
                     } else {
                         "Error: Could not create file"
                     }
