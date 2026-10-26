@@ -249,6 +249,20 @@ The steps don't depend on each other. Do them in this order (most user-visible f
 
 **Part 1 is done when:** every step is committed, its focused tests pass, and `assembleDebug` builds. For the manual checks (1.4, 1.5, 1.7), list them for the owner and, with the owner's OK, do them on the Go 10.3 and the Go 6.
 
+**Tablet check of Part 1 (26 Oct, Go 10.3, debug build of `34169ef`, owner's test data):**
+- **1.1:**
+  - Dots: 10 Oct had no dot before (the only October day with no event starting) and has one now, from the all-day "Pres Santos Away" (29 Sep–31 Oct). Before/after screenshots compared.
+  - Midnight end: after the startup sync rewrote 562 events, "Rebroadcast…" (7 Nov 23:00 to 8 Nov 00:00) no longer shows on 8 Nov as "Day 2/2". 8 Nov lists 3 events (was 4); 7 Nov lists it as a one-day event.
+- **1.7:** in 12-hour mode the start list opens with the selected hour (9) at the top; 12 sits at the list's end. With start 6 PM the end follows to 7 PM, and the end list opens with 7 at the top.
+- **Week start (Monday on this tablet):** the task picker ("Move tasks…") and the event date picker both show M T W T F S S, with 1 Nov in the Sunday column.
+- **1.4:** "Saved BooxDay-2026-10-15-p2.pdf to Documents/BooxDay/Calendar/2026-10", the same path the log shows. One line on the Go 10.3. **Not checked: the Go 6.**
+- **1.2:** cancelling Google's account picker ("+ Add Gmail Account" → back) shows "Sign-in was cancelled." The log says `resultCode=0`, then 12501.
+- **1.8:** a "Debug: crash now" report has `Firmware: 2026-04-21_15-48_4.2-rel_04212_ce95d3767` and `Pen: SurfaceFlinger`. In a report whose last 150 log lines held a sync line, the account address reads `f…@<domain>` (U+2026); no unmasked address anywhere. The test reports were deleted with Close afterwards.
+- **Found during the check, not changed (owner to decide):**
+  1. **The event date picker shows only about 3 of a month's 5–6 weeks on the Go 10.3.** It was like this before 1.6. The grid is a non-scrolling `LazyVerticalGrid` with `.height(200.dp)` and square cells about 60 dp wide (the popup is 60% of the screen), so later weeks can't be reached; on 7 Nov the 16th–30th were hidden. The Go 6's narrower popup shows more, but probably not all. A fix: size the grid from the cell size (6 rows), or use plain rows instead of a lazy grid.
+  2. **"Sign-in was cancelled." shows at the top of the Google tab's list.** The "+ Add Gmail Account" button is at the bottom, so with the list scrolled down the message is out of view.
+- **Tests:** `ConnectedAccountSelectionSurvivalTest` fails on this PC only for its SDK 36 run ("Android SDK 36 requires Java 21 (have Java 17)"). This was already the case, and none of the code here touches it.
+
 ---
 
 ## Part 2: confirm the cause on a tablet, then fix
