@@ -169,10 +169,21 @@ enum class SyncErrorType {
 }
 
 /**
+ * True when Google refused to give a token: access was withdrawn, or the user must allow new
+ * scopes (UserRecoverableAuthIOException, e.g. after the Oct 2026 calendar scope change).
+ * Signing in again fixes it, so the account should show Reconnect, not a generic error.
+ */
+fun Throwable.isGoogleTokenRefused(): Boolean =
+    generateSequence(this) { it.cause }.take(5).any {
+        it is com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAuthIOException
+    }
+
+/**
  * Get error type from exception for proper error handling.
  */
 fun Exception.toSyncErrorType(): SyncErrorType {
     return when {
+        isGoogleTokenRefused() -> SyncErrorType.AUTHENTICATION
         this is java.net.UnknownHostException -> SyncErrorType.NETWORK
         this is java.net.SocketTimeoutException -> SyncErrorType.NETWORK
         this is java.io.IOException && message?.contains("network", ignoreCase = true) == true -> SyncErrorType.NETWORK
