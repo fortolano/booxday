@@ -17,6 +17,7 @@ import com.boox.day.sync.CalendarSyncManager
 import com.boox.day.sync.EventOperationResult
 import com.boox.day.sync.GoogleAuthManager
 import com.boox.day.sync.GoogleCalendarInfo
+import com.boox.day.sync.SignInErrorText
 import com.boox.day.sync.NewEventData
 import com.boox.day.sync.SyncResult
 import com.boox.day.sync.UpdateEventData
@@ -173,12 +174,12 @@ class GoogleCalendarProvider(
                 }
                 else -> {
                     Log.e(TAG, "Google sign-in failed with status code: ${e.statusCode}", e)
-                    Result.failure(CalendarProviderException.AuthenticationException("Sign-in failed: ${e.message}", e))
+                    Result.failure(CalendarProviderException.AuthenticationException(SignInErrorText.google(e.statusCode), e))
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error during Google sign-in", e)
-            Result.failure(CalendarProviderException.ProviderException("Sign-in error: ${e.message}", cause = e))
+            Result.failure(CalendarProviderException.ProviderException(SignInErrorText.google(null), cause = e))
         }
     }
 

@@ -489,7 +489,7 @@ fun MainScreen(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         Log.d(TAG, "Multi-provider sign-in result: resultCode=${result.resultCode}, data=${result.data != null}")
-        multiAccountSyncViewModel.handleGoogleSignInResult(result.data)
+        multiAccountSyncViewModel.handleGoogleSignInResult(result.data, result.resultCode)
     }
 
     // Notification permission launcher (Android 13+)

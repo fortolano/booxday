@@ -299,9 +299,10 @@ class MultiAccountSyncViewModel(
 
     /**
      * Handle Google sign-in activity result.
-     * Call this from onActivityResult.
+     * Call this from onActivityResult. [resultCode]: a cancelled sign-in can come back with no data,
+     * which GoogleSignIn reports as an internal error (code 8) instead of a cancel.
      */
-    fun handleGoogleSignInResult(data: Intent?) {
+    fun handleGoogleSignInResult(data: Intent?, resultCode: Int = Activity.RESULT_OK) {
         if (pendingSignInProvider != ProviderId.GOOGLE) {
             Log.w(TAG, "No pending Google sign-in")
             _uiState.update { it.copy(isConnectingGoogle = false) }
@@ -312,7 +313,11 @@ class MultiAccountSyncViewModel(
             try {
                 _uiState.update { it.copy(isLoading = true, error = null) }
 
-                val result = syncManager.handleSignInResult(ProviderId.GOOGLE, data)
+                val result = if (resultCode == Activity.RESULT_CANCELED && data == null) {
+                    Result.failure(CalendarProviderException.CancelledException("User cancelled sign-in"))
+                } else {
+                    syncManager.handleSignInResult(ProviderId.GOOGLE, data)
+                }
 
                 if (result.isSuccess) {
                     val account = result.getOrThrow()
@@ -338,17 +343,14 @@ class MultiAccountSyncViewModel(
                     syncAccount(account.id)
                 } else {
                     val error = result.exceptionOrNull()
-                    if (error is CalendarProviderException.CancelledException) {
-                        // User cancelled - don't show error
-                        _uiState.update { it.copy(isLoading = false) }
+                    // The provider's text is already the full message (SignInErrorText). A cancel is
+                    // said too (Oct 2026): showing nothing looked like a sign-in loop.
+                    val message = if (error is CalendarProviderException.CancelledException) {
+                        SignInErrorText.google(SignInErrorText.CANCELLED)
                     } else {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = "Sign-in failed: ${error?.message}"
-                            )
-                        }
+                        error?.message ?: SignInErrorText.google(null)
                     }
+                    _uiState.update { it.copy(isLoading = false, error = message) }
                 }
 
             } catch (e: Exception) {
@@ -405,10 +407,11 @@ class MultiAccountSyncViewModel(
                         // User cancelled - don't show error
                         _uiState.update { it.copy(isLoading = false) }
                     } else {
+                        // The provider's text is already a full message ("Microsoft sign-in failed …")
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                error = "Sign-in failed: ${error?.message}"
+                                error = error?.message ?: "Microsoft sign-in failed"
                             )
                         }
                     }

@@ -65,6 +65,7 @@ import com.boox.day.sync.GoogleAuthManager
 import com.boox.day.sync.ImportService
 import com.boox.day.sync.LocalBackupService
 import com.boox.day.sync.PostRestore
+import com.boox.day.sync.SignInErrorText
 import com.boox.day.ui.components.CloudBackupCard
 import com.boox.day.ui.components.EInkToggle
 import com.boox.day.ui.components.ExistingBackupDetectedCard
@@ -182,6 +183,8 @@ fun DataBackupDialog(
     // Cloud backup state
     var isSignedIn by remember { mutableStateOf(authManager.isSignedIn()) }
     var userEmail by remember { mutableStateOf(authManager.getUserEmail()) }
+    // Why the last Google sign-in failed, shown in the Google Drive card in place of "Not connected"
+    var signInError by remember { mutableStateOf<String?>(null) }
     var isDriveBackupEnabled by remember { mutableStateOf(authManager.isDriveBackupEnabled()) }
     var backupFrequency by remember { mutableStateOf(authManager.getBackupFrequency()) }
     var lastBackupTime by remember { mutableStateOf(authManager.getLastBackupTime()) }
@@ -309,10 +312,16 @@ fun DataBackupDialog(
     val signInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        // A failed or cancelled sign-in is said in the card (Oct 2026); it used to show nothing
+        if (result.resultCode == android.app.Activity.RESULT_CANCELED && result.data == null) {
+            signInError = SignInErrorText.google(SignInErrorText.CANCELLED)
+            return@rememberLauncherForActivityResult
+        }
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
             val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
             if (account != null) {
+                signInError = null
                 authManager.setSelectedAccount(account)
                 isSignedIn = true
                 userEmail = account.email
@@ -360,6 +369,7 @@ fun DataBackupDialog(
             // Sign-in failed - stay in disconnected state
             isSignedIn = false
             userEmail = null
+            signInError = SignInErrorText.google((e as? com.google.android.gms.common.api.ApiException)?.statusCode)
         }
     }
 
@@ -582,6 +592,7 @@ fun DataBackupDialog(
                                 is BackupDialogPhase.BackupDestination -> BackupDestinationContent(
                                     isSignedIn = isSignedIn,
                                     userEmail = userEmail,
+                                    signInError = signInError,
                                     onCloudSelected = { navigateTo(BackupDialogPhase.CloudBackupFlow) },
                                     onLocalSelected = {
                                         createBackupLauncher.launch(localBackupService.generateBackupFileName())
@@ -592,6 +603,7 @@ fun DataBackupDialog(
                                 is BackupDialogPhase.RestoreSource -> RestoreSourceContent(
                                     isSignedIn = isSignedIn,
                                     userEmail = userEmail,
+                                    signInError = signInError,
                                     onCloudSelected = { navigateTo(BackupDialogPhase.CloudRestoreFlow) },
                                     onLocalSelected = { showBackupFilePicker = true },
                                     onSignInClick = { signInLauncher.launch(authManager.getSignInIntent()) }
@@ -1477,6 +1489,7 @@ private fun StorageSummaryRow(
 private fun BackupDestinationContent(
     isSignedIn: Boolean,
     userEmail: String?,
+    signInError: String?,
     onCloudSelected: () -> Unit,
     onLocalSelected: () -> Unit,
     onSignInClick: () -> Unit
@@ -1498,7 +1511,7 @@ private fun BackupDestinationContent(
             DestinationCard(
                 icon = Icons.Default.Cloud,
                 title = "Google Drive",
-                subtitle = if (isSignedIn) userEmail else "Not connected",
+                subtitle = if (isSignedIn) userEmail else signInError ?: "Not connected",
                 description = listOf(
                     "Automatic backups",
                     "Access from anywhere",
@@ -1539,6 +1552,7 @@ private fun BackupDestinationContent(
 private fun RestoreSourceContent(
     isSignedIn: Boolean,
     userEmail: String?,
+    signInError: String?,
     onCloudSelected: () -> Unit,
     onLocalSelected: () -> Unit,
     onSignInClick: () -> Unit
@@ -1560,7 +1574,7 @@ private fun RestoreSourceContent(
             DestinationCard(
                 icon = Icons.Default.Cloud,
                 title = "Google Drive",
-                subtitle = if (isSignedIn) userEmail else "Not connected",
+                subtitle = if (isSignedIn) userEmail else signInError ?: "Not connected",
                 description = listOf("Restore from your cloud backups"),
                 isRecommended = false,
                 actionLabel = if (isSignedIn) "View Available Backups" else "Connect Google Account",

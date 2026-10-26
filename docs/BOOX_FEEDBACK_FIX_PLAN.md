@@ -148,6 +148,20 @@ The steps don't depend on each other. Do them in this order (most user-visible f
 - **Owner, outside code:** see 3.2 (Google console check).
 - **Review (1.0.37):** confirmed. `GoogleCalendarProvider.handleSignInResult` wraps `"Sign-in failed: ${e.message}"`, and `MultiAccountSyncViewModel.handleGoogleSignInResult` and `addOutlookAccount` add `"Sign-in failed: "` again. 12501 becomes `CancelledException`, which shows nothing. The Drive launcher in `DataBackupDialog` catches silently. `multiProviderSignInLauncher` passes only `result.data`; with RESULT_CANCELED and no data, GoogleSignIn reports code 8, not 12501, so passing `resultCode` is right. That edit is inside the launcher's own lambda, not MainScreen's root lambda. For 12500, also say to turn on Google Play in the BOOX settings (it is off by default on many BOOX tablets); owner to confirm the words. Runtime cost: none.
   - Reports: 21 Jan, exactly "Sign-in failed: Sign-in failed: 10:", still failing after the next update on a Play install. 14 Dec: a sign-in loop with no message, which fits the silent 12501. Code 10 on the Play builds points to the signing certificate of the Play build. GitHub builds use the owner's release key, and sign-in works on the owner's tablets, so that key's SHA-1 is very likely registered already. The consent-screen check in 3.2 is what still matters for other users.
+- **Done (26 Oct, texts approved by the owner):**
+  - `sync/SignInErrorText.google(statusCode, network)` gives the table's texts.
+    - 12500 also says to turn on Google Play in the BOOX settings.
+    - With no code (an unexpected error) it says "Google sign-in failed."
+    - Offline, the AI wording wins for every case except cancel and "already in progress".
+  - `GoogleCalendarProvider` uses it for its failures.
+  - `MultiAccountSyncViewModel`:
+    - Shows the provider's message with no prefix, for Outlook too.
+    - Says "Sign-in was cancelled." instead of nothing.
+    - Takes `resultCode`, so RESULT_CANCELED with no data counts as a cancel, not code 8.
+  - `DataBackupDialog` shows the text in the Google Drive card in place of "Not connected" (backup and restore screens).
+  - MainScreen's launcher passes `result.resultCode` (inside the launcher lambda).
+  - MainScreen's old `signInLauncher` (legacy `CalendarSyncViewModel` messages) is never launched; left alone.
+  - Test: `SignInErrorTextTest` (3). Not checked on a tablet.
 
 ### 1.3 Boox Notes indexing shows "waiting" when the monthly limit is reached
 - **Cause:** `ocr/UnifiedOcrPipeline.kt` returns `BUDGET_EXHAUSTED` on `!quotaManager.canReadWithAi()` (1000 reads a month) without calling `IndexingStatus.onWaiting`. The settings line then says "N items pending • Processing during idle time" forever (`ui/dialogs/BooxNotesSettingsDialog.kt`).
