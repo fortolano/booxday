@@ -733,6 +733,36 @@ The owner asked to check Settings → Voice-to-Text: it showed a fixed "Gemini 2
   - Voice settings: the AI option is "AI on OpenRouter" and shows the model in use from AI Models ("Model: Gemini 3.1 Flash Lite, BooxDay's choice. Change it in AI Settings → AI Models."); Google Speech says "Ready on this tablet", free, and that Google may process the audio on its servers. Help's voice section says the same.
 - **Tablet check:** open Settings → Voice-to-Text on the Go 10.3 (Google Speech ready, the AI option shows the model) and record a voice task. On a tablet with the Google Search app installed by the user, voice should now use Google speech.
 
+### 4.12 "Start the day" is confusing and plain (owner, 26 Oct; screenshot on the Go 10.3, build `bee387e`)
+
+The owner: "confusing and poorly designed", "ugly", "needs to be much nicer and more appealing and modern". It must help, not confuse.
+
+- **What it is** (`editor/ui/StartDayReview.kt`; opened in MainScreen ~1330–1430 and ~4336):
+  - It opens by itself once a day, the first time today's Tasks show, when a task from the last 7–30 days isn't done. It can also be opened from the task actions menu ("Start-the-day review").
+  - It lists those unfinished tasks in their own handwriting, 4 to a page. Each has Today · Tomorrow · Pick day · Done · Delete. Each acts at once, except Delete, which asks first.
+  - Later pages list tasks due today that were written on other days.
+  - Close leaves every task on its old day, and the review doesn't open again that day (`lastStartDayReviewDay` is set when it opens).
+- **What's wrong** (seen in the screenshot):
+  1. It doesn't say why it opened or what it asks. "Start the day" and "Unfinished from earlier days (2)" give no instruction. Nothing says what Close does: the tasks stay where they were.
+  2. Five identical outlined buttons per task, with grey labels that look disabled on e-ink. There is no main action: ten buttons for two tasks, twenty on a full page. "Today" doesn't say "move". Done and Delete look like the three moves, and Delete sits next to Done.
+  3. No way to handle them all at once.
+  4. Small grey date above each task. Jargon ("moved 2×"). Two divider lines above Close. Close alone in a corner. A hard-coded width (0.96, 640 dp) instead of the theme's.
+  5. Tasks due today are on a later page behind small arrows, easy to miss.
+  6. No sign that an action worked: the task just disappears. Only a failed move says anything.
+- **Proposal** (one dialog, black and white, larger and calmer; no new screens):
+  - **Header:** a sun icon, "Start your day", and the X (`DialogCloseButton`). One line under it: "These tasks from earlier days aren't done yet. Choose what to do with each, or leave them where they are."
+  - **Each task is a card** with a 1 dp black border and rounded corners:
+    - the handwriting (or typed text), large;
+    - under it, in black: "From Sat 24 Oct · due 25 Oct · put off 2 times";
+    - the actions: one black, filled **Move to Today**, then outlined **Tomorrow** and **Other day…**, then, set apart on the right, **Done** with a check icon and **Delete** with a trash icon (still asks first). That is three text buttons and two clearly different icon buttons, instead of five equal ones.
+  - **After an action**, the card stays where it is and turns into one line: "Moved to today", "Marked done" or "Deleted". The page doesn't jump, which matters on e-ink.
+  - **With 2 or more tasks:** a "Move all to today" button under the header.
+  - **Tasks due today** get their own section on the same page when there is room ("Due today, written on other days"), with a "Go to task ›" row. The page arrows say "1 of 3".
+  - **Footer:** "Decide Later" on the left (the escape button, as the rulebook asks) and the hint "They stay on their day. Open this again from the task actions menu." When nothing is left: "All set for today." and a black **Close**.
+  - **Theme:** `EInkTheme.PopupOverlay` width and title, no grey for meaning, the 4.4 bar if a page is taller than the screen.
+  - **Owner decides:** (a) keep opening it by itself each morning, or add a Preferences switch "Review unfinished tasks each morning" (on by default; recommended); (b) "Move all to today", yes or no; (c) Undo on the one-line notes, now or later.
+  - **Cost:** nothing outside the dialog; the pen path is untouched. Check on the Go 10.3 and the Go 6 (on the Go 6, 3 tasks to a page).
+
 ### Part 4 order and tests
 1. 4.1 (checked 26 Oct; fix (a), (b), (b2)), the 4.10 search snippet, and 4.2: data, search and privacy first.
 2. 4.3, then 4.4: Boox Notes first, then the shared bar, which needs the owner's OK on its look.
