@@ -130,6 +130,8 @@ class BooxDayApp : Application() {
         com.boox.day.api.OpenRouterModelCatalog.init(this)
         // Oct 2026: whether a picked AI model failed last time (AI Models card)
         com.boox.day.api.AiPickStatus.init(this)
+        // Oct 2026: the once-only "AI and your calendar" notice (ui/CalendarAiNotice)
+        com.boox.day.ui.CalendarAiNotice.init(this)
         // Oct 2026: whether Wi-Fi is on, to say why an AI request failed
         com.boox.day.api.NetworkStatus.init(this)
     }

@@ -1159,6 +1159,11 @@ fun MainScreen(
                 showWeeklySummaryDialog = false
                 return@launch
             }
+            // It sends the week's events: the once-only "AI and your calendar" notice (ui/CalendarAiNotice)
+            if (!com.boox.day.ui.CalendarAiNotice.awaitAllowed()) {
+                showWeeklySummaryDialog = false
+                return@launch
+            }
 
 
             weeklySummaryProcessingState = WeeklySummaryProcessingState.Processing("Analyzing patterns...")
@@ -1494,6 +1499,7 @@ fun MainScreen(
                 com.boox.day.ui.AiKeyGate.isOpen ||
                 com.boox.day.update.AppUpdateGate.isOpen ||
                 com.boox.day.diagnostics.CrashReportGate.isOpen ||
+                com.boox.day.ui.CalendarAiNotice.isOpen ||
                 com.boox.day.ui.GoogleReconnectGate.isOpen ||
                 com.boox.day.ui.FullScreenState.transitioning ||
                 onboardingDismissedAt == 0L
@@ -2142,6 +2148,8 @@ fun MainScreen(
     com.boox.day.ui.dialogs.AppUpdateHost()
     // "BooxDay closed unexpectedly" after a crash (Oct 2026, diagnostics/CrashReportGate)
     com.boox.day.ui.dialogs.CrashReportHost()
+    // "AI and your calendar", once before the first AI feature that sends events (Oct 2026, ui/CalendarAiNotice)
+    com.boox.day.ui.dialogs.CalendarAiNoticeHost(onOpenAiSettings = { showAiSettingsDialog = true })
     // "Reconnect Google Calendar" for accounts signed in before the narrower scopes (Oct 2026,
     // ui/GoogleReconnectGate): the same Google sign-in as Calendar Accounts → Reconnect
     com.boox.day.ui.dialogs.GoogleReconnectHost(onReconnect = { accountType ->
@@ -2764,6 +2772,11 @@ fun MainScreen(
                                     showDailySummaryDialog = false
                                     return@launch
                                 }
+                                // It sends today's events: the once-only notice (ui/CalendarAiNotice)
+                                if (!com.boox.day.ui.CalendarAiNotice.awaitAllowed()) {
+                                    showDailySummaryDialog = false
+                                    return@launch
+                                }
 
                                 // Generate fresh summary using Intelligence Engine V3
                                 dailySummaryProcessingState = DailySummaryProcessingState.Processing("Analyzing your day...")
@@ -2829,6 +2842,8 @@ fun MainScreen(
                             scope.launch {
                                 // Needs the user's own OpenRouter key (Oct 2026)
                                 if (!com.boox.day.ui.AiKeyGate.requireKey()) return@launch
+                                // It sends events: the once-only notice (ui/CalendarAiNotice)
+                                if (!com.boox.day.ui.CalendarAiNotice.awaitAllowed()) return@launch
                                 // Free task rows for the results (TaskSlotCalculator: at most 10 task pages a day)
                                 val slots = TaskSlotCalculator.getAvailableSlots(
                                     date = selectedDate,
@@ -2996,7 +3011,7 @@ fun MainScreen(
                         com.boox.day.ui.FullScreenState.exitThen {
                             if (!com.boox.day.ui.AiKeyGate.requireKey()) {
                                 // Needs the user's own OpenRouter key (Oct 2026): the key popup is open
-                            } else {
+                            } else com.boox.day.ui.CalendarAiNotice.afterNotice {  // sends events: notice once (Oct 2026)
                                 agenticPlanProcessingState = com.boox.day.data.ai.AgenticPlanProcessingState.Processing("Initializing...")
                                 agenticPlanResult = null
                                 agenticPendingTaskRefreshTarget = null
