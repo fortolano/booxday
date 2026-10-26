@@ -551,7 +551,7 @@ private fun CalendarSyncContent() {
     BulletPoint("Disconnect removes an account from BooxDay.")
     BulletPoint("A new event goes to a Cloud Calendar when an account is connected. Under Save to, pick This device only to keep it on the tablet: it never syncs.")
     BulletPoint("Events sync from two months back to three months ahead.")
-    BulletPoint("BooxDay asks Google for little access to your calendar: only your events and your list of calendars. If you signed in with an older version, BooxDay asks you once to reconnect; until you do, your Google events don't update. You can also reconnect in Settings → Calendar Accounts.")
+    BulletPoint("BooxDay asks Google for little access to your calendar: only your events and your list of calendars.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
