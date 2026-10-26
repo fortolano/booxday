@@ -138,7 +138,7 @@ fun AiSettingsDialog(
                         // AI Features Master Toggle
                         SettingCard(
                             title = "AI Features",
-                            description = "Voice input and the AI tools in Memos and Tasks, such as Recognize Handwriting, Summarize, Translate and Smart Suggestions."
+                            description = "Voice input, the AI tools in Memos and Tasks (such as Recognize Handwriting, Summarize, Translate and Smart Suggestions), and reading pages for search."
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -156,7 +156,7 @@ fun AiSettingsDialog(
                                         text = if (aiEnabled)
                                             "When you use an AI tool, its page images, text or voice clip are sent to OpenRouter, on your own account, to be read or answered."
                                         else
-                                            "Voice input and the AI tools are off. Nothing is sent for them.",
+                                            "Voice input, the AI tools and reading pages for search are off. Nothing is sent to OpenRouter.",
                                         fontSize = EInkTheme.Preferences.explanationFontSize,
                                         color = EInkTheme.Colors.gray
                                     )
@@ -233,7 +233,7 @@ fun AiSettingsDialog(
                         // Privacy (Oct 2026): where AI requests go
                         SettingCard(
                             title = "Privacy",
-                            description = "BooxDay sends nothing to its developer. AI requests go from this tablet to OpenRouter, on your own account, and to the company that runs the model. Reading pages for search also sends memo and Boox Notes pages, but only while Settings → Boox Notes → Enable Indexing is on."
+                            description = "BooxDay sends nothing to its developer. AI requests go from this tablet to OpenRouter, on your own account, and to the company that runs the model. Reading pages for search also sends memo and Boox Notes pages, while Settings → Boox Notes → Enable Indexing is on. With AI Features off, nothing is sent to OpenRouter."
                         ) {
                             Row(
                                 modifier = Modifier

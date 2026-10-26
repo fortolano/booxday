@@ -427,8 +427,11 @@ fun SharedToolbar(
     // Threshold: 60 strokes ≈ 1 paragraph, above that use Cloud LLM for better accuracy
     val handwritingConfig = remember(handwritingRecognitionRequest) {
         val strokeCount = handwritingRecognitionRequest?.strokes?.size ?: 0
-        // Without the user's own OpenRouter key the tablet reads any length (Oct 2026)
-        if (strokeCount <= 60 || !com.boox.day.security.UserOpenRouterKey.hasKey) {
+        // Without the user's own OpenRouter key, or with AI Features off, the tablet reads any length
+        // (Oct 2026): the selection bar's AI Recognize stays usable and sends nothing
+        if (strokeCount <= 60 || !com.boox.day.security.UserOpenRouterKey.hasKey ||
+            !GlobalAppSettings.current.aiEnabled
+        ) {
             RecognitionModelConfig.DIGITAL_INK  // Fast on-device for sentences/paragraphs
         } else {
             RecognitionModelConfig.DEFAULT  // Cloud LLM for dense content

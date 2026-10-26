@@ -688,7 +688,7 @@ private fun OcrSettingsSection(
     SettingCard(
         title = "Enable Indexing",
         description = if (isStandaloneWithoutOcrKey) {
-            "Reads pages with AI on your OpenRouter key: add one in AI Settings"
+            "Reads pages with AI on your OpenRouter key, while AI Features is on: add a key in AI Settings"
         } else {
             "Process notes, memos, and tasks during idle time"
         }
@@ -700,6 +700,8 @@ private fun OcrSettingsSection(
         ) {
             Text(
                 text = when {
+                    // Oct 2026: AI Features off pauses page reading (UnifiedOcrPipeline.aiReadWaitReason)
+                    ocrSettings.enabled && !GlobalAppSettings.current.aiEnabled -> "On, paused: AI Features is off"
                     isStandaloneWithoutOcrKey && ocrSettings.enabled -> "On, waiting for a key"
                     isStandaloneWithoutOcrKey -> "Off, needs a key"
                     ocrSettings.enabled -> "Enabled"

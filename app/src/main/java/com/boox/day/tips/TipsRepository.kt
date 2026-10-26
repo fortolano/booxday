@@ -68,7 +68,7 @@ object TipsRepository {
         ),
         Tip(
             id = "ai_handwriting_search",
-            message = "With an OpenRouter key, Enable Indexing (Settings → Boox Notes) makes your handwritten memos searchable.",
+            message = "With an OpenRouter key and AI Features on, Enable Indexing (Settings → Boox Notes) makes your handwritten memos searchable.",
             contexts = setOf(TipContext.MEMOS)
         ),
     )
@@ -363,7 +363,7 @@ object TipsRepository {
         ),
         Tip(
             id = "semantic_privacy",
-            message = "Pages are read for search only while Settings → Boox Notes → Enable Indexing is on. They go to OpenRouter on your own account, to providers that keep no copy.",
+            message = "Pages are read for search only while AI Features and Enable Indexing (Settings → Boox Notes) are on. They go to OpenRouter on your own account, to providers that keep no copy.",
             contexts = setOf(TipContext.GENERAL)
         ),
         Tip(

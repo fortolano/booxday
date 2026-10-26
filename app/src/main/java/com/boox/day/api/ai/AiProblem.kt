@@ -47,6 +47,13 @@ enum class AiProblem(val message: String, val shortText: String, val indexingWai
     KEY_REJECTED(AiResponse.Error.KeyRejected().message, "OpenRouter key not accepted", indexingWaits = true),
     NO_CREDIT(AiResponse.Error.OutOfCredit.NO_CREDIT_MESSAGE, "no OpenRouter credit", indexingWaits = true),
 
+    /** The AI Features switch is off (Oct 2026): nothing goes to OpenRouter, page reading included */
+    AI_OFF(
+        "AI Features is off. Turn it on in Settings → AI Settings.",
+        "AI Features is off",
+        indexingWaits = true
+    ),
+
     /** BooxDay's own cap on AI page reads for search (OcrQuotaManager): the rest wait for next month */
     MONTHLY_LIMIT(
         "BooxDay reads up to $MONTHLY_READS pages a month with AI. The rest are read next month.",

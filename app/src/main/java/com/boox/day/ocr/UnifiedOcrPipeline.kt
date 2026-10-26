@@ -18,6 +18,18 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
+ * Why a page can't be read with AI right now, or null when it can (Oct 2026). The AI Features switch
+ * comes first: with it off nothing goes to OpenRouter, so a missing key or the monthly limit is not
+ * the reason to show. [withinMonthlyLimit] is only asked when the rest allow a read.
+ */
+internal fun aiReadWaitReason(aiEnabled: Boolean, hasKey: Boolean, withinMonthlyLimit: () -> Boolean): AiProblem? = when {
+    !aiEnabled -> AiProblem.AI_OFF
+    !hasKey -> AiProblem.NO_KEY
+    !withinMonthlyLimit() -> AiProblem.MONTHLY_LIMIT
+    else -> null
+}
+
+/**
  * Unified OCR processing pipeline for all content sources.
  *
  * This is the SOLE OCR engine. Since Oct 2026 an AI model reads each page on the user's own
@@ -175,18 +187,19 @@ class UnifiedOcrPipeline(private val context: Context) {
             return ProcessResult.BUDGET_EXHAUSTED
         }
 
-        // Step 2b: AI reads run on the user's own OpenRouter key and credit (Oct 2026): without a
-        // key, or past this month's read limit, indexing waits (nothing marked, nothing failed)
+        // Step 2b: AI reads run on the user's own OpenRouter key and credit (Oct 2026), and only while
+        // AI Features is on: otherwise indexing waits (nothing marked, nothing failed), and the reason
+        // shows in Boox Notes settings (it kept saying "processing during idle time")
         withContext(Dispatchers.IO) { com.boox.day.security.UserOpenRouterKey.ensureLoaded() }
-        if (!com.boox.day.security.UserOpenRouterKey.hasKey) {
-            Log.d(TAG, "No OpenRouter key - indexing waits")
-            IndexingStatus.onWaiting(AiProblem.NO_KEY)
-            return ProcessResult.BUDGET_EXHAUSTED
-        }
-        if (!quotaManager.canReadWithAi()) {
-            Log.w(TAG, "Monthly AI read limit reached (${quotaManager.getAiReadsThisMonth()}/${quotaManager.monthlyAiReadLimit})")
-            // Said as the reason (Oct 2026): the settings line kept saying "processing during idle time"
-            IndexingStatus.onWaiting(AiProblem.MONTHLY_LIMIT)
+        val waitReason = aiReadWaitReason(
+            aiEnabled = com.boox.day.data.datastore.GlobalAppSettings.current.aiEnabled,
+            hasKey = com.boox.day.security.UserOpenRouterKey.hasKey,
+            withinMonthlyLimit = { quotaManager.canReadWithAi() }
+        )
+        if (waitReason != null) {
+            Log.d(TAG, "Indexing waits: ${waitReason.shortText} (AI reads this month: " +
+                "${quotaManager.getAiReadsThisMonth()}/${quotaManager.monthlyAiReadLimit})")
+            IndexingStatus.onWaiting(waitReason)
             return ProcessResult.BUDGET_EXHAUSTED
         }
 

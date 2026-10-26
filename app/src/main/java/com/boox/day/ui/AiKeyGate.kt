@@ -5,6 +5,8 @@ import android.os.Looper
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.boox.day.api.ai.AiProblem
+import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.security.UserOpenRouterKey
 
 /**
@@ -30,8 +32,19 @@ object AiKeyGate {
     var addKeyPending by mutableStateOf(false)
         private set
 
-    /** True when a key is saved; otherwise opens the popup and returns false. */
+    /**
+     * True when AI Features is on and a key is saved. With AI Features off (Oct 2026) nothing goes to
+     * OpenRouter: a snackbar says so and it returns false; most AI buttons are greyed out then, but
+     * the task card's Break Down and the selection bar's Convert to Tasks come here. Without a key
+     * it opens the popup and returns false.
+     */
     fun requireKey(): Boolean {
+        if (!GlobalAppSettings.current.aiEnabled) {
+            SnackState.globalSnackFlow.tryEmit(
+                SnackConf(text = AiProblem.AI_OFF.message, duration = SnackConf.DURATION_STANDARD)
+            )
+            return false
+        }
         if (UserOpenRouterKey.hasKey) return true
         open(Reason.NO_KEY)
         return false

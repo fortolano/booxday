@@ -664,7 +664,13 @@ Help is a 12-topic split popup of about 4,500–5,000 words (`HelpDialog.kt`). I
     - **Read** for handwriting: tasks are "read on the tablet"; memo pages and Boox Notes pages are "read by AI". "AI page reads" for the monthly count. Not "OCR", "handwriting recognition" or "semantic".
     - **Turn on / turn off**, not "enable / disable"; the switch status says "On" / "Off".
     - **Feature names stay as the menus show them:** "AI tools" (the Memos AI button: Voice to Text, Recognize Handwriting, Summarize, Translate, Convert Memo to Tasks), "Task AI" (the Tasks AI button: Optimize My Day, Sort by Priority, Smart Suggestions, Break Down Task, Daily Summary, Weekly Summary), AI Style (a wizard tab), Smart Link.
-    - **Two switches, said plainly wherever privacy comes up:** the AI Features switch (AI Settings) turns voice input and the AI tools on or off. Reading pages for search has its own switch, Settings → Boox Notes → Enable Indexing (off by default). The AI Features switch does not stop indexing (`UnifiedOcrIdleProcessor.canProcess` checks only `ocrSettings.enabled`), so no text may say "nothing is sent with AI off". Whether the AI switch should also pause indexing is the owner's call (not changed).
+    - **AI Features off means nothing goes to OpenRouter** (owner, 26 Oct, on Claude's recommendation). The switch turns off voice input, the AI tools and reading pages for search; Enable Indexing (Settings → Boox Notes) is the second switch, for page reading only. Texts may now say "With AI Features off, nothing is sent to OpenRouter."
+      - **Done (26 Oct):**
+        - `UnifiedOcrPipeline` waits (`aiReadWaitReason`: AI off, then no key, then the monthly limit), like without a key: nothing is marked or failed, and the idle processor rests (protected code untouched). Boox Notes settings show "Waiting: AI Features is off" and "On, paused: AI Features is off". New `AiProblem.AI_OFF`.
+        - `AiKeyGate.requireKey()` refuses with a snackbar while AI is off. The task card's Break Down and the selection bar's Convert to Tasks reached AI with the switch off; the other buttons are greyed out.
+        - AI Recognize reads on the tablet (ML Kit) while AI is off, and says so.
+        - Privacy texts updated: AI Settings, Help, the tips, About, Boox Notes settings.
+        - Test: `AiReadWaitReasonTest`.
     - **Internal names never reach the user:** "SemanticGenius" becomes "Smart Link" (that Help topic is about linking notes to events); "AI Chief of Staff" goes; Help's voice text uses the Voice settings' own option names.
     - No marketing words: "AI-powered", "magic", "game-changing" go.
 - **Answers can be lost:**
