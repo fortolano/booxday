@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -31,6 +32,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -1706,6 +1708,9 @@ fun AddEditEventDialog(
  * Internal values are always 24-hour (0-23), but display adapts to preference.
  * @param compact When true, uses smaller buttons for inline row layout
  */
+// Height of one hour in the list: DropdownMenuItem's minimum (the menu's own padding is outside its scroll)
+private val HOUR_ITEM_HEIGHT = 48.dp
+
 @Composable
 private fun TimeSelector(
     hour: Int,
@@ -1745,13 +1750,21 @@ private fun TimeSelector(
             ) {
                 Text(text = displayHour, fontSize = if (compact) 14.sp else EInkTheme.TimePicker.fontSize)
             }
+            // Opens at the chosen hour (Oct 2026): after an 11:00 start, the end list began at 00 again.
+            // A new state per opening, already in place, so there is no scroll animation on e-ink.
+            val density = LocalDensity.current
+            val selectedHourIndex = if (is24Hour) hour else com.boox.day.utils.DateTimeFormatUtils.getDisplayHour(hour) - 1
+            val hourScrollState = remember(showHourDropdown) {
+                ScrollState(with(density) { (HOUR_ITEM_HEIGHT * selectedHourIndex).roundToPx() })
+            }
             DropdownMenu(
                 expanded = showHourDropdown,
                 onDismissRequest = { showHourDropdown = false },
                 modifier = Modifier
                     .background(EInkTheme.Colors.background)
                     .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary)
-                    .heightIn(max = 200.dp)
+                    .heightIn(max = 200.dp),
+                scrollState = hourScrollState
             ) {
                 if (is24Hour) {
                     // 24-hour format: show 00-23

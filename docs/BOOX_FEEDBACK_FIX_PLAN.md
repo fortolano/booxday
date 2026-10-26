@@ -191,6 +191,10 @@ The steps don't depend on each other. Do them in this order (most user-visible f
 - **Change:** pass `scrollState = rememberScrollState()` to the Material 1 `DropdownMenu` (Compose 1.9.5 has the parameter). When it opens, scroll to the selected hour: the index is `hour` in 24-hour mode, otherwise display hour − 1, at about 48 dp per item. The end value already follows the start, so the end list opens just after the start.
 - **Tests:** UI only. Check by hand.
 - **Review (1.0.37):** confirmed. The Material 1.9.5 `DropdownMenu` does take `scrollState` (checked in the cached library). Create the state for each opening with its first value already at the selected hour (`remember(showHourDropdown) { ScrollState(initialPx) }`), so the list opens there with no scroll animation and one e-ink refresh. Offset: `DropdownMenuItem` is at least 48 dp tall, plus the menu's 8 dp top padding; convert with `LocalDensity` (the app sets its own density). In 12-hour mode, 12 is the last item. The end follows the start: confirmed in the start-time handlers. Runtime cost: none. Reported 22 Jan (Tab X C): after an 11:00 start, the end list starts at 00 again.
+- **Done (26 Oct):**
+  - `TimeSelector`'s hour `DropdownMenu` gets `scrollState = remember(showHourDropdown) { ScrollState(index × 48 dp) }`. The index is the hour in 24-hour mode, or the display hour − 1.
+  - In Material 1 the menu's 8 dp vertical padding is outside its scrolling column, so the offset needs no padding term.
+  - Compiles. UI only: not checked on a tablet yet. The minute list is unchanged.
 
 ### 1.8 Crash report says the firmware and the pen mode
 - **Why:** EMR tablets are the untested group, so reports should show the pen mode and firmware without needing adb.
