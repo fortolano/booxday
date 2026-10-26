@@ -43,6 +43,8 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.datastore.GlobalAppSettings
+import com.boox.day.editor.ui.leadingDays
+import com.boox.day.editor.ui.weekdayInitials
 import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.db.LocalCalendar
 import com.boox.day.data.model.ProviderId
@@ -1614,9 +1616,10 @@ fun AddEditEventDialog(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Day of week headers
+                    // Day of week headers, from the week start setting like the main calendar (Oct 2026)
+                    val firstDayOfWeek = GlobalAppSettings.current.firstDayOfWeek
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        listOf("S", "M", "T", "W", "T", "F", "S").forEach { day ->
+                        weekdayInitials(firstDayOfWeek).forEach { day ->
                             Text(
                                 text = day,
                                 modifier = Modifier.weight(1f),
@@ -1632,7 +1635,7 @@ fun AddEditEventDialog(
                     // Calendar grid
                     val firstDayOfMonth = LocalDate.of(pickerYear, pickerMonth, 1)
                     val daysInMonth = firstDayOfMonth.lengthOfMonth()
-                    val startDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7 // Sunday = 0
+                    val startDayOfWeek = leadingDays(firstDayOfMonth, firstDayOfWeek)
 
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(7),

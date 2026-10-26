@@ -215,6 +215,7 @@ The steps don't depend on each other. Do them in this order (most user-visible f
   - Taking the enum means a Saturday value (3.7) needs only a new `when` branch.
   - Test: `TaskDatePickerDaysTest` (4: Sunday-start and Monday-start months, all 12 months × both settings fill 42 consecutive days from the right weekday, header).
   - **Not in this step:** the event date picker in `AddEditEventDialog.kt` (~1617–1633) is Sunday-first too (its own header and `dayOfWeek.value % 7`). Reported to the owner.
+  - **Done after the owner's OK (26 Oct, own commit):** the event date picker uses `weekdayInitials(firstDayOfWeek)` and the new shared `leadingDays(firstOfMonth, firstDayOfWeek)`. Test: `TaskDatePickerDaysTest` (5), whose new case checks `leadingDays` against the task picker for every month and both settings.
 
 ### 1.7 The end-time list opens at the chosen hour
 - **Cause:** `ui/dialogs/AddEditEventDialog.kt` `TimeSelector` (hour `DropdownMenu`) always lists from 00 at the top.

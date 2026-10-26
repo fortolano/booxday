@@ -39,6 +39,22 @@ class TaskDatePickerDaysTest {
     }
 
     @Test
+    fun theEventDatePickerLeavesTheSameEmptyCells() {
+        // 1 Nov 2026 is a Sunday, 1 Jun 2026 a Monday
+        assertEquals(0, leadingDays(LocalDate.of(2026, 11, 1), FirstDayOfWeek.Sunday))
+        assertEquals(6, leadingDays(LocalDate.of(2026, 11, 1), FirstDayOfWeek.Monday))
+        assertEquals(1, leadingDays(LocalDate.of(2026, 6, 1), FirstDayOfWeek.Sunday))
+        assertEquals(0, leadingDays(LocalDate.of(2026, 6, 1), FirstDayOfWeek.Monday))
+        // And always as many as the task picker's days from the month before
+        for (start in FirstDayOfWeek.entries) {
+            for (month in 1..12) {
+                val taskPickerLeading = generateCalendarDays(2026, month - 1, start).takeWhile { !it.isCurrentMonth }.size
+                assertEquals("$start $month", taskPickerLeading, leadingDays(LocalDate.of(2026, month, 1), start))
+            }
+        }
+    }
+
+    @Test
     fun theHeaderStartsOnTheSameDay() {
         assertEquals(listOf("S", "M", "T", "W", "T", "F", "S"), weekdayInitials(FirstDayOfWeek.Sunday))
         assertEquals(listOf("M", "T", "W", "T", "F", "S", "S"), weekdayInitials(FirstDayOfWeek.Monday))

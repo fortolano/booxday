@@ -30,6 +30,8 @@ import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.ui.theme.EInkTheme
 import java.text.SimpleDateFormat
+import java.time.DayOfWeek
+import java.time.LocalDate
 import java.util.Calendar
 import java.util.Locale
 
@@ -191,6 +193,15 @@ internal fun weekdayInitials(firstDayOfWeek: AppSettings.FirstDayOfWeek): List<S
     val sundayFirst = listOf("S", "M", "T", "W", "T", "F", "S")
     val shift = firstDayOfWeek.calendarDay() - Calendar.SUNDAY
     return sundayFirst.drop(shift) + sundayFirst.take(shift)
+}
+
+/** Empty cells before [firstOfMonth] in a grid whose first column is [firstDayOfWeek] (also the event date picker). */
+internal fun leadingDays(firstOfMonth: LocalDate, firstDayOfWeek: AppSettings.FirstDayOfWeek): Int {
+    val firstColumn = when (firstDayOfWeek) {
+        AppSettings.FirstDayOfWeek.Sunday -> DayOfWeek.SUNDAY
+        AppSettings.FirstDayOfWeek.Monday -> DayOfWeek.MONDAY
+    }
+    return (firstOfMonth.dayOfWeek.value - firstColumn.value + 7) % 7
 }
 
 /**
