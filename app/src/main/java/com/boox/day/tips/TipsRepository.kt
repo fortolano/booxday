@@ -255,6 +255,11 @@ object TipsRepository {
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
+            id = "events_local",
+            message = "Want an event only on this tablet? Under Save to, pick This device only: it never syncs.",
+            contexts = setOf(TipContext.EVENTS)
+        ),
+        Tip(
             id = "events_boox_notes",
             message = "Link your Boox Notes to calendar events for quick access to meeting notes.",
             contexts = setOf(TipContext.EVENTS)
