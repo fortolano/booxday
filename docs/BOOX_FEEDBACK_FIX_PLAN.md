@@ -199,6 +199,11 @@ The steps don't depend on each other. Do them in this order (most user-visible f
   - "Customize gestures in Settings > Gestures": no dialog has a gesture setting, so remove this tip.
   - The same kind of wrong path outside the tips: `ui/dialogs/HelpDialog.kt` ("Settings > Canvas Settings", "Settings > OCR & Search", "Settings > Sync > Unlink Account", "Settings > Backup") and `ui/dialogs/WelcomePopup.kt` ("Settings → AI Assistant"). Fix them in the same step; text only.
   - Runtime cost: none.
+- **Done (26 Oct, texts approved by the owner):**
+  - The 7 tips, 4 Help lines and the Welcome line now say the paths of the owner's table, with "→" throughout. The gestures tip is removed.
+  - The Help backup line no longer suggests copying the `booxdaydb` folder (the database is private to the app). The lines above it that give the old database path are left for 4.7.
+  - The two AI paths use the 4.8 names ("AI Settings → AI Preferences"). Ship them in the same release as 4.8, which renames the card.
+  - Compiles; no tests exist for these texts.
 
 ### 1.6 The task date picker follows the week start setting
 - **Cause:** `editor/ui/TaskDatePickerContent.kt` hard-codes the Sunday header, and `generateCalendarDays` uses `DAY_OF_WEEK` raw.

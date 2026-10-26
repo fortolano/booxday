@@ -208,7 +208,7 @@ fun WelcomePopup(
                             tint = EInkTheme.Colors.primary
                         )
                         Text(
-                            text = "Pro tip: Set up your AI preferences in Settings → AI Assistant for personalized planning and smarter suggestions.",
+                            text = "Pro tip: Set up your AI preferences in Settings → AI Settings → AI Preferences for personalized planning and smarter suggestions.",
                             fontSize = 12.sp,
                             color = EInkTheme.Colors.darkGray,
                             lineHeight = 16.sp

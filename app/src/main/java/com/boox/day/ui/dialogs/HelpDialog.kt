@@ -549,7 +549,7 @@ private fun WritingMemosContent() {
 
     SectionSubheader("Scribble-to-Erase")
     BodyText("Rapidly scribble back and forth over handwriting with your stylus to erase it. This mimics the motion of physically crossing out text.")
-    BodyText("Enable this feature in Settings > Canvas Settings.")
+    BodyText("Turn it on with \"Scribble to Erase\" in the eraser menu.")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -873,7 +873,7 @@ private fun SemanticGeniusContent() {
     SectionSubheader("Tips for Best Results")
     BulletItem("Write naturally", "SemanticGenius understands context, not just keywords.")
     BulletItem("Include names, dates, and topics", "Better matches for Smart Link.")
-    BulletItem("Enable Boox Notes indexing", "Go to Settings > OCR & Search to connect your existing notebooks.")
+    BulletItem("Enable Boox Notes indexing", "Go to Settings → Boox Notes → Enable Indexing to connect your existing notebooks.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
@@ -1042,7 +1042,7 @@ private fun TroubleshootingContent() {
 
     TroubleshootingItem(
         problem = "Sync failed?",
-        solution = "Ensure you are online. If issues persist, go to Settings > Sync > Unlink Account and sign in again."
+        solution = "Ensure you are online. If issues persist, go to Settings → Calendar Accounts, tap Disconnect, then sign in again."
     )
 
     TroubleshootingItem(
@@ -1063,7 +1063,7 @@ private fun TroubleshootingContent() {
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
 
-    BodyText("We recommend regular backups via Settings > Backup, or by manually copying the booxdaydb folder.")
+    BodyText("Back up regularly in Settings → Data & Backup.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 

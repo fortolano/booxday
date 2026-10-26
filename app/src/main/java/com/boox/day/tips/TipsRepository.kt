@@ -230,12 +230,12 @@ object TipsRepository {
         ),
         Tip(
             id = "calendar_week_numbers",
-            message = "Enable week numbers in Settings > Basic for easier planning.",
+            message = "Turn on week numbers in Settings → Calendar & Sync for easier planning.",
             contexts = setOf(TipContext.CALENDAR)
         ),
         Tip(
             id = "calendar_first_day",
-            message = "Prefer Monday starts? Change the first day of week in Settings > Basic.",
+            message = "Prefer Monday starts? Change the first day of the week in Settings → Calendar & Sync.",
             contexts = setOf(TipContext.CALENDAR)
         ),
         Tip(
@@ -352,17 +352,17 @@ object TipsRepository {
         ),
         Tip(
             id = "general_backup",
-            message = "Enable Google Drive backup in Settings > Advanced to protect your data.",
+            message = "Turn on Google Drive backup in Settings → Data & Backup to protect your data.",
             contexts = setOf(TipContext.GENERAL)
         ),
         Tip(
             id = "general_date_format",
-            message = "Change date and time format in Settings > Basic to match your preference.",
+            message = "Change the date and time format in Settings → Preferences.",
             contexts = setOf(TipContext.GENERAL)
         ),
         Tip(
             id = "general_tips_toggle",
-            message = "You can disable these tips in Settings > Basic if you prefer.",
+            message = "You can turn these tips off in Settings → Preferences.",
             contexts = setOf(TipContext.GENERAL)
         ),
         Tip(
@@ -438,11 +438,6 @@ object TipsRepository {
             contexts = setOf(TipContext.MEMOS, TipContext.TASKS)
         ),
         Tip(
-            id = "gesture_customize",
-            message = "Customize gestures in Settings > Gestures.",
-            contexts = setOf(TipContext.GENERAL)
-        ),
-        Tip(
             id = "gesture_calendar_longpress",
             message = "Long press a date for Quick View.",
             contexts = setOf(TipContext.CALENDAR)
@@ -497,7 +492,7 @@ object TipsRepository {
         ),
         Tip(
             id = "discover_ai_preferences_tasks",
-            message = "Smart Suggestions work better when you tell the AI about yourself. Try Settings > AI Preferences!",
+            message = "Smart Suggestions work better when the AI knows a little about you. Try Settings → AI Settings → AI Preferences.",
             contexts = setOf(TipContext.TASKS),
             isDiscovery = true
         ),
