@@ -156,7 +156,7 @@ fun AiSettingsDialog(
                                         text = if (aiEnabled)
                                             "When you use an AI tool, its page images, text or voice clip are sent to OpenRouter, on your own account, to be read or answered."
                                         else
-                                            "Voice input, the AI tools and reading pages for search are off. Nothing is sent to OpenRouter.",
+                                            "Voice input, the AI tools and reading pages for search are off. None of your data goes to OpenRouter.",
                                         fontSize = EInkTheme.Preferences.explanationFontSize,
                                         color = EInkTheme.Colors.gray
                                     )
@@ -233,7 +233,7 @@ fun AiSettingsDialog(
                         // Privacy (Oct 2026): where AI requests go
                         SettingCard(
                             title = "Privacy",
-                            description = "BooxDay sends nothing to its developer. AI requests go from this tablet to OpenRouter, on your own account, and to the company that runs the model. Reading pages for search also sends memo and Boox Notes pages, while Settings → Boox Notes → Enable Indexing is on. With AI Features off, nothing is sent to OpenRouter."
+                            description = "BooxDay sends nothing to its developer. AI requests go from this tablet to OpenRouter, on your own account, and to the company that runs the model. Reading pages for search also sends memo and Boox Notes pages, while Settings → Boox Notes → Enable Indexing is on. With AI Features off, none of your data goes to OpenRouter."
                         ) {
                             Row(
                                 modifier = Modifier

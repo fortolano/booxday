@@ -612,7 +612,7 @@ private fun AiFeaturesContent() {
 
     SectionSubheader("Setting Up (Settings → AI Settings)")
     BulletItem("Connect OpenRouter", "Sign in to OpenRouter in the browser; BooxDay saves the key. You can also paste a key.")
-    BulletItem("AI Features", "The switch for voice input, the AI tools and reading pages for search. With it off, nothing is sent to OpenRouter.")
+    BulletItem("AI Features", "The switch for voice input, the AI tools and reading pages for search. With it off, none of your data goes to OpenRouter.")
     BulletItem("AI Models", "The model for each job: Reading handwriting, Voice, Writing and summaries, Planning and suggestions, Search indexing. If a model fails, BooxDay's choice answers.")
     BulletItem("AI Preferences", "Five short tabs: Priorities, About Me, Daily Rhythm, Lifestyle and AI Style (with Vacation, Crunch and Holiday modes). Smart Suggestions and Optimize My Day use your answers. Closing keeps what you picked.")
 
