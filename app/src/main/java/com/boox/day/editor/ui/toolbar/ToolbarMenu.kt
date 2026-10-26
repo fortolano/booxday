@@ -319,14 +319,18 @@ fun ToolbarMenu(
             onConfirm = {
                 showClearTasksConfirmation = false
                 onClose()
-                scope.launch {
-                    val pageCount = controlTower.clearTaskPages()
-                    snackManager.displaySnack(
-                        SnackConf(
-                            text = "Cleared $pageCount task page(s)",
-                            duration = SnackConf.DURATION_QUICK
+                // Full screen (Oct 2026): runs in the normal view, like the other Tasks page tools. On the
+                // full screen pages it deleted fewer pages, and leaving full screen put the others back.
+                com.boox.day.ui.FullScreenState.exitThen {
+                    scope.launch {
+                        val pageCount = controlTower.clearTaskPages()
+                        snackManager.displaySnack(
+                            SnackConf(
+                                text = "Cleared $pageCount task page(s)",
+                                duration = SnackConf.DURATION_QUICK
+                            )
                         )
-                    )
+                    }
                 }
             },
             onCancel = { showClearTasksConfirmation = false }

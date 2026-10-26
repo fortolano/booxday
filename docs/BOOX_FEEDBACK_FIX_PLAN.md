@@ -404,6 +404,7 @@ The owner saw deleted content come back after going between the normal view and 
       - It is called from "Clear All Memos Today", "Clear This Page" and the one-page "Delete Page" (which clears).
       - Test: `ClearedPagesTest`. Not yet checked on a tablet.
   - (b) Wrap the "Clear All Tasks Today" confirm in `FullScreenState.exitThen { … }`, like the other Tasks tools. One line in `ToolbarMenu.kt`; `SharedToolbar` is untouched.
+    - **Done (26 Oct):** wrapped in `ToolbarMenu.kt`. The menu's scope (`remember { CoroutineScope(Dispatchers.IO) }`) isn't tied to the menu's lifetime, so the clear still runs after full screen closes. Compiles. No JVM test (UI wrapper); not yet checked on a tablet.
   - (b2, seen in the check) After "Clear All Tasks Today", even in the normal view, the page counter kept showing "2/2" until a day switch. Nothing reloads MainScreen's task page info after this clear. The "Delete tasks… → all pages" handler does reload it (`getOrCreateTasksForPage` → `currentTaskPageInfo`, MainScreen.kt ~4166–4180). Do the same after this clear.
     - Don't hook it to `TaskRepository.taskChanged` (MainScreen.kt:1686). That flow also fires for ink on task pages, so a reload there would add a database read while writing.
     - Use a one-time signal instead, sent only when a day's task pages are added or removed. MainScreen collects it in a `LaunchedEffect`, which compiles to its own class, so the root lambda doesn't grow.
