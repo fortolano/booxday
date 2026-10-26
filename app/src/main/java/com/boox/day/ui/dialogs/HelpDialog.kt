@@ -602,7 +602,7 @@ private fun CalendarSyncContent() {
 
     SectionSubheader("Cloud Sync")
     BulletItem("Events", "Google and Outlook Calendar events sync 6 months back and 6 months forward.")
-    BulletItem("Privacy", "Handwritten notes and tasks stay on your device; they are not sent to Google.")
+    BulletItem("Privacy", "Calendar sync sends and receives events only. Memos and tasks are never synced; Drive backup, if you turn it on, copies them to your own Google Drive.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
@@ -827,7 +827,7 @@ private fun SmartAIToolsContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("How the AI Works")
-    BodyText("All AI features use free models via OpenRouter. Your data stays on your device — only the specific content needed for each request is sent to the AI, and nothing is stored externally. The AI doesn't \"learn\" from your usage in a cloud sense; personalization comes from your explicit preferences.")
+    BodyText("AI features run on your own OpenRouter account. When you use one, only what it needs (page images, text or a voice clip) is sent to OpenRouter and the company that runs the model. BooxDay has no server of its own. Without credit on the account, BooxDay uses free models, and some free models may keep what they are sent. The AI doesn't learn from your use: each request carries what it needs, plus your AI Preferences.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
@@ -881,7 +881,7 @@ private fun SemanticGeniusContent() {
     // PRIVACY
     // ─────────────────────────────────────────────────────────────────────────
     SectionSubheader("Privacy")
-    BodyText("All SemanticGenius processing happens ON YOUR DEVICE. Your handwritten notes never leave your tablet. Only the initial OCR uses Google Cloud Vision; all semantic analysis is performed locally.")
+    BodyText("Finding topics and linking notes to events run on the tablet. Only reading the pages uses AI: while Settings → Boox Notes → Enable Indexing is on, memo and Boox Notes pages are sent to OpenRouter, on your own account, and only to providers that keep no copy. With indexing off, no pages are sent.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
@@ -935,14 +935,11 @@ private fun VoiceInputContent() {
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
 
-    BulletItem("Google Speech Recognition (Recommended)", "Free and unlimited. Works locally on your device. Requires Google Search app installed.")
-    BodyText("Best for: Daily use without limits.")
+    BulletItem("Google Speech Recognition", "Free. Used whenever the Google Search app is installed.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    BulletItem("Gemini 2.0 AI", "Enhanced accuracy for accents and complex speech. Context-aware corrections.")
-    BodyText("Limited: 3/day (Free tier) or 20/day (Pro tier).")
-    BodyText("Best for: When you need highest accuracy.")
+    BulletItem("AI on OpenRouter", "Used when the Google Search app is not installed. Runs on your own OpenRouter account, with the voice model from AI Settings → AI Models.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
@@ -964,17 +961,17 @@ private fun VoiceInputContent() {
 
     TroubleshootingItem(
         problem = "Voice not working?",
-        solution = "Check microphone permissions in Android Settings > Apps > Boox Day > Permissions. Ensure Google Search app is installed for unlimited free voice."
+        solution = "Check the microphone permission in Android Settings → Apps → BooxDay → Permissions."
     )
 
     TroubleshootingItem(
-        problem = "Daily limit reached?",
-        solution = "You've used all Gemini AI transcriptions for today. Install Google Search app for unlimited free voice-to-text, or wait until midnight when limits reset."
+        problem = "AI voice not working?",
+        solution = "AI on OpenRouter needs an OpenRouter key and AI Features turned on (Settings → AI Settings). Or install the Google Search app for free speech to text."
     )
 
     TroubleshootingItem(
         problem = "Speech not recognized?",
-        solution = "Speak closer to the microphone. Reduce background noise. Try speaking more slowly. The Gemini AI option often has better accuracy."
+        solution = "Speak closer to the microphone. Reduce background noise. Try speaking more slowly."
     )
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
@@ -983,10 +980,10 @@ private fun VoiceInputContent() {
     // PRIVACY
     // ─────────────────────────────────────────────────────────────────────────
     SectionSubheader("Privacy & Data")
-    BodyText("Voice data is processed either:")
-    BulletPoint("Locally (Google Speech) — never leaves your device")
-    BulletPoint("Via secure API (Gemini) — only the audio clip is sent, deleted after processing")
-    BodyText("No voice recordings are stored permanently.")
+    BodyText("Your voice is turned into text by one of two services:")
+    BulletPoint("Google Speech: the speech service in the Google Search app. Google may process the audio on its servers.")
+    BulletPoint("AI on OpenRouter: the audio clip goes to OpenRouter, on your own account, and to the company that runs the model.")
+    BodyText("BooxDay keeps no recordings: the audio is held in memory only until it is turned into text.")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

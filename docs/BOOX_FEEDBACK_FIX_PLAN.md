@@ -504,6 +504,12 @@ These are wrong when AI is on. Memo pages are read by AI on the user's own OpenR
 - `ui/dialogs/HelpDialog.kt:830`: "All AI features use free models via OpenRouter. Your data stays on your device…" (a key is needed; free models only while the account has no credit).
 - `ui/dialogs/AiSettingsDialog.kt:157`: "Semantic insights (keywords, patterns) are sent to AI providers. Your full notes stay on your device."
 - Proposed meaning, one wording everywhere: "With AI on, page images and text you choose are sent to OpenRouter, on your own account, to be read or answered. Nothing is sent with AI off." The About privacy text (`strings.xml:39`) already says this correctly; check it against this wording.
+- **Done (26 Oct).** Checked in the code first; three facts changed the wording:
+  - The AI Features switch doesn't stop page reading for search; Settings → Boox Notes → Enable Indexing (off by default) does. So the texts name that switch, and none says "nothing is sent with AI off".
+  - Page reading for search goes only to providers that keep no copy (`OpenRouterOcrService` asks OpenRouter for zero data retention). Other AI requests don't, and some free models may keep what they get (as the About legal text says).
+  - Google Speech isn't forced on-device (`VoiceInputService` uses `createSpeechRecognizer`, no offline flag), and the code has no voice daily limits. The AI voice option uses the VOICE job's model (Gemini 3.1 Flash Lite or a free model), not "Gemini 2.5".
+  - Changed: the tip (`TipsRepository` `semantic_privacy`), Help's "How the AI Works", the Boox Notes privacy paragraph, the calendar "Privacy" bullet and the voice section (providers, troubleshooting, privacy), the About privacy text (adds indexing), and the Voice settings option texts (the AI option is now "AI on OpenRouter"; no daily limits; Google Speech "may process the audio on its servers").
+  - AI Settings' own privacy texts are in 4.8.
 
 ### 4.3 Boox Notes: a close X in every view (Ready)
 

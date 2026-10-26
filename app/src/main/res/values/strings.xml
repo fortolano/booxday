@@ -36,7 +36,7 @@
 
     <!-- About - Privacy -->
     <string name="about_privacy_title">Your Data</string>
-    <string name="about_privacy_content">Your memos, tasks and calendar are stored on this tablet. BooxDay has no server and sends nothing to its developer.\n\nThe app goes online to download Google\'s handwriting model (recognition then runs on the tablet) and for what you turn on: calendar sync talks directly to Google or Microsoft, Drive backup goes to your own Google Drive, and AI features send only what you ask them to process to OpenRouter, using your own key.</string>
+    <string name="about_privacy_content">Your memos, tasks and calendar are stored on this tablet. BooxDay has no server and sends nothing to its developer.\n\nThe app goes online to download Google\'s handwriting model (recognition then runs on the tablet) and for what you turn on: calendar sync talks directly to Google or Microsoft, Drive backup goes to your own Google Drive, AI features send only what you use them on to OpenRouter, on your own account, and indexing (Settings → Boox Notes) sends memo and Boox Notes pages to OpenRouter to be read for search.</string>
 
     <!-- About - Legal Disclaimer -->
     <string name="about_legal_title">Legal Notice</string>

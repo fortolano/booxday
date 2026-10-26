@@ -383,7 +383,7 @@ object TipsRepository {
         ),
         Tip(
             id = "semantic_privacy",
-            message = "All note analysis happens on your device. Your handwriting never leaves your tablet.",
+            message = "Pages are read for search only while Settings → Boox Notes → Enable Indexing is on. They go to OpenRouter on your own account, to providers that keep no copy.",
             contexts = setOf(TipContext.GENERAL)
         ),
         Tip(

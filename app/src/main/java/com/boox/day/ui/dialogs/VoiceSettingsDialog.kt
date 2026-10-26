@@ -120,9 +120,9 @@ fun VoiceSettingsDialog(
                 // Recommendation tip
                 Text(
                     text = if (hasGoogleSearchApp)
-                        "Google Speech is ready. You get 2x daily limits with free transcription."
+                        "Google Speech is ready. It is free and is used first."
                     else
-                        "Tip: Install Google Search for free transcription and 2x daily limits.",
+                        "Tip: install the Google Search app for free speech to text.",
                     fontSize = EInkTheme.Typography.bodySmall,
                     fontWeight = FontWeight.Medium,
                     color = EInkTheme.Colors.primary
@@ -134,7 +134,7 @@ fun VoiceSettingsDialog(
                     isSelected = selectedMode == VoiceTextMode.AUTO || selectedMode == VoiceTextMode.SPEECH_RECOGNIZER,
                     isAvailable = hasGoogleSearchApp,
                     statusText = if (hasGoogleSearchApp) "Ready (Google Search installed)" else "Requires Google Search app",
-                    descriptionText = "Free | On-device",
+                    descriptionText = "Free | Google may process the audio on its servers",
                     showInstallButton = !hasGoogleSearchApp,
                     onSelect = {
                         if (hasGoogleSearchApp) {
@@ -149,17 +149,17 @@ fun VoiceSettingsDialog(
 
                 // Option 2: Gemini AI
                 val geminiStatusText = if (hasGoogleSearchApp) {
-                    "Since Google Search App is installed, BooxDay will use it as default to conserve tokens and leverage a better speech recognition tool."
+                    "The Google Search app is installed, so BooxDay uses Google Speech, which is free."
                 } else {
-                    "Uses your own OpenRouter key"
+                    "Runs on your own OpenRouter account"
                 }
                 val geminiDescriptionText = if (hasGoogleSearchApp) {
-                    "Gemini 2.5 AI becomes available if Google Search is uninstalled."
+                    "Available when the Google Search app is not installed."
                 } else {
-                    "AI transcription | Billed to your OpenRouter credit"
+                    "Uses the voice model from AI Models | Billed to your OpenRouter account"
                 }
                 VoiceOptionCard(
-                    title = "Gemini 2.5 AI",
+                    title = "AI on OpenRouter",
                     isSelected = selectedMode == VoiceTextMode.GEMINI,
                     isAvailable = !hasGoogleSearchApp,
                     statusText = geminiStatusText,
