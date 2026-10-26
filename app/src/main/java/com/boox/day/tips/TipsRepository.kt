@@ -10,7 +10,7 @@ import com.boox.day.BuildConfig
  * - Discovery tips: Promote features in other areas of the app (25% weight)
  *
  * Total: ~91 tips covering gestures, AI features, task management,
- * SemanticGenius, Boox Notes, and AI Preferences.
+ * Smart Link, Boox Notes, and AI Preferences.
  */
 object TipsRepository {
 
@@ -28,7 +28,7 @@ object TipsRepository {
         ),
         Tip(
             id = "memos_eraser",
-            message = "Use the eraser tool to remove strokes. Tap it again to switch between stroke and area eraser.",
+            message = "Tap the eraser again to choose Standard Eraser or Stroke Eraser.",
             contexts = setOf(TipContext.MEMOS)
         ),
         Tip(
@@ -38,22 +38,22 @@ object TipsRepository {
         ),
         Tip(
             id = "memos_pen_sizes",
-            message = "Tap any pen tool to access different sizes and colors.",
+            message = "Tap the pen again to choose Pen, Fountain Pen, Marker, Pencil or Brush.",
             contexts = setOf(TipContext.MEMOS)
         ),
         Tip(
             id = "memos_selection",
-            message = "Long press on the canvas to select strokes. Move, resize, or copy your handwriting.",
+            message = "Long-press an empty spot to select an area, or use Lasso select in the toolbar. Then move, copy or delete it.",
             contexts = setOf(TipContext.MEMOS)
         ),
         Tip(
             id = "memos_text_box",
-            message = "Add typed text to your memos using the text tool in the toolbar.",
+            message = "Add typed text to your memos with Insert → Text.",
             contexts = setOf(TipContext.MEMOS)
         ),
         Tip(
             id = "memos_ocr",
-            message = "Convert handwriting to typed text using the AI recognition feature.",
+            message = "Recognize Handwriting (the AI button in Memos) turns a page's ink into typed text.",
             contexts = setOf(TipContext.MEMOS)
         ),
         Tip(
@@ -63,12 +63,12 @@ object TipsRepository {
         ),
         Tip(
             id = "ai_memo_to_tasks",
-            message = "Memo to Tasks extracts action items from your notes.",
+            message = "Convert Memo to Tasks finds tasks in your notes.",
             contexts = setOf(TipContext.MEMOS)
         ),
         Tip(
             id = "ai_handwriting_search",
-            message = "Handwriting Recognition makes your notes searchable.",
+            message = "With an OpenRouter key, Enable Indexing (Settings → Boox Notes) makes your handwritten memos searchable.",
             contexts = setOf(TipContext.MEMOS)
         ),
     )
@@ -84,17 +84,12 @@ object TipsRepository {
         ),
         Tip(
             id = "tasks_priority",
-            message = "Tap the star icon to mark important tasks as high priority.",
+            message = "Tap a task's priority button to pick A (High), B (Medium) or C (Low).",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
             id = "tasks_handwriting",
-            message = "Write tasks by hand or tap the row to type. Both methods work great!",
-            contexts = setOf(TipContext.TASKS)
-        ),
-        Tip(
-            id = "tasks_voice",
-            message = "Use Voice to Task to add multiple tasks by speaking naturally.",
+            message = "Write tasks by hand, or tap › on an empty row to type one.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
@@ -104,7 +99,7 @@ object TipsRepository {
         ),
         Tip(
             id = "tasks_move",
-            message = "Long press a task row to move it to a different position or day.",
+            message = "Tap › on a task, then Move, to move it to another day.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
@@ -114,7 +109,7 @@ object TipsRepository {
         ),
         Tip(
             id = "tasks_daily_summary",
-            message = "End your day with Daily Summary! Review completed tasks and migrate unfinished ones.",
+            message = "End your day with Daily Summary! Review completed tasks and move unfinished ones to tomorrow.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
@@ -124,12 +119,12 @@ object TipsRepository {
         ),
         Tip(
             id = "tasks_smart_prioritization",
-            message = "Let AI sort your tasks! Smart Prioritization reorders by deadlines and importance.",
+            message = "Sort by Priority (Task AI) orders your tasks by importance. Check the order before you apply it.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
             id = "tasks_plan_my_day",
-            message = "Try Optimize My Day - your AI Chief of Staff creates an optimized daily schedule.",
+            message = "Try Optimize My Day: it proposes changes to your day, and you choose which to keep.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
@@ -139,42 +134,37 @@ object TipsRepository {
         ),
         Tip(
             id = "tasks_ai_preferences",
-            message = "Set up your Daily Rhythm in AI Preferences - the AI learns how you work best!",
-            contexts = setOf(TipContext.TASKS)
-        ),
-        Tip(
-            id = "tasks_voice_setup",
-            message = "AI Preferences has Voice Setup! Just describe yourself in 30 seconds - no forms needed.",
+            message = "Set your Daily Rhythm in AI Preferences, so suggestions fit when you work best.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
             id = "tasks_special_modes",
-            message = "On vacation? Enable Vacation Mode in AI Preferences for relaxation-focused suggestions.",
+            message = "On vacation? Turn on Vacation Mode in AI Preferences for relaxation-focused suggestions.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
             id = "tasks_crunch_mode",
-            message = "Deadline crunch? Enable Crunch Mode in AI Preferences to cut wellness reminders and focus.",
+            message = "Deadline crunch? Turn on Crunch Mode in AI Preferences to cut wellness reminders and focus.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
             id = "tasks_priority_abc",
-            message = "Use A/B/C priorities: urgent, important, nice-to-have.",
+            message = "Use A/B/C priorities: High, Medium, Low.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
             id = "tasks_toggle_all",
-            message = "Tap the column header to mark all tasks complete.",
+            message = "Long-press a checkbox to tick every task on the page.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
             id = "tasks_details_canvas",
-            message = "Task Details has a mini-canvas for extra notes.",
+            message = "Tap › on a task for its card: Move, Repeat, Reminder and Break Down.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
             id = "tasks_clear_erase",
-            message = "Erase a task's content to clear the row.",
+            message = "Long-press a task row to clear it.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
@@ -184,17 +174,12 @@ object TipsRepository {
         ),
         Tip(
             id = "ai_daily_summary_migrate",
-            message = "Daily Summary lets you migrate incomplete tasks to tomorrow.",
+            message = "Daily Summary lets you move incomplete tasks to tomorrow.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
             id = "ai_weekly_summary_patterns",
             message = "Weekly Summary reveals your most productive day.",
-            contexts = setOf(TipContext.TASKS)
-        ),
-        Tip(
-            id = "ai_voice_multiple",
-            message = "Voice to Task handles multiple tasks in one sentence.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
@@ -220,12 +205,12 @@ object TipsRepository {
         ),
         Tip(
             id = "calendar_today",
-            message = "The current date is highlighted with a border. Tap it to jump back to today.",
+            message = "Today has a ring around its date. The today button in the calendar header jumps back to it.",
             contexts = setOf(TipContext.CALENDAR)
         ),
         Tip(
             id = "calendar_dots",
-            message = "Dots under dates indicate you have notes, tasks, or events on that day.",
+            message = "A small mark under a date means events; a B means Boox Notes. The day header shows memos and tasks.",
             contexts = setOf(TipContext.CALENDAR)
         ),
         Tip(
@@ -261,17 +246,12 @@ object TipsRepository {
         ),
         Tip(
             id = "events_details",
-            message = "Tap an event to see details, edit, or attach handwritten notes.",
+            message = "Tap an event to see its details, edit it, or open its linked Boox Notes.",
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
             id = "events_sync",
-            message = "Connect Google Calendar in Settings to sync events across devices.",
-            contexts = setOf(TipContext.EVENTS)
-        ),
-        Tip(
-            id = "events_local",
-            message = "Events are local by default. Toggle sync per-event if you use Google Calendar.",
+            message = "Add your Google or Outlook account in Settings → Calendar Accounts to see its events here.",
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
@@ -286,7 +266,7 @@ object TipsRepository {
         ),
         Tip(
             id = "events_unlinked_filter",
-            message = "Check 'Unlinked' in View Boox Notes to find notes not linked to any event.",
+            message = "Turn on 'Unlinked only' in Boox Notes → All notes to find notes not linked to any event.",
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
@@ -296,17 +276,17 @@ object TipsRepository {
         ),
         Tip(
             id = "boox_notes_import",
-            message = "View your Boox Notes in the events panel.",
+            message = "Tap the B in the day header to see that day's Boox Notes.",
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
             id = "boox_notes_date_title",
-            message = "Name notes with dates for automatic day linking.",
+            message = "Put a date in a note's title to set its day.",
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
             id = "boox_notes_bulk",
-            message = "Smart Link can auto-match dozens of notes at once.",
+            message = "Link strong… in Smart Link suggestions links all strong matches at once.",
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
@@ -316,12 +296,12 @@ object TipsRepository {
         ),
         Tip(
             id = "boox_notes_unlinked",
-            message = "Use 'Unlinked' filter to find orphaned notes.",
+            message = "Use 'Unlinked only' in All notes to find notes without a link.",
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
             id = "ai_voice_event",
-            message = "Voice to Event: 'Lunch with Sarah Friday at noon'.",
+            message = "Tap the mic in the calendar header and say: 'Lunch with Sarah Friday at noon'.",
             contexts = setOf(TipContext.EVENTS)
         ),
     )
@@ -332,17 +312,12 @@ object TipsRepository {
     private val generalTips = listOf(
         Tip(
             id = "general_settings",
-            message = "Find more options in General Settings (gear icon in the top toolbar).",
+            message = "Find more options in the Settings menu (gear icon in the calendar header).",
             contexts = setOf(TipContext.GENERAL)
         ),
         Tip(
             id = "general_ai_preferences",
-            message = "Set up AI Preferences in Settings to get personalized task suggestions that fit YOUR life.",
-            contexts = setOf(TipContext.GENERAL)
-        ),
-        Tip(
-            id = "general_voice_preferences",
-            message = "Don't like filling forms? AI Preferences has Voice Setup - just talk for 30 seconds!",
+            message = "Set up AI Preferences (Settings → AI Settings) so suggestions fit your life.",
             contexts = setOf(TipContext.GENERAL)
         ),
         Tip(
@@ -367,18 +342,18 @@ object TipsRepository {
         ),
         Tip(
             id = "general_key_legends",
-            message = "See Help > Key Legends for icon and badge explanations.",
+            message = "See Help → Key Legends for what the marks and badges mean.",
             contexts = setOf(TipContext.GENERAL)
         ),
     )
 
     // ═══════════════════════════════════════════════════════════════
-    // SEMANTICGENIUS - Tips about note understanding and Smart Link
+    // SMART LINK - Tips about note understanding and Smart Link
     // ═══════════════════════════════════════════════════════════════
     private val semanticTips = listOf(
         Tip(
             id = "semantic_just_write",
-            message = "Just write naturally. SemanticGenius understands context, not just keywords.",
+            message = "Just write naturally: Smart Link matches notes by the words in their titles and their topics.",
             contexts = setOf(TipContext.MEMOS)
         ),
         Tip(
@@ -388,7 +363,7 @@ object TipsRepository {
         ),
         Tip(
             id = "semantic_boox_notes",
-            message = "Enable Boox Notes indexing in Settings to make your notebooks searchable.",
+            message = "Turn on Enable Indexing in Settings → Boox Notes to make your notebooks searchable.",
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
@@ -398,12 +373,12 @@ object TipsRepository {
         ),
         Tip(
             id = "semantic_search",
-            message = "Your handwritten notes are searchable! Use Search to find content by meaning.",
+            message = "Indexed handwritten notes are searchable: Search finds the words you wrote.",
             contexts = setOf(TipContext.MEMOS, TipContext.TASKS)
         ),
         Tip(
             id = "semantic_action_items",
-            message = "SemanticGenius detects action items in your notes.",
+            message = "In a calendar event's Meeting notes, Action items lists the to-dos from that day's memos.",
             contexts = setOf(TipContext.MEMOS)
         ),
         Tip(
@@ -413,13 +388,8 @@ object TipsRepository {
         ),
         Tip(
             id = "semantic_domains",
-            message = "SemanticGenius classifies notes into 22 domains.",
+            message = "Search results show each note's topic, such as work or health.",
             contexts = setOf(TipContext.MEMOS)
-        ),
-        Tip(
-            id = "semantic_learns",
-            message = "SemanticGenius learns your patterns over time.",
-            contexts = setOf(TipContext.GENERAL)
         ),
     )
 
@@ -439,7 +409,7 @@ object TipsRepository {
         ),
         Tip(
             id = "gesture_calendar_longpress",
-            message = "Long press a date for Quick View.",
+            message = "Long-press a date for a preview of that day.",
             contexts = setOf(TipContext.CALENDAR)
         ),
     )
@@ -450,7 +420,7 @@ object TipsRepository {
     private val discoveryTips = listOf(
         Tip(
             id = "discover_tasks_from_memos",
-            message = "Try the Tasks tab! Track your to-dos with checkboxes and priority stars.",
+            message = "Try the Tasks tab! Track your to-dos with checkboxes and A/B/C priorities.",
             contexts = setOf(TipContext.MEMOS),  // Show when on Memos to promote Tasks
             isDiscovery = true
         ),
@@ -467,12 +437,6 @@ object TipsRepository {
             isDiscovery = true
         ),
         Tip(
-            id = "discover_voice_tasks",
-            message = "Say multiple tasks at once with Voice to Task. It's faster than typing!",
-            contexts = setOf(TipContext.MEMOS, TipContext.EVENTS),
-            isDiscovery = true
-        ),
-        Tip(
             id = "discover_boox_notes",
             message = "You can link your existing Boox Notes to calendar events for quick access.",
             contexts = setOf(TipContext.MEMOS, TipContext.TASKS),
@@ -480,13 +444,13 @@ object TipsRepository {
         ),
         Tip(
             id = "discover_ai_ocr",
-            message = "AI-powered handwriting recognition can convert your notes to typed text.",
+            message = "Recognize Handwriting (the AI button in Memos) can turn your notes into typed text.",
             contexts = setOf(TipContext.TASKS, TipContext.EVENTS),
             isDiscovery = true
         ),
         Tip(
             id = "discover_export",
-            message = "Export your memos as PDF from the toolbar menu for sharing or printing.",
+            message = "Export Pages in ≡ saves your memos as PDF, PNG or JPG for sharing or printing.",
             contexts = setOf(TipContext.TASKS, TipContext.EVENTS),
             isDiscovery = true
         ),
@@ -516,19 +480,13 @@ object TipsRepository {
         ),
         Tip(
             id = "discover_plan_my_day",
-            message = "Overwhelmed? Optimize My Day analyzes your calendar and creates an optimized task schedule.",
+            message = "Overwhelmed? Optimize My Day looks at your calendar and tasks and proposes a plan for the day.",
             contexts = setOf(TipContext.MEMOS, TipContext.EVENTS),
             isDiscovery = true
         ),
         Tip(
             id = "discover_daily_rhythm",
-            message = "Tell the AI if you're a morning person or night owl - it personalizes all suggestions!",
-            contexts = setOf(TipContext.MEMOS, TipContext.EVENTS, TipContext.CALENDAR),
-            isDiscovery = true
-        ),
-        Tip(
-            id = "discover_voice_setup",
-            message = "AI Preferences Voice Setup is magic! Just describe yourself naturally - the AI figures out the rest.",
+            message = "Tell AI Preferences if you're a morning person or night owl, for better-timed suggestions.",
             contexts = setOf(TipContext.MEMOS, TipContext.EVENTS, TipContext.CALENDAR),
             isDiscovery = true
         ),
@@ -546,7 +504,7 @@ object TipsRepository {
         ),
         Tip(
             id = "discover_special_modes",
-            message = "Enable Vacation Mode, Crunch Mode, or Holiday Mode in AI Preferences when your routine changes.",
+            message = "Turn on Vacation Mode, Crunch Mode or Holiday Mode in AI Preferences when your routine changes.",
             contexts = setOf(TipContext.TASKS, TipContext.EVENTS),
             isDiscovery = true
         ),
@@ -558,7 +516,7 @@ object TipsRepository {
         ),
         Tip(
             id = "discover_ai_reads_memos",
-            message = "Smart Suggestions can read your recent handwritten memos! Your notes become AI-powered task ideas.",
+            message = "Smart Suggestions can use your recent handwritten memos for task ideas.",
             contexts = setOf(TipContext.TASKS, TipContext.EVENTS),
             isDiscovery = true
         ),

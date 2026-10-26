@@ -626,6 +626,20 @@ Help is a 12-topic split popup of about 4,500–5,000 words (`HelpDialog.kt`). I
   - Cut what no longer applies, so Help gets shorter or stays the same length, not longer.
   - Tips (`TipsRepository.kt`) get the same pass: :167, :107, :87, :228 and :494 describe gestures and icons that don't match (the Help audit lists them). Lines 233, 238, 355, 360, 365, 442 and 500 are already in 1.5.
   - Draft to the owner first. Some Help lines weren't matched to code (lasso "bullseye", double-tap on a text box, "mini-canvas"): check them on the tablet, not by guessing.
+- **Done (26 Oct, texts pre-approved by the owner):**
+  - Every Help claim and every tip was checked against the code first (three read-only fact-checks with file:line evidence). Help was then rewritten from those facts: 231 lines in, 494 out.
+  - Topics renamed: "AI Features" (was "Smart AI Tools"), "Smart Link" (was "SemanticGenius"), "E-Ink & Sleep Screen", "Data & Troubleshooting". Still 12 topics.
+  - Fixed, for example:
+    - The preview popup has no "Quick View" title; it shows counts with View buttons.
+    - Gestures: › and long-press › on task rows; the selection bar's actions; a tap edits a selected text box; system-clipboard images aren't pasted.
+    - The real pen, eraser and Insert names. Priorities are A (High), B (Medium), C (Low) in a popup, in black and white. No mini-canvas.
+    - Sync window: 2 months back, 3 ahead. The legends match the cells, the day header, event rows, tasks and the Boox Notes rows.
+    - Search: no synonyms; SIMILAR only for events and tasks. Screen Refresh is in ≡. No A2 or Touch Mode. The database is private, and backup is in Data & Backup.
+  - Added: full screen, Export Pages, Clear/Delete Page, the task card (Move/Copy, Repeat, Reminder, Break Down), streak and stats, Calendar Accounts, the Google reconnect, Connect OpenRouter, AI Models, AI Preferences, each AI tool, the calendar AI notice, the Smart Link setup and action items, Today on sleep screen, Daily notes, updates and What's new, and the crash report.
+  - The Google reconnect and the calendar AI notice texts came from the Google verification session.
+  - "Voice to Task" is left out: its menu item is commented out (`TaskAiButton.kt:185-193`), so users can't reach it. "Voice Setup" (hidden behind `if (false)`) is left out too.
+  - Tips: 47 rewritten, 8 removed. Removed: Voice to Task ×3, Voice Setup ×2, "SemanticGenius learns your patterns" (not verified), and `events_local`, which says events are local by default with a per-event sync switch. The code shows that switch only in Cloud Sync, on by default, which conflicts with CLAUDE.md's "events created on the tablet never sync". **The owner decides** which is meant.
+  - Compiles. Not seen on a tablet yet.
 
 ### 4.8 AI Settings and AI Preferences (Ready; names and saving decided 26 Oct)
 

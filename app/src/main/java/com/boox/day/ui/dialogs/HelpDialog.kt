@@ -72,11 +72,11 @@ fun HelpDialog(
             HelpSection("Task Management", Icons.Default.CheckBox),
             HelpSection("Calendar & Sync", Icons.Default.CalendarToday),
             HelpSection("Search", Icons.Default.Search),
-            HelpSection("Smart AI Tools", Icons.Default.AutoAwesome),
-            HelpSection("SemanticGenius", Icons.Default.Link),
+            HelpSection("AI Features", Icons.Default.AutoAwesome),
+            HelpSection("Smart Link", Icons.Default.Link),
             HelpSection("Voice Input", Icons.Default.Mic),
-            HelpSection("E-Ink Optimization", Icons.Default.PhoneAndroid),
-            HelpSection("Troubleshooting", Icons.Default.Warning),
+            HelpSection("E-Ink & Sleep Screen", Icons.Default.PhoneAndroid),
+            HelpSection("Data & Troubleshooting", Icons.Default.Warning),
             HelpSection("Key Legends", Icons.Default.VpnKey)
         )
     }
@@ -264,8 +264,8 @@ private fun HelpContent(
                 3 -> TaskManagementContent()
                 4 -> CalendarSyncContent()
                 5 -> SearchContent()
-                6 -> SmartAIToolsContent()
-                7 -> SemanticGeniusContent()
+                6 -> AiFeaturesContent()
+                7 -> SmartLinkContent()
                 8 -> VoiceInputContent()
                 9 -> EInkOptimizationContent()
                 10 -> TroubleshootingContent()
@@ -277,6 +277,7 @@ private fun HelpContent(
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SECTION 1: QUICK START
+// Oct 2026: every Help topic rewritten from the code (plan 4.7); labels are the app's own
 // ═══════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -284,30 +285,30 @@ private fun QuickStartContent() {
     SectionHeader("Quick Start")
 
     SectionSubtitle("Welcome to BooxDay.")
-    BodyText("The calendar your Boox tablet deserves — combining a digital calendar with the analog feel of a paper planner.")
+    BodyText("A daily planner for your Boox tablet: the calendar and the chosen day's events on top, and below them two tabs for that day.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("The Dashboard")
-    BodyText("Your home base is the monthly calendar. Tap any date to open its Day View.")
+    SectionSubheader("The Screen")
+    BulletItem("Calendar", "Tap a date to open that day. Long-press a date for a short preview.")
+    BulletItem("Events", "The chosen day's events.")
+    BulletItem("Memos", "Pages for handwriting and drawing.")
+    BulletItem("Tasks", "Rows for your tasks, 10 to a page.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Two Modes")
-    BodyText("Every day has two dedicated tabs:")
-    BulletItem("Memos", "A blank canvas for freeform writing and sketching.")
-    BulletItem("Tasks", "A structured list for to-dos and priorities.")
+    SectionSubheader("Getting Around")
+    BulletPoint("The today button (a calendar with today's number, in the calendar header) goes back to today.")
+    BulletPoint("The arrows in the toolbar turn the day's pages; the counter shows where you are, for example 1/3.")
+    BulletPoint("The full screen switch, just before ≡ in the toolbar, hides the calendar to give the page more room.")
+    BulletPoint("≡ at the end of the toolbar holds Screen Refresh, Export Pages, and clearing or deleting pages.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Navigation")
-    BulletPoint("Tap calendar dates to switch between days.")
-    BulletPoint("Long-press a date to preview it in a Quick View popup.")
-    BulletPoint("Tap the Today icon (calendar with number) to return to the current date.")
-    BulletPoint("Use the arrow buttons in the toolbar to navigate between pages.")
+    SectionSubheader("Settings")
+    BodyText("The Settings menu has Preferences, Calendar & Sync, Calendar Accounts, AI Settings, Voice-to-Text, Data & Backup, Boox Notes, Help and About. A dot next to an item marks a setting worth a look first.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -318,169 +319,98 @@ private fun QuickStartContent() {
 private fun TouchGesturesContent() {
     SectionHeader("Touch Gestures")
 
-    SectionSubtitle("Work smarter with long-press shortcuts.")
-    BodyText("Long-press gestures give you quick access to powerful features throughout the app. Your stylus is for writing; your finger is for navigation and shortcuts.")
+    SectionSubtitle("Your pen writes; your finger opens and selects.")
+    BodyText("For a long-press, hold your finger still for a moment.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // CALENDAR GESTURES
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Calendar Grid")
+    SectionSubheader("Calendar")
 
     GestureItem(
         gesture = "Tap a date",
-        action = "Open that day",
-        details = "Opens the Day View for the selected date, showing your Memos or Tasks."
+        action = "Open that day"
     )
 
     GestureItem(
         gesture = "Long-press a date",
-        action = "Quick View popup",
-        details = "Shows a preview of the day's events and tasks without leaving the calendar. Great for quickly checking what's on a specific day."
+        action = "Preview the day",
+        details = "A popup shows how many events and tasks the day has, each with a View button, and the day's Boox Notes with an Open button."
     )
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TASKS TAB GESTURES
-    // ─────────────────────────────────────────────────────────────────────────
     SectionSubheader("Tasks Tab")
-    BodyText("The Tasks tab has several long-press shortcuts to speed up your workflow:")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
 
     GestureItem(
-        gesture = "Long-press the checkbox",
-        action = "Toggle all tasks on page",
-        details = "Quickly mark all tasks as complete or incomplete. If any task is unchecked, all become checked. If all are checked, all become unchecked."
+        gesture = "Tap › on a row",
+        action = "Open the task",
+        details = "On an empty row it opens Type task. On a task it opens the task card: move, repeat, reminder and more."
     )
 
     GestureItem(
-        gesture = "Long-press the arrow (chevron)",
-        action = "Edit task directly",
-        details = "Opens the task editor immediately. This skips the move/migrate popup that appears on a normal tap."
+        gesture = "Long-press ›",
+        action = "Edit the text",
+        details = "Opens the text editor straight away."
     )
 
     GestureItem(
-        gesture = "Long-press the task row",
+        gesture = "Long-press a checkbox",
+        action = "Tick the whole page",
+        details = "Ticks every task on the page. If they are all ticked, it unticks them."
+    )
+
+    GestureItem(
+        gesture = "Long-press a task row",
         action = "Clear the task",
-        details = "Removes the task from the slot entirely. Use this to delete a task you no longer need."
+        details = "Removes the task from its row."
     )
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // MEMOS TAB GESTURES
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Memos Tab (Canvas)")
-    BodyText("Use long-press on the canvas to select and manipulate content:")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
+    SectionSubheader("Memos Tab")
 
     GestureItem(
         gesture = "Long-press an image",
-        action = "Select the image",
-        details = "The image becomes selected with resize handles. Drag to move it, use the handles to resize, or tap elsewhere to deselect."
+        action = "Select it",
+        details = "\"Image selected!\" appears with corner handles to resize it. Drag to move it; tap elsewhere when done."
     )
 
     GestureItem(
         gesture = "Long-press an attachment",
-        action = "Select the attachment",
-        details = "Works the same as images. Select PDF or EPUB attachments to reposition them on your page."
+        action = "Select it",
+        details = "\"Attachment selected!\" Move it like an image."
     )
 
     GestureItem(
         gesture = "Long-press a text box",
-        action = "Select the text box",
-        details = "Select text boxes to move or resize them. Double-tap to edit the text inside."
+        action = "Select it",
+        details = "Tap inside a selected text box to edit its text."
     )
 
     GestureItem(
-        gesture = "Long-press empty area",
-        action = "Lasso selection mode",
-        details = "A bullseye target appears. Drag to draw a rectangle around handwriting to select it. Selected content can be moved, copied, or deleted."
+        gesture = "Long-press an empty spot",
+        action = "Select an area",
+        details = "\"Selection mode!\" and a target appear. Drag a rectangle around the ink; the selection bar then offers Delete, Cut, Copy, Duplicate, AI Recognize and Convert to Tasks."
     )
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // QUICK PASTE
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Quick Paste")
 
     GestureItem(
         gesture = "Two-finger tap",
-        action = "Paste from clipboard",
-        details = "Tap with two fingers close together to paste text or images you've copied from any app. A text box or image appears on the canvas."
+        action = "Paste",
+        details = "Pastes ink or an image you copied in BooxDay, or text copied in another app as a text box."
     )
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TIPS
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Tips for Best Results")
-    BulletItem("Hold for about 1 second", "Long-press gestures activate after holding your finger still for about a second. You'll feel or see feedback when it activates.")
-    BulletItem("Use your fingertip", "Gestures work with finger touch only. Your stylus is reserved for writing and drawing.")
-    BulletItem("Tap to cancel", "If you accidentally enter selection mode, just tap anywhere else to exit.")
-    BulletItem("Two-finger tap technique", "Place two fingers close together and tap quickly. They don't need to touch at the exact same moment.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // PRACTICAL EXAMPLES
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Practical Examples")
-
-    BodyText("Complete all tasks at once:")
-    BulletPoint("1. Go to the Tasks tab")
-    BulletPoint("2. Long-press any checkbox")
-    BulletPoint("3. All tasks on the page are marked complete")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-    BodyText("Preview a busy day:")
-    BulletPoint("1. Look at the calendar grid")
-    BulletPoint("2. Long-press a date with events")
-    BulletPoint("3. The Quick View popup shows what's scheduled")
-    BulletPoint("4. Tap outside to close, or tap \"Open\" to go there")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-    BodyText("Move an image on your memo:")
-    BulletPoint("1. Long-press the image until \"Image selected!\" appears")
-    BulletPoint("2. Drag it to the new position")
-    BulletPoint("3. Tap elsewhere to confirm the move")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-    BodyText("Paste copied text:")
-    BulletPoint("1. Copy text from any app (browser, email, etc.)")
-    BulletPoint("2. Return to BooxDay and open a Memo")
-    BulletPoint("3. Two-finger tap on the canvas")
-    BulletPoint("4. A text box appears with your copied content")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // TROUBLESHOOTING
-    // ─────────────────────────────────────────────────────────────────────────
     SectionSubheader("Troubleshooting")
 
     TroubleshootingItem(
         problem = "Long-press not working?",
-        solution = "Make sure you're holding your finger still for about a second. If you move too much, it won't register as a long-press."
+        solution = "Hold your finger still; a long-press that moves counts as a drag."
     )
 
     TroubleshootingItem(
-        problem = "Accidentally entering selection mode?",
-        solution = "This happens if you hold your finger too long on the canvas. Just tap anywhere else to cancel and exit selection mode."
-    )
-
-    TroubleshootingItem(
-        problem = "Gestures not responding at all?",
-        solution = "Check if a text field is active (tap outside to close it) or if the events panel is expanded (tap the canvas to close it). Also make sure you're using your finger, not the stylus."
+        problem = "In selection mode by accident?",
+        solution = "Tap anywhere else to leave it."
     )
 }
 
@@ -533,32 +463,30 @@ private fun GestureItem(gesture: String, action: String, details: String? = null
 private fun WritingMemosContent() {
     SectionHeader("Writing & Memos")
 
-    SectionSubtitle("Your Digital Canvas.")
-    BodyText("The Memos tab supports unlimited pages per day.")
+    SectionSubtitle("Your pages for the day.")
+    BodyText("A day has as many memo pages as you need: the forward arrow on the last page adds a new one.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Toolbar Tools")
-
-    BulletItem("Pen", "Toggle between Ballpoint, Brush, Marker, and Pencil. Tap again to adjust thickness (1-50px) and color.")
-    BulletItem("Eraser", "\"Stroke Eraser\" removes whole lines; \"Area Eraser\" wipes specific pixels.")
-    BulletItem("Lasso", "Circle content to Move, Resize, Copy, or Delete it.")
-    BulletItem("Insert", "Add Images, Tables, Text Boxes, or file Attachments (PDF/EPUB) directly to the page.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-    SectionSubheader("Page Navigation")
-    BulletPoint("Use the arrow buttons in the toolbar to navigate between pages.")
-    BulletPoint("The page indicator shows which page you're on (e.g., 1/3).")
-    BulletPoint("Two-finger tap to paste copied content onto the canvas.")
-    BulletPoint("Long-press images, attachments, or text boxes to select them.")
-    BodyText("See the Touch Gestures section for all available shortcuts.")
+    SectionSubheader("Toolbar")
+    BulletItem("Pens", "Pen, Fountain Pen, Marker, Pencil and Brush. Tap the pen again to switch; each has five sizes and a choice of colors.")
+    BulletItem("Erasers", "Standard Eraser and Stroke Eraser. With \"Scribble to Erase\" (in the eraser menu), scribbling over ink erases it.")
+    BulletItem("Lasso select", "Draw around ink to select it, then move, copy or delete it.")
+    BulletItem("Insert", "Image, Background, Table, Link File (a PDF, EPUB or other file on the tablet) and Text.")
+    BulletItem("AI tools", "Voice to Text, Recognize Handwriting, Summarize, Translate and Convert Memo to Tasks. See AI Features.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Scribble-to-Erase")
-    BodyText("Rapidly scribble back and forth over handwriting with your stylus to erase it. This mimics the motion of physically crossing out text.")
-    BodyText("Turn it on with \"Scribble to Erase\" in the eraser menu.")
+    SectionSubheader("Page Actions (≡)")
+    BulletItem("Export Pages", "This page or all pages of the day, as PDF, PNG or JPG, saved in Documents/BooxDay.")
+    BulletItem("Clear This Page", "Empties the page and keeps it.")
+    BulletItem("Delete Page", "Removes the page.")
+    BulletItem("Clear This Day's Memos", "Empties every memo page of the day on screen. It can't be undone.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("Full Screen")
+    BodyText("The switch just before ≡ hides the calendar, so the page gets the whole screen. Tap it again for the normal view. When the switch shows a small arrow, there is ink lower on the page than the normal view shows.")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -569,31 +497,34 @@ private fun WritingMemosContent() {
 private fun TaskManagementContent() {
     SectionHeader("Task Management")
 
-    SectionSubtitle("Structured Productivity.")
-    BodyText("Manage up to 10 tasks per page, with unlimited pages per day.")
+    SectionSubtitle("One row per task.")
+    BodyText("A task page has 10 rows, and a day can have more pages. In full screen a page shows about 17 rows.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Creating Tasks")
-    BodyText("Tap a row to expand it. You can write the task name with your stylus or type it using the keyboard.")
+    SectionSubheader("Writing a Task")
+    BodyText("Write on a row with the pen. BooxDay reads handwritten tasks on the tablet, so search finds them. To type instead, tap › on an empty row.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("The Task Card (tap › on a task)")
+    BulletItem("Edit text / Convert to text", "Type the text, or turn the handwriting into text.")
+    BulletItem("Move", "To another date; Copy keeps it here too.")
+    BulletItem("Repeat", "Makes it a recurring task.")
+    BulletItem("Reminder", "A time to be reminded.")
+    BulletItem("Break Down", "Splits it into smaller tasks (AI).")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Priorities")
-    BodyText("Tap the priority button to cycle through levels:")
-    BulletItem("A (Red)", "Critical priority")
-    BulletItem("B (Orange)", "High priority")
-    BulletItem("C (Yellow)", "Normal priority")
+    BodyText("Tap a row's priority button (\"-\" when none) and pick None, A (High), B (Medium) or C (Low). A shows white on black, B in bold, C with a thin border.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Task Details")
-    BodyText("Every task row expands into a mini-canvas. Draw diagrams or write sub-notes directly inside the task.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-    SectionSubheader("Task Migration")
-    BodyText("Tap the Arrow icon to move an unfinished task to tomorrow or a specific date.")
+    SectionSubheader("Done and Streak")
+    BulletPoint("Tick the checkbox: the row gets a line through it.")
+    BulletPoint("The flame in the calendar header counts the days in a row on which you finished a task. Tap it for your stats. On small screens it is in the Settings menu (Task streak).")
+    BulletPoint("≡ → Clear This Day's Tasks empties the task pages of the day on screen.")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -604,33 +535,33 @@ private fun TaskManagementContent() {
 private fun CalendarSyncContent() {
     SectionHeader("Calendar & Sync")
 
-    SectionSubtitle("Offline First, Cloud Connected.")
-    BodyText("BooxDay stores all data locally for privacy and speed.")
+    SectionSubtitle("Your calendars, on the tablet.")
+    BodyText("Your memos, tasks and calendar are stored on this tablet.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Cloud Sync")
-    BulletItem("Events", "Google and Outlook Calendar events sync 6 months back and 6 months forward.")
-    BulletItem("Privacy", "Calendar sync sends and receives events only. Memos and tasks are never synced; Drive backup, if you turn it on, copies them to your own Google Drive.")
+    SectionSubheader("Calendar Mode (Settings → Calendar & Sync)")
+    BulletItem("Private Mode", "Everything stays on the tablet. No account needed.")
+    BulletItem("Cloud Sync", "Also shows your Google and Outlook calendars.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Calendar Modes")
-    BulletItem("Private Mode", "All calendars stay on your device. No account needed, full privacy.")
-    BulletItem("Cloud Sync", "See Google or Outlook calendars alongside your on-device calendars.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-    SectionSubheader("Visual Badges")
-    BodyText("Calendar dates show badges indicating content:")
-    BulletItem("Sticky Note icon", "Day has Memos.")
-    BulletItem("Checkmark icon", "Day has Tasks.")
-    BulletItem("Color bar", "Day has synced calendar events.")
+    SectionSubheader("Accounts (Settings → Calendar Accounts)")
+    BulletPoint("Add Gmail Account, Add Workspace Account, Add Outlook.com Account or Add Work/School Account.")
+    BulletPoint("Disconnect removes an account from BooxDay.")
+    BulletPoint("Events sync from two months back to three months ahead.")
+    BulletPoint("BooxDay asks Google for little access to your calendar: only your events and your list of calendars. If you signed in with an older version, BooxDay asks you once to reconnect; until you do, your Google events don't update. You can also reconnect in Settings → Calendar Accounts.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Sync Status")
-    BodyText("The Cloud icon shows your sync status. A spinning icon means sync is active.")
+    BodyText("The cloud icon in the calendar header turns while syncing and shows a number when changes wait to be sent. Tap it to sync now. Next to it: Syncing..., Sync failed, or the time of the last sync.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("Privacy")
+    BodyText("Calendar sync sends and receives events only. Memos and tasks are never synced; Drive backup, if you turn it on, copies them to your own Google Drive.")
+    BodyText("The marks on the calendar are in Key Legends.")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -641,259 +572,114 @@ private fun CalendarSyncContent() {
 private fun SearchContent() {
     SectionHeader("Search")
 
-    SectionSubtitle("Find anything across your entire planner.")
-    BodyText("Search lets you find memos, tasks, events, and Boox Notes — all from one place. Tap the magnifying glass icon in the calendar toolbar to open Search.")
+    SectionSubtitle("Find anything in your planner.")
+    BodyText("Tap the magnifier in the calendar header and type at least 2 characters.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("What You Can Search")
-    BulletItem("Memos", "Handwritten memo pages processed by OCR.")
-    BulletItem("Tasks", "All task text — typed, converted, or recognized.")
-    BulletItem("Events", "Google Calendar, Outlook Calendar, and local events.")
-    BulletItem("Boox Notes", "Pages from the Boox Notes app processed by OCR.")
+    SectionSubheader("What It Finds")
+    BulletItem("Memos and Boox Notes", "The words read from your handwriting, once the pages are indexed (see Smart Link).")
+    BulletItem("Tasks", "Typed text, and handwriting read on the tablet.")
+    BulletItem("Events", "Google, Outlook and the tablet's own events.")
+    BodyText("The filters All, Memos, Tasks, Events and Notes narrow the results.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Filters")
-    BodyText("Use the filter chips at the top of the search dialog to narrow results by content type:")
-    BulletItem("All", "Show results from every source.")
-    BulletItem("Memos", "Only memo pages.")
-    BulletItem("Tasks", "Only tasks.")
-    BulletItem("Events", "Calendar and local events.")
-    BulletItem("Notes", "Only Boox Notes pages.")
+    SectionSubheader("How It Matches")
+    BodyText("Each word you type matches the start of words, whatever the accents or capitals. Events and tasks that only contain your text inside a word are marked SIMILAR.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Smart Matching")
-    BodyText("Search uses multi-tier relevance scoring to surface the best results:")
-    BulletItem("Exact matches", "Word-boundary matches ranked highest.")
-    BulletItem("Full-text matches", "Broader text matches for memos and notes.")
-    BulletItem("Similar matches", "Partial substring matches labeled \"Similar\" for broader discovery.")
-    BodyText("Results also include synonym expansion — for example, searching \"meeting\" will also find \"mtg\", \"standup\", and \"huddle\".")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-    SectionSubheader("Result Details")
-    BodyText("Each search result shows helpful context:")
-    BulletPoint("Source type icon (memo, task, event, or note).")
-    BulletPoint("Date of the content.")
-    BulletPoint("A text snippet showing where your query matched.")
-    BulletPoint("Domain badge and word count for memos and notes.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-    SectionSubheader("Tips")
-    BulletPoint("Type at least 2 characters to start searching.")
-    BulletPoint("Tap any result to navigate directly to that day.")
-    BulletPoint("Tap a Boox Notes result to open it in the Boox Notes app.")
-    BulletPoint("Up to 50 results are shown, sorted by relevance then date.")
+    SectionSubheader("Results")
+    BulletPoint("Up to 50, best matches first, then the newest.")
+    BulletPoint("Memo and Boox Notes results show their topic and word count.")
+    BulletPoint("Tap a result to go to its day. A task opens; a Boox Notes result opens in the Boox Notes app.")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SECTION 7: SMART AI TOOLS
+// SECTION 7: AI FEATURES
 // ═══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun SmartAIToolsContent() {
-    SectionHeader("Smart AI Tools")
+private fun AiFeaturesContent() {
+    SectionHeader("AI Features")
 
-    SectionSubtitle("Your Personal AI Chief of Staff")
-    BodyText("BooxDay includes a suite of AI features designed to understand how you work and help you be more productive. The AI learns your patterns, respects your preferences, and gives suggestions that actually fit your life.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // AI PREFERENCES - THE KEY TO PERSONALIZATION
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("★ AI Preferences — Start Here!")
-    BodyText("The magic of personalization starts with telling the AI who you are. Without preferences, you get generic suggestions. With them, you get suggestions tailored to YOUR life.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-    BodyText("Two ways to set up:")
-    BulletItem("Voice Setup (30 seconds)", "Just talk naturally: \"I'm a freelance designer, morning person, I have two kids and love hiking.\" The AI extracts your preferences automatically!")
-    BulletItem("Manual Setup (2 minutes)", "Answer questions across 5 tabs — pick your top priorities, describe your daily rhythm, select your interests.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-    BodyText("What you'll configure:")
-    BulletItem("Life Priorities", "Pick your top 3: Work, Health, Family, Social, Hobbies, Finance, Education. The AI emphasizes these in suggestions.")
-    BulletItem("Daily Rhythm", "When do you wake up? Morning person or night owl? Do you prefer deep focus or task switching? Remote or commuting?")
-    BulletItem("Lifestyle & Interests", "Are you a homebody or social butterfly? Have kids or pets? Love fitness, reading, cooking?")
-    BulletItem("AI Style", "How many suggestions? Purely practical or include wellness reminders? Turn on Vacation Mode or Crunch Mode temporarily.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-    BodyText("💡 Pro tip: Use Voice Setup! It's faster and feels more natural than filling forms.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // FLAGSHIP FEATURES
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Smart Suggestions")
-    BodyText("The flagship AI feature. Tap the Sparkle icon to get personalized task ideas based on:")
-    BulletPoint("Your calendar — what's coming up that needs prep?")
-    BulletPoint("Your recent memos — handwritten notes the AI can read")
-    BulletPoint("Your task history — patterns, completion rates, neglected areas")
-    BulletPoint("Your preferences — priorities, interests, daily rhythm")
-    BulletPoint("Time of day and day of week")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-    BodyText("Examples of what Smart Suggestions might say:")
-    BulletPoint("\"Review slides for tomorrow's presentation\" (calendar prep)")
-    BulletPoint("\"Follow up with Sarah about project timeline\" (from your memo)")
-    BulletPoint("\"Time for a 15-minute walk\" (health priority + afternoon slump)")
-    BulletPoint("\"Start meal planning for the week\" (Sunday evening + foodie)")
+    SectionSubtitle("Optional, on your own OpenRouter account.")
+    BodyText("AI features run on your own OpenRouter account, so OpenRouter bills you, not BooxDay. Without credit on the account, BooxDay uses free models, which OpenRouter limits to a number of requests a day.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Optimize My Day")
-    BodyText("Your AI Chief of Staff creates an optimized daily schedule by analyzing:")
-    BulletPoint("Calendar events and meeting gaps")
-    BulletPoint("Your energy pattern (big tasks when you're sharpest)")
-    BulletPoint("Task priorities and deadlines")
-    BulletPoint("Your preferred work style and routine")
-    BodyText("Great for overwhelming days — let AI figure out the optimal order.")
+    SectionSubheader("Setting Up (Settings → AI Settings)")
+    BulletItem("Connect OpenRouter", "Sign in to OpenRouter in the browser; BooxDay saves the key. You can also paste a key.")
+    BulletItem("AI Features", "The switch for voice input and the AI tools.")
+    BulletItem("AI Models", "The model for each job: Reading handwriting, Voice, Writing and summaries, Planning and suggestions, Search indexing. If a model fails, BooxDay's choice answers.")
+    BulletItem("AI Preferences", "Five short tabs: Priorities, About Me, Daily Rhythm, Lifestyle and AI Style (with Vacation, Crunch and Holiday modes). Smart Suggestions and Optimize My Day use your answers. Closing keeps what you picked.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Smart Prioritization")
-    BodyText("Have a long task list? Let AI reorder by true importance. It considers deadlines, dependencies, and your priorities. Review the suggested order before applying.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // DAILY & WEEKLY INSIGHTS
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Daily Summary")
-    BodyText("End-of-day review and migration tool:")
-    BulletPoint("See completion rate and what you accomplished")
-    BulletPoint("Handwritten tasks are OCR'd and displayed")
-    BulletPoint("AI insights about your productivity that day")
-    BulletPoint("One-tap migration of unfinished tasks to tomorrow")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-    BodyText("💡 Best practice: Run Daily Summary before bed. Migrate what didn't get done, start fresh tomorrow.")
+    SectionSubheader("AI Tools in Memos")
+    BulletItem("Voice to Text", "Dictate; BooxDay adds punctuation and capitals, and lists where they are clear.")
+    BulletItem("Recognize Handwriting", "Reads the page's ink: copy the text, replace the handwriting with it, or place it below.")
+    BulletItem("Summarize and Translate", "The current page or all pages of the day.")
+    BulletItem("Convert Memo to Tasks", "Finds tasks in your notes; tick the ones to add.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Weekly Summary")
-    BodyText("7-day retrospective for Sunday/Monday planning:")
-    BulletPoint("Overall completion rate and trend")
-    BulletPoint("Best and toughest days identified")
-    BulletPoint("Recurring incomplete tasks flagged")
-    BulletPoint("Work-life balance analysis by category")
-    BulletPoint("AI insights about patterns and actionable suggestions")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-    BodyText("💡 Best practice: Check Weekly Summary on Sunday evening or Monday morning to plan your week.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // INPUT & CAPTURE
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Voice to Task")
-    BodyText("Speak naturally to create tasks:")
-    BulletPoint("\"Call the dentist by Friday, it's important\"")
-    BulletPoint("\"Buy groceries, get milk and eggs\"")
-    BulletPoint("\"Research vacation destinations next week\"")
-    BodyText("The AI extracts task text, due dates, and priority automatically.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-    SectionSubheader("Automatic Handwriting Recognition")
-    BodyText("Your handwritten tasks are automatically converted to searchable text in the background using Google ML Kit Digital Ink. No manual action needed - just write and the app intelligently indexes your content for search and Smart Link features.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-    SectionSubheader("Break Down Task")
-    BodyText("Select a big task like \"Plan vacation\" and let AI generate subtasks:")
-    BulletPoint("Research destinations")
-    BulletPoint("Compare flight prices")
-    BulletPoint("Book accommodations")
-    BulletPoint("Create packing list")
-    BodyText("Add subtasks directly to your list with one tap.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // PRO TIPS - THE GOOD STUFF
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Pro Tips for Power Users")
-    BulletItem("Set up AI Preferences first", "Generic suggestions are okay. Personalized suggestions are game-changing. Take 30 seconds for Voice Setup.")
-    BulletItem("Tell it about your Daily Rhythm", "Morning person? The AI puts challenging tasks early. Night owl? They come later. Task switcher? Get more, smaller tasks.")
-    BulletItem("Use Special Modes", "Going on vacation? Enable Vacation Mode for relaxation-focused suggestions. Deadline crunch? Enable Crunch Mode to cut the fluff.")
-    BulletItem("End each day with Daily Summary", "Migrating tasks takes 10 seconds and keeps your system clean.")
-    BulletItem("Check Weekly Summary every Sunday", "10 minutes of reflection saves hours of wheel-spinning.")
-    BulletItem("Write memos freely", "The AI reads your recent handwritten notes and uses them for suggestions. Your scribbles become action items!")
-    BulletItem("Use Voice Setup to update preferences", "Life changed? Just talk through your new situation instead of editing forms.")
+    SectionSubheader("Task AI")
+    BulletItem("Optimize My Day", "Proposes changes to your day, such as moving a task or blocking time. Nothing changes until you tap a proposal's button; Skip leaves it.")
+    BulletItem("Smart Suggestions", "Task ideas from your calendar, recent tasks, memos and AI Preferences. Add the ones you want, or all with Add All.")
+    BulletItem("Sort by Priority", "Orders this page or the whole day by importance, on the tablet. Check the order, then tap Apply Order.")
+    BulletItem("Break Down Task", "Splits a big task into smaller ones.")
+    BulletItem("Daily Summary", "What you finished today; move unfinished tasks to tomorrow one by one.")
+    BulletItem("Weekly Summary", "The week's totals, your best and toughest days, tasks left undone several times, and insights.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("How the AI Works")
-    BodyText("AI features run on your own OpenRouter account. When you use one, only what it needs (page images, text or a voice clip) is sent to OpenRouter and the company that runs the model. BooxDay has no server of its own. Without credit on the account, BooxDay uses free models, and some free models may keep what they are sent. The AI doesn't learn from your use: each request carries what it needs, plus your AI Preferences.")
+    BodyText("When you use an AI feature, only what it needs (page images, memo text, your tasks and events, or a voice clip) is sent to OpenRouter and the company that runs the model. BooxDay has no server of its own. Some free models may keep what they are sent. The AI doesn't learn from your use: each request carries what it needs, plus your AI Preferences.")
+    BodyText("The first time you use Optimize My Day, Daily Summary, Weekly Summary or Smart Suggestions, BooxDay tells you which calendar details it sends to OpenRouter, and how to keep them private: paid models (AI Settings → AI Models) and Zero Data Retention in your OpenRouter account's privacy settings. Free models keep working.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SECTION 8: SEMANTICGENIUS
+// SECTION 8: SMART LINK
 // ═══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun SemanticGeniusContent() {
-    SectionHeader("SemanticGenius")
+private fun SmartLinkContent() {
+    SectionHeader("Smart Link")
 
-    SectionSubtitle("Your notes, intelligently connected.")
-    BodyText("SemanticGenius is the intelligence engine that automatically understands what you write and links your notes to related calendar events and tasks.")
+    SectionSubtitle("Your Boox notes, linked to your events.")
+    BodyText("BooxDay reads the notes you write in the Boox Notes app and suggests which calendar event each one belongs to.")
 
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // WHAT IT DOES
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("What It Does")
-    BulletItem("Understands your notes", "Extracts keywords, people, dates, organizations, and topics from your handwriting.")
-    BulletItem("Smart Link", "Automatically suggests which Boox Notes relate to each calendar event.")
-    BulletItem("Action items", "Finds tasks hidden in your handwriting (\"Call John tomorrow\").")
-    BulletItem("Semantic search", "Find notes by meaning, not just exact words.")
+    SectionSubheader("Setting Up (Settings → Boox Notes)")
+    BulletPoint("Allow file access once (Open Permission Settings), then turn on Enable Indexing.")
+    BulletPoint("Reading pages needs an OpenRouter key; up to 1,000 pages a month are read. Linking notes by hand works without a key.")
 
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // HOW IT WORKS
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("How It Works")
-    BulletItem("1. Just write", "SemanticGenius processes notes automatically in the background.")
-    BulletItem("2. Check Smart Link", "Tap any calendar event to see related Boox Notes suggestions.")
-    BulletItem("3. Search", "Use the search icon to find content across all indexed notes.")
+    SectionSubheader("Using It")
+    BulletPoint("Open Boox Notes with the B in the day header, or from the Notes button in the Memos toolbar.")
+    BulletPoint("Pick a note to see its pages, link it to an event, or open it in Boox Notes.")
+    BulletPoint("Review suggestions lists the likely matches: link them one by one, or all strong ones with Link strong….")
+    BulletPoint("An event's details show its linked notes.")
 
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TIPS FOR BEST RESULTS
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Tips for Best Results")
-    BulletItem("Write naturally", "SemanticGenius understands context, not just keywords.")
-    BulletItem("Include names, dates, and topics", "Better matches for Smart Link.")
-    BulletItem("Enable Boox Notes indexing", "Go to Settings → Boox Notes → Enable Indexing to connect your existing notebooks.")
+    SectionSubheader("Tips")
+    BulletPoint("Names and topics in a note's title help Smart Link.")
+    BulletPoint("A date in the title sets the note's day.")
+    BulletPoint("Action items: in a calendar event's Meeting notes, it lists the to-do lines in that day's memos, read on the tablet (English).")
 
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // PRIVACY
-    // ─────────────────────────────────────────────────────────────────────────
     SectionSubheader("Privacy")
     BodyText("Finding topics and linking notes to events run on the tablet. Only reading the pages uses AI: while Settings → Boox Notes → Enable Indexing is on, memo and Boox Notes pages are sent to OpenRouter, on your own account, and only to providers that keep no copy. With indexing off, no pages are sent.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -904,68 +690,24 @@ private fun SemanticGeniusContent() {
 private fun VoiceInputContent() {
     SectionHeader("Voice Input")
 
-    SectionSubtitle("Speak instead of type.")
-    BodyText("BooxDay lets you speak naturally to create memos, events, and tasks.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // THREE VOICE FEATURES
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Three Voice Features")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-    BulletItem("Voice to Text (Memos)", "Dictate notes naturally. AI adds formatting (headers, lists, emphasis) automatically.")
-    BulletPoint("\"Meeting notes. First, we discussed the budget. Second, timeline concerns.\"")
-    BulletPoint("\"Shopping list: milk, eggs, bread, and don't forget the coffee.\"")
+    SectionSubtitle("Speak instead of writing.")
+    BodyText("Voice needs AI Features turned on (Settings → AI Settings).")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    BulletItem("Voice to Event (Calendar)", "Create calendar events by describing them naturally.")
-    BulletPoint("\"Meeting with Sarah tomorrow at 2pm\"")
-    BulletPoint("\"Dentist appointment next Tuesday at 3:30\"")
-    BulletPoint("\"Team standup at 9am on Zoom\"")
+    SectionSubheader("Where")
+    BulletItem("Voice to Text", "The AI button in Memos: dictate a note.")
+    BulletItem("Voice events", "The microphone in the calendar header, or in a new event: describe it, for example \"Meeting with Sarah tomorrow at 2pm\".")
+    BodyText("Recording stops by itself a few seconds after you stop speaking.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    BulletItem("Voice to Task", "Add tasks with optional due dates and priorities.")
-    BulletPoint("\"Call the dentist by Friday\"")
-    BulletPoint("\"Buy groceries\" (no date = today)")
-    BulletPoint("\"Finish the report by December 20th, it's important\"")
-    BodyText("AI extracts: task text, due date, and priority level.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // TWO TRANSCRIPTION PROVIDERS
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Two Transcription Providers")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
+    SectionSubheader("Two Ways to Turn Voice into Text")
     BulletItem("Google Speech Recognition", "Free, with no key or credit. Used whenever the tablet has Google's speech recognition: from the Google Search app, or Google's speech services that some BOOX tablets come with.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
     BulletItem("AI on OpenRouter", "Only for tablets without Google's speech recognition. Runs on your own OpenRouter account, with the Voice model from AI Settings → AI Models; Settings → Voice-to-Text shows which one.")
 
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TIPS FOR BEST RESULTS
-    // ─────────────────────────────────────────────────────────────────────────
-    SectionSubheader("Tips for Best Results")
-    BulletItem("Speak naturally", "Don't over-enunciate. The system understands normal speech.")
-    BulletItem("Pause briefly", "System auto-detects when you're done (2-3 seconds of silence).")
-    BulletItem("Include context", "\"Meeting with John\" is better than just \"meeting\".")
-    BulletItem("Dates work flexibly", "\"tomorrow\", \"next Tuesday\", \"December 20th\" all work.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // TROUBLESHOOTING
-    // ─────────────────────────────────────────────────────────────────────────
     SectionSubheader("Troubleshooting")
 
     TroubleshootingItem(
@@ -983,96 +725,90 @@ private fun VoiceInputContent() {
         solution = "Speak closer to the microphone. Reduce background noise. Try speaking more slowly."
     )
 
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // PRIVACY
-    // ─────────────────────────────────────────────────────────────────────────
     SectionSubheader("Privacy & Data")
-    BodyText("Your voice is turned into text by one of two services:")
     BulletPoint("Google Speech: Google's speech service on the tablet. Google may process the audio on its servers.")
     BulletPoint("AI on OpenRouter: the audio clip goes to OpenRouter, on your own account, and to the company that runs the model.")
     BodyText("BooxDay keeps no recordings: the audio is held in memory only until it is turned into text.")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SECTION 10: E-INK OPTIMIZATION
+// SECTION 10: E-INK & SLEEP SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun EInkOptimizationContent() {
-    SectionHeader("E-Ink Optimization")
+    SectionHeader("E-Ink & Sleep Screen")
 
     SectionSubtitle("Built for your Boox tablet.")
-    BodyText("BooxDay is specifically designed for e-ink displays with zero animations and a stylus-optimized UI.")
+    BodyText("BooxDay uses no animations and shows meaning in black and white only, which stays sharp in every refresh mode.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Screen Ghosting")
-    BodyText("If the screen looks \"messy\" with artifacts, tap the Refresh button (circular arrows icon) in the toolbar. This triggers a full screen refresh to clear ghosting.")
+    SectionSubheader("Screen Refresh")
+    BodyText("If traces of earlier screens remain (ghosting), tap ≡ → Screen Refresh for a full refresh.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Animation Mode")
-    BodyText("The app automatically switches to \"A2\" (fast refresh) mode during scrolling to prevent lag, then snaps back to \"Normal\" (high quality) mode for writing.")
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-    SectionSubheader("Battery Life")
-    BodyText("Dark interface elements and minimal animations are designed to extend battery life on e-ink devices.")
+    SectionSubheader("Today on Sleep Screen")
+    BodyText("Shows today's events and tasks as the tablet's sleep screen. Turn it on in Preferences (Boox tablets only; off at first). Turning it off brings back Boox's own sleep image.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Display Tips")
-    BulletPoint("High-contrast black/white UI works best on e-ink.")
-    BulletPoint("Avoid rapid gestures that cause excessive screen refreshes.")
-    BulletPoint("Use the stylus for precise input; finger touch works for navigation.")
+    BulletPoint("Use the pen to write and your finger to tap and select.")
+    BulletPoint("Fewer quick gestures mean fewer screen refreshes.")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SECTION 11: TROUBLESHOOTING
+// SECTION 11: DATA & TROUBLESHOOTING
 // ═══════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun TroubleshootingContent() {
-    SectionHeader("Troubleshooting")
+    SectionHeader("Data & Troubleshooting")
 
-    SectionSubtitle("Common Issues & Solutions")
+    SectionSubtitle("Your data, updates and fixes.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("Backup (Settings → Data & Backup)")
+    BodyText("Your data is kept in BooxDay's private storage on the tablet. Create Backup saves a copy to Google Drive or Device Storage (Downloads or an SD card); Restore Backup brings one back. Google Drive Backup can also run by itself (Auto Backup).")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("Daily Notes (Markdown)")
+    BodyText("Turn it on in Preferences: each day's events, tasks and memo text go into a Markdown file in Documents/BooxDay/Daily Notes, or a folder you choose, for other notes apps. Text you add outside BooxDay's part of the file is kept.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("Updates")
+    BodyText("A while after it starts, BooxDay checks for a new version: Update Now installs it, Not Now asks again the next day. You can also check in Settings → About → Check for Updates. After an update, What's new shows once.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("If BooxDay Closes Unexpectedly")
+    BodyText("At the next start, \"BooxDay closed unexpectedly\" offers Copy Report and Report on GitHub. Email addresses in the report are shortened.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     TroubleshootingItem(
-        problem = "Stylus not writing?",
-        solution = "Check if the \"Hand\" icon is active (Touch Mode). Tap it to switch back to Pen Mode."
+        problem = "Pen not writing?",
+        solution = "Close any open popup or menu: the pen doesn't write while one is open. If it still doesn't write, close BooxDay and open it again."
     )
 
     TroubleshootingItem(
         problem = "Sync failed?",
-        solution = "Ensure you are online. If issues persist, go to Settings → Calendar Accounts, tap Disconnect, then sign in again."
-    )
-
-    TroubleshootingItem(
-        problem = "Strokes disappearing?",
-        solution = "Ensure you wait a moment before switching days. Rapid switching may interrupt saving."
+        solution = "Check the Wi-Fi. If it keeps failing, go to Settings → Calendar Accounts, tap Disconnect, then add the account again."
     )
 
     TroubleshootingItem(
         problem = "Screen showing artifacts?",
-        solution = "Tap the Refresh button in the toolbar to perform a full e-ink screen refresh."
+        solution = "Tap ≡ → Screen Refresh."
     )
 
-    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-    SectionSubheader("Data Backup")
-    BodyText("BooxDay stores data in external storage for easy backup. Your database is located at:")
-    BodyText("/Documents/booxdaydb/", isMono = true)
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
-
-    BodyText("Back up regularly in Settings → Data & Backup.")
-
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1207,45 +943,46 @@ private fun TroubleshootingItem(problem: String, solution: String) {
 private fun KeyLegendsContent() {
     SectionHeader("Key Legends")
 
-    SectionSubtitle("Visual indicators used throughout the app.")
+    SectionSubtitle("What the marks mean.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    // Calendar Grid Legends
-    SectionSubheader("Calendar Grid")
-    LegendItem("● (black dot)", "Day has events scheduled")
-    LegendItem("Underline", "Day has events (alternate indicator)")
-    LegendItem("Bold date", "Today's date")
-    LegendItem("Circle outline", "Selected date")
+    SectionSubheader("Calendar")
+    LegendItem("Small black mark", "Under the number: the day has events")
+    LegendItem("B in a circle", "Top corner: the day has Boox Notes")
+    LegendItem("Black ring", "Today")
+    LegendItem("White on black", "The day you picked")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    // Events Grid Legends
-    SectionSubheader("Events Grid")
-    LegendItem("B badge", "Event has linked Boox Note(s)")
-    LegendItem("B badge + memo icon", "Boox Note linked AND has local memo")
-    LegendItem("Memo icon only", "Event has local memo (no Boox Note)")
-    LegendItem("⚠ (attention)", "Linked note may need review")
-    LegendItem("🔗 (link)", "Event is synced with Google or Outlook Calendar")
-    LegendItem("📍 (pin)", "Event has a location")
-    LegendItem("🎥 (video)", "Virtual meeting (Zoom, Meet, Teams)")
+    SectionSubheader("Day Header (above the tabs)")
+    LegendItem("Note icon", "The day has memos")
+    LegendItem("Check icon", "The day has tasks")
+    LegendItem("B", "The day has Boox Notes; tap it to open them")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    // Task Legends
-    SectionSubheader("Tasks Tab")
-    LegendItem("○ (empty circle)", "Task not started")
-    LegendItem("● (filled circle)", "Task completed")
-    LegendItem("🔥 (fire)", "High priority task")
-    LegendItem("Gray row", "Completed task (grayed out)")
+    SectionSubheader("Events")
+    LegendItem("B badge", "Linked Boox Notes; a number when there are 2 or more")
+    LegendItem("Dot on the B", "A linked note may need a look")
+    LegendItem("Camera icon", "Online meeting (Zoom, Teams, Meet and others)")
+    LegendItem("Lock", "Read-only event")
+    LegendItem("Day 2/3", "One day of an event that spans several days")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    // Boox Notes Dialog Legends
-    SectionSubheader("View Boox Notes Dialog")
-    LegendItem("⚠ (yellow)", "Note needs attention or review")
-    LegendItem("✓ (checkmark)", "Note successfully linked to event")
-    LegendItem("Unlinked filter", "Show only notes not linked to events")
+    SectionSubheader("Tasks")
+    LegendItem("Filled checkbox", "Task done; its row gets a line through it")
+    LegendItem("A, B, C or -", "Priority: High, Medium, Low or none")
+    LegendItem("Circular arrows", "A recurring task")
+    LegendItem("Flame", "In the calendar header: your task streak")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("Boox Notes")
+    LegendItem("Link icon", "Linked; the event's title follows")
+    LegendItem("Star", "A suggested link")
+    LegendItem("Unlinked only", "In All notes: shows notes without a link")
 }
 
 @Composable
