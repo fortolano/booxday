@@ -695,6 +695,8 @@ Help is a 12-topic split popup of about 4,500–5,000 words (`HelpDialog.kt`). I
         - AI Recognize reads on the tablet (ML Kit) while AI is off, and says so.
         - Privacy texts updated: AI Settings, Help, the tips, About, Boox Notes settings.
         - Test: `AiReadWaitReasonTest`.
+      - **Checked on the Go 10.3 (26 Oct, debug build of `85270d6`, same code as 1.0.38):** with AI Features off, the switch says "Voice input, the AI tools and reading pages for search are off. None of your data goes to OpenRouter.", the mic in the top bar, the Memos AI button and AI Models are greyed out, and Boox Notes settings say "On, paused: AI Features is off". An empty memo page added for the test went into the queue; Index Now logged "Indexing waits: AI Features is off", the status line became "Waiting: AI Features is off • 1 items will be read later", and the month's AI page reads stayed at 182 (nothing sent). The test page was deleted and AI turned back on.
+        - Seen there: with nothing in the queue, the status line keeps saying "1 items pending • Processing during idle time". The one waiting item is counted but never queued (the pending count includes task pages, which are read on the tablet and never go through this queue, `UnifiedOcrScheduler.buildQueue`), so the line only changes when some other page is waiting. Not changed.
     - **Internal names never reach the user:** "SemanticGenius" becomes "Smart Link" (that Help topic is about linking notes to events); "AI Chief of Staff" goes; Help's voice text uses the Voice settings' own option names.
     - No marketing words: "AI-powered", "magic", "game-changing" go.
 - **Answers can be lost:**
@@ -752,6 +754,7 @@ The owner asked to check Settings → Voice-to-Text: it showed a fixed "Gemini 2
   - `voiceSource()` (`TranscriptionService.kt`): Google speech whenever the tablet has it; AI only when chosen and there is none. Test: `VoiceSourceTest`.
   - Voice settings: the AI option is "AI on OpenRouter" and shows the model in use from AI Models ("Model: Gemini 3.1 Flash Lite, BooxDay's choice. Change it in AI Settings → AI Models."); Google Speech says "Ready on this tablet", free, and that Google may process the audio on its servers. Help's voice section says the same.
 - **Tablet check:** open Settings → Voice-to-Text on the Go 10.3 (Google Speech ready, the AI option shows the model) and record a voice task. On a tablet with the Google Search app installed by the user, voice should now use Google speech.
+  - **Checked on the Go 10.3 (26 Oct, `85270d6`):** Voice-to-Text shows Google Speech Recognition "Ready on this tablet" and selected, and "AI on OpenRouter" says "Model: Gemini 3.1 Flash Lite, BooxDay's choice. Change it in AI Settings → AI Models.", the same as the Voice line in AI Models. A voice task wasn't recorded (it needs speech).
 
 ### 4.12 "Start the day" is confusing and plain (owner, 26 Oct; screenshot on the Go 10.3, build `bee387e`)
 
@@ -815,7 +818,8 @@ The owner closed the second session; this session owns its open items. All its w
 - **Tested by the owner on the Go 10.3:**
   - Sync works with the narrower Google permission, with no reconnect.
   - Saving, editing and deleting a Google event work and show up in Google Calendar.
-  - Still to check: the "AI and your calendar" notice. It should show once on Optimize My Day; Continue runs it; it doesn't show again. The tablet's build, `bee387e`, still says "Plan My Day" in that notice until the next install.
+  - **"AI and your calendar" notice, checked on the Go 10.3 (26 Oct, `85270d6`):** Task AI → Optimize My Day showed it (it names Optimize My Day, Daily Summary, Weekly Summary and Smart Suggestions, with Not Now, Continue and Open AI Settings); Continue saved it as seen and ran Optimize My Day, which answered with 4 suggestions (none added). Run again, it went straight to work without the notice.
+    - Seen there: `AgenticPlanningService.kt:175` and `:736` log the first 500 characters of the AI's answer, which names the user's meetings and the people in them. The crash report takes the last 150 log lines (only email addresses are masked). The other AI services log only the length. Not changed (owner's call).
 - **Google verification, the owner's steps** (`docs/google-verification/README.md` has them all):
   1. Set up a domain (github.io may be rejected).
   2. Publish `site/index.html` and `site/privacy/index.html` to gh-pages.
