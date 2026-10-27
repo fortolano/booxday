@@ -27,6 +27,7 @@ import com.onyx.android.sdk.api.device.epd.UpdateMode
 import com.onyx.android.sdk.api.device.epd.UpdateOption
 import com.onyx.android.sdk.device.Device
 import com.onyx.android.sdk.pen.TouchHelper
+import com.onyx.android.sdk.pen.style.StrokeStyle
 import android.util.Log
 import com.boox.day.utils.TaggedLog
 import kotlinx.coroutines.Job
@@ -440,6 +441,36 @@ fun partialRefreshRegionOnce(view: View, dirtyRect: Rect, touchHelper: TouchHelp
 fun resetScreenFreeze(touchHelper: TouchHelper, view: View? = null) {
     touchHelper.isRawDrawingRenderEnabled = false
     touchHelper.isRawDrawingRenderEnabled = true
+}
+
+// Eraser kind whose trail was last asked for; null until a canvas on the BOOX pen engine asks.
+@Volatile private var eraserTrail: Eraser? = null
+
+/**
+ * Trail under the pen's eraser end (and side button) while it erases (Oct 2026).
+ *
+ * The BOOX firmware draws it only when asked, and forgets it whenever raw drawing is enabled
+ * again, so callers send it again after enabling. Styles and parameters are BOOX Notes' own
+ * (read from the Go 6 firmware's knote2 app): soft eraser for the Standard Eraser, a dashed line
+ * for the Stroke Eraser's loop. Without [eraser], re-sends the last one.
+ */
+fun setEraserTrail(touchHelper: TouchHelper, eraser: Eraser? = eraserTrail) {
+    if (eraser == null) return
+    eraserTrail = eraser
+    try {
+        if (eraser == Eraser.SELECT) {
+            Device.currentDevice().setStrokeParameters(StrokeStyle.DASH, floatArrayOf(5f))
+            touchHelper.setEraserRawDrawingEnabled(true, StrokeStyle.DASH)
+        } else {
+            // Width, opacity, black opacity
+            Device.currentDevice().setStrokeParameters(
+                StrokeStyle.SOFT_ERASER, floatArrayOf(ERASER_WIDTH, 0.5f, 0.1f)
+            )
+            touchHelper.setEraserRawDrawingEnabled(true, StrokeStyle.SOFT_ERASER)
+        }
+    } catch (e: Exception) {
+        einkLogger.w("setEraserTrail failed: ${e.message}")
+    }
 }
 
 //    Device.currentDevice().invalidate(this@DrawCanvas, UpdateMode.ANIMATION_MONO);

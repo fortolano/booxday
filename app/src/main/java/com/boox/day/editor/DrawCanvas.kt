@@ -67,6 +67,7 @@ import com.boox.day.editor.state.History
 import com.boox.day.editor.state.Mode
 import com.boox.day.editor.state.Operation
 import com.boox.day.editor.state.PlacementMode
+import com.boox.day.editor.utils.ERASER_WIDTH
 import com.boox.day.editor.utils.Eraser
 import com.boox.day.editor.utils.Pen
 import com.boox.day.editor.utils.calculateBoundingBox
@@ -92,6 +93,7 @@ import com.boox.day.editor.utils.restoreDefaults
 import com.boox.day.editor.utils.selectImage
 import com.boox.day.editor.utils.selectImagesAndStrokes
 import com.boox.day.editor.utils.selectImagesStrokesAndAttachments
+import com.boox.day.editor.utils.setEraserTrail
 import com.boox.day.editor.utils.setupSurface
 import com.boox.day.editor.utils.toPageCoordinates
 import com.boox.day.editor.utils.transformToLine
@@ -487,6 +489,16 @@ class DrawCanvas(
         // pen-up repaint (~570 ms). See schedulePenRestBlit().
         private const val PEN_REST_BLIT_DELAY_MS = 250L
 
+        // How long the pen's render stays paused after an erase before it resumes: BOOX Notes'
+        // erase finish waits 300 ms (EraseFinishAction: setResumeDelayTime(300)). The screen has to
+        // finish the clean page's update first; on the Go 6 a full-canvas update took ~530 ms
+        // (kernel waveform cleanup, Oct 2026 log), so a larger area waits longer, up to the full
+        // canvas's 300 + 250 ms. See commitErasedPage().
+        private const val ERASE_RESUME_DELAY_MS = 300L
+        private const val ERASE_RESUME_FULL_CANVAS_EXTRA_MS = 250L
+        // A resume with the pen down would toggle the render mid-stroke: wait for pen-up, this long at most.
+        private const val ERASE_RESUME_PEN_WAIT_MAX_MS = 10_000L
+
         // Signal when strokes/images are added or removed (for updating calendar badges)
         val contentChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
@@ -583,6 +595,7 @@ class DrawCanvas(
                         } else {
                             Log.i("DrawCanvas", "RACE_DEBUG: flushUIUpdates re-enabling raw drawing")
                             helper.setRawDrawingEnabled(true)
+                            setEraserTrail(helper)  // The firmware forgets it on enable
                         }
                     } finally {
                         PageDataManager.setTransitioning(false)
@@ -615,6 +628,7 @@ class DrawCanvas(
                     } else {
                         Log.i("DrawCanvas", "UNFREEZE: Re-enabling raw drawing after force unfreeze")
                         helper.setRawDrawingEnabled(true)
+                        setEraserTrail(helper)  // The firmware forgets it on enable
                     }
                 }, 50)
             } catch (e: Exception) {
@@ -838,13 +852,25 @@ class DrawCanvas(
                                 // ╚══════════════════════════════════════════════════════════════════════════╝
                                 if (androidPenBackend) drawCanvasToView(null) else schedulePenRestBlit()
                             } else {
-                                // Scribble-to-erase detected - refresh erased area
-                                drawCanvasToView(erasedByScribbleDirtyRect)
-                                partialRefreshRegionOnce(
-                                    this@DrawCanvas,
-                                    erasedByScribbleDirtyRect,
-                                    touchHelper
-                                )
+                                // Scribble-to-erase detected: the scribble and the strokes it erased
+                                // leave the screen like any erase away from the pen's trail.
+                                if (androidPenBackend) {
+                                    drawCanvasToView(erasedByScribbleDirtyRect)
+                                    partialRefreshRegionOnce(
+                                        this@DrawCanvas,
+                                        erasedByScribbleDirtyRect,
+                                        touchHelper
+                                    )
+                                } else {
+                                    // The scribble itself was live ink, so its area is pushed too, with
+                                    // room for half the pen's width past its points.
+                                    val scribblePad = (currentPenSettings.strokeSize * pageZoom / 2).toInt() + 15
+                                    val scribbleArea = calculateBoundingBox(plist.points) { Pair(it.x, it.y) }
+                                        .toRect().apply { inset(-scribblePad, -scribblePad) }
+                                    commitErasedPage(scribbleArea.apply {
+                                        union(page.toScreenCoordinates(erasedByScribbleDirtyRect))
+                                    })
+                                }
                             }
 
                         }
@@ -864,6 +890,8 @@ class DrawCanvas(
             // (restoreDefaults only resets the display scheme) — a likely cause of ghosting after
             // erasing. The GL renderer it was meant for is never constructed. (Notable did the same.)
             isErasing = true
+            // Re-send the eraser end's trail: some raw drawing re-enables don't (Notable does the same).
+            if (!androidPenBackend) setEraserTrail(touchHelper, state.eraser)
         }
 
         override fun onEndRawErasing(p0: Boolean, p1: TouchPoint?) {
@@ -894,7 +922,9 @@ class DrawCanvas(
                 return
             }
 
+            val eraserEnd = isErasing  // Set by onBeginRawErasing: the pen's eraser end, not the tip
             isErasing = false
+            val penUpMs = SystemClock.uptimeMillis()
 
             if (plist == null) return
             if (plist.points.isEmpty()) {
@@ -904,16 +934,11 @@ class DrawCanvas(
             plist.points
 
             val points = copyInputToSimplePointF(plist.points, page.scroll, page.zoomLevel.value)
-
-            val padding = 10
             val boundingBox = (calculateBoundingBox(plist.points) { Pair(it.x, it.y) }).toRect()
-            val strokeArea = Rect(
-                boundingBox.left - padding,
-                boundingBox.top - padding,
-                boundingBox.right + padding,
-                boundingBox.bottom + padding
-            )
-            refreshUi(strokeArea)
+            // The Standard Eraser's trail reaches half its width past the points.
+            val trailArea = Rect(boundingBox).apply {
+                inset(-(ERASER_WIDTH / 2).toInt() - 10, -(ERASER_WIDTH / 2).toInt() - 10)
+            }
 
             // TASKS-ONLY: Block erasing in completed task rows
             if (!isMemosCanvas) {
@@ -933,6 +958,7 @@ class DrawCanvas(
                         // If bounding box intersects this completed row, block the erase
                         if (boundingBox.bottom > rowTop && boundingBox.top < rowBottom) {
                             log.i("ERASER_BLOCKED: Attempted to erase in completed task row $rowIndex")
+                            showErasedPage(penUpMs, eraserEnd, trailArea, null)  // The ink stays
                             return  // Block the erase entirely
                         }
                     }
@@ -947,8 +973,8 @@ class DrawCanvas(
                 points,
                 eraser = getActualState().eraser
             )
+            showErasedPage(penUpMs, eraserEnd, trailArea, zoneEffected)
             if (zoneEffected != null) {
-                refreshUi(zoneEffected)
                 // TASKS-ONLY: Signal eraser completion for auto-clearing empty task rows
                 // Only emit in Tasks mode (!isMemosCanvas) to ensure Memos is completely unaffected
                 if (!isMemosCanvas) {
@@ -978,12 +1004,12 @@ class DrawCanvas(
             // queues MotionEvent references on Rx; Android may recycle those before use.
             when (action) {
                 MotionEvent.ACTION_DOWN -> {
-                    if (erasing) touchHelper.setStrokeStyle(penToStroke(Pen.MARKER))
-                        .setStrokeWidth(30f).setStrokeColor(Color.GRAY)
+                    // The eraser end draws the same trail as the eraser tool.
+                    if (erasing) setEraserPenStyle()
                     val width = when {
-                        erasing -> 30f
+                        erasing || state.mode == Mode.Erase ->
+                            if (state.eraser == Eraser.PEN) ERASER_WIDTH else 3f
                         state.mode == Mode.Select -> 4f
-                        state.mode == Mode.Erase -> if (state.eraser == Eraser.PEN) 30f else 3f
                         else -> state.penSettings[state.pen.penName]!!.strokeSize * page.zoomLevel.value
                     }
                     EpdController.moveTo(this, point!!.x, point.y, width, normalizedPressure)
@@ -1077,6 +1103,8 @@ class DrawCanvas(
     @Volatile private var deferredStartupRawDrawingOpen = false
     private var deferredStartupRawDrawingJob: Job? = null
     private var penRestBlitJob: Job? = null
+    // Counts erase commits: only the newest one resumes the pen render (commitErasedPage).
+    private var eraseCommitGeneration = 0
     // A completed stroke is in the page bitmap but not yet on the surface. The generation lets a
     // full blit that started before the latest stroke leave the flag set.
     @Volatile private var surfaceStale = false
@@ -1104,14 +1132,15 @@ class DrawCanvas(
      * Oct 2026). BOOX Notes and Notable post nothing while the pen is writing.
      * The post must still come before the system's pen-up repaint (~570 ms after the last pen-up),
      * which repaints from the surface: a post that late was the "first stroke flick" (Dec 2025).
+     * Erasing passes a shorter [delayMs]: it already spent time cutting strokes after pen-up.
      */
-    private fun schedulePenRestBlit() {
+    private fun schedulePenRestBlit(delayMs: Long = PEN_REST_BLIT_DELAY_MS) {
         surfaceStaleGeneration++
         surfaceStale = true
         penRestBlitJob?.cancel()
         val pageId = page.currentPageId
         penRestBlitJob = coroutineScope.launch(Dispatchers.Main) {
-            delay(PEN_REST_BLIT_DELAY_MS)
+            delay(delayMs.coerceAtLeast(0L))
             // A stroke in progress re-arms this when it ends; another full blit may have run already.
             if (stylusContact.isActive || !surfaceStale || page.currentPageId != pageId) return@launch
             withDrawingLock("pen-rest-blit") {
@@ -1119,6 +1148,100 @@ class DrawCanvas(
                 if (!stylusContact.isActive) drawCanvasToView(null)
             }
         }
+    }
+
+    /**
+     * Shows the page after an erase (Oct 2026, Go 6 tests with the owner).
+     *
+     * Pen tip, Standard Eraser: the white trail paints over the erased ink inside the pen layer, so
+     * the page is simply posted like a pen stroke once the pen rests. Any pause of the pen layer
+     * here flashed erased ink.
+     *
+     * Everything else on the BOOX pen engine, where ink is removed away from the pen's own trail
+     * (Stroke Eraser loops, the pen's eraser end, Scribble to Erase): [commitErasedPage]. The
+     * Stroke Eraser always commits, even over nothing, to clear its loop's trail. The Android pen
+     * backend has no BOOX pen layer and keeps refreshUi.
+     */
+    private fun showErasedPage(penUpMs: Long, eraserEnd: Boolean, trailArea: Rect, erasedArea: Rect?) {
+        when {
+            androidPenBackend ->
+                refreshUi(erasedArea?.let { Rect(trailArea).apply { union(it) } } ?: trailArea)
+            eraserEnd || getActualState().eraser == Eraser.SELECT ->
+                commitErasedPage(erasedArea?.let { Rect(trailArea).apply { union(it) } } ?: trailArea)
+            else -> schedulePenRestBlit(PEN_REST_BLIT_DELAY_MS - (SystemClock.uptimeMillis() - penUpMs))
+        }
+    }
+
+    /**
+     * Shows an erase that removed ink away from the pen's own trail, the way BOOX Notes finishes an
+     * erase (decompiled knote2: EraseFinishAction, InvalidateViewWithPenControlAction) (Oct 2026).
+     *
+     * While the pen layer is on, the screen driver is in handwriting mode: it rejects ordinary
+     * updates, and the hardware keeps its own copy of every stroke drawn live. BooxDay deleted the
+     * strokes from its page, but that copy still had them, so each time the screen left handwriting
+     * mode they blinked back, every stroke erased so far at once. Pushing the clean page, pausing,
+     * or reopening the pen did not help while it came too early or too late (0 ms, 100 ms, never):
+     * the hardware takes its copy from the screen when the pen resumes, so the clean page must have
+     * finished updating first (~530 ms for a full canvas on the Go 6). BOOX Notes' order:
+     * 1. Push the changed area through the pen layer (enablePost), like its forced render.
+     * 2. Pause only the pen's render. The input reader keeps running, so a stroke started now is
+     *    still recorded (closing the pen session lost it, Oct 2026 review).
+     * 3. Post the area again while the pen is paused (BOOX Notes' view invalidate).
+     * 4. After [ERASE_RESUME_DELAY_MS] (longer for a bigger area), resume the render, and the
+     *    hardware copies the clean screen. Never with the pen down (a mid-stroke render toggle
+     *    flicks): wait for pen-up. Only the newest commit resumes, from a finally, so the pause
+     *    can't be left on by a cancelled job.
+     */
+    private fun commitErasedPage(changedArea: Rect) {
+        if (width <= 0 || height <= 0) return
+        val pageId = page.currentPageId
+        val area = Rect(changedArea)
+        // A stroke written less than 250 ms ago is on the page but not on the surface yet. Push the
+        // whole canvas now and drop the pending pen-rest post, which would start a second full
+        // update inside the pause.
+        if (surfaceStale) {
+            penRestBlitJob?.cancel()
+            area.set(0, 0, width, height)
+        }
+        // Inside the surface only; an empty area means the whole canvas.
+        if (!area.intersect(0, 0, width, height) || area.isEmpty) area.set(0, 0, width, height)
+        // A bigger area takes the screen longer to update: 300 ms, up to 550 ms for the whole canvas.
+        val fraction = area.width().toFloat() * area.height() / (width.toFloat() * height)
+        val resumeAfterMs = ERASE_RESUME_DELAY_MS + (ERASE_RESUME_FULL_CANVAS_EXTRA_MS * fraction).toLong()
+        val generation = ++eraseCommitGeneration
+        coroutineScope.launch(Dispatchers.Main.immediate) {
+            try {
+                withDrawingLock("erase-push") {
+                    val pushed = drawCanvasToView(area, forcePost = true)
+                    log.i("ERASE_COMMIT: pushed $area through the pen layer (ok=$pushed), resume in $resumeAfterMs ms")
+                }
+                touchHelper.isRawDrawingRenderEnabled = false
+                withDrawingLock("erase-invalidate") { drawCanvasToView(area) }
+                log.i("ERASE_COMMIT: pen render paused, posted while paused")
+                delay(resumeAfterMs)
+                // A newer erase ends this wait too: it has paused the pen again and resumes it.
+                var waitedMs = 0L
+                while (stylusContact.isActive && generation == eraseCommitGeneration &&
+                    waitedMs < ERASE_RESUME_PEN_WAIT_MAX_MS) {
+                    delay(50)
+                    waitedMs += 50
+                }
+            } finally {
+                if (generation == eraseCommitGeneration) resumePenRenderAfterErase(pageId)
+            }
+        }
+    }
+
+    private fun resumePenRenderAfterErase(pageId: String) {
+        // A page or tab change, a popup or a text box has taken over the pen: its own flow turns
+        // raw drawing back on.
+        if (page.currentPageId != pageId || memoModeChanged.value != isMemosCanvas ||
+            !state.isDrawing || isCanvasInputBlockedByOverlay() || !rawDrawingOpened) {
+            log.i("ERASE_COMMIT: not resuming the pen render, something else owns it now")
+            return
+        }
+        touchHelper.isRawDrawingRenderEnabled = true
+        log.i("ERASE_COMMIT: pen render resumed")
     }
 
     // Unique identifier for raw drawing ownership logs
@@ -2006,7 +2129,12 @@ class DrawCanvas(
         return true
     }
 
-    fun drawCanvasToView(dirtyRect: Rect?, allowDuringSetup: Boolean = false): Boolean {
+    /**
+     * [forcePost]: make the post reach the panel while the pen layer is on, where BOOX otherwise
+     * swallows it (Go 6 log: "Post enabled!" only when the pen layer pauses). BOOX Notes' renderer
+     * does this before every post (BaseRenderer.beforeUnlockCanvas: enablePost(view, 1)).
+     */
+    fun drawCanvasToView(dirtyRect: Rect?, allowDuringSetup: Boolean = false, forcePost: Boolean = false): Boolean {
         if (!canDrawToSurface("drawCanvasToView", allowDuringSetup)) {
             return false
         }
@@ -2075,6 +2203,7 @@ class DrawCanvas(
             }
 
             // finish rendering
+            if (forcePost) EpdController.enablePost(this, 1)
             unlockAttempted = true
             surfaceHolder.unlockCanvasAndPost(canvas)
             if (zoneToRedraw.width() >= surfaceWidth && zoneToRedraw.height() >= surfaceHeight &&
@@ -2138,20 +2267,26 @@ class DrawCanvas(
                 ?.setStrokeWidth(state.penSettings[state.pen.penName]!!.strokeSize * page.zoomLevel.value)
                 ?.setStrokeColor(state.penSettings[state.pen.penName]!!.color)
 
-            Mode.Erase -> {
-                when (state.eraser) {
-                    Eraser.PEN -> touchHelper.setStrokeStyle(penToStroke(Pen.MARKER))
-                        ?.setStrokeWidth(30f)
-                        ?.setStrokeColor(Color.GRAY)
-
-                    Eraser.SELECT -> touchHelper.setStrokeStyle(penToStroke(Pen.BALLPEN))
-                        ?.setStrokeWidth(3f)
-                        ?.setStrokeColor(Color.GRAY)
-                }
-            }
+            Mode.Erase -> setEraserPenStyle()
 
             Mode.Select -> touchHelper.setStrokeStyle(penToStroke(Pen.BALLPEN))?.setStrokeWidth(4f)
                 ?.setStrokeColor(Color.DKGRAY)  // Darker gray for better visibility on e-ink
+        }
+        // The Android pen backend draws its own eraser trail (androidPenInput).
+        if (!androidPenBackend) setEraserTrail(touchHelper, state.eraser)
+    }
+
+    private fun setEraserPenStyle() {
+        when (state.eraser) {
+            // Solid white line (Oct 2026, from the inkit test app): the ink vanishes under the
+            // tip as it is erased, and the strip cut at pen-up is the same width.
+            Eraser.PEN -> touchHelper.setStrokeStyle(penToStroke(Pen.BALLPEN))
+                ?.setStrokeWidth(ERASER_WIDTH)
+                ?.setStrokeColor(Color.WHITE)
+
+            Eraser.SELECT -> touchHelper.setStrokeStyle(penToStroke(Pen.BALLPEN))
+                ?.setStrokeWidth(3f)
+                ?.setStrokeColor(Color.GRAY)
         }
     }
 

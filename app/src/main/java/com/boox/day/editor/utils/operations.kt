@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Region
 import androidx.compose.ui.geometry.Offset
+import androidx.core.graphics.toRect
 import androidx.core.graphics.toRegion
 import com.boox.day.data.db.Attachment
 import com.boox.day.data.db.Image
@@ -84,19 +85,16 @@ fun imagePoints(image: Image): Array<Point> {
     )
 }
 
+/**
+ * Every pixel these strokes were drawn on, for redrawing after they are erased or undone.
+ * Rounds outward like the area a new stroke is drawn in (strokeBounds(stroke).toRect()). Cutting
+ * the edges down with toInt() left a stroke's last pixel column and row on the page after erasing
+ * it (Oct 2026, a Brush stroke: column 883 and row 650 stayed).
+ */
 fun strokeBounds(strokes: List<Stroke>): Rect {
     if (strokes.isEmpty()) return Rect()
-    val stroke = strokes[0]
-    val rect = Rect(
-        stroke.left.toInt(), stroke.top.toInt(), stroke.right.toInt(), stroke.bottom.toInt()
-    )
-    strokes.forEach {
-        rect.union(
-            Rect(
-                it.left.toInt(), it.top.toInt(), it.right.toInt(), it.bottom.toInt()
-            )
-        )
-    }
+    val rect = Rect()
+    strokes.forEach { rect.union(strokeBounds(it).toRect()) }
     return rect
 }
 

@@ -17,6 +17,9 @@ enum class Eraser(val _name: String) {
     PEN("PEN"), SELECT("SELECT"),
 }
 
+/** Standard Eraser width in screen pixels: its trail on screen and the strip it cuts are the same. */
+const val ERASER_WIDTH = 30f
+
 const val SCRIBBLE_TO_ERASE_GRACE_PERIOD_MS = 150L
 const val SCRIBBLE_INTERSECTION_THRESHOLD = 0.20f
 
@@ -145,8 +148,8 @@ fun handleErase(
 ): Rect? {
     if (points.isEmpty()) return null
     if (eraser == Eraser.PEN) {
-        // Raw preview is 30 screen pixels wide; clipping operates in page coordinates.
-        val cutter = PreciseEraser(points, 15f / page.zoomLevel.value)
+        // The raw trail is ERASER_WIDTH screen pixels wide; clipping operates in page coordinates.
+        val cutter = PreciseEraser(points, ERASER_WIDTH / 2 / page.zoomLevel.value)
         val originals = mutableListOf<Stroke>()
         val fragments = mutableListOf<Stroke>()
         page.strokes.forEach { stroke ->
