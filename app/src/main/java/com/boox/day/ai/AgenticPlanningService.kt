@@ -172,7 +172,8 @@ object AgenticPlanningService {
                 }
             },
             processResponse = { response, model ->
-                Log.d(TAG, "${model.displayName} succeeded: ${response.data.take(500)}...")
+                // Length only (Oct 2026): the answer names the user's meetings and people
+                Log.d(TAG, "${model.displayName} succeeded: ${response.data.length} chars")
                 val parsed = parseResponse(response.data, context)
                 if (parsed.isSuccess) parsed else null
             }
@@ -524,7 +525,8 @@ TIME SCHEDULING GUIDELINES for "suggestedTimeBlock":
                 availableFreeMinutes = context.todayCapacity.freeMinutes
             )
         } catch (e: JsonSyntaxException) {
-            Log.e(TAG, "JSON parse error: $cleanJson", e)
+            // Length only (Oct 2026): error lines stay in release builds and in crash reports
+            Log.e(TAG, "JSON parse error (${cleanJson.length} chars)", e)
             AgenticPlanResult.error("Could not parse AI response")
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected parse error", e)
@@ -733,7 +735,7 @@ TIME SCHEDULING GUIDELINES for "suggestedTimeBlock":
                 }
             },
             processResponse = { response, model ->
-                Log.d(TAG, "${model.displayName} succeeded: ${response.data.take(500)}...")
+                Log.d(TAG, "${model.displayName} succeeded: ${response.data.length} chars")
                 val parsed = parseResponse(
                     response.data,
                     context,
