@@ -537,11 +537,28 @@ class DrawCanvas(
         val mainScreenModalVisible = MutableStateFlow(false)
         val canvasHostModalVisible = MutableStateFlow(false)
 
+        // The Memos page map is open (Oct 2026, Phase 0 spike): the pen layer is off like under any popup,
+        // but the map's own session turns it off and back on (beginMapSession / endMapSession), in the
+        // order that keeps the map out of the pen layer. So it isn't one of the overlay observer's flows.
+        val pageMapOpen = MutableStateFlow(false)
+
+        // The Memos view is moving (two-finger drag, page map): the pen's render is paused and
+        // nothing may resume it or toggle raw drawing until the move's finish (endViewportMove).
+        @Volatile var viewportMoving = false
+
+        /** The canvas that holds the pen (TouchHelper), i.e. the shown one. */
+        fun active(): DrawCanvas? = sharedCanvas.get()
+
+        /** The pen touches the screen now or lifted less than [ms] ago. */
+        fun isStylusActiveWithin(ms: Long): Boolean =
+            stylusContact.isActive || System.currentTimeMillis() - lastStylusActivityMs < ms
+
         fun isCanvasInputBlockedByOverlay(): Boolean {
             return eventsOverlayExpanded.value ||
                 toolbarModalVisible.value ||
                 mainScreenModalVisible.value ||
-                canvasHostModalVisible.value
+                canvasHostModalVisible.value ||
+                pageMapOpen.value
         }
 
         // For QuickNav scrolling with previews
@@ -584,6 +601,8 @@ class DrawCanvas(
                 Log.v("DrawCanvas", "flushUIUpdates skipped - stylus recently active")
                 return
             }
+            // A view move holds the pen paused; its finish shows the screen anyway
+            if (viewportMoving) return
             PageDataManager.setTransitioning(true)
             try {
                 helper.setRawDrawingEnabled(false)
@@ -618,6 +637,7 @@ class DrawCanvas(
          */
         fun forceUnfreeze() {
             val helper = sharedTouchHelper ?: return
+            if (viewportMoving) return  // see flushUIUpdates
             try {
                 Log.i("DrawCanvas", "UNFREEZE: Force unfreezing e-ink (tap outside canvas)")
                 helper.setRawDrawingEnabled(false)
@@ -728,6 +748,13 @@ class DrawCanvas(
                 } else if (PERF_LOGS) {
                     log.i("Blocking stylus input - modal overlay is open")
                 }
+                return
+            }
+
+            // A stroke made while the view moves showed no ink (the pen's render is paused): dropped,
+            // so nothing appears that wasn't seen. Its points would also belong to an older view.
+            if (viewportMoving) {
+                log.i("PAN_SPIKE: stroke while the view moves - dropped (${plist.points.size} points)")
                 return
             }
 
@@ -925,6 +952,12 @@ class DrawCanvas(
             val eraserEnd = isErasing  // Set by onBeginRawErasing: the pen's eraser end, not the tip
             isErasing = false
             val penUpMs = SystemClock.uptimeMillis()
+
+            // Erasing while the view moves: dropped, like a stroke (onRawDrawingTouchPointListReceived)
+            if (viewportMoving) {
+                log.i("PAN_SPIKE: erase while the view moves - dropped")
+                return
+            }
 
             if (plist == null) return
             if (plist.points.isEmpty()) {
@@ -1242,6 +1275,99 @@ class DrawCanvas(
         }
         touchHelper.isRawDrawingRenderEnabled = true
         log.i("ERASE_COMMIT: pen render resumed")
+    }
+
+    // ── Memos view moves (Oct 2026, memo canvas navigation plan, Phase 0 spike) ──────────────────────
+    //
+    // Every move of the Memos view (two-finger drag, page map) ends in the erase finish above. The BOOX
+    // pen hardware keeps its own copy of every stroke drawn live; for that copy a move is an erase of
+    // every stroke plus a redraw elsewhere, and only commitErasedPage's order (push, pen render paused,
+    // post, resume once the panel has settled) kept old ink from flashing back (Go 6, 27 Oct 2026).
+
+    private var viewportMoveStartMs = 0L
+
+    private fun canStartViewportSession(): Boolean =
+        isMemosCanvas && memoModeChanged.value == isMemosCanvas && surfaceReady && rawDrawingOpened &&
+            state.isDrawing && !isCanvasInputBlockedByOverlay() && !viewportMoving
+
+    /**
+     * A two-finger drag starts: the pen's render pauses (BOOX Notes pauses it when scrolling starts), so
+     * the frames reach the panel, in a fast e-ink mode. False when the canvas can't move now.
+     */
+    fun beginViewportMove(): Boolean {
+        if (!canStartViewportSession()) return false
+        PanSpikeSettings.load(context)
+        penRestBlitJob?.cancel()  // the first frame posts the whole page anyway
+        viewportMoving = true
+        viewportMoveStartMs = SystemClock.uptimeMillis()
+        touchHelper.isRawDrawingRenderEnabled = false
+        applyViewportFastMode(true)
+        log.i("PAN_SPIKE: move begins, pen render paused, fast mode ${PanSpikeSettings.modeName()}")
+        return true
+    }
+
+    /** One frame of a move or a page map jump: posts the page as it is drawn now. */
+    fun showViewportFrame(): Boolean = drawCanvasToView(null)
+
+    /** The two-finger drag ended: the whole view drawn at its place, then the erase finish brings the pen back. */
+    fun endViewportMove() {
+        if (!viewportMoving) return
+        page.drawAreaScreenCoordinates(Rect(0, 0, page.viewWidth, page.viewHeight))
+        applyViewportFastMode(false)
+        commitErasedPage(Rect(0, 0, width, height))
+        viewportMoving = false
+        log.i("PAN_SPIKE: move ends after ${SystemClock.uptimeMillis() - viewportMoveStartMs} ms, finish started")
+    }
+
+    private fun applyViewportFastMode(on: Boolean) {
+        try {
+            if (on) {
+                EpdController.applyTransientUpdate(
+                    if (PanSpikeSettings.qualityMode) com.onyx.android.sdk.api.device.epd.UpdateMode.ANIMATION_QUALITY
+                    else com.onyx.android.sdk.api.device.epd.UpdateMode.ANIMATION_X
+                )
+            } else {
+                EpdController.clearTransientUpdate(true)
+            }
+        } catch (t: Throwable) {
+            log.w("PAN_SPIKE: fast mode ${if (on) "on" else "off"} failed: ${t.message}")
+        }
+    }
+
+    /**
+     * The page map opens: the page is posted, then the pen layer goes off as under any popup, so the pen
+     * and fingers can use the map and the canvas's posts reach the panel. False when it can't open now.
+     */
+    fun beginMapSession(): Boolean {
+        if (!canStartViewportSession()) return false
+        penRestBlitJob?.cancel()
+        pageMapOpen.value = true
+        drawCanvasToView(null)
+        touchHelper.setRawDrawingEnabled(false)
+        viewportMoveStartMs = SystemClock.uptimeMillis()
+        log.i("PAN_SPIKE: page map opens, pen layer off")
+        return true
+    }
+
+    /**
+     * The page map has closed and left the screen: the pen layer comes back with its render paused (strokes
+     * are recorded again at once), then the erase finish posts the page and resumes the render once the
+     * panel has settled, so neither the map nor old ink gets into the pen's copy of the screen.
+     */
+    fun endMapSession() {
+        if (!pageMapOpen.value) return
+        page.drawAreaScreenCoordinates(Rect(0, 0, page.viewWidth, page.viewHeight))
+        val otherPopup = eventsOverlayExpanded.value || toolbarModalVisible.value ||
+            mainScreenModalVisible.value || canvasHostModalVisible.value
+        val penBack = !otherPopup && state.isDrawing && memoModeChanged.value == isMemosCanvas && rawDrawingOpened
+        if (penBack) {
+            touchHelper.setRawDrawingEnabled(true)
+            touchHelper.isRawDrawingRenderEnabled = false
+            updatePenAndStroke()  // the pen's style and the eraser trail (enable forgets it)
+        }
+        pageMapOpen.value = false
+        if (penBack) commitErasedPage(Rect(0, 0, width, height)) else drawCanvasToView(null)
+        log.i("PAN_SPIKE: page map closed after ${SystemClock.uptimeMillis() - viewportMoveStartMs} ms (pen back=$penBack)")
     }
 
     // Unique identifier for raw drawing ownership logs
@@ -1709,6 +1835,9 @@ class DrawCanvas(
                 if (isInputBlocked) {
                     log.i("Blocking overlay open - disabling raw drawing")
                     touchHelper.setRawDrawingEnabled(false)
+                } else if (pageMapOpen.value || viewportMoving) {
+                    // The page map's or a view move's own finish turns the pen back on, in its order
+                    log.i("Blocking overlay dismissed - page map open or view moving, the pen stays as it is")
                 } else if (state.isDrawing) {
                     if (!rawDrawingOpened) {
                         log.i("Blocking overlay dismissed - raw drawing not opened yet, calling updateActiveSurface")
@@ -2002,6 +2131,8 @@ class DrawCanvas(
             log.i("FLICK_FIX: Skipping resetScreenFreeze() in refreshUi - stylus actively drawing")
             return
         }
+        // A view move keeps the pen's render paused until its finish: no toggle in between
+        if (viewportMoving || pageMapOpen.value) return
         // reset screen freeze
         resetScreenFreeze(touchHelper)
     }

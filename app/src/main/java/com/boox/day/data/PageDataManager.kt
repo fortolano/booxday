@@ -170,6 +170,12 @@ object PageDataManager {
     }
     private val previewCacheLock = Any()
 
+    // Content changes per page this session (page map, Oct 2026): bumped by [invalidatePreviewCache]
+    private val contentVersions = ConcurrentHashMap<String, Int>()
+
+    /** Counts this page's content changes this session; the page map redraws when it moves. */
+    fun contentVersion(pageId: String): Int = contentVersions[pageId] ?: 0
+
     /**
      * Get a preview bitmap from cache. Returns null if not cached.
      * The returned bitmap is IMMUTABLE and should be copied before drawing.
@@ -264,6 +270,8 @@ object PageDataManager {
      * Remove a specific page from preview cache (e.g., when content changes).
      */
     fun invalidatePreviewCache(pageId: String) {
+        // Every content change of a page comes through here: the page map redraws its picture on it
+        contentVersions.merge(pageId, 1, Int::plus)
         synchronized(previewCacheLock) {
             previewCache.remove(pageId)?.let { bitmap ->
                 if (!bitmap.isRecycled) bitmap.recycle()
@@ -1108,6 +1116,13 @@ object PageDataManager {
             return
         }
 
+        // Saved images show the page from its top (search, thumbnails, the next open): none while the
+        // Memos view is moved (Phase 0 spike; the plan renders a top-of-page image instead)
+        if (pageScroll[pageId]?.let { it != Offset.Zero } == true) {
+            log.d("PERSIST_SKIP: View moved on $pageId")
+            return
+        }
+
         // Create snapshot (Layer 4)
         val snapshot: Bitmap? = try {
             synchronized(entry.bitmap) {
@@ -1164,6 +1179,12 @@ object PageDataManager {
 
         if (entry.bitmap.isRecycled) {
             log.d("PERSIST_SKIP: Bitmap recycled for $pageId")
+            return
+        }
+
+        // No saved image while the Memos view is moved (see persist above)
+        if (pageScroll[pageId]?.let { it != Offset.Zero } == true) {
+            log.d("PERSIST_SKIP: View moved on $pageId")
             return
         }
 

@@ -40,7 +40,9 @@ enum class GestureMode {
     Scroll,
     Zoom,
     Normal,
-    Drag
+    Drag,
+    /** Memos two-finger drag (Oct 2026): MemoNavigator and DrawCanvas own the e-ink mode and the pen. */
+    Pan
 }
 
 
@@ -65,6 +67,11 @@ data class GestureState(
                         log.d("Entered ${value.name} gesture mode")
                         gestureHold++
                         AnimationModeOwners.acquire(GESTURE_OWNER)
+                    }
+
+                    GestureMode.Pan -> {
+                        log.d("Entered ${value.name} gesture mode")
+                        gestureHold++
                     }
 
                     GestureMode.Normal -> {

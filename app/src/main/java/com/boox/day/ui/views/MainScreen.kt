@@ -6785,6 +6785,11 @@ private fun PersistentCanvasHost(
                     onConvertSelectionToTasks = if (currentTab == EditorTab.Memos) onConvertSelectionToTasks else null
                 )
                 TextBoxOverlay(context = context, controlTower = activeControlTower)
+                // Memos page map (Oct 2026, Phase 0 spike): above the canvas's other overlays
+                com.boox.day.editor.ui.MemoNavigationEffects(
+                    memosControlTower.value?.navigator, memosPageId, currentTab == EditorTab.Memos
+                )
+                if (currentTab == EditorTab.Memos) com.boox.day.editor.ui.MemoPageMap()
                 if (currentTab == EditorTab.Tasks) {
                   // Full screen (Oct 2026): rows keep the normal view's height, so the row overlays end
                   // at the last row and the space under it stays empty

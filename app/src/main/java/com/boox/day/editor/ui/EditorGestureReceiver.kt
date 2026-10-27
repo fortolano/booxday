@@ -43,8 +43,17 @@ import com.boox.day.data.db.Attachment
 import com.boox.day.data.db.Image
 import com.boox.day.data.db.TextAnnotation
 import java.io.File
+import android.os.SystemClock
 import com.boox.day.editor.DrawCanvas
 import com.boox.day.editor.EditorControlTower
+import com.boox.day.editor.MemoNavigator
+import com.boox.day.editor.state.PAN_PEN_GUARD_MS
+import com.boox.day.editor.state.PAN_RELAND_GRACE_MS
+import com.boox.day.editor.state.PAN_START_MM
+import com.boox.day.editor.state.PointerTracker
+import com.boox.day.editor.state.isTwoFingerPan
+import com.boox.day.editor.state.panStartPx
+import com.boox.day.ui.FullScreenState
 import com.boox.day.editor.state.DOUBLE_TAP_MIN_MS
 import com.boox.day.editor.state.DOUBLE_TAP_TIMEOUT_MS
 import com.boox.day.editor.state.EditorState
@@ -84,6 +93,8 @@ fun EditorGestureReceiver(
     val pageId = editorState?.currentPageId ?: ""
     val scroll = editorState?.pageView?.scroll ?: Offset.Zero
     val zoomLevel by editorState?.pageView?.zoomLevel?.collectAsState() ?: remember { mutableStateOf(1f) }
+    // Memos two-finger drag (Oct 2026): the distance both fingers move before the page follows
+    val panStartPx = remember { panStartPx().also { log.i("PAN_SPIKE: drag starts after $it px (${PAN_START_MM} mm)") } }
     Box(
         modifier = Modifier
             // TODO: Change to // .pointerInteropFilter { ev -> ……}
@@ -93,6 +104,8 @@ fun EditorGestureReceiver(
             // causing text box tap detection to query the wrong page's annotations.
             .pointerInput(pageId) {
                 awaitEachGesture {
+                    // Set while a two-finger drag moves the page, so any way out of the gesture ends it
+                    var dragNavigator: MemoNavigator? = null
                     try {
                         // Detect initial touch
                         val down = awaitFirstDown()
@@ -150,6 +163,11 @@ fun EditorGestureReceiver(
                         }
                         gestureState.initialTimestamp = System.currentTimeMillis()
                         gestureState.insertPosition(down)
+                        // Finger geometry for the two-finger drag (Notable's, handles dropped contacts)
+                        val tracker = PointerTracker(now = { SystemClock.uptimeMillis() })
+                        tracker.update(down)
+                        var dragRefusalLogged = false
+                        var dragTried = false
 
                         do {
                             // wait for second gesture
@@ -178,10 +196,26 @@ fun EditorGestureReceiver(
                                     // Consume changes and update positions
                                     change.consume()
                                     gestureState.insertPosition(change)
+                                    tracker.update(change)
                                 }
                                 if (fingerChange.any { !it.pressed }) {
                                     gestureState.lastTimestamp = System.currentTimeMillis()
-                                    break
+                                    // A two-finger drag goes on while a finger stays, and through a
+                                    // dropped contact: e-ink panels lose a finger for a few ms
+                                    if (gestureState.gestureMode != GestureMode.Pan) break
+                                    if (tracker.pressedCount() == 0) {
+                                        val reland = withTimeoutOrNull(PAN_RELAND_GRACE_MS) {
+                                            var next = awaitPointerEvent()
+                                            while (next.changes.none { it.type == PointerType.Touch && it.pressed }) {
+                                                next = awaitPointerEvent()
+                                            }
+                                            next
+                                        } ?: break
+                                        reland.changes.filter { it.type == PointerType.Touch }.forEach {
+                                            it.consume()
+                                            tracker.update(it)
+                                        }
+                                    }
                                 }
                             }
                             // events are only send on change, so we need to check for holding in place separately
@@ -249,8 +283,31 @@ fun EditorGestureReceiver(
                                 }
                                 gestureState.checkSmoothScrolling()
                                 gestureState.checkContinuousZoom()
-                                if (gestureState.checkHoldingTwoFingers())
+                                val onMemos = DrawCanvas.memoModeChanged.value
+                                if (onMemos) {
+                                    // Memos: two fingers moving together move the page (no hold first)
+                                    if (gestureState.gestureMode == GestureMode.Normal && !dragTried &&
+                                        isTwoFingerPan(tracker.pressedTravels(), panStartPx)
+                                    ) {
+                                        val refusal = memoDragRefusal(editorState)
+                                        if (refusal != null) {
+                                            if (!dragRefusalLogged) log.i("PAN_SPIKE: two fingers moved together, no drag: $refusal")
+                                            dragRefusalLogged = true
+                                        } else {
+                                            dragTried = true  // once per gesture (the page may fit the view)
+                                            val (a, b) = tracker.pressedTravels()
+                                            val travel = (a + b) / 2f
+                                            if (controlTower.navigator.beginDrag(travel)) {
+                                                dragNavigator = controlTower.navigator
+                                                gestureState.gestureMode = GestureMode.Pan
+                                                tracker.consumeDragDelta()  // the deltas count from here
+                                                controlTower.navigator.moveBy(travel)  // the page catches up
+                                            }
+                                        }
+                                    }
+                                } else if (gestureState.checkHoldingTwoFingers()) {
                                     showHint("Drag mode!", coroutineScope, 1500)
+                                }
 
                             }
                             if (gestureState.gestureMode == GestureMode.Scroll) {
@@ -271,6 +328,11 @@ fun EditorGestureReceiver(
                                 val delta = gestureState.getTotalDragDelta()
                                 overdueScroll =
                                     controlTower.processScroll(delta = overdueScroll + delta)
+                            }
+
+                            if (gestureState.gestureMode == GestureMode.Pan) {
+                                val delta = tracker.consumeDragDelta()
+                                if (delta != Offset.Zero) controlTower.navigator.moveBy(delta)
                             }
 
                         } while (true)
@@ -309,7 +371,24 @@ fun EditorGestureReceiver(
                                 return@awaitEachGesture
                             }
 
-                            GestureMode.Normal -> {}
+                            GestureMode.Pan -> {
+                                // The view stays where the fingers left it; the navigator brings the pen back
+                                dragNavigator?.endDrag()
+                                dragNavigator = null
+                                gestureState.gestureMode = GestureMode.Normal
+                                return@awaitEachGesture
+                            }
+
+                            GestureMode.Normal -> {
+                                // Phase 0: two-finger touches that didn't move the page (palms, pinches)
+                                if (tracker.maxConcurrentPressed >= 2 && DrawCanvas.memoModeChanged.value) {
+                                    log.i(
+                                        "PAN_SPIKE: two-finger touch, no drag: fingers=${tracker.maxConcurrentPressed} " +
+                                            "centre moved ${tracker.netCentroidTravel()} total=${tracker.totalTravel().toInt()} px " +
+                                            "in ${tracker.inputDuration()} ms, pen ${System.currentTimeMillis() - DrawCanvas.lastStylusActivityMs} ms ago"
+                                    )
+                                }
+                            }
                         }
 
                         if (!coroutineScope.isActive) return@awaitEachGesture
@@ -442,6 +521,9 @@ fun EditorGestureReceiver(
                         log.d("Gesture coroutine canceled", e)
                     } catch (e: Exception) {
                         log.e("Unexpected error in gesture handling", e)
+                    } finally {
+                        // A drag cut short (page change, lost focus, an error) still brings the pen back
+                        dragNavigator?.endDrag()
                     }
                 }
             }
@@ -455,6 +537,20 @@ fun EditorGestureReceiver(
         // Draw the rectangle while dragging
         DrawRectangle(rectangleBounds, density)
     }
+}
+
+/**
+ * Why the Memos page may not move now, or null when it may: no popup, selection, text box or full
+ * screen switch, and the pen at rest (a palm next to the writing hand must not move the page).
+ */
+private fun memoDragRefusal(editorState: EditorState?): String? = when {
+    DrawCanvas.isCanvasInputBlockedByOverlay() -> "a popup is open"
+    FullScreenState.transitioning -> "full screen is switching"
+    editorState?.selectionState?.isNonEmpty() == true -> "a selection is on the page"
+    editorState?.textBoxState?.selectedTextBox != null -> "a text box is selected"
+    DrawCanvas.isStylusActiveWithin(PAN_PEN_GUARD_MS) ->
+        "the pen was used ${System.currentTimeMillis() - DrawCanvas.lastStylusActivityMs} ms ago"
+    else -> null
 }
 
 @Composable
