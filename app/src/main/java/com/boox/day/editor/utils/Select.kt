@@ -134,7 +134,8 @@ fun selectImagesStrokesAndAttachments(
         drawStroke(
             selectedCanvas,
             it,
-            -pageBounds.takeTopLeftCornel().toOffset()
+            -pageBounds.takeTopLeftCornel().toOffset(),
+            markerDots = true  // Shown on the canvas while it moves
         )
     }
     attachmentsToSelect.forEach {

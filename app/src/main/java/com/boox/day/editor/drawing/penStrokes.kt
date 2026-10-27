@@ -1,5 +1,7 @@
 package com.boox.day.editor.drawing
 
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.DashPathEffect
@@ -9,6 +11,7 @@ import android.graphics.Path
 import android.graphics.PointF
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
+import android.graphics.Shader
 import androidx.annotation.VisibleForTesting
 import androidx.compose.ui.geometry.Offset
 import com.boox.day.data.datastore.GlobalAppSettings
@@ -30,6 +33,7 @@ import com.onyx.android.sdk.pen.NeoMarkerPenWrapper
 import com.boox.day.utils.TaggedLog
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.roundToInt
 
 private val penStrokesLog = TaggedLog("PenStrokesLog")
 
@@ -100,7 +104,7 @@ fun drawEraserStroke(canvas: Canvas, points: List<StrokePoint>, strokeSize: Floa
 
 
 fun drawMarkerStroke(
-    canvas: Canvas, paint: Paint, strokeSize: Float, points: List<TouchPoint>
+    canvas: Canvas, paint: Paint, strokeSize: Float, points: List<TouchPoint>, dots: Boolean = false
 ) {
     val copyPaint = Paint(paint).apply {
         this.strokeWidth = strokeSize
@@ -111,10 +115,39 @@ fun drawMarkerStroke(
         this.alpha = 100
 
     }
+    if (dots) useMarkerDots(copyPaint, paint.color)
 
     val path = pointsToPath(points.map { SimplePointF(it.x, it.y) })
 
     canvas.drawPath(path, copyPaint)
+}
+
+// 4x4 ordered-dither thresholds: a pixel is a dot when its value is below the dot count.
+private val MARKER_DOT_ORDER = intArrayOf(0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
+private val markerDotShaders = arrayOfNulls<BitmapShader>(17)
+
+/**
+ * Marker on the canvas (Oct 2026): black dots instead of a pale grey.
+ *
+ * The canvas is shown in BOOX's black-and-white handwriting mode (onSurfaceInit). The old marker
+ * grey (LTGRAY at alpha 100, grey 237 on the page) showed as white there, so marker ink vanished
+ * as soon as BooxDay's drawing replaced the live pen layer: on a pen switch, or an erase nearby.
+ * Dots show the same in every e-ink mode. There are as many as the marker colour is dark (2 to 8
+ * of every 16 pixels, so ink under the marker stays readable), and overlapping passes don't darken.
+ */
+internal fun useMarkerDots(paint: Paint, color: Int) {
+    val grey = 0.299f * Color.red(color) + 0.587f * Color.green(color) + 0.114f * Color.blue(color)
+    val dots = ((1f - grey / 255f) * 16f).roundToInt().coerceIn(2, 8)
+    paint.shader = markerDotShaders[dots] ?: BitmapShader(
+        Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888).apply {
+            for (i in MARKER_DOT_ORDER.indices) {
+                if (MARKER_DOT_ORDER[i] < dots) setPixel(i % 4, i / 4, Color.BLACK)
+            }
+        },
+        Shader.TileMode.REPEAT, Shader.TileMode.REPEAT
+    ).also { markerDotShaders[dots] = it }
+    paint.alpha = 255
+    paint.isAntiAlias = false
 }
 
 fun drawFountainPenStroke(
@@ -212,7 +245,10 @@ internal fun drawOwnStroke(canvas: Canvas, stroke: Stroke, offset: Offset, color
     else drawFountainPenStroke(canvas, paint, stroke.size, points, maxPressure)
 }
 
-fun drawStroke(canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: Int? = null) {
+/** [markerDots]: draw Marker strokes as black dots (useMarkerDots), for the canvas on e-ink. */
+fun drawStroke(
+    canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: Int? = null, markerDots: Boolean = false
+) {
     //canvas.save()
     //canvas.translate(offset.x.toFloat(), offset.y.toFloat())
 
@@ -234,7 +270,9 @@ fun drawStroke(canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: In
         val ratio = (point.pressure / maxPressure).coerceIn(0f, 1f)
         val width = if (stroke.pen in listOf(Pen.BRUSH, Pen.FOUNTAIN, Pen.PENCIL))
             stroke.size * (0.6f + 0.4f * ratio) else stroke.size
-        if (stroke.pen == Pen.MARKER && !GlobalAppSettings.current.neoTools) paint.alpha = 100
+        if (stroke.pen == Pen.MARKER && !GlobalAppSettings.current.neoTools) {
+            if (markerDots) useMarkerDots(paint, paint.color) else paint.alpha = 100
+        }
         canvas.drawCircle(point.x, point.y, width / 2f, paint)
         return
     }
@@ -266,7 +304,7 @@ fun drawStroke(canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: In
                         NeoMarkerPenWrapper.drawStroke(canvas, paint, points, stroke.size, false)
                     }
                 else
-                    drawMarkerStroke(canvas, paint, stroke.size, points)
+                    drawMarkerStroke(canvas, paint, stroke.size, points, markerDots)
             }
 
             Pen.FOUNTAIN -> {

@@ -530,7 +530,7 @@ fun drawOnCanvasFromPage(
                     if (rowIdx in completedRows) completedColor else null
                 } else null
 
-                drawStroke(this, stroke, -page.scroll, override)
+                drawStroke(this, stroke, -page.scroll, override, markerDots = true)
             }
         } catch (e: Exception) {
             pageDrawingLog.e("PageView.kt: Drawing strokes failed: ${e.message}", e)
