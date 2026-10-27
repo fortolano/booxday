@@ -4289,7 +4289,9 @@ CONFIDENCE GUIDE:
             Log.e(TAG, "Regex rescue failed: ${e.message}")
         }
 
-        Log.e(TAG, "All parse strategies failed for: ${cleanJson.take(500)}")
+        // Length only (Oct 2026): the answer names the user's notes and events, and error lines
+        // stay in release builds and in crash reports
+        Log.e(TAG, "All parse strategies failed (${cleanJson.length} chars)")
         return emptyList()
     }
 

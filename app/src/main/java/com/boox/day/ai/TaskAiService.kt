@@ -864,7 +864,9 @@ Return ONLY raw JSON (no markdown code blocks):
                 originalIntent = parsed.originalIntent
             )
         } catch (e: JsonSyntaxException) {
-            Log.e(TAG, "Failed to parse voice task response: $cleanJson (original: $json)", e)
+            // Length only (Oct 2026): AI answers carry the user's tasks and events, and error
+            // lines stay in release builds and in crash reports
+            Log.e(TAG, "Failed to parse voice task response (${json.length} chars)", e)
             VoiceTaskResult.empty("Could not understand response")
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error parsing voice task", e)
@@ -900,7 +902,7 @@ Return ONLY raw JSON (no markdown code blocks):
                 }
                 .take(3)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse insights response: $json", e)
+            Log.e(TAG, "Failed to parse insights response (${json.length} chars)", e)
             emptyList()
         }
     }
@@ -1397,7 +1399,7 @@ OUTPUT FORMAT (JSON only):
                 warning = warning
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse weekly insights response: $json", e)
+            Log.e(TAG, "Failed to parse weekly insights response (${json.length} chars)", e)
             WeeklyInsightsResult(emptyList(), emptyList(), "Failed to parse weekly insights response.")
         }
     }
@@ -1422,7 +1424,7 @@ OUTPUT FORMAT (JSON only):
                 patternInsights = patternInsights
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse suggestions response: $json", e)
+            Log.e(TAG, "Failed to parse suggestions response (${json.length} chars)", e)
             SuggestionsResult(
                 suggestions = emptyList(),
                 error = "Could not parse suggestions"
@@ -1644,7 +1646,7 @@ OUTPUT FORMAT (JSON only):
                 keepOriginal = keepOriginal
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse breakdown response: $json", e)
+            Log.e(TAG, "Failed to parse breakdown response (${json.length} chars)", e)
             BreakdownResult(
                 originalTask = originalTask,
                 subtasks = emptyList(),

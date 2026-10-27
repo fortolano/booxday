@@ -332,7 +332,9 @@ Remember: The user is counting on you to be SMART. Fill in the gaps intelligentl
             val parsed = gson.fromJson(cleanJson, EventResponse::class.java)
 
             if (parsed == null) {
-                Log.e(TAG, "Gson returned null for JSON: $cleanJson")
+                // Length only (Oct 2026): the answer is what the user said, and error lines stay
+                // in release builds and in crash reports
+                Log.e(TAG, "Gson returned null for JSON (${cleanJson.length} chars)")
                 return ParsedEventData.empty("Could not parse response").copy(
                     title = originalTranscript.take(100),
                     originalIntent = originalTranscript
@@ -342,7 +344,7 @@ Remember: The user is counting on you to be SMART. Fill in the gaps intelligentl
             val title = parsed.title?.takeIf { it.isNotBlank() }
 
             if (title == null) {
-                Log.w(TAG, "No title extracted from: $cleanJson")
+                Log.w(TAG, "No title extracted (${cleanJson.length} chars)")
                 return ParsedEventData(
                     title = originalTranscript.take(100),
                     confidence = 0.2f,
@@ -369,7 +371,7 @@ Remember: The user is counting on you to be SMART. Fill in the gaps intelligentl
                 originalIntent = parsed.originalIntent ?: originalTranscript
             )
         } catch (e: JsonSyntaxException) {
-            Log.e(TAG, "JSON syntax error parsing: $cleanJson", e)
+            Log.e(TAG, "JSON syntax error parsing (${cleanJson.length} chars)", e)
             ParsedEventData.empty("Could not understand response").copy(
                 title = originalTranscript.take(100),
                 confidence = 0.1f,

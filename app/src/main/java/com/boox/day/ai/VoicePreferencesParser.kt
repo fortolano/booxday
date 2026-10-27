@@ -496,7 +496,9 @@ Output:
             val parsed = gson.fromJson(cleanJson, PreferencesResponse::class.java)
 
             if (parsed == null) {
-                Log.e(TAG, "Gson returned null for JSON: $cleanJson")
+                // Length only (Oct 2026): the answer is what the user said about themselves, and
+                // error lines stay in release builds and in crash reports
+                Log.e(TAG, "Gson returned null for JSON (${cleanJson.length} chars)")
                 return ParseResult.empty("Could not parse response")
             }
 
@@ -555,7 +557,7 @@ Output:
                 inferredFields = parsed.inferredFields ?: emptyList()
             )
         } catch (e: JsonSyntaxException) {
-            Log.e(TAG, "JSON syntax error parsing: $cleanJson", e)
+            Log.e(TAG, "JSON syntax error parsing (${cleanJson.length} chars)", e)
             ParseResult.empty("Could not understand response")
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error parsing response: ${e.message}", e)
