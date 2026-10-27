@@ -66,6 +66,9 @@ class BooxDayApp : Application() {
             ) { OnyxCompat.initRxManager(this) }) {
             return
         }
+        // Oct 2026: the Onyx pen library's app context; without it the first Brush or Pencil stroke
+        // closed the app (1.0.33 to 1.0.38). Not fatal: drawing falls back to BooxDay's own strokes.
+        runSafeStartupStep("Onyx pen library setup") { OnyxCompat.initResManager(this) }
 
         runSafeStartupStep("OpenRouter key") { initUserOpenRouterKey() }
         runSafeStartupStep("Removed features cleanup") { com.boox.day.startup.RemovedFeaturesCleanup.run(this) }

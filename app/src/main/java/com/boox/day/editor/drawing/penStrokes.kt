@@ -9,6 +9,7 @@ import android.graphics.Path
 import android.graphics.PointF
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
+import androidx.annotation.VisibleForTesting
 import androidx.compose.ui.geometry.Offset
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.db.Stroke
@@ -153,6 +154,64 @@ fun drawFountainPenStroke(
     }
 }
 
+// The Onyx pen library draws Brush and Pencil strokes, and Marker and Fountain with NeoTools on.
+// 1.0.33 to 1.0.38 never set it up (OnyxCompat.initResManager), so the first such stroke closed the
+// app and its page then closed the app every time it opened. Since Oct 2026, when the library
+// fails, BooxDay draws the stroke itself.
+
+/**
+ * True once the Onyx pen library failed to load in this process (a class that could not
+ * initialise, a missing native library). Its pens are then drawn by BooxDay until the app restarts:
+ * a class that failed to load stays failed, and a failed call can leave a native pen behind (the
+ * library frees it only after the stroke's last point).
+ */
+@Volatile
+@VisibleForTesting
+internal var onyxPenLibraryFailed = false
+
+/** Draws a stroke with the Onyx pen library ([libraryDraw]), or with BooxDay's own drawing when that library fails. */
+internal inline fun drawWithOnyxPen(
+    canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: Int?, maxPressure: Float,
+    libraryDraw: () -> Unit
+) {
+    if (!onyxPenLibraryFailed) {
+        try {
+            libraryDraw()
+            return
+        } catch (e: LinkageError) {
+            onyxPenFailed(stroke.pen, e)
+        } catch (e: Exception) {
+            onyxPenFailed(stroke.pen, e)
+        }
+    }
+    drawOwnStroke(canvas, stroke, offset, colorOverride, maxPressure)
+}
+
+internal fun onyxPenFailed(pen: Pen, e: Throwable) {
+    if (e is LinkageError) {
+        onyxPenLibraryFailed = true
+        penStrokesLog.e("Onyx pen library failed to load; BooxDay draws its pens until restart ($pen)", e)
+    } else {
+        penStrokesLog.e("Onyx pen library failed on a $pen stroke; BooxDay drew it: $e")
+    }
+}
+
+/**
+ * BooxDay's own drawing for a stroke of an Onyx library pen: the Marker look for Marker, the
+ * pressure-sensitive Fountain look for the others. It starts again from the saved points and a new
+ * paint: the library changes the points it is given (it divides each pressure by the maximum
+ * before its first pen call, which is where 1.0.38 failed).
+ */
+internal fun drawOwnStroke(canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: Int?, maxPressure: Float) {
+    val paint = Paint().apply {
+        color = colorOverride ?: stroke.color
+        this.strokeWidth = stroke.size
+    }
+    val points = strokeToTouchPoints(if (offset == Offset.Zero) stroke else offsetStroke(stroke, offset))
+    if (stroke.pen == Pen.MARKER) drawMarkerStroke(canvas, paint, stroke.size, points)
+    else drawFountainPenStroke(canvas, paint, stroke.size, points, maxPressure)
+}
+
 fun drawStroke(canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: Int? = null) {
     //canvas.save()
     //canvas.translate(offset.x.toFloat(), offset.y.toFloat())
@@ -189,32 +248,40 @@ fun drawStroke(canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: In
             Pen.BLUEBALLPEN -> drawBallPenStroke(canvas, paint, stroke.size, points)
             // TODO: this functions for drawing are slow and unreliable
             // replace them with something better
-            Pen.PENCIL -> NeoCharcoalPenWrapper.drawNormalStroke(
-                PenRenderArgs().setCanvas(canvas).setPaint(paint).setPoints(points)
-                    .setColor(paint.color).setStrokeWidth(stroke.size)
-                    .setCreateArgs(ShapeCreateArgs().setMaxPressure(maxPressure))
-                    .setScreenMatrix(Matrix()).setRenderMatrix(Matrix()).setErase(false)
-            )
+            Pen.PENCIL -> drawWithOnyxPen(canvas, stroke, offset, colorOverride, maxPressure) {
+                NeoCharcoalPenWrapper.drawNormalStroke(
+                    PenRenderArgs().setCanvas(canvas).setPaint(paint).setPoints(points)
+                        .setColor(paint.color).setStrokeWidth(stroke.size)
+                        .setCreateArgs(ShapeCreateArgs().setMaxPressure(maxPressure))
+                        .setScreenMatrix(Matrix()).setRenderMatrix(Matrix()).setErase(false)
+                )
+            }
 
-            Pen.BRUSH -> NeoBrushPenWrapper.drawStroke(canvas, paint, points, stroke.size, maxPressure, false)
+            Pen.BRUSH -> drawWithOnyxPen(canvas, stroke, offset, colorOverride, maxPressure) {
+                NeoBrushPenWrapper.drawStroke(canvas, paint, points, stroke.size, maxPressure, false)
+            }
             Pen.MARKER -> {
                 if (GlobalAppSettings.current.neoTools)
-                    NeoMarkerPenWrapper.drawStroke(canvas, paint, points, stroke.size, false)
+                    drawWithOnyxPen(canvas, stroke, offset, colorOverride, maxPressure) {
+                        NeoMarkerPenWrapper.drawStroke(canvas, paint, points, stroke.size, false)
+                    }
                 else
                     drawMarkerStroke(canvas, paint, stroke.size, points)
             }
 
             Pen.FOUNTAIN -> {
                 if (GlobalAppSettings.current.neoTools)
-                    NeoFountainPenWrapper.drawStroke(
-                        canvas,
-                        paint,
-                        points,
-                        1f,
-                        stroke.size,
-                        maxPressure,
-                        false
-                    )
+                    drawWithOnyxPen(canvas, stroke, offset, colorOverride, maxPressure) {
+                        NeoFountainPenWrapper.drawStroke(
+                            canvas,
+                            paint,
+                            points,
+                            1f,
+                            stroke.size,
+                            maxPressure,
+                            false
+                        )
+                    }
                 else
                     drawFountainPenStroke(canvas, paint, stroke.size, points, maxPressure)
             }

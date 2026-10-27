@@ -8,6 +8,7 @@ import com.onyx.android.sdk.pen.RawInputCallback
 import com.onyx.android.sdk.pen.TouchHelper
 import com.onyx.android.sdk.rx.RxManager
 import com.onyx.android.sdk.utils.DeviceFeatureUtil
+import com.onyx.android.sdk.utils.ResManager
 
 object OnyxCompat {
     private const val TAG = "OnyxCompat"
@@ -18,6 +19,16 @@ object OnyxCompat {
 
     fun initRxManager(context: Context) {
         RxManager.Builder.initAppContext(context)
+    }
+
+    /**
+     * Gives the Onyx SDK the app context it reads resources through (both its copies: base and
+     * baselite ResManager). The pen library behind Brush, Pencil, and Marker/Fountain with NeoTools
+     * on reads it the first time it draws; without this, that first stroke closed the app (SDK
+     * 1.5.8, releases 1.0.33 to 1.0.38, Oct 2026).
+     */
+    fun initResManager(context: Context) {
+        ResManager.init(context)
     }
 
     fun getScreenWidthOrDefault(defaultValue: Int = DEFAULT_SCREEN_WIDTH): Int {
