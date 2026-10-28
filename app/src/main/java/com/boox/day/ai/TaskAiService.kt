@@ -14,7 +14,6 @@ import com.boox.day.data.ai.AiPreferencesRepository
 import com.boox.day.data.ai.ScoredContext
 import com.boox.day.data.db.Task
 import com.boox.day.data.db.LocalEvent
-import com.boox.day.data.db.LocalEventRepository
 import com.boox.day.data.db.Stroke
 import com.boox.day.ocr.model.OcrSource
 import com.boox.day.ocr.TaskOcrService
@@ -2227,14 +2226,8 @@ If the task is already mostly represented by existing tasks, return the smallest
             // INTELLIGENT FALLBACK: Generate insights based on events and preferences
             onStageChange("No tasks found - analyzing your schedule...")
 
-            val events = if (context != null) {
-                try {
-                    LocalEventRepository(context).getEventsForDay(currentDate.toString())
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to load events: ${e.message}")
-                    emptyList()
-                }
-            } else emptyList()
+            // Synced and tablet events (AiCalendarEvents, Oct 2026: tablet events only before)
+            val events = if (context != null) AiCalendarEvents.forDay(context, currentDate) else emptyList()
 
             // Generate intelligent insights even with no tasks
             val aiInsights = generateNoTasksInsights(
@@ -2342,15 +2335,8 @@ If the task is already mostly represented by existing tasks, return the smallest
             .filter { getTaskScore(it) >= 0.7f }
             .size
 
-        // Load today's events for schedule context
-        val todayEvents = if (context != null) {
-            try {
-                LocalEventRepository(context).getEventsForDay(currentDate.toString())
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to load events for daily summary: ${e.message}")
-                emptyList()
-            }
-        } else emptyList()
+        // Load today's events for schedule context: synced and tablet events (AiCalendarEvents, Oct 2026)
+        val todayEvents = if (context != null) AiCalendarEvents.forDay(context, currentDate) else emptyList()
 
         val eventsSection = if (todayEvents.isNotEmpty()) {
             buildString {
@@ -2561,18 +2547,9 @@ ${if (eventsSection != null) "Consider how today's schedule may have affected ta
         if (totalTasks == 0) {
             // Fallback for no tasks
             onStageChange("No tasks found - analyzing your week...")
+            // Synced and tablet events, day by day (AiCalendarEvents, Oct 2026: tablet events only before)
             val weeklyEvents = if (context != null) {
-                val events = mutableListOf<LocalEvent>()
-                try {
-                    val eventRepo = LocalEventRepository(context)
-                    for (i in 0..6) {
-                        val date = startDate.plusDays(i.toLong())
-                        events.addAll(eventRepo.getEventsForDay(date.toString()))
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to load weekly events: ${e.message}")
-                }
-                events
+                (0..6).flatMap { AiCalendarEvents.forDay(context, startDate.plusDays(it.toLong())) }
             } else emptyList()
 
             val aiInsights = generateNoTasksWeeklyInsights(
@@ -2695,16 +2672,10 @@ ${if (eventsSection != null) "Consider how today's schedule may have affected ta
         )
         val localCategoryBreakdown = computeLocalWeeklyCategoryBreakdown(weeklyTasks, textMap)
 
-        // Load weekly event counts per day for schedule context
+        // Load weekly event counts per day for schedule context: synced and tablet events (Oct 2026)
         val weeklyEventCounts = if (context != null) {
-            try {
-                val eventRepo = LocalEventRepository(context)
-                dailyStats.associate { day ->
-                    day.date to eventRepo.getEventsForDay(day.date).size
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to load weekly event counts: ${e.message}")
-                emptyMap()
+            dailyStats.associate { day ->
+                day.date to AiCalendarEvents.forDay(context, LocalDate.parse(day.date)).size
             }
         } else emptyMap()
 

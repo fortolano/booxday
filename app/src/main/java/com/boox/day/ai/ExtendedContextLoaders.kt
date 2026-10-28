@@ -10,7 +10,6 @@ import com.boox.day.data.ai.ExtendedTaskContext
 import com.boox.day.data.ai.TaskWithDate
 import com.boox.day.data.ai.UserPatternAnalysis
 import com.boox.day.data.ai.WorkLifeBalance
-import com.boox.day.data.db.LocalEventRepository
 import com.boox.day.data.db.Task
 import com.boox.day.data.db.TaskRepository
 import java.time.LocalDate
@@ -44,9 +43,8 @@ object ExtendedContextLoaders {
     ): ExtendedCalendarContext {
         Log.d(TAG, "Loading extended calendar context for $currentDate")
 
-        val eventRepo = LocalEventRepository(context)
-
-        // Load events for the full range (-5 to +10)
+        // Load events for the full range (-5 to +10): synced and tablet events (AiCalendarEvents,
+        // Oct 2026: tablet events only before, so Smart Suggestions never saw a synced calendar)
         val startDate = currentDate.minusDays(5)
         val endDate = currentDate.plusDays(10)
 
@@ -55,8 +53,7 @@ object ExtendedContextLoaders {
         // Iterate through each day and collect events
         var date = startDate
         while (!date.isAfter(endDate)) {
-            val dateStr = date.format(dateFormatter)
-            val dayEvents = eventRepo.getEventsForDay(dateStr)
+            val dayEvents = AiCalendarEvents.forDay(context, date)
 
             dayEvents.forEach { event ->
                 val daysFromToday = ChronoUnit.DAYS.between(currentDate, date).toInt()
