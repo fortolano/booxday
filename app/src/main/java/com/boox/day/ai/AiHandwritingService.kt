@@ -532,13 +532,16 @@ OUTPUT FORMAT:
                     model(model)
                     systemPrompt(buildStage1Prompt(config.useNvidiaThinkPrefix && isNvidiaModel(model)))
                     userMessageWithImage("Read and transcribe all handwritten text:", base64Image)
+                    jsonSchema("ocr_text", StructuredOutputSchemas.ocrTextSchema)
                     if (config.enableReasoning && model.hasCapability(com.boox.day.api.ai.AiCapability.REASONING)) {
                         enableReasoning()
                     }
                 }
             },
             processResponse = { response, model ->
-                val text = parseDelimitedText(response.data) ?: response.data.trim()
+                // The prompt asks for {"hasText", "text"} (Oct 2026: only the concurrent path read it, so
+                // here {"hasText": false} counted as text and a selection of shapes was "recognized")
+                val text = parseStage1Text(response.data)
                 // Check if model returned "no text" - this is a valid response, not a retry trigger
                 if (text.contains(NO_TEXT_MARKER) || text.isBlank()) {
                     log.i("Stage 1: Model ${model.id} found no text")
@@ -644,14 +647,7 @@ OUTPUT FORMAT:
                 log.i("=== RESPONSE END ===")
                 log.i("Model used: ${response.model}, Tokens: ${response.usage?.totalTokens}")
 
-                val extractedText = parseStructuredOcrResponse(response.data) ?: parseDelimitedText(response.data)
-                if (extractedText != null) {
-                    log.i("Parsed text between delimiters: ${extractedText.length} chars")
-                    Result.success(extractedText)
-                } else {
-                    log.w("No delimiters found, using full response")
-                    Result.success(response.data.trim())
-                }
+                Result.success(parseStage1Text(response.data))
             }
             is AiResponse.Error -> {
                 log.e("${model.id} ERROR: ${response.message}")
@@ -716,6 +712,13 @@ OUTPUT FORMAT:
             null
         }
     }
+
+    /**
+     * The text of a Stage 1 answer: the "text" of {"hasText", "text"} ("" for hasText false), else
+     * text between the delimiters, else the whole answer.
+     */
+    internal fun parseStage1Text(response: String): String =
+        parseStructuredOcrResponse(response) ?: parseDelimitedText(response) ?: response.trim()
 
     private fun parseStructuredOcrResponse(response: String): String? {
         return try {
