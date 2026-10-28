@@ -899,8 +899,11 @@ fun MonthHeaderWithToolbar(
     }
 }
 
-/** Height of [DayHeader]. */
-private val DAY_HEADER_HEIGHT = 50.dp
+/**
+ * Height of [DayHeader]. Small tablets (Go 6, Go 7, 28 Oct 2026) leave out the "28 Oct 2026" line, so the
+ * header is only as tall as a mark's touch box and the calendar rows get the rest.
+ */
+private val DAY_HEADER_HEIGHT = if (LayoutProfiles.isSmallTablet) 42.dp else 50.dp
 
 /**
  * Header of the calendar area (Oct 2026, like the BOOX Calendar): the selected date in big type and the
@@ -951,12 +954,14 @@ fun DayHeader(
                 color = EInkTheme.Colors.primary,
                 maxLines = 1
             )
-            Text(
-                text = dateText,
-                fontSize = EInkTheme.Typography.bodyMedium,
-                color = EInkTheme.Colors.darkGray,
-                maxLines = 1
-            )
+            if (!LayoutProfiles.isSmallTablet) {
+                Text(
+                    text = dateText,
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    color = EInkTheme.Colors.darkGray,
+                    maxLines = 1
+                )
+            }
         }
 
         // Marks of the selected day (each only when the day has it)

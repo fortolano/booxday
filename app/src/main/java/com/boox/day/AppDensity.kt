@@ -29,6 +29,10 @@ object AppDensity {
         if (shortSidePx >= LARGE_SCREEN_MIN_SHORT_SIDE_PX) LARGE_SCREEN_DPI else SMALL_SCREEN_DPI
     }
 
+    /** True on screens smaller than 10.3 inches (Go 6, Go 7), the ones at [SMALL_SCREEN_DPI]. */
+    val isSmallScreen: Boolean
+        get() = dpi == SMALL_SCREEN_DPI
+
     /**
      * Puts the app's density on [resources] if something (the BOOX hook) changed it. Field writes
      * only, never updateConfiguration, so it doesn't run the BOOX hook again or cause a relayout.

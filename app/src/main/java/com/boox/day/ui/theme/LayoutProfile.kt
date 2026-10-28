@@ -43,6 +43,13 @@ object LayoutProfiles {
     val isNarrowScreen: Boolean by lazy { screenWidthDp < NARROW_MAX_WIDTH_DP }
 
     /**
+     * Tablets smaller than 10.3 inches (Go 6, Go 7: [AppDensity.isSmallScreen]). Not the same as
+     * [isNarrowScreen]: the Go 7 is 674 dp wide, but its calendar area is as short as the Go 6's.
+     */
+    val isSmallTablet: Boolean
+        get() = AppDensity.isSmallScreen
+
+    /**
      * Portrait screen size in dp at the app density (Go 6: 572 x 772, Go 10.3: 773 x 1031); fixed per
      * device. Popup size tokens in EInkTheme follow it (Oct 2026).
      */
