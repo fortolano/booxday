@@ -66,11 +66,34 @@ object ModelConfigProvider {
     /**
      * Models for [job] in the order to try: the user's pick, then BooxDay's choice. Models that
      * OpenRouter's recent list no longer has, or that the account's settings block, are skipped
-     * (OpenRouterModelCatalog); BooxDay's choice is never skipped down to nothing.
+     * (OpenRouterModelCatalog), and a pick that can't do the job ([pickProblem]); BooxDay's choice
+     * is never skipped down to nothing.
      */
     fun getChain(job: AiJob): List<AiModel> {
-        val pick = userModel(job)?.takeIf { isUsable(it.id) }
+        val pick = userModel(job)?.takeIf { pickProblem(job, it.id) == null }
         return (listOfNotNull(pick) + usableDefaults(job)).distinctBy { it.id }
+    }
+
+    /** Why a saved pick is not used (the AI Models card says which). */
+    enum class PickProblem {
+        /** OpenRouter no longer lists it */
+        RETIRED,
+        /** The account's settings (privacy, allowed providers) block it */
+        BLOCKED,
+        /** It can't do the job's requests (OpenRouterModelCatalog.canDo: picture or audio, exact JSON, room) */
+        CANT_DO_JOB
+    }
+
+    /** Why the pick [modelId] can't do [job] now, or null when it can, as far as the saved list knows. */
+    fun pickProblem(job: AiJob, modelId: String): PickProblem? {
+        val listed = OpenRouterModelCatalog.listedIds()
+        val allowed = OpenRouterModelCatalog.allowedIds()
+        return when {
+            listed != null && modelId !in listed -> PickProblem.RETIRED
+            allowed != null && modelId !in allowed -> PickProblem.BLOCKED
+            OpenRouterModelCatalog.model(modelId)?.let { !OpenRouterModelCatalog.canDo(job, it) } == true -> PickProblem.CANT_DO_JOB
+            else -> null
+        }
     }
 
     private fun usableDefaults(job: AiJob): List<AiModel> {
@@ -95,21 +118,22 @@ object ModelConfigProvider {
     /**
      * The model a job tries first right now (AI Models card). [waitsForCredit]: the account has no
      * credit and the job has no free model (search indexing), so it waits for credit.
-     * [unavailablePick]: the user's pick, when OpenRouter no longer lists it or the account blocks it.
+     * [unavailablePick]: the user's pick when it is not used, and [unavailableReason] why.
      */
     data class InUse(
         val name: String,
         val isUserChoice: Boolean,
         val waitsForCredit: Boolean,
-        val unavailablePick: String? = null
+        val unavailablePick: String? = null,
+        val unavailableReason: PickProblem? = null
     )
 
     fun modelInUse(job: AiJob): InUse {
         val first = getChain(job).first()
         val picked = (first as? AiModel.Custom)?.userChoice == true
         val waits = !picked && OpenRouterAccount.isFreeOnly() && !OpenRouterAccount.isFreeModel(first.id)
-        val unavailable = if (picked) null else userModel(job)?.displayName
-        return InUse(first.displayName, picked, waits, unavailable)
+        val unavailable = if (picked) null else userModel(job)
+        return InUse(first.displayName, picked, waits, unavailable?.displayName, unavailable?.let { pickProblem(job, it.id) })
     }
 
     /**

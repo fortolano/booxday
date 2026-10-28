@@ -48,6 +48,12 @@ data class CatalogModel(
     val outputs: List<String> = emptyList(),
     /** Can return JSON (`structured_outputs` or `response_format`) */
     val supportsJson: Boolean = false,
+    /** Can return an exact JSON format (`structured_outputs`), which most AI features ask for */
+    val supportsJsonSchema: Boolean = false,
+    /** Takes `temperature` (OpenAI's reasoning models don't) */
+    val supportsTemperature: Boolean = false,
+    /** Takes `max_tokens` (every BooxDay request sets one) */
+    val supportsMaxTokens: Boolean = false,
     val reasoning: ReasoningOptions = ReasoningOptions(),
     val contextLength: Int? = null,
     val maxOutput: Int? = null,
@@ -68,7 +74,9 @@ data class CatalogSnapshot(
     val fetchedAtMs: Long,
     val models: List<CatalogModel>,
     /** From `/models/user`; null = not known (no key, or that call failed) */
-    val allowedIds: List<String>? = null
+    val allowedIds: List<String>? = null,
+    /** [OpenRouterModelCatalog.SNAPSHOT_VERSION] when saved; an older list lacks fields the checks need */
+    val version: Int = 0
 )
 
 /**
@@ -91,13 +99,26 @@ object OpenRouterModelCatalog {
     /** Older lists are not trusted to say a model is gone (an old list misses newer models) */
     const val TRUST_FOR_SKIPPING_MS = 14 * 24 * 60 * 60 * 1000L
 
-    /** At most this many rows in the list (search still looks at every model) */
-    const val LIST_LIMIT = 200
+    /**
+     * Rows per list: the 10 most used models that pass the job's checks (owner, Oct 2026: 200 rows
+     * were too many to choose from). Search looks at every model and shows its 10 most used matches.
+     */
+    const val LIST_LIMIT = 10
+
+    /**
+     * Room a model needs for any job: the biggest request (Optimize My Day, about 7,000 tokens; a
+     * page picture, about 5,500) plus a recommended answer limit (up to 20,000 with high reasoning).
+     */
+    const val MIN_CONTEXT_TOKENS = 32_000
+
+    /** Saved lists from before this version are downloaded again (Oct 2026: the checks need more fields) */
+    const val SNAPSHOT_VERSION = 2
 
     /** Models retiring this soon are hidden */
     private const val RETIRING_DAYS = 30L
 
-    enum class Show { ALL, TOP_PAID, TOP_FREE, TOP_REASONING }
+    /** The list's tabs: the most used models that can do the job, of any price, paid, or free. */
+    enum class Show { POPULAR, PAID, FREE }
 
     enum class Sort { MOST_POPULAR, NEWEST, PRICE_LOW_TO_HIGH, PRICE_HIGH_TO_LOW }
 
@@ -131,6 +152,9 @@ object OpenRouterModelCatalog {
                 inputs = architecture?.strings("input_modalities").orEmpty(),
                 outputs = architecture?.strings("output_modalities").orEmpty(),
                 supportsJson = "structured_outputs" in parameters || "response_format" in parameters,
+                supportsJsonSchema = "structured_outputs" in parameters,
+                supportsTemperature = "temperature" in parameters,
+                supportsMaxTokens = "max_tokens" in parameters,
                 reasoning = ReasoningOptions.fromOpenRouter(parameters, m["reasoning"] as? JsonObject),
                 contextLength = (m["context_length"] as? JsonPrimitive)?.intOrNull,
                 maxOutput = ((m["top_provider"] as? JsonObject)?.get("max_completion_tokens") as? JsonPrimitive)?.intOrNull,
@@ -167,15 +191,28 @@ object OpenRouterModelCatalog {
         return retires == null || retires.isAfter(today.plusDays(RETIRING_DAYS))
     }
 
-    /** What a model must do for the job's requests (they read images or audio, and ask for JSON). */
-    internal fun canDo(job: AiJob, model: CatalogModel): Boolean = when (job) {
-        AiJob.VOICE -> "audio" in model.inputs
-        AiJob.HANDWRITING -> "image" in model.inputs && model.supportsJson
-        AiJob.WRITING, AiJob.PLANNING -> model.supportsJson
-        AiJob.SEARCH_INDEXING -> "image" in model.inputs && model.supportsJson && model.zdr
+    /**
+     * What a model must do for the job's requests: read their pictures or audio, return the exact
+     * JSON format most of them ask for (Oct 2026: JSON mode alone let through models that answer in
+     * a loose shape), take an output limit, and have room for the job. Search indexing turns
+     * reasoning off, so models that always reason can't do it.
+     */
+    internal fun canDo(job: AiJob, model: CatalogModel): Boolean {
+        if (!model.supportsMaxTokens) return false
+        if ((model.contextLength ?: Int.MAX_VALUE) < MIN_CONTEXT_TOKENS) return false
+        return when (job) {
+            AiJob.VOICE -> "audio" in model.inputs
+            AiJob.HANDWRITING -> "image" in model.inputs && model.supportsJsonSchema
+            AiJob.WRITING, AiJob.PLANNING -> model.supportsJsonSchema
+            AiJob.SEARCH_INDEXING ->
+                "image" in model.inputs && model.supportsJsonSchema && model.zdr && !model.reasoning.mandatory
+        }
     }
 
-    /** The rows for one job: the checks, Show, search and Sort, then at most [limit] rows. */
+    /**
+     * The rows for one job: the models that pass the checks, Show and search, the [limit] most used
+     * of them, in the Sort order (a sort reorders the most used models, it doesn't pick others).
+     */
     fun listFor(
         job: AiJob,
         models: List<CatalogModel>,
@@ -191,20 +228,20 @@ object OpenRouterModelCatalog {
             isListable(model, today) && canDo(job, model) &&
                 (allowedIds == null || model.id in allowedIds) &&
                 when (show) {
-                    Show.ALL -> true
-                    Show.TOP_PAID -> !model.isFree
-                    Show.TOP_FREE -> model.isFree
-                    Show.TOP_REASONING -> model.reasoning.supported
+                    Show.POPULAR -> true
+                    Show.PAID -> !model.isFree
+                    Show.FREE -> model.isFree
                 } &&
                 terms.all { term -> "${model.name} ${model.lab} ${model.id}".lowercase(Locale.US).contains(term) }
         }
+        val mostUsed = matching.sortedBy { it.rank }.take(limit)
         val sorted = when (sort) {
-            Sort.MOST_POPULAR -> matching.sortedBy { it.rank }
-            Sort.NEWEST -> matching.sortedWith(compareByDescending<CatalogModel> { it.created }.thenBy { it.rank })
-            Sort.PRICE_LOW_TO_HIGH -> matching.sortedWith(compareBy<CatalogModel> { it.averagePrice }.thenBy { it.rank })
-            Sort.PRICE_HIGH_TO_LOW -> matching.sortedWith(compareByDescending<CatalogModel> { it.averagePrice }.thenBy { it.rank })
+            Sort.MOST_POPULAR -> mostUsed
+            Sort.NEWEST -> mostUsed.sortedWith(compareByDescending<CatalogModel> { it.created }.thenBy { it.rank })
+            Sort.PRICE_LOW_TO_HIGH -> mostUsed.sortedWith(compareBy<CatalogModel> { it.averagePrice }.thenBy { it.rank })
+            Sort.PRICE_HIGH_TO_LOW -> mostUsed.sortedWith(compareByDescending<CatalogModel> { it.averagePrice }.thenBy { it.rank })
         }
-        return ListResult(sorted.take(limit), matching.size)
+        return ListResult(sorted, matching.size)
     }
 
     /** A per-token price as dollars per million tokens: "$0.25", "$0.05", "$0.016", "$10.00". */
@@ -275,6 +312,10 @@ object OpenRouterModelCatalog {
     fun allowedIds(nowMs: Long = System.currentTimeMillis()): Set<String>? =
         trusted(nowMs)?.allowedIds?.toSet()
 
+    /** What OpenRouter's recent list says about [modelId], or null when the model or a list recent enough is missing. */
+    fun model(modelId: String, nowMs: Long = System.currentTimeMillis()): CatalogModel? =
+        trusted(nowMs)?.models?.firstOrNull { it.id == modelId }
+
     private fun trusted(nowMs: Long): CatalogSnapshot? =
         snapshot?.takeIf { nowMs - it.fetchedAtMs <= TRUST_FOR_SKIPPING_MS && it.models.isNotEmpty() }
 
@@ -303,7 +344,7 @@ object OpenRouterModelCatalog {
                     Log.w(TAG, "Account's allowed models not loaded: ${it.message}")
                     null
                 }
-                val fresh = CatalogSnapshot(System.currentTimeMillis(), models, allowed?.takeIf { it.isNotEmpty() })
+                val fresh = CatalogSnapshot(System.currentTimeMillis(), models, allowed?.takeIf { it.isNotEmpty() }, SNAPSHOT_VERSION)
                 snapshot = fresh
                 saveCache(fresh)
                 Log.i(TAG, "Model list updated: ${models.size} models, ${allowed?.size ?: "unknown"} allowed")
@@ -335,6 +376,8 @@ object OpenRouterModelCatalog {
         val file = cacheFile()?.takeIf { it.exists() } ?: return
         snapshot = try {
             json.decodeFromString(CatalogSnapshot.serializer(), file.readText())
+                // An older list lacks what the checks read (exact JSON, temperature): download it again
+                .takeIf { it.version >= SNAPSHOT_VERSION }
         } catch (e: Exception) {
             Log.w(TAG, "Saved model list unreadable: ${e.message}")
             null

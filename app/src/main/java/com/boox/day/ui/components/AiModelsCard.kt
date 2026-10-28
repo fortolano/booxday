@@ -106,7 +106,15 @@ fun AiModelsCard(aiEnabled: Boolean, modifier: Modifier = Modifier) {
                         )
                         inUse.unavailablePick?.let { pick ->
                             Text(
-                                text = "$pick is no longer available, so BooxDay's choice is used.",
+                                // Why, in the user's terms (Oct 2026: a pick the account's privacy
+                                // settings block said "no longer available")
+                                text = when (inUse.unavailableReason) {
+                                    ModelConfigProvider.PickProblem.BLOCKED ->
+                                        "Your OpenRouter privacy settings block $pick, so BooxDay's choice is used."
+                                    ModelConfigProvider.PickProblem.CANT_DO_JOB ->
+                                        "$pick can't do this job, so BooxDay's choice is used."
+                                    else -> "$pick is no longer on OpenRouter, so BooxDay's choice is used."
+                                },
                                 fontSize = EInkTheme.Typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = textColor

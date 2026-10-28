@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.api.AiJob
+import com.boox.day.api.AiModelCheck
 import com.boox.day.api.AiModelSettings
 import com.boox.day.api.AiPickStatus
 import com.boox.day.api.CatalogModel
@@ -72,6 +73,7 @@ import com.boox.day.ui.components.keyboardHeight
 import com.boox.day.ui.components.label
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.Locale
@@ -86,11 +88,11 @@ private const val BOOX_DAY_CHOICE = ""
 private val FILTERS_AND_SORT_ONE_ROW = 560.dp
 
 /**
- * One AI job's model list (Oct 2026, plan step d), opened from the AI Models card: OpenRouter's
- * models that can do the job, with search, Show, Sort and at most 200 rows
+ * One AI job's model list (Oct 2026, plan step d), opened from the AI Models card: the 10 most used
+ * OpenRouter models that can do the job, of any price, paid or free (Show), with search and Sort
  * ([OpenRouterModelCatalog]). BooxDay's choice is pinned first; Use Model on it removes the
  * pick. Next on a model opens its settings step ([ModelSettingsStep], plan step e), whose Use
- * Model saves the pick.
+ * Model tries the model on the job ([AiModelCheck]) and saves it only when it works.
  *
  * E-ink: Popup, no ripple, no animation, rows at least 44 dp, inverted selection.
  */
@@ -106,7 +108,7 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
     val currentKey = currentPick?.id ?: BOOX_DAY_CHOICE
 
     var query by remember { mutableStateOf("") }
-    var show by remember { mutableStateOf(OpenRouterModelCatalog.Show.ALL) }
+    var show by remember { mutableStateOf(OpenRouterModelCatalog.Show.POPULAR) }
     var sort by remember { mutableStateOf(OpenRouterModelCatalog.Sort.MOST_POPULAR) }
     var selectedKey by remember { mutableStateOf(currentKey) }
 
@@ -279,6 +281,18 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
                                 inUse = currentPick == null || inUseId != currentPick.id
                             ) { selectedKey = BOOX_DAY_CHOICE }
                         }
+                        // The saved pick stays in reach when it isn't among the 10 shown (Oct 2026)
+                        val pickedModel = currentPick?.let { pick -> snapshot?.models?.firstOrNull { it.id == pick.id } }
+                        if (pickedModel != null && result?.rows.orEmpty().none { it.id == pickedModel.id }) {
+                            item(key = "current-pick") {
+                                ModelRow(
+                                    title = "Your choice: ${pickedModel.name}",
+                                    detail = OpenRouterModelCatalog.priceLine(pickedModel),
+                                    selected = selectedKey == pickedModel.id,
+                                    inUse = inUseId == pickedModel.id
+                                ) { selectedKey = pickedModel.id }
+                            }
+                        }
                         when {
                             result != null && result.rows.isNotEmpty() -> {
                                 items(result.rows, key = { it.id }) { model ->
@@ -291,10 +305,10 @@ fun ModelPickerPopup(job: AiJob, onDismiss: () -> Unit) {
                                 }
                                 item(key = "count") {
                                     Note(
-                                        if (result.matching > result.rows.size) {
-                                            "Showing ${result.rows.size} of ${result.matching} models. Search to find the others."
-                                        } else {
-                                            "Showing ${result.rows.size} models"
+                                        when {
+                                            result.matching <= result.rows.size -> "Showing ${result.rows.size} models"
+                                            query.isNotBlank() -> "Showing the ${result.rows.size} most used of ${result.matching} matches."
+                                            else -> "Showing the ${result.rows.size} most used of ${result.matching} models that can do this job. Search to find the others."
                                         }
                                     )
                                 }
@@ -364,6 +378,12 @@ private fun ColumnScope.ModelSettingsStep(
     val tokens = userTokens ?: recommendedTokens
     val steps = remember(model, recommendedTokens) { AiModelSettings.outputTokenSteps(model.maxOutput, recommendedTokens) }
 
+    // Use Model first tries the model on the job (AiModelCheck, Oct 2026); only a model that works is saved
+    val scope = rememberCoroutineScope()
+    var check by remember(model) { mutableStateOf<Job?>(null) }
+    var checking by remember(model) { mutableStateOf(false) }
+    var problem by remember(model) { mutableStateOf<String?>(null) }
+
     Column(
         modifier = Modifier
             .weight(1f)
@@ -373,6 +393,13 @@ private fun ColumnScope.ModelSettingsStep(
     ) {
         Text(text = model.name, fontSize = EInkTheme.Typography.titleSmall, fontWeight = FontWeight.Bold, color = EInkTheme.Colors.primary)
         Text(text = OpenRouterModelCatalog.priceLine(model), fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.darkGray)
+        if (model.isFree) {
+            Text(
+                text = "Free models can be busy or reach their daily limit. BooxDay's choice answers when they do.",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.darkGray
+            )
+        }
         if (OpenRouterAccount.isFreeOnly() && !model.isFree) {
             Text(
                 text = "Your account has no credit: this model won't answer until you add credit. BooxDay's free models answer meanwhile.",
@@ -468,28 +495,60 @@ private fun ColumnScope.ModelSettingsStep(
         }
     }
 
+    when {
+        checking -> Text(
+            text = "Checking that ${model.name} can do this job...",
+            fontSize = EInkTheme.Typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = EInkTheme.Colors.primary
+        )
+        problem != null -> Text(
+            text = "Not saved. $problem",
+            fontSize = EInkTheme.Typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = EInkTheme.Colors.primary
+        )
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
     ) {
-        EinkSecondaryButton(text = "Back", onClick = onBack, modifier = Modifier.weight(0.4f))
+        EinkSecondaryButton(
+            text = "Back",
+            onClick = {
+                check?.cancel()
+                onBack()
+            },
+            modifier = Modifier.weight(0.4f)
+        )
         ActionButton(
             text = "Use Model",
+            enabled = !checking,
             onClick = {
-                onUse(
-                    AiModelChoice(
-                        id = model.id,
-                        name = model.name,
-                        lab = model.lab,
-                        reasoning = level,
-                        // Only a value the user set; otherwise it keeps following the recommendation
-                        maxOutputTokens = userTokens?.takeIf { it != recommendedTokens },
-                        reasoningOptions = options,
-                        modelMaxOutputTokens = model.maxOutput,
-                        contextLength = model.contextLength,
-                        inputs = model.inputs
-                    )
+                val choice = AiModelChoice(
+                    id = model.id,
+                    name = model.name,
+                    lab = model.lab,
+                    reasoning = level,
+                    // Only a value the user set; otherwise it keeps following the recommendation
+                    maxOutputTokens = userTokens?.takeIf { it != recommendedTokens },
+                    reasoningOptions = options,
+                    modelMaxOutputTokens = model.maxOutput,
+                    contextLength = model.contextLength,
+                    inputs = model.inputs
                 )
+                problem = null
+                checking = true
+                check = scope.launch {
+                    try {
+                        when (val result = AiModelCheck.check(job, choice)) {
+                            AiModelCheck.Result.Works -> onUse(choice)
+                            is AiModelCheck.Result.Fails -> problem = result.reason
+                        }
+                    } finally {
+                        checking = false
+                    }
+                }
             },
             modifier = Modifier.weight(0.6f)
         )
@@ -638,10 +697,9 @@ private fun SortMenu(sort: OpenRouterModelCatalog.Sort, onSort: (OpenRouterModel
 }
 
 private fun showLabel(show: OpenRouterModelCatalog.Show): String = when (show) {
-    OpenRouterModelCatalog.Show.ALL -> "All"
-    OpenRouterModelCatalog.Show.TOP_PAID -> "Top paid"
-    OpenRouterModelCatalog.Show.TOP_FREE -> "Top free"
-    OpenRouterModelCatalog.Show.TOP_REASONING -> "Top reasoning"
+    OpenRouterModelCatalog.Show.POPULAR -> "Popular"
+    OpenRouterModelCatalog.Show.PAID -> "Paid"
+    OpenRouterModelCatalog.Show.FREE -> "Free"
 }
 
 private fun sortLabel(sort: OpenRouterModelCatalog.Sort): String = when (sort) {
@@ -653,7 +711,7 @@ private fun sortLabel(sort: OpenRouterModelCatalog.Sort): String = when (sort) {
 
 private fun emptyText(job: AiJob, show: OpenRouterModelCatalog.Show, query: String): String = when {
     query.isNotBlank() -> "No model that can do this job matches \"${query.trim()}\"."
-    show == OpenRouterModelCatalog.Show.TOP_FREE -> "No free models can do this job."
+    show == OpenRouterModelCatalog.Show.FREE -> "No free models can do this job with your OpenRouter account."
     else -> "No models can do this job right now."
 }
 

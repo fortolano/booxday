@@ -4,6 +4,7 @@ import android.util.Log
 import com.boox.day.api.ExtraBody
 import com.boox.day.api.OpenRouterAccount
 import com.boox.day.api.OpenRouterClient
+import com.boox.day.api.OpenRouterModelCatalog
 import com.boox.day.api.ProviderConfig
 import com.boox.day.api.RawVisionChatRequest
 import com.boox.day.api.ReasoningConfig
@@ -51,9 +52,11 @@ object AiClient {
      *
      * @param request The [AiRequest] to execute
      * @param promptForKey Open the key popup on a missing or rejected key
+     * @param notePick Record a picked model's failure for the AI Models card; false for the check of
+     *   a model that is not the pick yet (AiModelCheck)
      * @return [AiResponse] with the result or error
      */
-    suspend fun execute(request: AiRequest, promptForKey: Boolean = true): AiResponse<String> {
+    suspend fun execute(request: AiRequest, promptForKey: Boolean = true, notePick: Boolean = true): AiResponse<String> {
         Log.d(TAG, "Executing request with model: ${request.model.displayName}")
         Log.d(TAG, "Messages: ${request.messages.size}, JSON output: ${request.jsonOutput}, Reasoning: ${request.enableReasoning}")
 
@@ -89,7 +92,7 @@ object AiClient {
         }
         noteCreditState(request.model.id, result)
         // A picked model's failure shows on its AI Models row until it answers again (Oct 2026)
-        com.boox.day.api.AiPickStatus.noteResult(request.model, result)
+        if (notePick) com.boox.day.api.AiPickStatus.noteResult(request.model, result)
         return result
     }
 
@@ -302,9 +305,24 @@ object AiClient {
         // OpenRouter routes each model to any of its providers (Oct 2026). Every request now uses the
         // user's own key, and the old pin to the model's prefix ("google", "x-ai") named no real
         // provider slug (Google's are google-vertex and google-ai-studio), so it is gone.
-        val providerConfig = if (request.zeroDataRetention) {
-            Log.d(TAG, "Zero data retention providers only")
-            ProviderConfig(zdr = true)
+        //
+        // A provider that can't return the requested format ignores it, and the answer comes back in
+        // a shape the feature can't read. When the model can return the format (OpenRouter's recent
+        // list says so), only providers that take every setting are used, and the settings the model
+        // doesn't take are left out: no provider would qualify otherwise (GPT-5 Nano takes no
+        // temperature, HTTP 404 "No endpoints found"; OpenRouter ignored them anyway).
+        val listed = OpenRouterModelCatalog.model(request.model.id)
+        val strictRouting = listed != null && when {
+            request.jsonSchema != null -> listed.supportsJsonSchema
+            request.jsonOutput -> listed.supportsJson
+            else -> false
+        }
+        val providerConfig = if (request.zeroDataRetention || strictRouting) {
+            if (request.zeroDataRetention) Log.d(TAG, "Zero data retention providers only")
+            ProviderConfig(
+                zdr = true.takeIf { request.zeroDataRetention },
+                requireParameters = true.takeIf { strictRouting }
+            )
         } else {
             null
         }
@@ -315,9 +333,9 @@ object AiClient {
         return RawVisionChatRequest(
             model = request.model.id,
             messages = messages,
-            temperature = config.temperature,
-            maxTokens = config.maxTokens,
-            reasoning = reasoning,
+            temperature = config.temperature.takeUnless { strictRouting && listed?.supportsTemperature == false },
+            maxTokens = config.maxTokens.takeUnless { strictRouting && listed?.supportsMaxTokens == false },
+            reasoning = reasoning.takeUnless { strictRouting && listed?.reasoning?.supported == false },
             responseFormat = responseFormat,
             provider = providerConfig
         )
