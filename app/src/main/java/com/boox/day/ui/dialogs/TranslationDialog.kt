@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.ai.AiTranslationService
+import com.boox.day.ai.MemoPageContent
 import com.boox.day.data.db.Stroke
 import com.boox.day.data.db.TextAnnotation
 import com.boox.day.ui.components.EinkLoadingDots
@@ -114,6 +116,7 @@ fun TranslationDialog(
     onDismiss: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     // Dialog state machine
     var dialogPhase by remember { mutableStateOf(TranslationDialogPhase.LanguageSelection) }
@@ -186,13 +189,15 @@ fun TranslationDialog(
                     }
                 }
                 is AiScope.AllPages -> {
-                    // Multi-page translation
+                    // Multi-page translation: every page of the day, read whole (Oct 2026). Pages not
+                    // opened this session have no strokes in memory, so they were left out silently.
                     val pages = allPagesData.map { pageData ->
+                        val page = MemoPageContent.load(context, pageData.pageId)
                         AiTranslationService.PageTranslationData(
                             pageId = pageData.pageId,
                             pageIndex = pageData.pageIndex,
-                            strokes = pageData.strokes,
-                            textAnnotations = pageData.textAnnotations
+                            strokes = page.strokes,
+                            textAnnotations = page.textAnnotations
                         )
                     }
                     AiTranslationService.translateMultiplePages(
