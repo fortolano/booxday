@@ -1,6 +1,7 @@
 package com.boox.day.sync
 
 import android.content.Context
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.FileContent
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -63,97 +64,10 @@ class DriveBackupService(private val context: Context) {
                 Log.e(TAG, "Drive service unavailable - not signed in")
                 return@withContext FolderResult.Error("Not signed in to Google")
             }
-
-            // Check if we already have a stored folder ID
-            val storedFolderId = authManager.getBackupFolderId()
-            if (storedFolderId != null) {
-                // Verify the folder still exists
-                if (verifyFolderExists(drive, storedFolderId)) {
-                    Log.i(TAG, "Using existing backup folder: $storedFolderId")
-                    return@withContext FolderResult.Success(storedFolderId, wasCreated = false)
-                } else {
-                    Log.w(TAG, "Stored folder ID no longer valid, will create new folder")
-                    authManager.setBackupFolderId(null)
-                }
-            }
-
-            // Search for existing folder by name
-            val existingFolderId = findExistingFolder(drive)
-            if (existingFolderId != null) {
-                Log.i(TAG, "Found existing backup folder: $existingFolderId")
-                authManager.setBackupFolderId(existingFolderId)
-                return@withContext FolderResult.Success(existingFolderId, wasCreated = false)
-            }
-
-            // Create new folder
-            val newFolderId = createBackupFolder(drive)
-            if (newFolderId != null) {
-                Log.i(TAG, "Created new backup folder: $newFolderId")
-                authManager.setBackupFolderId(newFolderId)
-                return@withContext FolderResult.Success(newFolderId, wasCreated = true)
-            }
-
-            FolderResult.Error("Failed to create backup folder")
+            findOrCreateBackupFolder(drive, authManager.getBackupFolderId(), authManager::setBackupFolderId)
         } catch (e: Exception) {
             Log.e(TAG, "Error ensuring backup folder: ${e.message}", e)
             FolderResult.Error(e.message ?: "Unknown error")
-        }
-    }
-
-    /**
-     * Verify that a folder with the given ID still exists and is accessible.
-     */
-    private fun verifyFolderExists(drive: Drive, folderId: String): Boolean {
-        return try {
-            val file = drive.files().get(folderId)
-                .setFields("id, name, trashed")
-                .execute()
-            file != null && file.trashed != true
-        } catch (e: Exception) {
-            Log.w(TAG, "Folder verification failed: ${e.message}")
-            false
-        }
-    }
-
-    /**
-     * Search for an existing backup folder by name.
-     */
-    private fun findExistingFolder(drive: Drive): String? {
-        return try {
-            val query = "mimeType='$FOLDER_MIME_TYPE' and name='$BACKUP_FOLDER_NAME' and trashed=false"
-            val result = drive.files().list()
-                .setQ(query)
-                .setSpaces("drive")
-                .setFields("files(id, name)")
-                .setPageSize(1)
-                .execute()
-
-            result.files?.firstOrNull()?.id
-        } catch (e: Exception) {
-            Log.w(TAG, "Error searching for folder: ${e.message}")
-            null
-        }
-    }
-
-    /**
-     * Create a new backup folder in Google Drive.
-     */
-    private fun createBackupFolder(drive: Drive): String? {
-        return try {
-            val folderMetadata = File().apply {
-                name = BACKUP_FOLDER_NAME
-                mimeType = FOLDER_MIME_TYPE
-                description = "Backup folder for BooxDay app data"
-            }
-
-            val folder = drive.files().create(folderMetadata)
-                .setFields("id")
-                .execute()
-
-            folder?.id
-        } catch (e: Exception) {
-            Log.e(TAG, "Error creating folder: ${e.message}", e)
-            null
         }
     }
 
@@ -187,10 +101,11 @@ class DriveBackupService(private val context: Context) {
                 return@withContext UploadResult.Error("Not signed in to Google")
             }
 
-            // Ensure backup folder exists
-            val folderId = authManager.getBackupFolderId()
-            if (folderId == null) {
-                return@withContext UploadResult.Error("Backup folder not configured")
+            // Found or made here (Oct 2026): only some setup steps in the backup dialog made the
+            // folder, so Backup Now failed with "Backup folder not configured" after the others
+            val folderId = when (val folder = findOrCreateBackupFolder(drive, authManager.getBackupFolderId(), authManager::setBackupFolderId)) {
+                is FolderResult.Success -> folder.folderId
+                is FolderResult.Error -> return@withContext UploadResult.Error(folder.message)
             }
 
             Log.i(TAG, "Uploading backup: ${localFile.name} to folder: $folderId")
@@ -254,10 +169,9 @@ class DriveBackupService(private val context: Context) {
                 return@withContext ListResult.Error("Not signed in to Google")
             }
 
-            val folderId = authManager.getBackupFolderId()
-            if (folderId == null) {
-                return@withContext ListResult.Error("Backup folder not configured")
-            }
+            // No folder yet means no backups yet, not an error (Oct 2026)
+            val folderId = findBackupFolder(drive, authManager.getBackupFolderId(), authManager::setBackupFolderId)
+                ?: return@withContext ListResult.Success(emptyList())
 
             Log.i(TAG, "Listing backups in folder: $folderId")
 
@@ -623,9 +537,9 @@ class DriveBackupService(private val context: Context) {
                 return@withContext FullUploadResult.Error("Not signed in to Google")
             }
 
-            val folderId = authManager.getBackupFolderId()
-            if (folderId == null) {
-                return@withContext FullUploadResult.Error("Backup folder not configured")
+            val folderId = when (val folder = findOrCreateBackupFolder(drive, authManager.getBackupFolderId(), authManager::setBackupFolderId)) {
+                is FolderResult.Success -> folder.folderId
+                is FolderResult.Error -> return@withContext FullUploadResult.Error(folder.message)
             }
 
             Log.i(TAG, "Uploading full backup: ${databaseFile.name} + ${metadataFile.name}")
@@ -816,5 +730,109 @@ class DriveBackupService(private val context: Context) {
         private const val BACKUP_FOLDER_NAME = "BooxDay Backups"
         private const val FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
         private const val MIME_TYPE_SQLITE = "application/x-sqlite3"
+
+        /**
+         * The backup folder, made if there is none: the saved one if Drive still has it, else one
+         * found by name. Saves what it uses through [saveFolderId].
+         */
+        internal fun findOrCreateBackupFolder(
+            drive: Drive,
+            storedFolderId: String?,
+            saveFolderId: (String?) -> Unit
+        ): FolderResult {
+            findBackupFolder(drive, storedFolderId, saveFolderId)?.let {
+                return FolderResult.Success(it, wasCreated = false)
+            }
+            val newFolderId = createBackupFolder(drive)
+                ?: return FolderResult.Error("Failed to create backup folder")
+            Log.i(TAG, "Created new backup folder: $newFolderId")
+            saveFolderId(newFolderId)
+            return FolderResult.Success(newFolderId, wasCreated = true)
+        }
+
+        /**
+         * The saved backup folder if Drive still has it, else one found by name, else null.
+         * A saved ID Drive doesn't know is dropped: drive.file only sees files made by the same
+         * Google Cloud project, so an ID saved before BooxDay's move to its own project (27 Oct
+         * 2026) answers 404.
+         */
+        internal fun findBackupFolder(
+            drive: Drive,
+            storedFolderId: String?,
+            saveFolderId: (String?) -> Unit
+        ): String? {
+            if (storedFolderId != null) {
+                if (verifyFolderExists(drive, storedFolderId)) {
+                    Log.i(TAG, "Using existing backup folder: $storedFolderId")
+                    return storedFolderId
+                }
+                Log.w(TAG, "Stored folder ID no longer valid, looking for the folder again")
+                saveFolderId(null)
+            }
+
+            val existingFolderId = findExistingFolder(drive) ?: return null
+            Log.i(TAG, "Found existing backup folder: $existingFolderId")
+            saveFolderId(existingFolderId)
+            return existingFolderId
+        }
+
+        /**
+         * True if the folder is there and not in the trash, false if Drive answers 404. Other
+         * errors (no network, sign-in) are thrown, so a good saved ID isn't dropped over them.
+         */
+        private fun verifyFolderExists(drive: Drive, folderId: String): Boolean {
+            return try {
+                val file = drive.files().get(folderId)
+                    .setFields("id, name, trashed")
+                    .execute()
+                file != null && file.trashed != true
+            } catch (e: GoogleJsonResponseException) {
+                if (e.statusCode != 404) throw e
+                Log.w(TAG, "Folder verification failed: ${e.message}")
+                false
+            }
+        }
+
+        /**
+         * Search for an existing backup folder by name.
+         */
+        private fun findExistingFolder(drive: Drive): String? {
+            return try {
+                val query = "mimeType='$FOLDER_MIME_TYPE' and name='$BACKUP_FOLDER_NAME' and trashed=false"
+                val result = drive.files().list()
+                    .setQ(query)
+                    .setSpaces("drive")
+                    .setFields("files(id, name)")
+                    .setPageSize(1)
+                    .execute()
+
+                result.files?.firstOrNull()?.id
+            } catch (e: Exception) {
+                Log.w(TAG, "Error searching for folder: ${e.message}")
+                null
+            }
+        }
+
+        /**
+         * Create a new backup folder in Google Drive.
+         */
+        private fun createBackupFolder(drive: Drive): String? {
+            return try {
+                val folderMetadata = File().apply {
+                    name = BACKUP_FOLDER_NAME
+                    mimeType = FOLDER_MIME_TYPE
+                    description = "Backup folder for BooxDay app data"
+                }
+
+                val folder = drive.files().create(folderMetadata)
+                    .setFields("id")
+                    .execute()
+
+                folder?.id
+            } catch (e: Exception) {
+                Log.e(TAG, "Error creating folder: ${e.message}", e)
+                null
+            }
+        }
     }
 }
