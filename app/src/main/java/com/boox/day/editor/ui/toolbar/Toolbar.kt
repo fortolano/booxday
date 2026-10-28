@@ -12,7 +12,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloseFullscreen
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.OpenInFull
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Tune
 import com.boox.day.ui.theme.LayoutProfiles
 import android.Manifest
 import android.content.ClipboardManager
@@ -2485,6 +2488,38 @@ private fun toolbarMenuTools(
                 )
             },
             onClick = { FullScreenState.toggle() }
+        ))
+    }
+    // Memo canvas navigation, Phase 0 spike (Oct 2026): the page map and the two choices to compare
+    // on the tablets, debug builds only
+    if (BuildConfig.DEBUG && isMemosTab) {
+        add(ToolbarMenuTool(
+            label = "Page map",
+            icon = { tint ->
+                Icon(Icons.Filled.Map, contentDescription = null, modifier = Modifier.fillMaxSize(), tint = tint)
+            },
+            onClick = { com.boox.day.editor.MemoNavigator.current?.toggleMapFromMenu() }
+        ))
+        val spike = com.boox.day.editor.PanSpikeSettings.apply { load(context) }
+        add(ToolbarMenuTool(
+            label = "Spike: drag screen mode ${spike.modeName()}",
+            icon = { tint ->
+                Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.fillMaxSize(), tint = tint)
+            },
+            onClick = {
+                spike.toggleMode(context)
+                showHint("Drag screen mode: ${spike.modeName()}", duration = 1500)
+            }
+        ))
+        add(ToolbarMenuTool(
+            label = "Spike: drag frame gap ${spike.frameGapMs} ms",
+            icon = { tint ->
+                Icon(Icons.Filled.Speed, contentDescription = null, modifier = Modifier.fillMaxSize(), tint = tint)
+            },
+            onClick = {
+                spike.nextFrameGap(context)
+                showHint("Drag frame gap: ${spike.frameGapMs} ms", duration = 1500)
+            }
         ))
     }
 }

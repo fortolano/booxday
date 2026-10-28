@@ -18,6 +18,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.boox.day.editor.DrawCanvas
@@ -33,6 +38,20 @@ import java.util.Locale
 
 /** Height of the full screen date line above the toolbar. */
 val FULL_SCREEN_DATE_LINE_HEIGHT = 26.dp
+
+/**
+ * On MainScreen's canvas area (date line, toolbar, canvases): in the normal view, measures how much
+ * taller the canvas gets in full screen, where this area takes the whole window and the date line
+ * comes in. The Memos drag needs it before full screen has been opened (MemoNavigator).
+ */
+fun Modifier.fullScreenExtraProbe(): Modifier = composed {
+    val dateLinePx = with(LocalDensity.current) { FULL_SCREEN_DATE_LINE_HEIGHT.roundToPx() }
+    onGloballyPositioned { area ->
+        if (FullScreenState.isOn) return@onGloballyPositioned
+        val window = area.findRootCoordinates().size.height
+        com.boox.day.editor.MemoNavigator.recordFullScreenExtra(window - area.size.height - dateLinePx)
+    }
+}
 
 /** The surface gets its new size well within this after a switch; past it, redraw anyway. */
 private const val SURFACE_RESIZE_TIMEOUT_MS = 2_000L
@@ -59,6 +78,7 @@ fun FullScreenEffects(tabManager: EditorTabManager, onEnter: () -> Unit) {
 
     DisposableEffect(tabManager) {
         FullScreenState.beforeChange = {
+            com.boox.day.editor.MemoNavigator.current?.closeMap()
             tabManager.activeControlTower?.let { tower ->
                 tower.saveAndExitTextBox()
                 val selection = tower.getSnapshotOfSelectionState()
@@ -74,13 +94,20 @@ fun FullScreenEffects(tabManager: EditorTabManager, onEnter: () -> Unit) {
 
     val currentOnEnter = rememberUpdatedState(onEnter)
     var shownState by remember { mutableStateOf(isOn) }
+    val context = LocalContext.current
     LaunchedEffect(isOn) {
         if (isOn == shownState) return@LaunchedEffect  // first composition: nothing switched
         shownState = isOn
         if (isOn) currentOnEnter.value()
+        // Memos view (Oct 2026): full screen shows the page from the top, the normal view returns where it was
+        com.boox.day.editor.MemoNavigator.current?.onFullScreenChange(isOn)
         val before = DrawCanvas.surfaceSize.value
         withTimeoutOrNull(SURFACE_RESIZE_TIMEOUT_MS) {
             DrawCanvas.surfaceSize.first { it != null && it != before }
+        }
+        // The full screen canvas height is this tablet's full screen page (the Memos view's limits)
+        if (isOn) DrawCanvas.surfaceSize.value?.let {
+            com.boox.day.editor.MemoNavigator.recordFullScreenHeight(context, it.height)
         }
         delay(SURFACE_SETTLE_MS)
         DrawCanvas.forceUpdate.emit(null)

@@ -43,6 +43,9 @@ class EditorControlTower(
     private var scrollJob: Job? = null
     private val logEditorControlTower = TaggedLog("EditorControlTower")
 
+    /** Moves the view (Memos: two-finger drag, page map; Oct 2026). Unused on Tasks, which never moves. */
+    val navigator: MemoNavigator by lazy { MemoNavigator(scope, page) }
+
     // PERFORMANCE FIX: Track observer job for proper lifecycle management
     // When EditorControlTower is replaced (pageId changes), cancel old observers
     private var observerJob: Job? = null

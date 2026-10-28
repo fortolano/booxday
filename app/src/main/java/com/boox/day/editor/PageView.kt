@@ -59,6 +59,7 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.system.measureTimeMillis
 
 const val OVERLAP = 2
@@ -923,6 +924,50 @@ class PageView(
 
         persistBitmapDebounced()
         saveToPersistLayer()
+    }
+
+    // ── Memos view moves (Oct 2026, memo canvas navigation plan, Phase 0 spike) ──────────────────────
+
+    // Spare bitmap for [panBy]. The shown bitmap itself is never swapped: the bitmap cache and the
+    // image saver hold it by reference.
+    private var panSpare: Bitmap? = null
+
+    /**
+     * Moves the view corner by [delta] page pixels, inside [limits] and on whole pixels: the shown image
+     * is shifted and only the uncovered bands are drawn. No database write, and no saved image while the
+     * view is moved (PageDataManager skips it). True when the view moved. Main thread.
+     */
+    fun panBy(delta: Offset, limits: RectF): Boolean {
+        val from = scroll
+        val target = MemoViewport.clamp(from + delta, limits)
+        val to = Offset(target.x.roundToInt().toFloat(), target.y.roundToInt().toFloat())
+        val dx = (to.x - from.x).roundToInt()
+        val dy = (to.y - from.y).roundToInt()
+        if (dx == 0 && dy == 0) return false
+        scroll = to
+        val width = windowedBitmap.width
+        val height = windowedBitmap.height
+        synchronized(windowedBitmap) {
+            val spare = panSpare?.takeIf { it.width == width && it.height == height && !it.isRecycled }
+                ?: createBitmap(width, height, windowedBitmap.config ?: Bitmap.Config.ARGB_8888).also { panSpare = it }
+            Canvas(spare).apply {
+                drawColor(Color.WHITE)
+                drawBitmap(windowedBitmap, -dx.toFloat(), -dy.toFloat(), null)
+            }
+            Canvas(windowedBitmap).drawBitmap(spare, 0f, 0f, null)
+        }
+        redrawOutsideRect(alreadyDrawnRectAfterShift(IntOffset(dx, dy), width, height), width, height)
+        return true
+    }
+
+    /** Puts the view corner at [target] (inside [limits], whole pixels) and draws the whole view. True when it moved. */
+    fun jumpTo(target: Offset, limits: RectF): Boolean {
+        val clamped = MemoViewport.clamp(target, limits)
+        val to = Offset(clamped.x.roundToInt().toFloat(), clamped.y.roundToInt().toFloat())
+        if (to == scroll) return false
+        scroll = to
+        drawAreaScreenCoordinates(Rect(0, 0, windowedBitmap.width, windowedBitmap.height))
+        return true
     }
 
 

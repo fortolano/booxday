@@ -263,6 +263,7 @@ import com.boox.day.ui.theme.LayoutProfiles
 import com.boox.day.data.db.TaskDueDates
 import androidx.compose.material.icons.filled.Add
 import com.boox.day.ui.convertDpToPixel
+import com.boox.day.ui.fullScreenExtraProbe
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.components.CalendarSourceFilterIcons
 import com.boox.day.ui.state.CalendarSource
@@ -2588,6 +2589,7 @@ fun MainScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(if (isCompactLayout || com.boox.day.ui.FullScreenState.isOn) 1f else 0.60f)
+                    .fullScreenExtraProbe()  // the Memos drag's page height before full screen is opened
             ) {
                 // Full screen: the selected day above the toolbar (the calendar header is hidden)
                 com.boox.day.ui.FullScreenDateLine(selectedDate)
@@ -6776,6 +6778,11 @@ private fun PersistentCanvasHost(
                     onConvertSelectionToTasks = if (currentTab == EditorTab.Memos) onConvertSelectionToTasks else null
                 )
                 TextBoxOverlay(context = context, controlTower = activeControlTower)
+                // Memos page map (Oct 2026, Phase 0 spike): above the canvas's other overlays
+                com.boox.day.editor.ui.MemoNavigationEffects(
+                    memosControlTower.value?.navigator, memosPageId, currentTab == EditorTab.Memos
+                )
+                if (currentTab == EditorTab.Memos) com.boox.day.editor.ui.MemoPageMap()
                 if (currentTab == EditorTab.Tasks) {
                   // Full screen (Oct 2026): rows keep the normal view's height, so the row overlays end
                   // at the last row and the space under it stays empty
