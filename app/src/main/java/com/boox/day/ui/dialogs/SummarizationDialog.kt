@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.ai.AiSummarizationService
+import com.boox.day.ai.MemoPageContent
 import com.boox.day.data.db.Stroke
 import com.boox.day.data.db.TextAnnotation
 import com.boox.day.ui.components.EinkLoadingDots
@@ -78,6 +79,7 @@ fun SummarizationDialog(
     onDismiss: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     // Dialog state machine
     var dialogPhase by remember { mutableStateOf(DialogPhase.ScopeSelection) }
@@ -138,13 +140,15 @@ fun SummarizationDialog(
                     }
                 }
                 is AiScope.AllPages -> {
-                    // Multi-page summarization
+                    // Multi-page summarization: every page of the day, read whole (Oct 2026). Pages not
+                    // opened this session have no strokes in memory, so they were left out silently.
                     val pages = allPagesData.map { pageData ->
+                        val page = MemoPageContent.load(context, pageData.pageId)
                         AiSummarizationService.PageSummarizationData(
                             pageId = pageData.pageId,
                             pageIndex = pageData.pageIndex,
-                            strokes = pageData.strokes,
-                            textAnnotations = pageData.textAnnotations
+                            strokes = page.strokes,
+                            textAnnotations = page.textAnnotations
                         )
                     }
                     AiSummarizationService.summarizeMultiplePages(pages) { state ->

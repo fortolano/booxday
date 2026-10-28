@@ -214,7 +214,6 @@ import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.datastore.SetupChecklist
 import com.boox.day.viewmodel.CalendarSyncViewModel
 import com.boox.day.editor.utils.refreshScreen
-import com.boox.day.editor.utils.loadPreview
 import com.boox.day.viewmodel.EventsViewModel
 import com.boox.day.editor.DrawCanvas
 import com.boox.day.editor.TasksCanvasRefresh
@@ -5503,16 +5502,21 @@ fun MainScreen(
                         .mapNotNull { it.typedText ?: it.convertedText ?: it.recognizedText }
                 }
 
+                // Whole pages from their data (Oct 2026): the canvas image and the saved previews hold only
+                // the part of a page that was on screen, and a page never shown had a placeholder
                 val result = when (scopeSelection) {
                     AiScope.CurrentPage -> {
-                        val bitmap = tabManager.activeEditorState?.pageView?.windowedBitmap?.copy(
-                            tabManager.activeEditorState?.pageView?.windowedBitmap?.config
-                                ?: android.graphics.Bitmap.Config.ARGB_8888,
-                            false
-                        )
+                        val pageId = tabManager.activeEditorState?.pageView?.currentPageId
+                        if (pageId == null) {
+                            memoToTasksProcessingState = MemoToTasksProcessingState.Error(
+                                "Could not read the memo page. Please try again."
+                            )
+                            return@launch
+                        }
+                        val bitmap = com.boox.day.ai.MemoPageContent.renderWholePage(context, pageId)
                         if (bitmap == null) {
                             memoToTasksProcessingState = MemoToTasksProcessingState.Error(
-                                "Could not capture memos page. Please try again."
+                                "There is nothing on this memo page to turn into tasks."
                             )
                             return@launch
                         }
@@ -5529,35 +5533,21 @@ fun MainScreen(
                         conversion
                     }
                     AiScope.AllPages -> {
-                        val view = tabManager.activeEditorState?.pageView
+                        // Every memo page of the day; pages with nothing on them are left out
                         val pageIds = tabManager.activeEditorState?.dayPageInfo?.pageIds.orEmpty()
-                        val width = view?.windowedBitmap?.width ?: 0
-                        val height = view?.windowedBitmap?.height ?: 0
-                        if (width <= 0 || height <= 0 || pageIds.isEmpty()) {
+                        val pages = com.boox.day.ai.MemoPageContent.loadAll(context, pageIds).filterNot { it.isEmpty }
+                        if (pages.isEmpty()) {
                             memoToTasksProcessingState = MemoToTasksProcessingState.Error(
-                                "Could not capture memos pages. Please try again."
+                                "There is nothing on this day's memo pages to turn into tasks."
                             )
                             return@launch
                         }
 
-                        val previews = pageIds.mapIndexedNotNull { index, pageId ->
-                            loadPreview(
-                                context = context,
-                                pageIdToLoad = pageId,
-                                expectedWidth = width,
-                                expectedHeight = height,
-                                pageNumber = index + 1
-                            )
-                        }
-                        if (previews.isEmpty()) {
-                            memoToTasksProcessingState = MemoToTasksProcessingState.Error(
-                                "No memo previews available for conversion."
-                            )
-                            return@launch
-                        }
-
-                        val multiPage = MemoToTasksService.convertMultiplePagesToTasks(
-                            bitmaps = previews,
+                        MemoToTasksService.convertMultiplePagesToTasks(
+                            // Each page is drawn just before it is read, so one page is in memory at a time
+                            pages = pages.map { page ->
+                                suspend { withContext(Dispatchers.Default) { com.boox.day.ai.MemoPageContent.render(context, page) } }
+                            },
                             dayContext = dayContext,
                             existingTasks = existingTasks,
                             onPageProgress = { current, total ->
@@ -5569,8 +5559,6 @@ fun MainScreen(
                                 memoToTasksProcessingState = MemoToTasksProcessingState.Processing(stage)
                             }
                         )
-                        previews.forEach { it.recycle() }
-                        multiPage
                     }
                 }
 
