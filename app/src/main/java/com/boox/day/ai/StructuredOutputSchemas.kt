@@ -5,7 +5,10 @@ package com.boox.day.ai
  *
  * These schemas are intentionally small and provider-neutral:
  * - no provider-specific fields
- * - optional fields are omitted instead of nullable
+ * - every object lists all its fields as required, and "none" is an empty text or list (Oct 2026:
+ *   OpenAI's strict mode refuses a schema with an optional field, so GPT-5 Nano answered no Convert
+ *   Memo to Tasks request, and an OpenAI pick no Smart Suggestions or Weekly Summary). Null types
+ *   are left out: not every provider reads them. StructuredOutputSchemasTest checks the rule.
  * - additionalProperties is disabled to reduce drift across models
  */
 internal object StructuredOutputSchemas {
@@ -134,24 +137,8 @@ internal object StructuredOutputSchemas {
                 ),
                 minItems = 1,
                 maxItems = 7
-            ),
-            "patternInsights" to objectSchema(
-                properties = mapOf(
-                    "completionRate" to numberSchema(minimum = 0.0, maximum = 1.0),
-                    "busiestDay" to stringSchema(
-                        enum = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
-                    ),
-                    "commonCategories" to arraySchema(
-                        items = stringSchema(enum = suggestionCategories),
-                        minItems = 0,
-                        maxItems = 4
-                    ),
-                    "workLifeBalance" to stringSchema(
-                        enum = listOf("balanced", "work-heavy", "personal-heavy")
-                    ),
-                    "streakDays" to integerSchema(minimum = 0, maximum = 365)
-                )
             )
+            // "patternInsights" was an optional object here; no screen showed it (Oct 2026)
         ),
         required = listOf("suggestions")
     )
@@ -208,33 +195,13 @@ internal object StructuredOutputSchemas {
                         "title" to stringSchema(minLength = 1, maxLength = 60),
                         "text" to stringSchema(minLength = 1, maxLength = 420)
                     ),
-                    required = listOf("type", "text")
+                    required = listOf("type", "title", "text")
                 ),
                 minItems = 1,
                 maxItems = 4
-            ),
-            "categories" to arraySchema(
-                items = objectSchema(
-                    properties = mapOf(
-                        "category" to stringSchema(enum = suggestionCategories),
-                        "count" to integerSchema(minimum = 0, maximum = 500)
-                    ),
-                    required = listOf("category", "count")
-                ),
-                minItems = 0,
-                maxItems = 8
-            ),
-            "categoryBreakdown" to arraySchema(
-                items = objectSchema(
-                    properties = mapOf(
-                        "category" to stringSchema(enum = suggestionCategories),
-                        "count" to integerSchema(minimum = 0, maximum = 500)
-                    ),
-                    required = listOf("category", "count")
-                ),
-                minItems = 0,
-                maxItems = 8
             )
+            // "categories" / "categoryBreakdown" were optional lists here; the weekly summary counts the
+            // categories itself (computeLocalWeeklyCategoryBreakdown) and never used them (Oct 2026)
         ),
         required = listOf("insights")
     )
@@ -248,10 +215,11 @@ internal object StructuredOutputSchemas {
                         "suggestedPriority" to stringSchema(enum = listOf("", "A", "B", "C")),
                         "reason" to stringSchema(minLength = 1, maxLength = 200),
                         "confidence" to numberSchema(minimum = 0.0, maximum = 1.0),
-                        "suggestedTime" to stringSchema(minLength = 1, maxLength = 60),
-                        "relatedEventId" to stringSchema(minLength = 1, maxLength = 120)
+                        // "" = none (the sanitizers in MemoToTasksService drop blank values)
+                        "suggestedTime" to stringSchema(minLength = 0, maxLength = 60),
+                        "relatedEventId" to stringSchema(minLength = 0, maxLength = 120)
                     ),
-                    required = listOf("text")
+                    required = listOf("text", "suggestedPriority", "reason", "confidence", "suggestedTime", "relatedEventId")
                 ),
                 minItems = 0,
                 maxItems = MEMO_TO_TASKS_MAX_ITEMS

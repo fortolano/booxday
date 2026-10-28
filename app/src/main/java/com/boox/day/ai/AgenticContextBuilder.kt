@@ -97,17 +97,11 @@ class AgenticContextBuilder(private val context: Context) {
         val localEvents = localEventsDeferred.await()
         val rangeTasks = rangeTasksDeferred.await()
 
-        // Merge: calendar events (Google/Outlook) + local events, deduplicated by providerEventId
-        // Synced events appear in BOTH calendarEvents (via CalendarEvent table) and localEvents
-        // (via LocalEvent table with providerEventId set). Dedup using providerEventId to avoid double-counting.
-        val syncedProviderIds = calendarEvents.mapNotNull { it.providerEventId }.toSet()
-        val uniqueLocalEvents = localEvents.filter { event ->
-            event.providerEventId == null || event.providerEventId !in syncedProviderIds
-        }
-        val rangeEvents = (calendarEvents + uniqueLocalEvents)
-            .sortedWith(compareByDescending<LocalEvent> { it.isAllDay }.thenBy { it.startTime })
+        // Merge: calendar events (Google/Outlook) + local events, each event once. A local event written
+        // to Google/Outlook is also a calendar event; the rule is shared by every AI feature (AiCalendarEvents)
+        val rangeEvents = AiCalendarEvents.merge(calendarEvents, localEvents)
 
-        Log.d(TAG, "Events loaded: ${calendarEvents.size} synced + ${uniqueLocalEvents.size} local = ${rangeEvents.size} total for $rangeStart..$rangeEnd")
+        Log.d(TAG, "Events loaded: ${calendarEvents.size} synced + ${rangeEvents.size - calendarEvents.size} local = ${rangeEvents.size} total for $rangeStart..$rangeEnd")
 
         val tomorrowDateStr = planningDate.plusDays(1).format(dateFormatter)
         // Use range check to include multi-day events that span the planning/tomorrow date

@@ -77,7 +77,41 @@ class ModelConfigProviderTest {
         val inUse = ModelConfigProvider.modelInUse(AiJob.WRITING)
         assertFalse(inUse.isUserChoice)
         assertEquals("Retired Model", inUse.unavailablePick)
+        assertEquals(ModelConfigProvider.PickProblem.RETIRED, inUse.unavailableReason)
         assertEquals("GPT-5 Nano", ModelConfigProvider.defaultModel(AiJob.WRITING).displayName)
+    }
+
+    /** A model OpenRouter lists that can do every job. */
+    private fun able(id: String, rank: Int) = CatalogModel(
+        id = id, name = id, lab = "", rank = rank, inputs = listOf("text", "image", "audio"),
+        supportsJson = true, supportsJsonSchema = true, supportsTemperature = true, supportsMaxTokens = true,
+        contextLength = 1_000_000, zdr = true
+    )
+
+    @Test
+    fun `a pick the account's privacy settings block is skipped, and the card says why`() {
+        // Go 10.3, 27 Oct 2026: "Free model training violation (account settings)"
+        pick(AiJob.HANDWRITING, AiModelChoice(id = "nvidia/nemotron-3.5-super-vl:free", name = "Nemotron 3.5 Super VL (free)"))
+        OpenRouterModelCatalog.setSnapshotForTest(CatalogSnapshot(
+            System.currentTimeMillis(), listOf(able("nvidia/nemotron-3.5-super-vl:free", 0), able("openai/gpt-5-nano", 1)),
+            allowedIds = listOf("openai/gpt-5-nano")
+        ))
+        assertEquals("openai/gpt-5-nano", ModelConfigProvider.getVisionFallbackChain().first().id)
+        assertEquals(ModelConfigProvider.PickProblem.BLOCKED, ModelConfigProvider.modelInUse(AiJob.HANDWRITING).unavailableReason)
+    }
+
+    @Test
+    fun `a pick that can't do the job is skipped, one that can comes first`() {
+        pick(AiJob.WRITING, AiModelChoice(id = "x/json-mode-only", name = "JSON Mode Only"))
+        OpenRouterModelCatalog.setSnapshotForTest(CatalogSnapshot(
+            System.currentTimeMillis(), listOf(able("x/json-mode-only", 0).copy(supportsJsonSchema = false), able("x/able", 1))
+        ))
+        assertFalse("x/json-mode-only" in ModelConfigProvider.getTextFallbackChain().map { it.id })
+        assertEquals(ModelConfigProvider.PickProblem.CANT_DO_JOB, ModelConfigProvider.modelInUse(AiJob.WRITING).unavailableReason)
+
+        pick(AiJob.WRITING, AiModelChoice(id = "x/able", name = "Able"))
+        assertEquals("x/able", ModelConfigProvider.getTextFallbackChain().first().id)
+        assertNull(ModelConfigProvider.modelInUse(AiJob.WRITING).unavailablePick)
     }
 
     private fun pick(job: AiJob, choice: AiModelChoice?) {

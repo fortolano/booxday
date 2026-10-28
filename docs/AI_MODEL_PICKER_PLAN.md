@@ -79,7 +79,7 @@ touched (its root lambda is at the JVM method-size limit).
 ```text
 Reading handwriting            Updated 2 h ago  [Refresh]  [X]
 [ Search models...                                    ]
-Show:  [All] [Top paid] [Top free] [Top reasoning]
+Show:  [Popular] [Paid] [Free]
 Sort:  [Most popular v]
 
 BooxDay's choice: GPT-5 Nano                        (pinned)
@@ -87,15 +87,17 @@ DeepSeek V4.1 Flash
   DeepSeek · $0.15 in · $0.60 out per 1M tokens
 GLM 5.3 Flash
   Z.ai · $0.02 in · $0.79 out per 1M tokens
-...                                       Showing 185 models
+...   Showing the 10 most used of 185 models that can do this job. Search to find the others.
 ```
 
-- **Search** covers every model that can do the job, not only the 200 shown.
-- **Show** (one at a time): All, Top paid (price above 0), Top free (price 0 in and out),
-  Top reasoning (model supports reasoning).
+- **10 rows per tab** (owner, 27 Oct 2026; 200 rows before): the 10 most used models (OpenRouter's
+  weekly ranking) that pass the job's checks (section 5) and the account's allowed list.
+- **Show** (one at a time): Popular (any price), Paid (price above 0), Free (price 0 in and out).
+  Refresh changes which models are in the 10s; it never changes a saved pick.
+- **Search** covers every model that can do the job and shows its 10 most used matches.
 - **Sort**: Most popular (default; OpenRouter's own ranking), Newest first (creation date),
-  Price low to high / high to low (average of in and out price, as OpenRouter sorts).
-- **200 rows at most**: the first 200 after Show, Sort and search.
+  Price low to high / high to low (average of in and out price, as OpenRouter sorts). A sort
+  reorders the 10; it doesn't pick other models.
 - **Row**: model name (OpenRouter name without the "Lab: " prefix), lab, prices. "Free" when both are 0.
 - **Selected row**: black with white text (`docs/ui-patterns.md:279`).
 - **Refresh** downloads the list again; it also refreshes by itself when older than a day.
@@ -120,13 +122,26 @@ Can read up to 1,048,576 tokens. Can write up to 65,536.
 Two buttons only, per `docs/DIALOG_RULEBOOK.md:392`. Back returns to the list. Going back to BooxDay's
 choice = tap its pinned row, then Use Model.
 
-Hidden, with today's values: temperature (set per feature), other sampling settings, provider
-routing (Search indexing stays on zero-data-retention providers), reasoning token budgets.
+**Use Model tries the model first** (27 Oct 2026, `api/AiModelCheck.kt`): one small real request built
+like the job's features build theirs (a picture for reading jobs, a short tone for Voice, the job's
+exact JSON format, Search indexing's private providers with reasoning off), with the level and output
+tokens as set. "Checking that <model> can do this job..." shows meanwhile; Back cancels. Only a model
+that answers in a form the features can use is saved; otherwise the step stays open with "Not saved."
+and the reason in plain words (privacy settings block it, no provider takes the job's requests, busy,
+out of output tokens...). A free model shows "Free models can be busy or reach their daily limit.
+BooxDay's choice answers when they do."
 
-### 3.5 Failure note (proposed)
+Hidden, with today's values: temperature (set per feature), other sampling settings, provider
+routing (Search indexing stays on zero-data-retention providers; a request with a format the model
+can return goes only to providers that take every setting, `require_parameters`, and settings the
+model doesn't take are left out), reasoning token budgets.
+
+### 3.5 Failure note
 
 When a pick fails and BooxDay's model answers instead, the card row says so until the pick works
-again. If a picked model is no longer on OpenRouter, the row says "No longer available".
+again. A saved pick that can't be used says why: "<model> is no longer on OpenRouter", "Your
+OpenRouter privacy settings block <model>", or "<model> can't do this job" (it no longer passes
+the job's checks), each followed by "so BooxDay's choice is used."
 
 ---
 
@@ -179,18 +194,26 @@ again. If a picked model is no longer on OpenRouter, the row says "No longer ava
 - Always hidden: `:batch` copies (77; they don't answer live requests), `~` "latest" aliases (19),
   `openrouter/*` and other routers (variable price), models retiring within 30 days.
 
-What each job needs (hidden filters), with counts on 15 Oct 2026:
+What each job needs (hidden filters, `OpenRouterModelCatalog.canDo`), with counts on 27 Oct 2026
+before the account's allowed list (15 Oct, with looser rules: 185, 27, 307, 307, 129):
 
-| Job | Model must | Models | Shown |
-|---|---|---|---|
-| Reading handwriting | read images, return JSON | 185 | 185 |
-| Voice | read audio | 27 | 27 |
-| Writing and summaries | return JSON | 307 | 200 |
-| Planning and suggestions | return JSON | 307 | 200 |
-| Search indexing | read images, return JSON, have a zero-data-retention provider (`GET /api/v1/endpoints/zdr`) | 129 (none free) | 129 |
+| Job | Model must | Models (free) |
+|---|---|---|
+| Reading handwriting | read images, return the exact JSON format | 167 (2) |
+| Voice | read audio | 29 (3) |
+| Writing and summaries | return the exact JSON format | 256 (4) |
+| Planning and suggestions | return the exact JSON format | 256 (4) |
+| Search indexing | read images, return the exact JSON format, have a zero-data-retention provider (`GET /api/v1/endpoints/zdr`), reasoning that can be turned off | 91 (0) |
 
-"Return JSON" = `structured_outputs` or `response_format` in `supported_parameters`. The features ask
-for JSON (`jsonSchema(...)` / `jsonOutput()` in the AI services).
+Every job also needs `max_tokens` (every request sets one) and at least 32,000 tokens of context
+(the biggest request, about 7,000 tokens, plus a recommended answer limit).
+
+"The exact JSON format" = `structured_outputs` in `supported_parameters` (27 Oct 2026: before, a
+model with only `response_format`, JSON mode, passed too, and answered in a loose shape). The features
+ask for exact formats (`jsonSchema(...)` in the AI services); every schema lists all its fields as
+required, as OpenAI's strict mode needs (`StructuredOutputSchemasTest`). The saved list keeps
+`temperature` and `max_tokens` support too, for provider routing (section 3.4); a list saved by an
+older version is downloaded again (`SNAPSHOT_VERSION`).
 
 ---
 

@@ -200,7 +200,10 @@ data class ProviderConfig(
     val only: List<String>? = null,
     /** true: only providers with a zero data retention policy (search indexing of page images) */
     @SerializedName("zdr")
-    val zdr: Boolean? = null
+    val zdr: Boolean? = null,
+    /** true: only providers that take every setting of the request, the answer format included */
+    @SerializedName("require_parameters")
+    val requireParameters: Boolean? = null
 )
 
 // Response models

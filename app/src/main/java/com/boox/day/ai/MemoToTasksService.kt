@@ -188,15 +188,15 @@ HARD RULES:
 3. Do not split one natural task into many smaller tasks.
 4. Keep duplicate mentions as one task only.
 5. Keep times, quantities, and names exactly when present.
-6. For each returned task, include text, reason, and confidence.
-7. Include suggestedPriority when the note clearly supports it.
+6. For each returned task, include every field: text, suggestedPriority, reason, confidence, suggestedTime, relatedEventId.
+7. Set suggestedPriority when the note clearly supports it.
 8. Use "A" only for clearly urgent or explicitly time-critical items.
 9. Use "" when priority is unclear instead of guessing.
 10. Use lower confidence for ambiguous items, and prefer skipping them instead of forcing a task.
-11. Use suggestedTime only when the note contains an explicit time or date phrase worth preserving.
+11. Set suggestedTime to an explicit time or date phrase from the note worth preserving, else "".
 12. Do not output generic suggestedTime values like "today", "soon", "later", or the whole task text.
-13. Use relatedEventId only if the input already contains a real event ID. Never make up IDs from task text.
-14. Return raw JSON only, match the schema exactly, and omit optional fields instead of null.
+13. Set relatedEventId to "" unless the input already contains a real event ID. Never make up IDs from task text.
+14. Return raw JSON only and match the schema exactly: "" for a field with nothing to say, never null.
 15. If no actionable tasks are present, return {"tasks": []}.
 
 TASK FILTER:
@@ -220,10 +220,10 @@ EXAMPLE:
 Input: "Meeting with John tomorrow 3pm / need to buy groceries milk eggs / call dentist!! reschedule / review q4 budget before friday / nice weather today"
 Output:
 {"tasks": [
-  {"text": "Meeting with John at 3pm tomorrow", "suggestedPriority": "A", "reason": "Time-sensitive appointment", "confidence": 0.95},
-  {"text": "Buy groceries: milk, eggs", "suggestedPriority": "", "reason": "Shopping errand", "confidence": 0.9},
-  {"text": "Call dentist to reschedule appointment", "suggestedPriority": "A", "reason": "Marked urgent with '!!'", "confidence": 0.95},
-  {"text": "Review Q4 budget before Friday", "suggestedPriority": "A", "reason": "Has deadline", "confidence": 0.9}
+  {"text": "Meeting with John at 3pm tomorrow", "suggestedPriority": "A", "reason": "Time-sensitive appointment", "confidence": 0.95, "suggestedTime": "3pm tomorrow", "relatedEventId": ""},
+  {"text": "Buy groceries: milk, eggs", "suggestedPriority": "", "reason": "Shopping errand", "confidence": 0.9, "suggestedTime": "", "relatedEventId": ""},
+  {"text": "Call dentist to reschedule appointment", "suggestedPriority": "A", "reason": "Marked urgent with '!!'", "confidence": 0.95, "suggestedTime": "", "relatedEventId": ""},
+  {"text": "Review Q4 budget before Friday", "suggestedPriority": "A", "reason": "Has deadline", "confidence": 0.9, "suggestedTime": "before Friday", "relatedEventId": ""}
 ]}
 Note: "nice weather today" skipped — not actionable.
     """.trimIndent()
