@@ -599,25 +599,34 @@ Use this context to:
         }
     }
 
+    /**
+     * Converts several memo pages, one at a time: each page's picture is drawn by its [pages] entry
+     * just before it is read and freed right after, so only one whole page is in memory (Oct 2026).
+     */
     suspend fun convertMultiplePagesToTasks(
-        bitmaps: List<Bitmap>,
+        pages: List<suspend () -> Bitmap>,
         dayContext: DateSemanticContext?,
         existingTasks: List<String>,
         onPageProgress: (current: Int, total: Int) -> Unit,
         onStageChange: (String) -> Unit
     ): MemoToTasksResult {
         val allTasks = mutableListOf<ConvertedTask>()
-        val total = bitmaps.size
+        val total = pages.size
         var lastError: String? = null
 
-        bitmaps.forEachIndexed { index, bitmap ->
+        pages.forEachIndexed { index, drawPage ->
             onPageProgress(index + 1, total)
-            val result = convertMemoToTasks(
-                bitmap = bitmap,
-                dayContext = dayContext,
-                existingTasks = existingTasks + allTasks.map { it.text },
-                onStageChange = onStageChange
-            )
+            val bitmap = drawPage()
+            val result = try {
+                convertMemoToTasks(
+                    bitmap = bitmap,
+                    dayContext = dayContext,
+                    existingTasks = existingTasks + allTasks.map { it.text },
+                    onStageChange = onStageChange
+                )
+            } finally {
+                bitmap.recycle()
+            }
             if (result.error != null) {
                 lastError = result.error
             } else {
