@@ -211,8 +211,11 @@ class MemoNavigator(private val scope: CoroutineScope, private val page: PageVie
     private fun measure(): Boolean {
         load(page.context)
         val pageId = page.currentPageId
+        val sheetHeight = MemoViewport.sheetHeight(
+            fullScreenHeight, page.viewHeight, fullScreenExtra, com.boox.day.ui.FullScreenState.isOn
+        )
         val area = MemoViewport.pageArea(
-            page.viewWidth, page.viewHeight, fullScreenHeight, contentBounds(pageId),
+            page.viewWidth, page.viewHeight, sheetHeight, contentBounds(pageId),
             margin = MARGIN_DP * page.context.resources.displayMetrics.density
         )
         limits = MemoViewport.scrollLimits(area, page.viewWidth, page.viewHeight)
@@ -290,6 +293,19 @@ class MemoNavigator(private val scope: CoroutineScope, private val page: PageVie
                 fullScreenHeight = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                     .getInt(KEY_FULL_SCREEN_HEIGHT, 0)
             }
+        }
+
+        /**
+         * How much taller the canvas is in full screen, measured from the normal layout (window height
+         * minus the canvas area, minus the full screen date line). Used until full screen is opened once.
+         */
+        @Volatile var fullScreenExtra = 0
+            private set
+
+        fun recordFullScreenExtra(extra: Int) {
+            if (extra <= 0 || extra == fullScreenExtra) return
+            fullScreenExtra = extra
+            TaggedLog("MemoNavigator").i("PAN_SPIKE: full screen adds $extra px (measured, saved height $fullScreenHeight)")
         }
 
         /** Full screen showed the canvas at [height] px: that is this tablet's full screen page. */

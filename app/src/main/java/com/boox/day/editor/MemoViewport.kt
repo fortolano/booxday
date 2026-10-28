@@ -12,6 +12,19 @@ import kotlin.math.min
  * never above or left of the page corner. All in page pixels; zoom is 1.
  */
 object MemoViewport {
+    /**
+     * The full screen page's height: [recorded] once full screen has shown the canvas on this tablet.
+     * Before that, in the normal view, the view plus [fullScreenExtra] (the height full screen adds,
+     * measured from the normal layout); without it the drag only reached ink until full screen was
+     * opened once (Go 6, Oct 2026). 0 when neither is known.
+     */
+    fun sheetHeight(recorded: Int, viewHeight: Int, fullScreenExtra: Int, isFullScreen: Boolean): Int = when {
+        recorded > 0 -> recorded
+        isFullScreen -> viewHeight
+        fullScreenExtra > 0 -> viewHeight + fullScreenExtra
+        else -> 0
+    }
+
     /** The page area: the full screen page plus [content] (everything on the page) and [margin]. */
     fun pageArea(viewWidth: Int, viewHeight: Int, sheetHeight: Int, content: RectF?, margin: Float): RectF {
         val area = RectF(0f, 0f, viewWidth.toFloat(), max(sheetHeight, viewHeight).toFloat())

@@ -20,6 +20,19 @@ class MemoViewportTest {
     private val h = 700
     private val sheet = 1300
 
+    @Test fun `before full screen is opened, the measured extra height gives the full screen page`() {
+        // Go 6, 28 Oct 2026: normal view 776 px, full screen 1320 px, never opened since the install
+        assertEquals(1320, MemoViewport.sheetHeight(recorded = 0, viewHeight = 776, fullScreenExtra = 544, isFullScreen = false))
+        val area = MemoViewport.pageArea(w, 776, 1320, content = null, margin = 90f)
+        assertTrue(MemoViewport.canMove(MemoViewport.scrollLimits(area, w, 776)))
+    }
+
+    @Test fun `the height full screen recorded wins, and full screen is its own page`() {
+        assertEquals(1320, MemoViewport.sheetHeight(recorded = 1320, viewHeight = 776, fullScreenExtra = 500, isFullScreen = false))
+        assertEquals(1320, MemoViewport.sheetHeight(recorded = 0, viewHeight = 1320, fullScreenExtra = 544, isFullScreen = true))
+        assertEquals(0, MemoViewport.sheetHeight(recorded = 0, viewHeight = 776, fullScreenExtra = 0, isFullScreen = false))
+    }
+
     @Test fun `an empty page that fits the view can't move`() {
         val area = MemoViewport.pageArea(w, h, h, content = null, margin = 90f)
         assertFalse(MemoViewport.canMove(MemoViewport.scrollLimits(area, w, h)))

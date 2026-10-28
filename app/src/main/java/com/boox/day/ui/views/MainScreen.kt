@@ -263,6 +263,7 @@ import com.boox.day.ui.theme.LayoutProfiles
 import com.boox.day.data.db.TaskDueDates
 import androidx.compose.material.icons.filled.Add
 import com.boox.day.ui.convertDpToPixel
+import com.boox.day.ui.fullScreenExtraProbe
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.components.CalendarSourceFilterIcons
 import com.boox.day.ui.state.CalendarSource
@@ -2588,6 +2589,7 @@ fun MainScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(if (isCompactLayout || com.boox.day.ui.FullScreenState.isOn) 1f else 0.60f)
+                    .fullScreenExtraProbe()  // the Memos drag's page height before full screen is opened
             ) {
                 // Full screen: the selected day above the toolbar (the calendar header is hidden)
                 com.boox.day.ui.FullScreenDateLine(selectedDate)
