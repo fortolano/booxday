@@ -163,6 +163,22 @@ the job's checks), each followed by "so BooxDay's choice is used."
 | Planning and suggestions | Gemini 3 Flash Preview → Nemotron 3 Super (free) → Gemma 4 31B (free) | Nemotron 3 Super (free) → Gemma 4 31B (free) |
 | Search indexing | Gemini 3.1 Flash Lite (about $0.0005 a page, 14 Oct 2026 test) | Waits for credit: no free model keeps pages private |
 
+**29 Oct 2026, replaced** (live test of every Memos and Tasks AI action, no model picks): the
+features sent "reasoning on", and GPT-5 Nano and Gemini 3 Flash Preview thought through most of the
+4,096 output tokens (Smart Suggestions cut off 7 times in 12, ~20 s each; one GPT-5 Nano answer
+was empty after 75 s); the free backups were "rate-limited upstream" on every try, and Nemotron 3
+Super (free) is no longer listed. BooxDay's models now carry the reasoning level they were tested
+at (sent whatever the feature asks), and with credit only paid, stable models with
+zero-data-retention providers are used:
+
+| Job | With credit | No credit yet |
+|---|---|---|
+| Reading handwriting | GPT-6 Luna (low) → Gemini 3.1 Flash Lite (off) → Gemini 3.8 Flash (low) | Gemma 4 26B (free) → Gemma 4 31B (free) |
+| Voice | Gemini 3.1 Flash Lite (off) → Gemini 3.5 Flash Lite (minimal) | Nemotron 3 Nano Omni (free) |
+| Writing, summaries, text clean-up | GPT-6 Luna (low) → Gemini 3.1 Flash Lite (off) → Gemini 3.8 Flash (low) | Gemma 4 31B (free) → Gemma 4 26B (free) |
+| Planning and suggestions | Gemini 3.8 Flash (low) → GPT-6 Luna (low) → Gemini 3.1 Flash Lite (off) | Gemma 4 31B (free) → Gemma 4 26B (free) |
+| Search indexing | Gemini 3.1 Flash Lite | Waits for credit |
+
 - **No-credit bug fix (needed today):** with no credit, every AI feature fails. The first paid model
   returns 402, `AiClient` maps it to "out of credit" (`api/ai/AiClient.kt:124`, `:190`) and
   `AiRetryExecutor` stops at once (`ai/AiRetryExecutor.kt:96`), so the free models at the end of

@@ -23,25 +23,35 @@ object ModelConfigProvider {
 
     // ═══════════════════════════════════════════════════════════════════════════
     // BOOXDAY'S CHOICE
-    // Checked against OpenRouter's models list on 15 Oct 2026 (all listed, none retiring).
-    // The reasoning params are kept with the entries but not sent (see toReasoningConfig).
+    // Paid models: stable releases (no previews) with zero-data-retention providers, from two
+    // labs, each with the reasoning level it was tested at (sent with every request, see
+    // toReasoningConfig). Chosen by the 29 Oct 2026 live test of every Memos and Tasks AI action:
+    // the models before (GPT-5 Nano, Gemini 3 Flash Preview) were sent "reasoning on", thought
+    // through most of the 4,096 output tokens and were cut off (Smart Suggestions 7 times in 12).
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private val GPT_5_NANO = ModelEntry(id = "openai/gpt-5-nano", reasoning = ReasoningParam(effort = "medium"), name = "GPT-5 Nano")
-    private val GEMINI_31_FLASH_LITE = ModelEntry(id = "google/gemini-3.1-flash-lite", name = "Gemini 3.1 Flash Lite")
-    private val GEMINI_3_FLASH_PREVIEW = ModelEntry(id = "google/gemini-3-flash-preview", name = "Gemini 3 Flash Preview")
-    private val GEMMA_4_26B_FREE = ModelEntry(id = "google/gemma-4-26b-a4b-it:free", name = "Gemma 4 26B (free)")
-    private val GEMMA_4_31B_FREE = ModelEntry(id = "google/gemma-4-31b-it:free", reasoning = ReasoningParam(enabled = true), name = "Gemma 4 31B (free)")
-    private val NEMOTRON_3_SUPER_FREE = ModelEntry(id = "nvidia/nemotron-3-super-120b-a12b:free", reasoning = ReasoningParam(enabled = true), name = "Nemotron 3 Super (free)")
-    private val NEMOTRON_3_NANO_OMNI_FREE = ModelEntry(id = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", reasoning = ReasoningParam(enabled = true), name = "Nemotron 3 Nano Omni (free)")
+    private val GPT_6_LUNA = ModelEntry(id = "openai/gpt-6-luna", reasoning = ReasoningParam(effort = "low"), name = "GPT-6 Luna")
+    private val GEMINI_38_FLASH = ModelEntry(id = "google/gemini-3.8-flash", reasoning = ReasoningParam(effort = "low"), name = "Gemini 3.8 Flash")
+    private val GEMINI_31_FLASH_LITE = ModelEntry(id = "google/gemini-3.1-flash-lite", reasoning = ReasoningParam(enabled = false), name = "Gemini 3.1 Flash Lite")
+    private val GEMINI_35_FLASH_LITE = ModelEntry(id = "google/gemini-3.5-flash-lite", reasoning = ReasoningParam(effort = "minimal"), name = "Gemini 3.5 Flash Lite")
 
-    /** With credit: the tested paid models first, free models as the last backups. */
+    // Free models, for accounts without credit only. No level: they reason as the feature asks.
+    // Oct 2026: nvidia/nemotron-3-super-120b-a12b:free was in the writing and planning lists;
+    // OpenRouter no longer lists it.
+    private val GEMMA_4_26B_FREE = ModelEntry(id = "google/gemma-4-26b-a4b-it:free", name = "Gemma 4 26B (free)")
+    private val GEMMA_4_31B_FREE = ModelEntry(id = "google/gemma-4-31b-it:free", name = "Gemma 4 31B (free)")
+    private val NEMOTRON_3_NANO_OMNI_FREE = ModelEntry(id = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", name = "Nemotron 3 Nano Omni (free)")
+
+    /**
+     * With credit: paid models only. Free models were the last backups here until Oct 2026, but
+     * their shared capacity was "rate-limited upstream" on every try of the 29 Oct test.
+     */
     private val WITH_CREDIT: Map<AiJob, List<ModelEntry>> = mapOf(
-        AiJob.HANDWRITING to listOf(GPT_5_NANO, GEMINI_31_FLASH_LITE, GEMMA_4_26B_FREE),
-        // Oct 2026: google/gemini-2.0-flash-lite-001 was the middle model; OpenRouter retired it
-        AiJob.VOICE to listOf(GEMINI_31_FLASH_LITE, NEMOTRON_3_NANO_OMNI_FREE),
-        AiJob.WRITING to listOf(GPT_5_NANO, GEMINI_31_FLASH_LITE, NEMOTRON_3_SUPER_FREE),
-        AiJob.PLANNING to listOf(GEMINI_3_FLASH_PREVIEW, NEMOTRON_3_SUPER_FREE, GEMMA_4_31B_FREE),
+        AiJob.HANDWRITING to listOf(GPT_6_LUNA, GEMINI_31_FLASH_LITE, GEMINI_38_FLASH),
+        // GPT-6 Luna doesn't take audio
+        AiJob.VOICE to listOf(GEMINI_31_FLASH_LITE, GEMINI_35_FLASH_LITE),
+        AiJob.WRITING to listOf(GPT_6_LUNA, GEMINI_31_FLASH_LITE, GEMINI_38_FLASH),
+        AiJob.PLANNING to listOf(GEMINI_38_FLASH, GPT_6_LUNA, GEMINI_31_FLASH_LITE),
         // Chosen by the 14 Oct 2026 test on real pages (OpenRouterOcrService)
         AiJob.SEARCH_INDEXING to listOf(GEMINI_31_FLASH_LITE)
     )
@@ -54,8 +64,8 @@ object ModelConfigProvider {
     private val NO_CREDIT: Map<AiJob, List<ModelEntry>> = mapOf(
         AiJob.HANDWRITING to listOf(GEMMA_4_26B_FREE, GEMMA_4_31B_FREE),
         AiJob.VOICE to listOf(NEMOTRON_3_NANO_OMNI_FREE),
-        AiJob.WRITING to listOf(NEMOTRON_3_SUPER_FREE, GEMMA_4_31B_FREE),
-        AiJob.PLANNING to listOf(NEMOTRON_3_SUPER_FREE, GEMMA_4_31B_FREE),
+        AiJob.WRITING to listOf(GEMMA_4_31B_FREE, GEMMA_4_26B_FREE),
+        AiJob.PLANNING to listOf(GEMMA_4_31B_FREE, GEMMA_4_26B_FREE),
         AiJob.SEARCH_INDEXING to listOf(GEMINI_31_FLASH_LITE)
     )
 
@@ -176,34 +186,35 @@ object ModelConfigProvider {
     fun getReasoningFallbackChain(): List<AiModel> = getChain(AiJob.PLANNING)
 
     /**
-     * Convert a ModelEntry's reasoning param to ReasoningConfig for API requests.
+     * Convert a ModelEntry's reasoning param to ReasoningConfig for API requests (sent whatever
+     * the feature asks for since 29 Oct 2026; AiClient.buildApiRequest).
      *
-     * Supports both reasoning formats:
-     * - {"effort": "medium"} for OpenAI models → ReasoningConfig.withEffort("medium")
-     * - {"enabled": true} for other models → ReasoningConfig.enabled()
-     *
-     * Not called (Oct 2026): BooxDay's choice still sends reasoning as the features ask for it.
+     * - {"effort": "low"} → ReasoningConfig.withEffort("low")
+     * - {"enabled": true} → ReasoningConfig.enabled()
+     * - {"enabled": false} → ReasoningConfig.disabled()
      */
     fun toReasoningConfig(entry: ModelEntry): ReasoningConfig? {
         val param = entry.reasoning ?: return null
         return when {
             param.effort != null -> ReasoningConfig.withEffort(param.effort)
             param.enabled == true -> ReasoningConfig.enabled()
+            param.enabled == false -> ReasoningConfig.disabled()
             else -> null
         }
     }
 
     /**
-     * One of BooxDay's models as an AiModel: a matching built-in model (GPT-5 Nano), otherwise a
-     * custom model with the job's capabilities.
+     * One of BooxDay's models as an AiModel: a custom model with the job's capabilities and its
+     * tested reasoning level. Never one of the old built-in models (GPT-5 Nano was, until Oct
+     * 2026), which carry no level.
      */
     private fun toAiModel(entry: ModelEntry, job: AiJob): AiModel {
-        AiModel.fromId(entry.id)?.let { return it }
         return AiModel.Custom(
             id = entry.id,
             displayName = entry.name.ifBlank { entry.id.substringAfterLast("/").substringBefore(":") },
             capabilities = job.capabilities,
-            defaultConfig = AiConfig(temperature = job.temperature, maxTokens = job.defaultMaxTokens)
+            defaultConfig = AiConfig(temperature = job.temperature, maxTokens = job.defaultMaxTokens),
+            reasoning = toReasoningConfig(entry)
         )
     }
 }

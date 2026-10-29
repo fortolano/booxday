@@ -48,7 +48,9 @@ class TaskAiServiceErrorTest {
         OpenRouterAccount.onPaidRequestSucceeded()
     }
 
-    private fun breakDown(): String? = runBlocking {
+    private fun breakDown(): String? = breakDownResult().error
+
+    private fun breakDownResult(): TaskAiService.BreakdownResult = runBlocking {
         val task = IntelligenceTestUtils.createTask(id = "t1", text = "Plan the garden")
         TaskAiService.breakDownTaskV3(
             taskText = "Plan the garden",
@@ -56,7 +58,26 @@ class TaskAiServiceErrorTest {
             existingTasks = listOf(task),
             currentDate = IntelligenceTestUtils.TODAY,
             scoredContext = scoredContext
-        ).error
+        )
+    }
+
+    @Test
+    fun `an answer that can't be read goes to the next model`() {
+        // 29 Oct 2026: it ended the feature with "Could not parse breakdown", no other model tried
+        val models = mutableListOf<String>()
+        AiRetryExecutor.send = { request, _ ->
+            models += request.model.id
+            if (models.size == 1) AiResponse.Success("""{"subtasks":[{"text":"Pick pla""", "m", null)
+            else AiResponse.Success(
+                """{"subtasks":[{"text":"Pick plants","order":1},{"text":"Buy soil","order":2},{"text":"Mark the beds","order":3}],"keepOriginal":false}""",
+                "m", null
+            )
+        }
+        val result = breakDownResult()
+        assertEquals(null, result.error)
+        assertEquals(listOf("Pick plants", "Buy soil", "Mark the beds"), result.subtasks.map { it.text })
+        assertEquals(2, models.size)
+        assertEquals(false, models[0] == models[1])
     }
 
     @Test

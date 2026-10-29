@@ -1728,7 +1728,9 @@ OUTPUT FORMAT (JSON only):
             processResponse = { response, _ ->
                 Log.d(TAG, "V3 suggestions response: ${response.data.take(500)}...")
                 onStageChange("Organizing your suggestions...")
-                parseSuggestionsResponse(response.data, maxCount = targetCount)
+                // An answer that can't be read goes to the next model (29 Oct 2026: it ended the
+                // feature with "Could not parse suggestions", no other model tried)
+                parseSuggestionsResponse(response.data, maxCount = targetCount).takeIf { it.error == null }
             }
         )) {
             is AiRetryExecutor.RetryResult.Success -> result.data
@@ -2043,7 +2045,9 @@ OUTPUT FORMAT (JSON only):
             },
             processResponse = { response, model ->
                 Log.d(TAG, "Breakdown V3 response (${model.displayName}): ${response.data.take(500)}...")
-                parseBreakdownResponse(response.data, taskText)
+                // An unreadable answer or too few subtasks goes to the next model (29 Oct 2026:
+                // it ended the feature, no other model tried)
+                parseBreakdownResponse(response.data, taskText).takeIf { it.error == null }
             }
         )) {
             is AiRetryExecutor.RetryResult.Success -> result.data

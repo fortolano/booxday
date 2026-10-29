@@ -50,5 +50,7 @@ object UserOpenRouterKey {
             value = cleaned
             isLoaded = true
         }
+        // The model list for this account (which models it allows), at once rather than at next start
+        if (cleaned != null) com.boox.day.api.OpenRouterModelCatalog.onKeySaved()
     }
 }

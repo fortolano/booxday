@@ -301,6 +301,15 @@ object OpenRouterModelCatalog {
         }
     }
 
+    /**
+     * A key was saved (Connect OpenRouter or a pasted key): download the list now, with that
+     * account's allowed models. 29 Oct 2026: only app start did, so after connecting the first
+     * time the model chains ran without a list until the next start.
+     */
+    fun onKeySaved() {
+        scope.launch { refresh(force = true) }
+    }
+
     fun isStale(nowMs: Long = System.currentTimeMillis()): Boolean =
         snapshot?.let { nowMs - it.fetchedAtMs > MAX_AGE_MS } ?: true
 
