@@ -257,9 +257,10 @@ fun AboutDialog(
 }
 
 @Composable
-private fun AboutHeader(
+internal fun AboutHeader(
     versionLabel: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    appName: String = stringResource(R.string.app_name)  // AboutHeaderRenderTest has no app resources
 ) {
     val context = LocalContext.current
     Row(
@@ -274,7 +275,7 @@ private fun AboutHeader(
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
-                text = stringResource(R.string.app_name),
+                text = appName,
                 fontSize = EInkTheme.Typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = EInkTheme.Colors.primary
@@ -284,8 +285,12 @@ private fun AboutHeader(
                 fontSize = EInkTheme.Typography.bodyMedium,
                 color = EInkTheme.Colors.gray
             )
-            UpdateLink(text = "Check for Updates") { AppUpdateGate.checkNow(context) }
         }
+
+        CheckForUpdatesButton(
+            checking = AppUpdateGate.state is AppUpdateGate.State.Checking,
+            onClick = { AppUpdateGate.checkNow(context) }
+        )
 
         Box(
             modifier = Modifier
@@ -469,7 +474,50 @@ private fun ExternalLinkAction(
     }
 }
 
-/** In-app updates (Oct 2026): opens the update popup (update/AppUpdateGate) with the answer. */
+/**
+ * About → Check for Updates (Oct 2026; a small underlined link before): the app's primary button with
+ * the update icon. The answer opens in the update popup (update/AppUpdateGate). While GitHub is asked
+ * the button turns outlined, says "Checking…" and ignores taps.
+ */
+@Composable
+internal fun CheckForUpdatesButton(checking: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
+    val contentColor = if (checking) EInkTheme.Colors.primary else EInkTheme.ModernDialog.PrimaryButton.textColor
+    Row(
+        modifier = Modifier
+            .height(EInkTheme.Button.height)
+            .background(
+                if (checking) EInkTheme.ModernDialog.background else EInkTheme.ModernDialog.PrimaryButton.background,
+                shape
+            )
+            .border(
+                EInkTheme.ModernDialog.borderWidth,
+                if (checking) EInkTheme.Colors.borderStrong else EInkTheme.ModernDialog.PrimaryButton.background,
+                shape
+            )
+            .noRippleClickable(enabled = !checking) { onClick() }
+            .padding(horizontal = EInkTheme.Button.horizontalPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
+    ) {
+        Icon(
+            imageVector = Icons.Default.SystemUpdate,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(EInkTheme.Global.iconSizeSmall)
+        )
+        Text(
+            text = if (checking) "Checking…" else "Check for Updates",
+            fontSize = EInkTheme.Button.fontSize,
+            fontWeight = FontWeight.Bold,
+            color = contentColor,
+            maxLines = 1,
+            softWrap = false
+        )
+    }
+}
+
+/** Debug builds: the test actions at the end of About. */
 @Composable
 private fun UpdateLink(text: String, onClick: () -> Unit) {
     Row(
