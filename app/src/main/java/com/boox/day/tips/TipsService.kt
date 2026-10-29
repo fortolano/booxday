@@ -186,20 +186,15 @@ object TipsService {
      * 4. Pick random from selected pool
      */
     private fun selectTip(relevantContexts: Set<TipContext>): Tip? {
-        val unseenTips = allTips.filter { it.id !in shownTipIds }
+        // Discovery tips for the other tab are left out ("Try the Tasks tab!" while on Tasks)
+        val unseenTips = allTips.filter { it.id !in shownTipIds && fitsHere(it, relevantContexts) }
         if (unseenTips.isEmpty()) {
             // All tips shown - reset and try again
             resetShownTips()
-            return allTips.randomOrNull()
+            return allTips.filter { fitsHere(it, relevantContexts) }.randomOrNull()
         }
 
-        // Separate into contextual (relevant to current context) and discovery (other features)
-        val contextualTips = unseenTips.filter { tip ->
-            !tip.isDiscovery && tip.contexts.any { it in relevantContexts }
-        }
-        val discoveryTips = unseenTips.filter { tip ->
-            tip.isDiscovery || tip.contexts.none { it in relevantContexts }
-        }
+        val (contextualTips, discoveryTips) = splitPools(unseenTips, relevantContexts)
 
         // Weighted selection: 75% contextual, 25% discovery
         val useContextual = Random.nextFloat() < CONTEXTUAL_WEIGHT
@@ -228,6 +223,22 @@ object TipsService {
         }
 
         return selectedPool.randomOrNull()
+    }
+
+    /** A discovery tip is shown only in the contexts it lists; other tips anywhere. */
+    internal fun fitsHere(tip: Tip, relevantContexts: Set<TipContext>): Boolean =
+        !tip.isDiscovery || tip.contexts.any { it in relevantContexts }
+
+    /**
+     * Contextual pool (tips for what is on screen) and discovery pool (discovery tips listing a
+     * context on screen, plus tips for the other tab).
+     */
+    internal fun splitPools(tips: List<Tip>, relevantContexts: Set<TipContext>): Pair<List<Tip>, List<Tip>> {
+        val contextual = tips.filter { !it.isDiscovery && it.contexts.any { c -> c in relevantContexts } }
+        val discovery = tips.filter {
+            if (it.isDiscovery) fitsHere(it, relevantContexts) else it.contexts.none { c -> c in relevantContexts }
+        }
+        return contextual to discovery
     }
 
     /**
