@@ -49,13 +49,26 @@ object OpenRouterLinks {
     const val KEYS = "https://openrouter.ai/settings/keys"
     const val BYOK = "https://openrouter.ai/settings/integrations"
 
-    /** Opens [url] in the tablet's browser. */
-    fun open(context: Context, url: String) {
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        } catch (e: Exception) {
-            Log.w("OpenRouterLinks", "No browser for $url: ${e.message}")
-        }
+    /** Opens [url] in the tablet's browser. False when there is no browser to open it. */
+    fun open(context: Context, url: String): Boolean = try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (e: Exception) {
+        Log.w("OpenRouterLinks", "No browser: ${e.javaClass.simpleName}")
+        false
+    }
+
+    const val NO_BROWSER = "Couldn't open a web browser on this tablet. You can paste an OpenRouter key here instead."
+
+    /**
+     * Starts Connect OpenRouter in the browser (Oct 2026). Without a browser the started connection
+     * is dropped and the key card says why: before, nothing happened and nothing was said.
+     */
+    suspend fun connect(context: Context): Boolean {
+        if (open(context, OpenRouterConnect.begin(context))) return true
+        OpenRouterConnect.discardPending(context)
+        OpenRouterConnect.reportProblem(NO_BROWSER)
+        return false
     }
 }
 
@@ -75,7 +88,8 @@ fun AiKeyGateHost(onOpenAiSettings: () -> Unit) {
             onClose = { AiKeyGate.close() },
             onConnect = {
                 AiKeyGate.close()
-                scope.launch { OpenRouterLinks.open(context, OpenRouterConnect.begin(context)) }
+                // No browser: open AI Settings, where the key card says so and offers the paste field
+                scope.launch { if (!OpenRouterLinks.connect(context)) AiKeyGate.requestAddKey() }
             },
             onAddKey = { AiKeyGate.requestAddKey() }
         )
