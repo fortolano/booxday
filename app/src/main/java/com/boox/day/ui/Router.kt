@@ -44,6 +44,7 @@ import com.boox.day.editor.DrawCanvas
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.boox.day.ui.messages.splashTaglines
 import com.boox.day.ui.views.BugReportScreen
 import com.boox.day.ui.views.MainScreen
 import com.boox.day.ui.views.SettingsView
@@ -59,70 +60,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 private val logRouter = TaggedLog("Router")
 private const val STARTUP_CANVAS_HANDOFF_TIMEOUT_MS = 1800L
-
-/**
- * Rotating taglines for splash screen (51 total).
- * Shuffled-deck rotation: every quote seen once before any repeats.
- */
-private val splashTaglines = listOf(
-    // --- Boox love ---
-    "The calendar App your Boox deserved all along :)",
-    "Because your Boox was almost perfect. Almost.",
-    "Your Boox is complete now. You're welcome.",
-    "The last calendar app your Boox will ever need.",
-    "Your Boox called. It said 'thank you.'",
-    "The app your Boox brags about to other tablets.",
-    "Your Boox's new best friend. Don't tell your stylus.",
-    "We made your favorite tablet even more favorite-er.",
-    "Now your Boox can finally adult properly.",
-    "Your Boox finally has its act together. You're next.",
-    "We turned your e-reader into an e-achiever.",
-    "Because you didn't buy a Boox to forget appointments.",
-    "The calendar that truly gets the e-ink lifestyle.",
-    "Built for Boox. Obsessed over by us.",
-    "Making e-ink enthusiasts even more insufferable :)",
-    "Because sticky notes on your Boox felt wrong.",
-    "The calendar that should have shipped with your Boox.",
-    "The app that makes other calendars jealous.",
-    "Your Boox believes in you. So do we.",
-    // --- E-ink lifestyle ---
-    "Finally, a calendar worth the refresh rate.",
-    "Your schedule, at a relaxing 15 frames per second.",
-    "E-ink planning? Yes. Eye strain? Never.",
-    "Your schedule, in glorious 16 shades of gray.",
-    "Where gentle e-ink meets aggressive productivity.",
-    "E-ink planning for people with impeccable taste.",
-    "Where handwriting meets 'I have a meeting at 3.'",
-    "We speak fluent e-ink.",
-    "No blue light. No excuses.",
-    "16 shades of getting things done.",
-    "Refresh rate: low. Standards: high.",
-    "Your retina called. It sends its thanks.",
-    "Paper vibes. Digital powers.",
-    // --- Self-aware / meta ---
-    "You're reading this instead of planning. Classic.",
-    "We spent way too long on this splash screen.",
-    "Loading... your potential.",
-    "This screen disappears in 3 seconds. Make a wish.",
-    "The developer shed actual tears building this.",
-    // --- Productivity roasts ---
-    "Your to-do list isn't going to check itself.",
-    "Organize your life. Or at least pretend to.",
-    "Productivity, but make it cozy.",
-    "Step one: open app. Step two: world domination.",
-    "Your future self called. They said start planning.",
-    // --- Absurdist / unexpected ---
-    "Powered by caffeine and pixel dust.",
-    "No ads. No tracking. Just vibes.",
-    "Contains 0% artificial intelligence on this screen.",
-    "Certified free of unnecessary animations.",
-    "May cause sudden urges to be productive.",
-    // --- Warm / wholesome ---
-    "Good things take time. Like e-ink. And you.",
-    "One day at a time. That's literally how this works.",
-    "Small screen. Big plans.",
-    "Here's to the planners, the dreamers, the list-makers."
-)
 
 /**
  * Main Router for BooxDay
