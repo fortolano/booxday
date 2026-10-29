@@ -300,7 +300,7 @@ private fun QuickStartContent() {
     SectionSubheader("Getting Around")
     BulletPoint("The today button (a calendar with today's number, in the calendar header) goes back to today.")
     BulletPoint("The arrows in the toolbar turn the day's pages; the counter shows where you are, for example 1/3.")
-    BulletPoint("The full screen switch, just before ≡ in the toolbar, hides the calendar to give the page more room.")
+    BulletPoint("The full screen switch, just before ≡ in the toolbar (inside ≡ on small tablets), hides the calendar to give the page more room.")
     BulletPoint("≡ at the end of the toolbar holds Screen Refresh, Export Pages, and clearing or deleting pages.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
@@ -492,7 +492,7 @@ private fun WritingMemosContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Full Screen")
-    BodyText("The switch just before ≡ hides the calendar, so the page gets the whole screen. Tap it again for the normal view. When the switch shows a small arrow, there is ink lower on the page than the normal view shows. Slide two fingers on the page to move it and see that ink.")
+    BodyText("The switch just before ≡ (inside ≡ on small tablets) hides the calendar, so the page gets the whole screen. Tap it again for the normal view. When the switch shows a small arrow, there is ink lower on the page than the normal view shows. Slide two fingers on the page to move it and see that ink.")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
