@@ -2864,8 +2864,10 @@ fun MainScreen(
                                 // ─────────────────────────────────────────────────────────────────
                                 smartSuggestionsProcessingState = SmartSuggestionsProcessingState.Processing("Reading handwritten tasks...")
 
+                                // Ticked tasks too, as Daily Summary does (29 Oct 2026: they had no
+                                // words, so suggestions repeated them; ai/SuggestionDuplicates)
                                 val tasksToRecognize = currentTasks.filter {
-                                    it.typedText.isNullOrBlank() && !it.isCompleted
+                                    it.typedText.isNullOrBlank()
                                 }
 
                                 val ocrBatchResult = TaskOcrService.getTextForTasks(
