@@ -399,6 +399,12 @@ private fun TouchGesturesContent() {
         details = "Pastes ink or an image you copied in BooxDay, or text copied in another app as a text box."
     )
 
+    GestureItem(
+        gesture = "Slide two fingers",
+        action = "Move the page",
+        details = "Move both fingers together to see ink below the normal view, or past the edge of the page. It waits half a second after the pen, and doesn't move the page while something is selected or a popup is open."
+    )
+
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
     SectionSubheader("Troubleshooting")
@@ -486,7 +492,7 @@ private fun WritingMemosContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Full Screen")
-    BodyText("The switch just before ≡ hides the calendar, so the page gets the whole screen. Tap it again for the normal view. When the switch shows a small arrow, there is ink lower on the page than the normal view shows.")
+    BodyText("The switch just before ≡ hides the calendar, so the page gets the whole screen. Tap it again for the normal view. When the switch shows a small arrow, there is ink lower on the page than the normal view shows. Slide two fingers on the page to move it and see that ink.")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -523,6 +529,7 @@ private fun TaskManagementContent() {
 
     SectionSubheader("Done and Streak")
     BulletPoint("Tick the checkbox: the row gets a line through it.")
+    BulletPoint("Or cross the task out, as on paper: a straight line through its middle ticks it. Undo or erase the line to untick it. An underline or the Marker doesn't count. Cross out = done in the task actions menu turns this off.")
     BulletPoint("The flame in the calendar header counts the days in a row on which you finished a task. Tap it for your stats. On small screens it is in the Settings menu (Task streak).")
     BulletPoint("≡ → Clear This Day's Tasks empties the task pages of the day on screen.")
 
