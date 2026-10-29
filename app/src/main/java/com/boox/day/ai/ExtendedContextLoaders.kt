@@ -169,7 +169,7 @@ object ExtendedContextLoaders {
             val dayTasks = taskRepo.getTasksForDay(dateStr)
 
             dayTasks.forEach { task ->
-                val text = ocrResults[task.id] ?: task.typedText ?: ""
+                val text = taskText(task, ocrResults)
                 if (text.isNotBlank() || task.isCompleted) {
                     allTasks.add(
                         TaskWithDate(
@@ -210,6 +210,19 @@ object ExtendedContextLoaders {
             completionRateLast7Days = completionRate
         )
     }
+
+    /**
+     * A task's words for the AI: the handwriting read just now ([ocrResults]), else typed, else
+     * converted, else the handwriting BooxDay stored when it was written (the order TaskOcrService
+     * uses). 29 Oct 2026: only the first two, so ticked handwritten tasks and the handwritten
+     * tasks of other days had no words, and Smart Suggestions suggested them again.
+     */
+    internal fun taskText(task: Task, ocrResults: Map<String, String>): String =
+        ocrResults[task.id]?.takeIf { it.isNotBlank() }
+            ?: task.typedText?.takeIf { it.isNotBlank() }
+            ?: task.convertedText?.takeIf { it.isNotBlank() }
+            ?: task.recognizedText?.takeIf { it.isNotBlank() }
+            ?: ""
 
     // ═══════════════════════════════════════════════════════════════════════════
     // PATTERN ANALYZER (30-day window)

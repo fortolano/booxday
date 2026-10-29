@@ -201,14 +201,19 @@ object SuggestionContextBuilder {
         return contextBlock.asPromptBlock()
     }
 
-    private fun buildTaskScopeSection(tasks: ExtendedTaskContext): String {
+    /**
+     * Overdue, today's, upcoming and recently completed tasks for the prompt. A task without
+     * words is counted but not listed (29 Oct 2026: it showed as an empty "- [x] " line).
+     */
+    @androidx.annotation.VisibleForTesting
+    internal fun buildTaskScopeSection(tasks: ExtendedTaskContext): String {
         val lines = mutableListOf<String>()
         var remaining = TaskAiContextBuilderV1.MAX_TASK_LINES
 
         if (tasks.overdueCount > 0 && remaining > 0) {
             lines.add("Overdue (${tasks.overdueCount}):")
             tasks.recentIncompleteTasks.forEach { task ->
-                if (remaining <= 0) return@forEach
+                if (remaining <= 0 || task.text.isBlank()) return@forEach
                 val text = truncateLine(task.text)
                 lines.add("- [${task.daysFromToday}d] $text")
                 remaining--
@@ -218,7 +223,7 @@ object SuggestionContextBuilder {
         if (tasks.todayTasks.isNotEmpty() && remaining > 0) {
             lines.add("Today (${tasks.todayTasks.size}):")
             tasks.todayTasks.forEach { task ->
-                if (remaining <= 0) return@forEach
+                if (remaining <= 0 || task.text.isBlank()) return@forEach
                 val status = if (task.isCompleted) "x" else "o"
                 val text = truncateLine(task.text)
                 lines.add("- [$status] $text")
@@ -226,20 +231,20 @@ object SuggestionContextBuilder {
             }
         }
 
-        if (tasks.upcomingTasks.isNotEmpty() && remaining > 0) {
+        if (tasks.upcomingTasks.any { it.text.isNotBlank() } && remaining > 0) {
             lines.add("Upcoming:")
             tasks.upcomingTasks.forEach { task ->
-                if (remaining <= 0) return@forEach
+                if (remaining <= 0 || task.text.isBlank()) return@forEach
                 val text = truncateLine(task.text)
                 lines.add("- [+${task.daysFromToday}d] $text")
                 remaining--
             }
         }
 
-        if (tasks.recentCompletedTasks.isNotEmpty() && remaining > 0) {
+        if (tasks.recentCompletedTasks.any { it.text.isNotBlank() } && remaining > 0) {
             lines.add("Recently Completed:")
             tasks.recentCompletedTasks.forEach { task ->
-                if (remaining <= 0) return@forEach
+                if (remaining <= 0 || task.text.isBlank()) return@forEach
                 val text = truncateLine(task.text)
                 lines.add("- [${task.daysFromToday}d] $text")
                 remaining--

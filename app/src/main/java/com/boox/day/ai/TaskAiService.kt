@@ -1691,10 +1691,9 @@ OUTPUT FORMAT (JSON only):
         // Add the pre-scored context section
         val preScoreSection = scoredContext.asPromptSection()
 
-        // Get existing task texts (to avoid duplicates)
-        val existingTaskTexts = suggestionContext.taskContext.todayTasks
-            .map { it.text }
-            .filter { it.isNotBlank() }
+        // Tasks the user already has, to avoid duplicates: today's (ticked too), overdue and the
+        // coming days' (29 Oct 2026: today's with words only, so ticked handwritten tasks were missing)
+        val existingTaskTexts = SuggestionDuplicates.tasksToAvoid(suggestionContext.taskContext)
 
         // Build enhanced prompt with pre-scores
         val prompt = buildV3SuggestionsPrompt(
@@ -1730,7 +1729,14 @@ OUTPUT FORMAT (JSON only):
                 onStageChange("Organizing your suggestions...")
                 // An answer that can't be read goes to the next model (29 Oct 2026: it ended the
                 // feature with "Could not parse suggestions", no other model tried)
-                parseSuggestionsResponse(response.data, maxCount = targetCount).takeIf { it.error == null }
+                parseSuggestionsResponse(response.data).takeIf { it.error == null }?.let { parsed ->
+                    // A suggestion that repeats a task the user has is dropped (29 Oct 2026)
+                    val kept = SuggestionDuplicates.withoutRepeats(parsed.suggestions, existingTaskTexts) { it.text }
+                    if (kept.size < parsed.suggestions.size) {
+                        Log.i(TAG, "Dropped ${parsed.suggestions.size - kept.size} suggestion(s) repeating existing tasks")
+                    }
+                    parsed.copy(suggestions = kept.take(targetCount))
+                }
             }
         )) {
             is AiRetryExecutor.RetryResult.Success -> result.data
@@ -1842,10 +1848,10 @@ OUTPUT FORMAT (JSON only):
             appendLine()
         }
 
-        // Existing tasks to avoid
+        // Existing tasks to avoid (SuggestionDuplicates.tasksToAvoid: at most 30)
         if (existingTasks.isNotEmpty()) {
             appendLine("## EXISTING TASKS (avoid duplicates)")
-            existingTasks.take(10).forEach { task ->
+            existingTasks.forEach { task ->
                 appendLine("- $task")
             }
             appendLine()
