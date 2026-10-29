@@ -149,7 +149,7 @@ fun WeeklySummaryDialog(
 
                             // Fun/Entertaining Message (Primary) - uses EInkTheme.AiProcessingFeedback defaults
                             RotatingFunMessage(
-                                messageProvider = { AiFeedbackMessages.getRandomSummarizationMessage() }
+                                messageProvider = { AiFeedbackMessages.getRandomReviewMessage() }
                             )
 
                             // Technical Stage (Secondary)
