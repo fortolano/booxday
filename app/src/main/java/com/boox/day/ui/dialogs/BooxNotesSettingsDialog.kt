@@ -61,6 +61,7 @@ import com.boox.day.data.db.UnifiedOcrRepository
 import com.boox.day.data.db.UnifiedOcrStatistics
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.datastore.OcrSettings
+import com.boox.day.data.datastore.SetupChecklistStore
 import com.boox.day.ocr.IndexingStatus
 import com.boox.day.ocr.OcrQuotaManager
 import com.boox.day.ocr.UnifiedOcrIdleProcessor
@@ -106,6 +107,12 @@ fun BooxNotesSettingsDialog(
     // Check current permission status
     var hasPermission by remember {
         mutableStateOf(checkAllFilesAccessPermission())
+    }
+
+    // Oct 2026: the Settings-menu dot clears once file access is given, from Settings or the
+    // toolbar (it used to clear on any close, even with nothing set up)
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) SetupChecklistStore.mark(localContext) { it.copy(booxNotesConfigured = true) }
     }
 
     // Boox Notes integration is now baseline-on for all users.

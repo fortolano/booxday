@@ -1,6 +1,8 @@
 package com.boox.day.data.datastore
 
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.serialization.Serializable
 
 
@@ -22,6 +24,12 @@ object GlobalAppSettings {
     fun update(settings: AppSettings) {
         _current.value = settings
     }
+
+    /**
+     * True once MainActivity has loaded the saved settings (or found none) (Oct 2026). Until then
+     * [current] holds defaults: the main screen waits (Router), so nothing shows or saves them.
+     */
+    var loaded by mutableStateOf(false)
 
     // Session-level state (not persisted) - tracks if Boox Notes initial scan is complete.
     // NotesButton stays in setup/preparing flow until this becomes true.

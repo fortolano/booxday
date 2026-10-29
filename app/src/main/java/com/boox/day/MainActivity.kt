@@ -159,6 +159,11 @@ class MainActivity : ComponentActivity() {
         val quickPrefs = getSharedPreferences(QUICK_SETTINGS_PREFS, MODE_PRIVATE)
         val showWelcomeCompleted = quickPrefs.getBoolean(SHOW_WELCOME_COMPLETED_KEY, false)
 
+        // Oct 2026: a recreated activity (config change) keeps the settings already in memory. Putting
+        // defaults back, or reloading the database copy (written after memory), could undo the user's
+        // latest changes and brought dismissed setup dots back
+        val appContext = applicationContext
+        if (!GlobalAppSettings.loaded) {
         // Initialize with defaults + correct showWelcome flag for immediate Router use
         val initialSettings = AppSettings(version = 1, showWelcome = !showWelcomeCompleted)
 
@@ -166,7 +171,6 @@ class MainActivity : ComponentActivity() {
         GlobalAppSettings.update(initialSettings)
 
         // Load full settings async from Room database
-        val appContext = applicationContext
         this.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 // The user's OpenRouter key lives in encrypted storage (Phase 3, Oct 2026), read
@@ -206,7 +210,11 @@ class MainActivity : ComponentActivity() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load full settings: ${e.message ?: e.javaClass.simpleName}", e)
+            } finally {
+                // The main screen waits for this (Router): set on every path, found, none or failed
+                GlobalAppSettings.loaded = true
             }
+        }
         }
 
         EditorSettingCacheManager.init(applicationContext)

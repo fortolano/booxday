@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import com.boox.day.data.datastore.SetupChecklistStore
 import com.boox.day.ui.components.AiModelsCard
 import com.boox.day.ui.components.ApiKeySettingsCard
 import com.boox.day.ui.components.EInkToggle
@@ -63,6 +65,12 @@ fun AiSettingsDialog(
     onOpenAiPreferences: () -> Unit
 ) {
     val context = LocalContext.current
+
+    // Oct 2026: opening AI Settings clears its Settings-menu dot (it only cleared on the AI switch,
+    // so most users kept a "1" on the gear); covers the menu, the key popup and the calendar notice
+    LaunchedEffect(Unit) {
+        SetupChecklistStore.mark(context) { it.copy(aiSettingsReviewed = true) }
+    }
 
     // E-Ink: Use Popup instead of Dialog to avoid system scrim/dimming
     Popup(
