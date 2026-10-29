@@ -3925,33 +3925,18 @@ fun MainScreen(
                 },
                 onWipeAllData = {
                     showDataBackupDialog = false
+                    // Oct 2026: Android erases everything and the app closes (AppDataWipe). If it refuses,
+                    // say so and open App info for Clear storage, never "wiped" when nothing was
                     scope.launch(Dispatchers.IO) {
-                        try {
-                            com.boox.day.data.PageDataManager.clearAllPages()
+                        if (!com.boox.day.data.AppDataWipe.wipe(context)) {
                             withContext(Dispatchers.Main) {
                                 SnackState.globalSnackFlow.tryEmit(
                                     SnackConf(
-                                        text = "All data wiped. Please restart the app.",
+                                        text = "Couldn't erase automatically. In App info, tap Storage, then Clear storage.",
                                         duration = SnackConf.DURATION_ERROR
                                     )
                                 )
-                                val pm = context.packageManager
-                                val clearIntent = android.content.Intent(
-                                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                    android.net.Uri.fromParts("package", context.packageName, null)
-                                )
-                                clearIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                context.startActivity(clearIntent)
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error wiping data: ${e.message}", e)
-                            withContext(Dispatchers.Main) {
-                                SnackState.globalSnackFlow.tryEmit(
-                                    SnackConf(
-                                        text = "Failed to wipe data: ${e.message}",
-                                        duration = SnackConf.DURATION_ERROR
-                                    )
-                                )
+                                NotificationPermissionHelper.openAppSettings(context)
                             }
                         }
                     }

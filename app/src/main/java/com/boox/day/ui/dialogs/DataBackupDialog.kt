@@ -988,7 +988,7 @@ private fun MaintenanceContent(
             if (onWipeAllData != null) {
                 SettingCard(
                     title = "Wipe All App Data",
-                    description = "Permanently delete ALL data including memos, tasks, strokes, events, notes, and settings. This action CANNOT be undone."
+                    description = "Erase everything BooxDay keeps on this tablet: memos, tasks, events, Boox Notes links, settings and your OpenRouter key. BooxDay then closes. This CANNOT be undone."
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -1082,15 +1082,29 @@ private fun WipeAllDataConfirmationDialog(
                 Spacer(modifier = Modifier.height(EInkTheme.Global.spacingLarge))
 
                 Text(
-                    text = "This will permanently delete:\n" +
-                            "• All memos and handwritten notes\n" +
-                            "• All tasks and task pages\n" +
-                            "• All synced calendar events\n" +
-                            "• All local events\n" +
-                            "• All Boox Notes links\n" +
-                            "• All app settings",
+                    text = "This erases from this tablet:\n" +
+                            "• Memos and handwriting\n" +
+                            "• Tasks and task pages\n" +
+                            "• Events, and the copies of your synced calendars\n" +
+                            "• Boox Notes links and the search index\n" +
+                            "• Settings, AI preferences and your OpenRouter key\n" +
+                            "• Calendar account sign-ins",
                     fontSize = EInkTheme.Typography.bodyMedium,
                     color = EInkTheme.Colors.primary,
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(EInkTheme.Global.spacingLarge))
+
+                // Oct 2026: say what stays, so nobody believes it is gone
+                Text(
+                    text = "Not erased: your Google or Outlook calendars online, Google Drive backups and " +
+                            "Android's own backup, files saved to Documents or Downloads (exports, backups, " +
+                            "daily notes), and your OpenRouter key in your OpenRouter account " +
+                            "(delete it at openrouter.ai/settings/keys).\n\nBooxDay closes when it's done.",
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    color = EInkTheme.Colors.darkGray,
                     textAlign = TextAlign.Start,
                     modifier = Modifier.fillMaxWidth()
                 )

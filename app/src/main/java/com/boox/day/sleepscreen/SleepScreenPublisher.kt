@@ -124,6 +124,7 @@ object SleepScreenPublisher {
     fun withdraw(context: Context) {
         prefs(context).edit().clear().apply()
         deleteImages(keep = emptySet())
+        runCatching { File(folder(), "$NAME_PREFIX.tmp").delete() }  // left by a write that was cut short
     }
 
     /** Deletes BooxDay's sleep images, in its folder and BOOX's copies in Pictures/, except [keep]. */
