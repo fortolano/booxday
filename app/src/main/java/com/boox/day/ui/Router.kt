@@ -21,7 +21,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -106,6 +108,9 @@ fun Router() {
         )
         // Let the splash paint once before composing the heavy navigation tree underneath it.
         withFrameNanos { }
+        // Oct 2026: not before the saved settings are in (MainActivity). On defaults the main screen
+        // showed a wrong setup badge and its writers could save defaults over the user's settings
+        snapshotFlow { GlobalAppSettings.loaded }.first { it }
         shouldComposeNavHost = true
     }
 
@@ -189,6 +194,9 @@ fun Router() {
                 pagesJob.join()
             }
         }
+        // The main screen appears only after the settings load (see shouldComposeNavHost): keep
+        // the splash up until then, never a blank screen
+        snapshotFlow { GlobalAppSettings.loaded }.first { it }
 
         logRouter.i("PERF: Splash pre-loading COMPLETE (${System.currentTimeMillis() - startTime}ms)")
         if (shouldWaitForCanvasHandoff) {

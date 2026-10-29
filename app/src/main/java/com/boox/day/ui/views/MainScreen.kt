@@ -212,6 +212,7 @@ import java.time.temporal.WeekFields
 import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.datastore.SetupChecklist
+import com.boox.day.data.datastore.SetupChecklistStore
 import com.boox.day.viewmodel.CalendarSyncViewModel
 import com.boox.day.editor.utils.refreshScreen
 import com.boox.day.viewmodel.EventsViewModel
@@ -445,8 +446,9 @@ fun MainScreen(
     var defaultSyncEnabled by remember { mutableStateOf(GlobalAppSettings.current.defaultSyncEnabled) }
 
     // First-run onboarding state (Play Store launch - Jan 2026)
-    var onboardingDismissedAt by remember { mutableStateOf(GlobalAppSettings.current.onboardingDismissedAt) }
-    var setupChecklist by remember { mutableStateOf(GlobalAppSettings.current.setupChecklist) }
+    // Oct 2026: read live (not copied once), so a value saved elsewhere shows at once
+    val onboardingDismissedAt by remember { derivedStateOf { GlobalAppSettings.current.onboardingDismissedAt } }
+    val setupChecklist by remember { derivedStateOf { GlobalAppSettings.current.setupChecklist } }
 
     // Keep startup raw drawing gate in sync with welcome popup visibility.
     LaunchedEffect(onboardingDismissedAt) {
@@ -576,15 +578,7 @@ fun MainScreen(
     // Helper to mark a setup checklist item as complete (clears badge)
     // Used by settings dialogs to clear their respective badges when user interacts
     val markSetupComplete: ((SetupChecklist) -> SetupChecklist) -> Unit = { update ->
-        val newChecklist = update(setupChecklist)
-        if (newChecklist != setupChecklist) {
-            setupChecklist = newChecklist
-            val newSettings = GlobalAppSettings.current.copy(setupChecklist = newChecklist)
-            GlobalAppSettings.update(newSettings)
-            scope.launch(Dispatchers.IO) {
-                appRepository.kvProxy.setAppSettings(newSettings)
-            }
-        }
+        SetupChecklistStore.mark(context, update)
     }
 
     // OCR startup fixes - crash recovery and bug fixes
@@ -3762,7 +3756,6 @@ fun MainScreen(
             WelcomePopup(
                 onDismiss = {
                     val timestamp = System.currentTimeMillis()
-                    onboardingDismissedAt = timestamp
                     DrawCanvas.notifyWelcomeDismissed()
                     val newSettings = GlobalAppSettings.current.copy(onboardingDismissedAt = timestamp)
                     GlobalAppSettings.update(newSettings)
@@ -4036,10 +4029,8 @@ fun MainScreen(
         // Boox Notes Settings Dialog
         if (showBooxNotesSettingsDialog) {
             com.boox.day.ui.dialogs.BooxNotesSettingsDialog(
-                onDismiss = {
-                    showBooxNotesSettingsDialog = false
-                    markSetupComplete { it.copy(booxNotesConfigured = true) }
-                },
+                // Its setup dot clears when file access is given (inside the dialog), not on close
+                onDismiss = { showBooxNotesSettingsDialog = false },
                 booxNotesEnabled = booxNotesEnabled,
                 onBooxNotesEnabledChanged = {
                     booxNotesEnabled = true
@@ -4050,7 +4041,6 @@ fun MainScreen(
                     scope.launch(Dispatchers.IO) {
                         appRepository.kvProxy.setAppSettings(newSettings)
                     }
-                    markSetupComplete { it.copy(booxNotesConfigured = true) }
                 },
                 onScanNeeded = triggerBooxNotesScan,
                 onIndexNow = {
