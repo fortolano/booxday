@@ -160,15 +160,19 @@ object AiClient {
 
                 // Use content if available, otherwise fall back to reasoning field
                 val actualContent = when {
-                    !content.isNullOrBlank() -> content
-                    // Oct 2026: the model spent the whole output limit reasoning. Its reasoning is
-                    // not the answer (it could end up in a note), so the next model is tried.
+                    // Cut off at the output limit: the next model is tried. Oct 2026: reasoning is
+                    // not the answer (it could end up in a note). 29 Oct 2026: a partly written
+                    // answer isn't one either: a cut-off clean-up answer can drop the end of the
+                    // user's text, and a cut-off Smart Suggestions answer showed half a suggestion
+                    // or "Could not parse suggestions".
                     choice?.finishReason == "length" -> {
-                        Log.w(TAG, "Answer cut off: output limit used up before any answer (${reasoning?.length ?: 0} chars of reasoning)")
+                        Log.w(TAG, "Answer cut off at the output limit (${content?.length ?: 0} chars of answer, ${reasoning?.length ?: 0} chars of reasoning)")
                         return AiResponse.Error.NoContent(
-                            "The answer was cut off: the model used all its output tokens before answering."
+                            if (content.isNullOrBlank()) "The answer was cut off: the model used all its output tokens before answering."
+                            else "The answer was cut off at the model's output limit."
                         )
                     }
+                    !content.isNullOrBlank() -> content
                     !reasoning.isNullOrBlank() -> {
                         Log.d(TAG, "Content was empty, using reasoning field instead (${reasoning.length} chars)")
                         reasoning
@@ -268,8 +272,12 @@ object AiClient {
 
         // Build reasoning config at ROOT level
         // Priority: 1. overrideReasoning (set by the feature), 2. the user's level for a model they
-        // picked (Oct 2026; none = the model's own default), 3. enableReasoning flag
-        val pickedModel = (request.model as? AiModel.Custom)?.takeIf { it.userChoice }
+        // picked (Oct 2026; none = the model's own default), 3. the level BooxDay's own model was
+        // tested at (29 Oct 2026; "reasoning on" let them think through the whole output limit),
+        // 4. enableReasoning flag
+        val customModel = request.model as? AiModel.Custom
+        val pickedModel = customModel?.takeIf { it.userChoice }
+        val testedLevel = customModel?.takeIf { !it.userChoice }?.reasoning
         val reasoning = when {
             request.overrideReasoning != null -> {
                 Log.d(TAG, "Using overrideReasoning: ${request.overrideReasoning}")
@@ -278,6 +286,10 @@ object AiClient {
             pickedModel != null -> {
                 Log.d(TAG, "Using the reasoning level picked for ${pickedModel.id}: ${pickedModel.reasoning}")
                 pickedModel.reasoning
+            }
+            testedLevel != null -> {
+                Log.d(TAG, "Using BooxDay's level for ${request.model.id}: $testedLevel")
+                testedLevel
             }
             // If enableReasoning is set but no override, use enabled() as generic fallback
             // The server config should provide proper params; this is just a safety net

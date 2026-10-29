@@ -45,21 +45,21 @@ class ModelConfigProviderTest {
 
     @Test
     fun `models OpenRouter no longer lists are skipped`() {
-        // Gemini 3 Flash Preview retired: planning starts with the next model
-        listed("nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", "openai/gpt-5-nano")
+        // Gemini 3.8 Flash retired: planning starts with the next model
+        listed("openai/gpt-6-luna", "google/gemini-3.1-flash-lite", "openai/gpt-5-nano")
         assertEquals(
-            listOf("nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free"),
+            listOf("openai/gpt-6-luna", "google/gemini-3.1-flash-lite"),
             ModelConfigProvider.getReasoningFallbackChain().map { it.id }
         )
         // A list older than two weeks is not trusted to say a model is gone
         listed("openai/gpt-5-nano", ageMs = 15L * 24 * 60 * 60 * 1000)
-        assertEquals("google/gemini-3-flash-preview", ModelConfigProvider.getReasoningFallbackChain().first().id)
+        assertEquals("google/gemini-3.8-flash", ModelConfigProvider.getReasoningFallbackChain().first().id)
     }
 
     @Test
     fun `models the account blocks are skipped, but never down to nothing`() {
         listed(
-            "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", "google/gemini-3-flash-preview",
+            "google/gemma-4-26b-a4b-it:free", "google/gemma-4-31b-it:free", "google/gemini-3.8-flash",
             allowed = listOf("google/gemma-4-31b-it:free")
         )
         OpenRouterAccount.onPaidRequestRefused()
@@ -72,13 +72,13 @@ class ModelConfigProviderTest {
     @Test
     fun `a pick OpenRouter dropped is skipped and the card says so`() {
         pick(AiJob.WRITING, AiModelChoice(id = "old/retired-model", name = "Retired Model"))
-        listed("openai/gpt-5-nano", "google/gemini-3.1-flash-lite", "nvidia/nemotron-3-super-120b-a12b:free")
-        assertEquals("openai/gpt-5-nano", ModelConfigProvider.getTextFallbackChain().first().id)
+        listed("openai/gpt-6-luna", "google/gemini-3.1-flash-lite", "google/gemini-3.8-flash")
+        assertEquals("openai/gpt-6-luna", ModelConfigProvider.getTextFallbackChain().first().id)
         val inUse = ModelConfigProvider.modelInUse(AiJob.WRITING)
         assertFalse(inUse.isUserChoice)
         assertEquals("Retired Model", inUse.unavailablePick)
         assertEquals(ModelConfigProvider.PickProblem.RETIRED, inUse.unavailableReason)
-        assertEquals("GPT-5 Nano", ModelConfigProvider.defaultModel(AiJob.WRITING).displayName)
+        assertEquals("GPT-6 Luna", ModelConfigProvider.defaultModel(AiJob.WRITING).displayName)
     }
 
     /** A model OpenRouter lists that can do every job. */
@@ -93,10 +93,10 @@ class ModelConfigProviderTest {
         // Go 10.3, 27 Oct 2026: "Free model training violation (account settings)"
         pick(AiJob.HANDWRITING, AiModelChoice(id = "nvidia/nemotron-3.5-super-vl:free", name = "Nemotron 3.5 Super VL (free)"))
         OpenRouterModelCatalog.setSnapshotForTest(CatalogSnapshot(
-            System.currentTimeMillis(), listOf(able("nvidia/nemotron-3.5-super-vl:free", 0), able("openai/gpt-5-nano", 1)),
-            allowedIds = listOf("openai/gpt-5-nano")
+            System.currentTimeMillis(), listOf(able("nvidia/nemotron-3.5-super-vl:free", 0), able("openai/gpt-6-luna", 1)),
+            allowedIds = listOf("openai/gpt-6-luna")
         ))
-        assertEquals("openai/gpt-5-nano", ModelConfigProvider.getVisionFallbackChain().first().id)
+        assertEquals("openai/gpt-6-luna", ModelConfigProvider.getVisionFallbackChain().first().id)
         assertEquals(ModelConfigProvider.PickProblem.BLOCKED, ModelConfigProvider.modelInUse(AiJob.HANDWRITING).unavailableReason)
     }
 
@@ -124,7 +124,7 @@ class ModelConfigProviderTest {
     fun `without a pick every job uses BooxDay's choice`() {
         pick(AiJob.WRITING, null)
         assertEquals(
-            listOf("openai/gpt-5-nano", "google/gemini-3.1-flash-lite", "nvidia/nemotron-3-super-120b-a12b:free"),
+            listOf("openai/gpt-6-luna", "google/gemini-3.1-flash-lite", "google/gemini-3.8-flash"),
             ModelConfigProvider.getTextFallbackChain().map { it.id }
         )
         for (job in AiJob.entries) {
@@ -136,7 +136,7 @@ class ModelConfigProviderTest {
     fun `the retired voice model is gone and voice has a backup`() {
         val voice = ModelConfigProvider.getAudioFallbackChain()
         assertFalse("google/gemini-2.0-flash-lite-001" in voice.map { it.id })
-        assertEquals(2, voice.size)
+        assertEquals(listOf("google/gemini-3.1-flash-lite", "google/gemini-3.5-flash-lite"), voice.map { it.id })
         assertTrue(voice.all { AiCapability.AUDIO in it.capabilities })
     }
 
@@ -165,7 +165,7 @@ class ModelConfigProviderTest {
         )
         val chain = ModelConfigProvider.getTextFallbackChain()
         assertEquals(
-            listOf("google/gemini-3.1-flash-lite", "openai/gpt-5-nano", "nvidia/nemotron-3-super-120b-a12b:free"),
+            listOf("google/gemini-3.1-flash-lite", "openai/gpt-6-luna", "google/gemini-3.8-flash"),
             chain.map { it.id }
         )
         val picked = chain.first() as AiModel.Custom
@@ -205,9 +205,9 @@ class ModelConfigProviderTest {
     @Test
     fun `the AI Models card shows the model each job uses first`() {
         pick(AiJob.WRITING, AiModelChoice(id = "anthropic/claude-haiku-5.5", name = "Claude Haiku 5.5", lab = "Anthropic"))
-        assertEquals(ModelConfigProvider.InUse("GPT-5 Nano", false, false), ModelConfigProvider.modelInUse(AiJob.HANDWRITING))
+        assertEquals(ModelConfigProvider.InUse("GPT-6 Luna", false, false), ModelConfigProvider.modelInUse(AiJob.HANDWRITING))
         assertEquals(ModelConfigProvider.InUse("Claude Haiku 5.5", true, false), ModelConfigProvider.modelInUse(AiJob.WRITING))
-        assertEquals("Gemini 3 Flash Preview", ModelConfigProvider.modelInUse(AiJob.PLANNING).name)
+        assertEquals("Gemini 3.8 Flash", ModelConfigProvider.modelInUse(AiJob.PLANNING).name)
 
         // No credit: free models by name; search indexing has none and waits
         OpenRouterAccount.onPaidRequestRefused()
@@ -226,5 +226,41 @@ class ModelConfigProviderTest {
         )!!
         assertTrue(picked.userChoice)
         assertNull(picked.reasoning)
+    }
+
+    @Test
+    fun `with credit BooxDay's choice is paid models only, each with its tested reasoning level`() {
+        // 29 Oct 2026: "reasoning on" let GPT-5 Nano and Gemini 3 Flash Preview think through the
+        // whole output limit, and the free backups were rate-limited on every try
+        for (job in AiJob.entries) {
+            for (model in ModelConfigProvider.getChain(job)) {
+                assertFalse("$job: ${model.id} is free", OpenRouterAccount.isFreeModel(model.id))
+                val custom = model as AiModel.Custom
+                assertFalse(custom.userChoice)
+                assertTrue("$job: ${model.id} has no level", custom.reasoning != null)
+                assertEquals(job.capabilities, custom.capabilities)
+            }
+        }
+        assertEquals(ReasoningConfig.withEffort("low"), (ModelConfigProvider.getReasoningFallbackChain().first() as AiModel.Custom).reasoning)
+        assertEquals(ReasoningConfig.withEffort("low"), (ModelConfigProvider.getTextFallbackChain().first() as AiModel.Custom).reasoning)
+        assertEquals(ReasoningConfig.disabled(), (ModelConfigProvider.getAudioFallbackChain().first() as AiModel.Custom).reasoning)
+        assertEquals(
+            listOf("google/gemini-3.8-flash", "openai/gpt-6-luna", "google/gemini-3.1-flash-lite"),
+            ModelConfigProvider.getReasoningFallbackChain().map { it.id }
+        )
+    }
+
+    @Test
+    fun `free models without credit send no level of their own`() {
+        OpenRouterAccount.onPaidRequestRefused()
+        for (job in listOf(AiJob.HANDWRITING, AiJob.VOICE, AiJob.WRITING, AiJob.PLANNING)) {
+            for (model in ModelConfigProvider.getChain(job)) {
+                assertNull("$job: ${model.id}", (model as AiModel.Custom).reasoning)
+            }
+        }
+        // The retired Nemotron 3 Super is gone from every list
+        assertFalse(AiJob.entries.any { job ->
+            listOf(true, false).any { free -> ModelConfigProvider.defaultChain(job, free).any { it.id.startsWith("nvidia/nemotron-3-super") } }
+        })
     }
 }

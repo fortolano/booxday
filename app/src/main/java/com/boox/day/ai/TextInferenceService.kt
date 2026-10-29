@@ -117,13 +117,13 @@ data class InferenceConfig(
             retryDelayMs: Long = 500L,
             trackCorrections: Boolean = false
         ): InferenceConfig {
-            // Get reasoning models from server config
-            val reasoningModels = ModelConfigProvider.getReasoningFallbackChain()
-            val primaryModel = reasoningModels.firstOrNull() ?: AiModel.GptOss120B
-            val fallbackModels = reasoningModels.drop(1)
+            // The writing models, as executeWithFallback uses
+            val textModels = ModelConfigProvider.getTextFallbackChain()
+            val primaryModel = textModels.firstOrNull() ?: AiModel.GptOss120B
+            val fallbackModels = textModels.drop(1)
 
             log.d("InferenceConfig.fromServerConfig: " +
-                "models=[${reasoningModels.map { it.id }.joinToString()}]")
+                "models=[${textModels.map { it.id }.joinToString()}]")
 
             return InferenceConfig(
                 primaryModel = primaryModel,
@@ -372,8 +372,9 @@ object TextInferenceService {
         context: InferenceContext,
         config: InferenceConfig
     ): InferenceResult {
-        // Use server-controlled reasoning models (Rule of 3+3)
-        val models = ModelConfigProvider.getReasoningFallbackChain()
+        // The writing models (Rule of 3+3). 29 Oct 2026: this used the planning models, whose
+        // reasoning took 16-18 s (3,930 tokens) to fix five words; GPT-6 Luna does it in about 1 s.
+        val models = ModelConfigProvider.getTextFallbackChain()
         val systemPrompt = buildSystemPrompt(context, config.trackCorrections)
         val userPrompt = buildUserPrompt(rawText)
 

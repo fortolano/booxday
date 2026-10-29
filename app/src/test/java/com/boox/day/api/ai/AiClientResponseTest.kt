@@ -36,6 +36,14 @@ class AiClientResponseTest {
     }
 
     @Test
+    fun `an answer cut off part way is an error too, so the next model answers`() {
+        // 29 Oct 2026: Gemini 3 Flash Preview, Smart Suggestions, cut off after 150 tokens of answer
+        val partial = """{"suggestions":[{"text":"Review the ClickUp summary","reason":"Prep for the 15"""
+        val result = AiClient.handleSuccessResponse(answer(partial, "Thinking about the meetings...", "length"), "test/model")
+        assertTrue(result is AiResponse.Error.NoContent)
+    }
+
+    @Test
     fun `a finished answer with only reasoning still uses it (older models)`() {
         val result = AiClient.handleSuccessResponse(answer(null, "The text says hello", "stop"), "test/model")
         assertEquals("The text says hello", (result as AiResponse.Success).data)
@@ -124,7 +132,22 @@ class AiClientResponseTest {
     }
 
     @Test
-    fun `BooxDay's models keep today's reasoning, and a feature's override still wins`() {
+    fun `BooxDay's models send their tested level, and a feature's override still wins`() {
+        // 29 Oct 2026: "reasoning on" let BooxDay's models think through the whole output limit
+        val tested = aiRequest {
+            model(model(userChoice = false, reasoning = ReasoningConfig.withEffort("low")))
+            userMessage("Hi")
+            enableReasoning()
+        }
+        assertEquals(ReasoningConfig.withEffort("low"), AiClient.buildApiRequest(tested).reasoning)
+        // Also when the feature doesn't ask for reasoning
+        val notAsked = aiRequest {
+            model(model(userChoice = false, reasoning = ReasoningConfig.disabled()))
+            userMessage("Hi")
+        }
+        assertEquals(ReasoningConfig.disabled(), AiClient.buildApiRequest(notAsked).reasoning)
+
+        // A model without a level (the free ones) reasons as the feature asks, as before
         val asked = aiRequest {
             model(model(userChoice = false))
             userMessage("Hi")

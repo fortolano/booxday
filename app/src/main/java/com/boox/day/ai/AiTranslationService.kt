@@ -30,7 +30,7 @@ private val log = TaggedLog("AiTranslationService")
  *
  * ```
  * Stage 1: Content Extraction
- *   - Strokes → Vision OCR (GPT-5 Nano)
+ *   - Strokes → Vision OCR (the handwriting models, ModelConfigProvider)
  *   - TextAnnotations → Direct text extraction (no AI needed)
  *
  * Stage 2: Semantic Inference (TextInferenceService)
