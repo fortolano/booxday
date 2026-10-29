@@ -102,7 +102,16 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
         startingConnect = true
         entryMessage = null
         scope.launch {
-            OpenRouterLinks.open(context, OpenRouterConnect.begin(context))
+            OpenRouterLinks.connect(context)
+            startingConnect = false
+        }
+    }
+
+    fun retryConnect() {
+        if (startingConnect) return
+        startingConnect = true
+        scope.launch {
+            OpenRouterConnect.retry(context)
             startingConnect = false
         }
     }
@@ -234,13 +243,33 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                     else -> StatusLine(Icons.Default.Info, if (replacing) "Connect again, or paste the new key" else "No key saved")
                 }
 
-                // Oct 2026: OpenRouter's sign-in for apps, so nothing has to be copied on e-ink
-                ActionButton(
-                    text = "Connect OpenRouter",
-                    isLoading = startingConnect || connectStatus == OpenRouterConnect.Status.Connecting,
-                    onClick = { startConnect() },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Oct 2026: OpenRouter's sign-in for apps, so nothing has to be copied on e-ink.
+                // No spinner (e-ink): the label says it's working and taps wait
+                val busy = startingConnect || connectStatus == OpenRouterConnect.Status.Connecting
+                if (connectStatus is OpenRouterConnect.Status.Failed && connectStatus.canRetry && !busy) {
+                    // Network or server trouble: the code is kept, Try Again finishes without the browser
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
+                    ) {
+                        EinkSecondaryButton(
+                            text = "Start Again",
+                            onClick = { startConnect() },
+                            modifier = Modifier.weight(0.4f)
+                        )
+                        ActionButton(
+                            text = "Try Again",
+                            onClick = { retryConnect() },
+                            modifier = Modifier.weight(0.6f)
+                        )
+                    }
+                } else {
+                    ActionButton(
+                        text = if (busy) "Connecting…" else "Connect OpenRouter",
+                        onClick = { if (!busy) startConnect() },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 Text(
                     text = "Opens OpenRouter in the browser: sign in, tap Authorize, then tap Open BooxDay.",
                     fontSize = EInkTheme.Typography.bodySmall,

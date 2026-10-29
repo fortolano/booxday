@@ -59,18 +59,31 @@ class OpenRouterConnectTest {
     }
 
     @Test
-    fun `a code is only used with the connection started here, within 10 minutes`() {
+    fun `a code is only used with the connection started here`() {
         val now = 1_000_000_000L
         val pending = OpenRouterConnect.Pending("verifier", "state-1", now - 60_000)
-        assertNull(OpenRouterConnect.problemWith(pending, "code", "state-1", now, checkState = true))
-        assertNotNull(OpenRouterConnect.problemWith(pending, "code", "other", now, checkState = true))
-        assertNotNull(OpenRouterConnect.problemWith(pending, "code", null, now, checkState = true))
-        assertNotNull(OpenRouterConnect.problemWith(null, "code", "state-1", now, checkState = true))
-        assertNotNull(OpenRouterConnect.problemWith(pending, "", "state-1", now, checkState = true))
-        val old = pending.copy(createdAtMs = now - OpenRouterConnect.CODE_LIFETIME_MS - 1)
-        assertNotNull(OpenRouterConnect.problemWith(old, "code", "state-1", now, checkState = true))
+        assertNull(OpenRouterConnect.problemWith(pending, "code", "state-1", checkState = true))
+        assertNotNull(OpenRouterConnect.problemWith(pending, "code", "other", checkState = true))
+        assertNotNull(OpenRouterConnect.problemWith(pending, "code", null, checkState = true))
+        assertNotNull(OpenRouterConnect.problemWith(null, "code", "state-1", checkState = true))
+        assertNotNull(OpenRouterConnect.problemWith(pending, "", "state-1", checkState = true))
+        // Oct 2026: no local timer. A slow first sign-up still finishes; OpenRouter's 403 says when a code expired
+        val old = pending.copy(createdAtMs = now - 45 * 60_000)
+        assertNull(OpenRouterConnect.problemWith(old, "code", "state-1", checkState = true))
         // A pasted code has no state: the verifier alone protects it
-        assertNull(OpenRouterConnect.problemWith(pending, "code", null, now, checkState = false))
+        assertNull(OpenRouterConnect.problemWith(pending, "code", null, checkState = false))
+    }
+
+    @Test
+    fun `network and server trouble can be tried again, a refused code can't`() {
+        val ok = OpenRouterConnect.exchangeResultFor(200, """{"key":"sk-or-v1-abc"}""")
+        assertTrue(ok is OpenRouterConnect.Exchange.Key)
+        val refused = OpenRouterConnect.exchangeResultFor(403, "") as OpenRouterConnect.Exchange.Error
+        assertFalse(refused.retryable)
+        val server = OpenRouterConnect.exchangeResultFor(502, "") as OpenRouterConnect.Exchange.Error
+        assertTrue(server.retryable)
+        val noKey = OpenRouterConnect.exchangeResultFor(200, "{}") as OpenRouterConnect.Exchange.Error
+        assertFalse(noKey.retryable)
     }
 
     @Test

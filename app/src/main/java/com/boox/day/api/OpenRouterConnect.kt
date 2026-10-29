@@ -14,6 +14,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -55,16 +57,24 @@ object OpenRouterConnect {
     const val CALLBACK_HOST = "openrouter"
     const val KEY_LABEL = "BooxDay"
 
-    /** OpenRouter's codes expire after 10 minutes, so the verifier is kept that long */
-    const val CODE_LIFETIME_MS = 10 * 60 * 1000L
+    /**
+     * How long a started connection counts as pending, to tell a pasted code from a key (Oct 2026).
+     * Expiry itself is OpenRouter's answer: its code lasts 10 minutes from when it is issued, which
+     * can be long after the Connect tap when the user first creates an account.
+     */
+    const val PENDING_WINDOW_MS = 60 * 60 * 1000L
 
     private const val PREFS = "openrouter_connect"
     private const val PREF_VERIFIER = "verifier"
     private const val PREF_STATE = "state"
     private const val PREF_CREATED = "created_at_ms"
+    private const val PREF_CODE = "code"
 
-    /** A sign-in in progress: the one-time secret and the state sent to OpenRouter. */
-    data class Pending(val verifier: String, val state: String, val createdAtMs: Long)
+    /**
+     * A sign-in in progress: the one-time secret and the state sent to OpenRouter. [code] is kept
+     * after a network error, so Try Again can finish without another trip to the browser.
+     */
+    data class Pending(val verifier: String, val state: String, val createdAtMs: Long, val code: String? = null)
 
     sealed class Status {
         object Idle : Status()
@@ -72,7 +82,9 @@ object OpenRouterConnect {
 
         /** Key saved. [checked] = OpenRouter answered the key check (it can be offline). */
         data class Connected(val checked: Boolean, val isFreeTier: Boolean, val limitRemaining: Double?) : Status()
-        data class Failed(val message: String) : Status()
+
+        /** [canRetry]: the code is kept and [retry] can try again (network or server trouble). */
+        data class Failed(val message: String, val canRetry: Boolean = false) : Status()
     }
 
     /** What the last connection did; the key card shows it (Compose state). */
@@ -119,12 +131,23 @@ object OpenRouterConnect {
     fun looksLikeKey(text: String): Boolean = text.trim().startsWith("sk-or-")
 
     /** Why a returned code can't be used with [pending], or null when it can. */
-    internal fun problemWith(pending: Pending?, code: String?, state: String?, nowMs: Long, checkState: Boolean): String? = when {
+    internal fun problemWith(pending: Pending?, code: String?, state: String?, checkState: Boolean): String? = when {
         code.isNullOrBlank() -> "OpenRouter didn't send a connection code. Tap Connect OpenRouter again."
         pending == null -> "This connection wasn't started on this tablet, or it already finished. Tap Connect OpenRouter again."
-        nowMs - pending.createdAtMs > CODE_LIFETIME_MS -> "The connection timed out (10 minutes). Tap Connect OpenRouter again."
         checkState && state != pending.state -> "This connection doesn't match the one started here. Tap Connect OpenRouter again."
         else -> null
+    }
+
+    /** What an exchange answer means; network and server trouble can be tried again with the same code. */
+    internal fun exchangeResultFor(httpCode: Int, body: String): Exchange = when {
+        httpCode in 200..299 -> keyFromExchange(body)?.let { Exchange.Key(it) }
+            ?: Exchange.Error("OpenRouter's answer had no key. Tap Connect OpenRouter again.", retryable = false)
+        httpCode == 403 -> Exchange.Error(
+            "OpenRouter says this connection code has expired or was already used. Tap Connect OpenRouter again.",
+            retryable = false
+        )
+        httpCode >= 500 -> Exchange.Error("OpenRouter is having trouble right now. Tap Try Again in a moment.", retryable = true)
+        else -> Exchange.Error("OpenRouter couldn't finish the connection (error $httpCode). Tap Connect OpenRouter again.", retryable = false)
     }
 
     internal fun exchangeBody(code: String, verifier: String): String = buildJsonObject {
@@ -187,10 +210,10 @@ object OpenRouterConnect {
         return scope.async { finish(appContext, parseLink(link), checkState = true) }
     }
 
-    /** True while a connection started here can still be finished (10 minutes). Off the main thread. */
+    /** True while a connection started here can still be finished. Off the main thread. */
     suspend fun hasPending(context: Context): Boolean = withContext(Dispatchers.IO) {
         val pending = loadPending(context.applicationContext)
-        pending != null && System.currentTimeMillis() - pending.createdAtMs <= CODE_LIFETIME_MS
+        pending != null && System.currentTimeMillis() - pending.createdAtMs <= PENDING_WINDOW_MS
     }
 
     /** Finishes with a connection code the user pasted from the return page. */
@@ -199,21 +222,47 @@ object OpenRouterConnect {
             finish(context.applicationContext, mapOf("code" to code.trim()), checkState = false)
         }
 
-    private suspend fun finish(context: Context, params: Map<String, String>?, checkState: Boolean): Status {
-        status = Status.Connecting
+    /** Try Again after network or server trouble: the same code, no browser. */
+    suspend fun retry(context: Context): Status = withContext(Dispatchers.IO) {
+        val app = context.applicationContext
+        val code = loadPending(app)?.code
+            ?: return@withContext fail("This connection can't be finished any more. Tap Connect OpenRouter again.")
+        finish(app, mapOf("code" to code), checkState = false)
+    }
+
+    /** Forgets a started connection (the browser didn't open). */
+    suspend fun discardPending(context: Context) = withContext(Dispatchers.IO) { clearPending(context.applicationContext) }
+
+    /** Shown on the key card when a connection couldn't even start. */
+    fun reportProblem(message: String) {
+        fail(message)
+    }
+
+    // One exchange at a time: the return screen can run twice if Android recreates it
+    private val finishing = Mutex()
+
+    private suspend fun finish(context: Context, params: Map<String, String>?, checkState: Boolean): Status = finishing.withLock {
         val pending = loadPending(context)
-        problemWith(pending, params?.get("code"), params?.get("state"), System.currentTimeMillis(), checkState)?.let {
+        // Already done by an earlier run of the same link: keep "Connected"
+        if (pending == null && status is Status.Connected) return@withLock status
+        status = Status.Connecting
+        problemWith(pending, params?.get("code"), params?.get("state"), checkState)?.let {
             Log.w(TAG, "Connection not finished: $it")
-            return fail(it)
+            return@withLock fail(it)
         }
-        val key = when (val result = exchange(params!!.getValue("code"), pending!!.verifier)) {
+        val code = params!!.getValue("code")
+        val key = when (val result = exchange(code, pending!!.verifier)) {
             is Exchange.Key -> result.key
             is Exchange.Error -> {
-                clearPending(context)
-                return fail(result.message)
+                if (result.retryable) {
+                    keepCode(context, pending, code)
+                } else {
+                    clearPending(context)
+                }
+                return@withLock fail(result.message, canRetry = result.retryable)
             }
         }
-        return when (val check = OpenRouterKeyCheck.check(key)) {
+        return@withLock when (val check = OpenRouterKeyCheck.check(key)) {
             OpenRouterKeyCheck.Result.Rejected -> {
                 clearPending(context)
                 fail("OpenRouter didn't accept the new key. Tap Connect OpenRouter again.")
@@ -231,15 +280,15 @@ object OpenRouterConnect {
         return connected
     }
 
-    private fun fail(message: String): Status {
-        val failed = Status.Failed(message)
+    private fun fail(message: String, canRetry: Boolean = false): Status {
+        val failed = Status.Failed(message, canRetry)
         status = failed
         return failed
     }
 
-    private sealed class Exchange {
+    internal sealed class Exchange {
         class Key(val key: String) : Exchange()
-        class Error(val message: String) : Exchange()
+        class Error(val message: String, val retryable: Boolean) : Exchange()
     }
 
     /** Trades the code for a key (`POST /api/v1/auth/keys`). */
@@ -250,20 +299,17 @@ object OpenRouterConnect {
                 .post(exchangeBody(code, verifier).toRequestBody("application/json".toMediaType()))
                 .build()
             client.newCall(request).execute().use { response ->
-                val body = response.body?.string().orEmpty()
-                when {
-                    response.isSuccessful -> keyFromExchange(body)?.let { Exchange.Key(it) }
-                        ?: Exchange.Error("OpenRouter's answer had no key. Tap Connect OpenRouter again.")
-                    response.code == 403 -> Exchange.Error(
-                        "OpenRouter didn't accept the connection code. It works once, for 10 minutes. Tap Connect OpenRouter again."
-                    )
-                    else -> Exchange.Error("OpenRouter couldn't finish the connection (HTTP ${response.code}). Tap Connect OpenRouter again.")
-                }
+                exchangeResultFor(response.code, response.body?.string().orEmpty())
             }
         } catch (e: Exception) {
             Log.w(TAG, "Code exchange failed: ${e.javaClass.simpleName}")
-            Exchange.Error("Couldn't reach OpenRouter. Check the connection, then tap Connect OpenRouter again.")
+            Exchange.Error("Couldn't reach OpenRouter. Check the Wi-Fi, then tap Try Again.", retryable = true)
         }
+    }
+
+    private fun keepCode(context: Context, pending: Pending, code: String) {
+        memoryPending = pending.copy(code = code)
+        prefs(context)?.edit()?.putString(PREF_CODE, code)?.apply()
     }
 
     private fun loadPending(context: Context): Pending? {
@@ -271,7 +317,8 @@ object OpenRouterConnect {
         val prefs = prefs(context) ?: return null
         val verifier = prefs.getString(PREF_VERIFIER, null) ?: return null
         val state = prefs.getString(PREF_STATE, null) ?: return null
-        return Pending(verifier, state, prefs.getLong(PREF_CREATED, 0L)).also { memoryPending = it }
+        return Pending(verifier, state, prefs.getLong(PREF_CREATED, 0L), prefs.getString(PREF_CODE, null))
+            .also { memoryPending = it }
     }
 
     private fun clearPending(context: Context) {
