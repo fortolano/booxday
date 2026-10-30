@@ -1325,7 +1325,10 @@ class TaskRepository(internal val context: Context) {
             val cacheKey = "$date:0"  // Pre-warm first page (most common)
             if (!taskPageCache.containsKey(cacheKey)) {
                 val tasks = taskDao.getTasksForPage(date, 0)
-                if (tasks.isNotEmpty()) {
+                // Only a page with every row (Oct 2026): getOrCreateTasksForPage returns cached rows
+                // as they are, so a short page cached here hid its missing rows from moves, which then
+                // cleared tasks they could not place. A short page is filled when it is first loaded.
+                if (tasks.isNotEmpty() && hasEveryRow(date, tasks)) {
                     val maxIndex = taskDao.getMaxTaskPageIndex(date) ?: 0
                     val pageInfo = TaskPageInfo(
                         dayDate = date,
@@ -1770,6 +1773,12 @@ class TaskRepository(internal val context: Context) {
         }
         taskDao.insertAll(tasks)
         return tasks
+    }
+
+    /** Whether [tasks] (one page) has a row at every index the day's pages use. */
+    private fun hasEveryRow(date: String, tasks: List<Task>): Boolean {
+        val rows = tasks.mapTo(HashSet()) { it.rowIndex }
+        return (0 until TaskPagination.rowsPerPage(date)).all { it in rows }
     }
 
     /**
@@ -2834,6 +2843,24 @@ class TaskRepository(internal val context: Context) {
         targetPageIndex: Int = 0,
         canvasHeight: Float,
         context: Context
+    ): MoveTaskResult = try {
+        // Task sync Groundwork (Oct 2026): ONE transaction. Until then each write committed on its
+        // own, so for a moment both rows held the task (a reader such as task sync could copy it
+        // twice) and a failure part-way left it half-moved. Caches and the canvas follow the commit.
+        inTransaction { moveTaskWithStrokesInTransaction(task, targetDate, targetPageIndex, canvasHeight, context) }
+    } catch (e: Exception) {
+        // Rolled back: pages the move created or loaded may still sit in the page cache
+        invalidateTaskCache(task.dayDate)
+        invalidateTaskCache(targetDate)
+        throw e
+    }
+
+    private fun moveTaskWithStrokesInTransaction(
+        task: Task,
+        targetDate: String,
+        targetPageIndex: Int,
+        canvasHeight: Float,
+        context: Context
     ): MoveTaskResult {
         // Full screen Tasks (Oct 2026): this works on pages of 10; the tools calling it leave full screen first
         if (TaskPagination.isReflowed(task.dayDate) || TaskPagination.isReflowed(targetDate)) {
@@ -2940,10 +2967,18 @@ class TaskRepository(internal val context: Context) {
         if (startRow == null) {
             // Try next page if current page doesn't have enough contiguous space
             Log.i(TAG, "TASK_GROUP_MOVE: No contiguous block of $groupSize on page $targetPageIndex, trying next page")
-            return moveTaskWithStrokes(task, targetDate, targetPageIndex + 1, canvasHeight, context)
+            return moveTaskWithStrokesInTransaction(task, targetDate, targetPageIndex + 1, canvasHeight, context)
         }
 
         Log.i(TAG, "TASK_GROUP_MOVE: Found contiguous block starting at row $startRow for $groupSize tasks")
+
+        // Every target row must exist before anything moves: the source rows are cleared below,
+        // so a task with no row to go to was erased (Oct 2026).
+        val targetRows = (startRow until startRow + groupSize).map { row -> targetTasks.find { it.rowIndex == row } }
+        if (targetRows.any { it == null }) {
+            Log.e(TAG, "TASK_GROUP_MOVE: Target rows missing on $targetDate page $targetPageIndex; task left in place")
+            return MoveTaskResult(success = false, errorReason = MoveTaskError.DATABASE_ERROR)
+        }
 
         // Move each task in the group to consecutive target slots
         var totalMigratedCount = 0
@@ -2976,11 +3011,13 @@ class TaskRepository(internal val context: Context) {
                     targetPageId = targetPageId
                 )
 
-                // Use atomic transaction to prevent data loss on crash
+                // Joins the move's transaction
                 strokeRepo.migrateStrokes(sourceStrokeIds, migratedStrokes)
 
-                PageDataManager.removeStrokes(sourceStrokeIds, sourcePageId)
-                PageDataManager.addStrokes(migratedStrokes, targetPageId)
+                afterCommit {
+                    PageDataManager.removeStrokes(sourceStrokeIds, sourcePageId)
+                    PageDataManager.addStrokes(migratedStrokes, targetPageId)
+                }
 
                 totalMigratedCount += migratedStrokes.size
 
@@ -2994,12 +3031,9 @@ class TaskRepository(internal val context: Context) {
                 Log.i(TAG, "STROKE_MIGRATE: Moved ${migratedStrokes.size} strokes from row $sourceRowIndex to row $targetRowIndex")
             }
 
-            // Transfer metadata to target task slot
-            val targetTask = targetTasks.find { it.rowIndex == targetRowIndex }
-            if (targetTask != null) {
-                // Every content column moves (T11/T12: due date + reminder too, also to another day)
-                transferTaskContent(sourceTask, targetTask.id, keepTemplateLink = isSameDateMove)
-            }
+            // Transfer metadata to target task slot.
+            // Every content column moves (T11/T12: due date + reminder too, also to another day)
+            transferTaskContent(sourceTask, targetRows[index]!!.id, keepTemplateLink = isSameDateMove)
 
             if (!isSameDateMove) {
                 markRecurringOccurrenceDetached(sourceTask, targetDate)
@@ -3025,27 +3059,29 @@ class TaskRepository(internal val context: Context) {
             }
         }
 
-        // Trigger canvas refresh (non-blocking)
-        TasksCanvasRefresh.request()  // coalesced (plan §13.4)
+        afterCommit {
+            // Trigger canvas refresh (non-blocking)
+            TasksCanvasRefresh.request()  // coalesced (plan §13.4)
 
-        // Invalidate caches for both dates
-        invalidateTaskCache(sourceDate)
-        if (targetDate != sourceDate) {
-            invalidateTaskCache(targetDate)
-        }
+            // Invalidate caches for both dates
+            invalidateTaskCache(sourceDate)
+            if (targetDate != sourceDate) {
+                invalidateTaskCache(targetDate)
+            }
 
-        // Signal task change for UI updates (badge refresh)
-        val sourceEmitted = _taskChanged.tryEmit(sourceDate)
-        Log.i(TAG, "BADGE_SIGNAL: sourceDate=$sourceDate emitted=$sourceEmitted")
-        if (targetDate != sourceDate) {
-            val targetEmitted = _taskChanged.tryEmit(targetDate)
-            Log.i(TAG, "BADGE_SIGNAL: targetDate=$targetDate emitted=$targetEmitted")
-        }
+            // Signal task change for UI updates (badge refresh)
+            val sourceEmitted = _taskChanged.tryEmit(sourceDate)
+            Log.i(TAG, "BADGE_SIGNAL: sourceDate=$sourceDate emitted=$sourceEmitted")
+            if (targetDate != sourceDate) {
+                val targetEmitted = _taskChanged.tryEmit(targetDate)
+                Log.i(TAG, "BADGE_SIGNAL: targetDate=$targetDate emitted=$targetEmitted")
+            }
 
-        // T19 (Oct 2026): re-index both pages so search doesn't keep the task under the old day
-        TaskTextIndexer.getInstanceOrNull()?.let { indexer ->
-            indexer.onTypedTextChanged(task.id, sourceDate, task.taskPageIndex, task.pageId)
-            targetTasks.firstOrNull()?.let { indexer.onTypedTextChanged(it.id, targetDate, it.taskPageIndex, it.pageId) }
+            // T19 (Oct 2026): re-index both pages so search doesn't keep the task under the old day
+            TaskTextIndexer.getInstanceOrNull()?.let { indexer ->
+                indexer.onTypedTextChanged(task.id, sourceDate, task.taskPageIndex, task.pageId)
+                targetTasks.firstOrNull()?.let { indexer.onTypedTextChanged(it.id, targetDate, it.taskPageIndex, it.pageId) }
+            }
         }
 
         Log.i(TAG, "TASK_GROUP_MOVE: Successfully moved $groupSize task(s), $totalMigratedCount strokes")
@@ -3287,6 +3323,16 @@ class TaskRepository(internal val context: Context) {
                         continue
                     }
 
+                    // Every target row must exist before anything moves: the source rows are
+                    // cleared below, so a task with no row to go to was erased (Oct 2026).
+                    val targetRows = (startRow until startRow + groupInfo.totalSlots).map { row ->
+                        targetTasks.find { it.rowIndex == row }
+                    }
+                    if (targetRows.any { it == null }) {
+                        Log.e(TAG, "BULK_MOVE: Target rows missing on $targetDate page $currentTargetPageIndex; group left on $sourceDate")
+                        continue
+                    }
+
                     // Mark these rows as allocated BEFORE placing to prevent future overwrites
                     val currentAllocated = allocatedRowsByPage.getOrPut(currentTargetPageIndex) { mutableSetOf() }
                     for (i in 0 until groupInfo.totalSlots) {
@@ -3317,14 +3363,8 @@ class TaskRepository(internal val context: Context) {
                             pagesWithMigratedStrokes.add(targetPageId)  // Track for recognition
                         }
 
-                        // Transfer metadata
-                        val targetTask = targetTasks.find { it.rowIndex == targetRowIndex }
-                        if (targetTask != null) {
-                            // Every content column moves; the occurrence detaches (another day)
-                            transferTaskContent(sourceTask, targetTask.id, keepTemplateLink = false)
-                        } else if (sourceTask.dueDay != null) {
-                            afterCommit { cancelTaskNotification(sourceTask.id) }
-                        }
+                        // Transfer metadata; every content column moves, the occurrence detaches (another day)
+                        transferTaskContent(sourceTask, targetRows[index]!!.id, keepTemplateLink = false)
                         markRecurringOccurrenceDetached(sourceTask, targetDate)
 
                         // Clear source task
@@ -3632,6 +3672,16 @@ class TaskRepository(internal val context: Context) {
                 continue
             }
 
+            // Every target row must exist before anything moves: the source rows are cleared
+            // below, so a task with no row to go to was erased (Oct 2026).
+            val targetRows = (startRow until startRow + groupInfo.totalSlots).map { row ->
+                targetTasks.find { it.rowIndex == row }
+            }
+            if (targetRows.any { it == null }) {
+                Log.e(TAG, "BULK_MOVE_INTERNAL: Target rows missing on $targetDate page $targetPageIndex; group left in place")
+                continue
+            }
+
             // Mark these rows as allocated BEFORE placing
             for (i in 0 until groupInfo.totalSlots) {
                 allocatedRows.add(startRow + i)
@@ -3659,14 +3709,8 @@ class TaskRepository(internal val context: Context) {
                     strokesMigrated = true  // Track for recognition trigger
                 }
 
-                // Transfer metadata
-                val targetTask = targetTasks.find { it.rowIndex == targetRowIndex }
-                if (targetTask != null) {
-                    // Every content column moves; the occurrence detaches (another day)
-                    transferTaskContent(sourceTask, targetTask.id, keepTemplateLink = false)
-                } else if (sourceTask.dueDay != null) {
-                    afterCommit { cancelTaskNotification(sourceTask.id) }
-                }
+                // Transfer metadata; every content column moves, the occurrence detaches (another day)
+                transferTaskContent(sourceTask, targetRows[index]!!.id, keepTemplateLink = false)
                 markRecurringOccurrenceDetached(sourceTask, targetDate)
 
                 // Clear source
