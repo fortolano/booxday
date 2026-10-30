@@ -20,6 +20,7 @@ import com.boox.day.data.db.Stroke
 import com.boox.day.data.db.SummaryCache
 import com.boox.day.data.db.SyncStatus
 import com.boox.day.data.db.Task
+import com.boox.day.data.db.TaskSyncLink
 import com.boox.day.data.db.TextAnnotation
 import com.boox.day.data.db.UnifiedOcrPage
 import com.boox.day.data.db.UnifiedOcrText
@@ -136,6 +137,8 @@ class ExportService(
             db.recurringTaskExceptionDao().getAll().map { it.toBackup() })
         val tasks = writeSection(writer, "tasks", BackupTask.serializer(),
             db.taskDao().getAllTasks().map { it.toBackup() })
+        writeSection(writer, "taskSyncLinks", BackupTaskSyncLink.serializer(),
+            db.taskSyncDao().getAllLinks().map { it.toBackup() })
         val strokes = writeStrokes(db, writer)
         writeSection(writer, "textAnnotations", BackupTextAnnotation.serializer(),
             db.textAnnotationDao().getAllAnnotations().map { it.toBackup() })
@@ -323,6 +326,24 @@ class ExportService(
         templateId = templateId,
         dueDay = dueDay,
         reminderMinuteOfDay = reminderMinuteOfDay
+    )
+
+    private fun TaskSyncLink.toBackup() = BackupTaskSyncLink(
+        taskId = taskId,
+        provider = provider,
+        accountEmail = accountEmail,
+        serverUrl = serverUrl,
+        listId = listId,
+        remoteId = remoteId,
+        remoteVersion = remoteVersion,
+        syncedTitle = syncedTitle,
+        syncedCompleted = syncedCompleted,
+        syncedDueDay = syncedDueDay,
+        syncedParentRemoteId = syncedParentRemoteId,
+        contentHash = contentHash,
+        remoteUndated = remoteUndated,
+        orphanedAt = orphanedAt,
+        syncedAt = syncedAt
     )
 
     private fun Stroke.toBackup() = BackupStroke(

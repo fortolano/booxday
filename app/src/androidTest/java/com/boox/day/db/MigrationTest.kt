@@ -15,6 +15,8 @@ import com.boox.day.data.db.MIGRATION_25_26
 import com.boox.day.data.db.MIGRATION_26_27
 import com.boox.day.data.db.MIGRATION_27_28
 import com.boox.day.data.db.MIGRATION_28_29
+import com.boox.day.data.db.MIGRATION_29_30
+import com.boox.day.data.db.TaskSyncSchema
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -322,6 +324,34 @@ class MigrationTest {
             assertEquals("2026-10-03", c.getString(1))
             assertEquals(540, c.getInt(2))
         }
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate29To30_addsTaskSyncTablesAndAccountServer() {
+        val dbName = "migration-test-29-30"
+        helper.createDatabase(dbName, 29).apply {
+            execSQL(
+                "INSERT INTO connected_accounts (id, providerId, accountType, email, displayName, isActive, createdAt, lastSyncAt) " +
+                    "VALUES ('g-1', 'GOOGLE', 'GOOGLE_PERSONAL', 'me@gmail.com', 'Me', 1, 1, NULL)"
+            )
+            close()
+        }
+
+        val migratedDb = helper.runMigrationsAndValidate(dbName, 30, true, MIGRATION_29_30)
+
+        assertTrue(tableExists(migratedDb, "task_sync_link"))
+        assertTrue(tableExists(migratedDb, "task_sync_outbox"))
+        assertTrue(tableExists(migratedDb, "task_sync_list"))
+        assertTrue(getIndexNames(migratedDb, "connected_accounts").contains("index_connected_accounts_providerId_serverUrl_email"))
+        assertFalse(getIndexNames(migratedDb, "connected_accounts").contains("index_connected_accounts_email"))
+        migratedDb.query("SELECT serverUrl FROM connected_accounts WHERE id = 'g-1'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("", c.getString(0))
+        }
+        migratedDb.query(
+            "SELECT 1 FROM sqlite_master WHERE type = 'trigger' AND name = '${TaskSyncSchema.ROW_DELETED_TRIGGER}'"
+        ).use { c -> assertTrue(c.moveToFirst()) }
     }
 
     @Test

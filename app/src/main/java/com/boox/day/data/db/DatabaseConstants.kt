@@ -1,6 +1,6 @@
 package com.boox.day.data.db
 
-const val CURRENT_DB_VERSION = 29
+const val CURRENT_DB_VERSION = 30
 const val FIRST_PUBLIC_DB_VERSION = 25
 const val APP_DATABASE_FILE_NAME = "app_database"
 

@@ -21,8 +21,13 @@ import kotlinx.serialization.Serializable
  * Restore replaces only the tables whose section is present in the file. Device-only data is not
  * backed up and is left untouched by a restore: connected accounts + calendar selections (sign-in
  * is per device), the provider calendar cache (re-synced), Boox Notes index/links/aggregates
- * (rebuilt from the Boox notes), learned analytics (entity co-occurrence, activity patterns) and
- * What's New state.
+ * (rebuilt from the Boox notes), learned analytics (entity co-occurrence, activity patterns),
+ * What's New state, and the task sync outbox and ticked lists.
+ *
+ * Task sync links (Oct 2026, extra section; the format stays v5 because older versions skip
+ * unknown sections) are backed up with their tasks, so restoring on a new tablet and reconnecting
+ * the same account doesn't duplicate tasks. A restore that brings back tasks or links first
+ * empties the links and the outbox and resets the lists' pull cursors (ImportService).
  *
  * Older files decode with the defaults below (v2 events get endDayId = dayId on import).
  */
@@ -47,7 +52,9 @@ data class BackupData(
     val summaryCache: List<BackupSummary> = emptyList(),
     // v3 additions
     val recurringTaskTemplates: List<BackupRecurringTaskTemplate> = emptyList(),
-    val recurringTaskExceptions: List<BackupRecurringTaskException> = emptyList()
+    val recurringTaskExceptions: List<BackupRecurringTaskException> = emptyList(),
+    // Task sync (Oct 2026)
+    val taskSyncLinks: List<BackupTaskSyncLink> = emptyList()
 ) {
     companion object {
         const val CURRENT_VERSION = 5  // v5: Task.reminderMinuteOfDay; v4: Task.dueDay replaces epoch-ms dueDate
@@ -155,6 +162,27 @@ data class BackupTask(
     val dueDay: String? = null,
     // v5 addition: own reminder time, minutes after midnight (null = default)
     val reminderMinuteOfDay: Int? = null
+)
+
+// ========== Task sync links (Oct 2026) ==========
+
+@Serializable
+data class BackupTaskSyncLink(
+    val taskId: String,
+    val provider: String,
+    val accountEmail: String,
+    val serverUrl: String = "",
+    val listId: String,
+    val remoteId: String,
+    val remoteVersion: String? = null,
+    val syncedTitle: String? = null,
+    val syncedCompleted: Boolean = false,
+    val syncedDueDay: String? = null,
+    val syncedParentRemoteId: String? = null,
+    val contentHash: String? = null,
+    val remoteUndated: Boolean = false,
+    val orphanedAt: Long? = null,
+    val syncedAt: Long
 )
 
 // ========== Recurring Tasks (v3) ==========

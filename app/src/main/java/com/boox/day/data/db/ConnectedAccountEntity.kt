@@ -1,5 +1,6 @@
 package com.boox.day.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Index
@@ -21,7 +22,10 @@ import kotlinx.coroutines.flow.Flow
 @Entity(
     tableName = "connected_accounts",
     indices = [
-        Index(value = ["email"], unique = true),
+        // v30: one account per provider + server + email. Until v29 the email alone was unique,
+        // so an iCloud (CalDAV) account whose Apple ID is a Gmail address could not sit next to
+        // the Google account of the same address.
+        Index(value = ["providerId", "serverUrl", "email"], unique = true),
         Index(value = ["providerId"])
     ]
 )
@@ -34,7 +38,10 @@ data class ConnectedAccountEntity(
     val displayName: String?,
     val isActive: Boolean = true,
     val createdAt: Long,
-    val lastSyncAt: Long? = null
+    val lastSyncAt: Long? = null,
+    /** CalDAV server address (v30); "" for Google and Outlook. Not NULL: SQLite treats NULLs as distinct in unique indexes. */
+    @ColumnInfo(defaultValue = "")
+    val serverUrl: String = ""
 ) {
     /**
      * Convert entity to domain model.

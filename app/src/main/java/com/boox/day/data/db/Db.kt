@@ -99,8 +99,8 @@ class Converters {
 
 
 @Database(
-    entities = [Folder::class, Notebook::class, Page::class, Stroke::class, Image::class, Kv::class, DayPage::class, CalendarEvent::class, TextAnnotation::class, BooxNoteIndex::class, BooxNoteLink::class, BooxNoteSemanticAggregate::class, Task::class, RecurringTaskTemplate::class, RecurringTaskException::class, Attachment::class, LocalEvent::class, LocalCalendar::class, SummaryCache::class, ConnectedAccountEntity::class, CalendarSelectionEntity::class, UnifiedOcrPage::class, UnifiedOcrText::class, EntityCooccurrence::class, UserActivityPattern::class],
-    version = CURRENT_DB_VERSION,  // v29: What's New table dropped (v28: per-task reminder time)
+    entities = [Folder::class, Notebook::class, Page::class, Stroke::class, Image::class, Kv::class, DayPage::class, CalendarEvent::class, TextAnnotation::class, BooxNoteIndex::class, BooxNoteLink::class, BooxNoteSemanticAggregate::class, Task::class, RecurringTaskTemplate::class, RecurringTaskException::class, Attachment::class, LocalEvent::class, LocalCalendar::class, SummaryCache::class, ConnectedAccountEntity::class, CalendarSelectionEntity::class, UnifiedOcrPage::class, UnifiedOcrText::class, EntityCooccurrence::class, UserActivityPattern::class, TaskSyncLink::class, TaskSyncOutboxEntry::class, TaskSyncList::class],
+    version = CURRENT_DB_VERSION,  // v30: task sync tables, accounts unique per provider+server+email (v29: What's New dropped)
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -138,6 +138,9 @@ abstract class AppDatabase : RoomDatabase() {
 
     // User Activity Pattern DAO (Phase 6 - SemanticGenius)
     abstract fun userActivityPatternDao(): UserActivityPatternDao
+
+    // Task sync (v30): links to the service's copies, outbox, ticked lists
+    abstract fun taskSyncDao(): TaskSyncDao
 
     companion object {
         // @Volatile + the re-check inside synchronized below: two threads starting at the same
@@ -320,6 +323,7 @@ abstract class AppDatabase : RoomDatabase() {
                         Room.databaseBuilder(context, AppDatabase::class.java, dbFile.absolutePath)
                             .allowMainThreadQueries()
                             .addCallback(FTS4_CALLBACK)
+                            .addCallback(TaskSyncSchema.CALLBACK)
                             .addMigrations(
                                 MIGRATION_8_9,
                                 MIGRATION_9_10,
@@ -339,7 +343,8 @@ abstract class AppDatabase : RoomDatabase() {
                                 MIGRATION_25_26,
                                 MIGRATION_26_27,
                                 MIGRATION_27_28,
-                                MIGRATION_28_29
+                                MIGRATION_28_29,
+                                MIGRATION_29_30
                             )
 
                     // No destructive fallback in any build (plan T2, Oct 2026): the real-data

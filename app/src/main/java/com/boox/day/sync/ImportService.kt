@@ -20,6 +20,7 @@ import com.boox.day.data.db.StrokePoint
 import com.boox.day.data.db.SummaryCache
 import com.boox.day.data.db.SyncStatus
 import com.boox.day.data.db.Task
+import com.boox.day.data.db.TaskSyncLink
 import com.boox.day.data.db.TextAnnotation
 import com.boox.day.data.db.UnifiedOcrPage
 import com.boox.day.data.db.UnifiedOcrText
@@ -68,6 +69,7 @@ private val SECTION_TABLES = linkedMapOf(
     "recurringTaskTemplates" to "recurring_task_template",
     "recurringTaskExceptions" to "recurring_task_exception",
     "tasks" to "task",
+    "taskSyncLinks" to "task_sync_link",
     "strokes" to "Stroke",
     "textAnnotations" to "text_annotations",
     "images" to "Image",
@@ -80,7 +82,10 @@ private val SECTION_TABLES = linkedMapOf(
     "summaryCache" to "summary_cache"
 )
 
-/** Children are emptied before their parents. */
+/**
+ * Children are emptied before their parents. Task sync links are not listed: a restore that brings
+ * back tasks or links empties them itself, before any task row goes (see restoreBackup).
+ */
 private val CLEAR_ORDER = listOf(
     "recurringTaskExceptions", "tasks", "strokes", "textAnnotations", "images", "attachments",
     "dayPages", "pages", "notebooks", "folders", "recurringTaskTemplates",
@@ -108,6 +113,7 @@ private val SECTION_LABELS = mapOf(
     "recurringTaskTemplates" to "repeating task",
     "recurringTaskExceptions" to "repeating task exception",
     "tasks" to "task",
+    "taskSyncLinks" to "task sync link",
     "strokes" to "stroke",
     "textAnnotations" to "text box",
     "images" to "image",
@@ -271,6 +277,15 @@ class ImportService(
             val counts = db.withTransaction {
                 val sql = db.openHelper.writableDatabase
                 sql.execSQL("PRAGMA defer_foreign_keys = ON")
+                // Task sync: restored tasks get only the links in the file. Emptied before any task
+                // row goes, so the row-deleted trigger queues no remote deletes; the outbox described
+                // the old rows; the device's pull cursors are newer than the restored tasks.
+                if ("tasks" in check.present || "taskSyncLinks" in check.present) {
+                    val taskSync = db.taskSyncDao()
+                    taskSync.clearLinks()
+                    taskSync.clearOutbox()
+                    taskSync.resetPullCursors()
+                }
                 if (clearExisting) {
                     for (section in CLEAR_ORDER) {
                         if (section in check.present) {
@@ -328,6 +343,7 @@ class ImportService(
         private val taskSlots = HashSet<String>()
         private val exceptionSlots = HashSet<String>()
         private val googleEventIds = HashSet<String>()
+        private val remoteTaskIds = HashSet<String>()
 
         fun read(key: String, reader: JsonReader) {
             if (key == "metadata") {
@@ -366,6 +382,13 @@ class ImportService(
                     ref("pages", it.pageId)
                     if (!taskSlots.add("${it.dayDate}|${it.taskPageIndex}|${it.rowIndex}")) {
                         throw BackupRejected("The backup has two tasks in row ${it.rowIndex + 1} of ${it.dayDate} page ${it.taskPageIndex + 1}.")
+                    }
+                }
+                "taskSyncLinks" -> forEachElement(reader, key, BackupTaskSyncLink.serializer()) {
+                    id(key, it.taskId)
+                    ref("tasks", it.taskId)
+                    if (!remoteTaskIds.add("${it.provider}|${it.accountEmail}|${it.serverUrl}|${it.listId}|${it.remoteId}")) {
+                        throw BackupRejected("The backup links two tasks to the same synced task '${it.remoteId}'.")
                     }
                 }
                 "strokes" -> forEachElement(reader, key, BackupStroke.serializer()) {
@@ -476,6 +499,9 @@ class ImportService(
                     db.recurringTaskExceptionDao().insert(it.toEntity())
                 }
                 "tasks" -> forEachElement(reader, key, BackupTask.serializer()) { db.taskDao().insert(it.toEntity()) }
+                "taskSyncLinks" -> forEachElement(reader, key, BackupTaskSyncLink.serializer()) {
+                    db.taskSyncDao().insertLink(it.toEntity())
+                }
                 "strokes" -> {
                     val n = forEachElement(reader, key, BackupStroke.serializer()) {
                         strokeBatch += it.toEntity()
@@ -700,6 +726,24 @@ private fun BackupTask.toEntity() = Task(
     templateId = templateId,
     createdAt = Date(createdAt),
     updatedAt = Date(updatedAt)
+)
+
+private fun BackupTaskSyncLink.toEntity() = TaskSyncLink(
+    taskId = taskId,
+    provider = provider,
+    accountEmail = accountEmail,
+    serverUrl = serverUrl,
+    listId = listId,
+    remoteId = remoteId,
+    remoteVersion = remoteVersion,
+    syncedTitle = syncedTitle,
+    syncedCompleted = syncedCompleted,
+    syncedDueDay = syncedDueDay,
+    syncedParentRemoteId = syncedParentRemoteId,
+    contentHash = contentHash,
+    remoteUndated = remoteUndated,
+    orphanedAt = orphanedAt,
+    syncedAt = syncedAt
 )
 
 private fun BackupStroke.toEntity() = Stroke(

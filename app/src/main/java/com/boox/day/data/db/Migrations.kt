@@ -739,3 +739,49 @@ val MIGRATION_28_29 = object : Migration(28, 29) {
         db.execSQL("DROP TABLE IF EXISTS `whats_new_message`")
     }
 }
+
+/**
+ * v30 (task sync groundwork, Oct 2026):
+ * - connected_accounts: `serverUrl` ("" for Google and Outlook) and one account per
+ *   provider + server + email instead of per email, so an iCloud account whose Apple ID is a
+ *   Gmail address can sit next to that Google account (CalDAV, later).
+ * - task_sync_link / task_sync_outbox / task_sync_list (TaskSync.kt) and the trigger that turns a
+ *   linked task row's deletion into an outbox DELETE.
+ */
+val MIGRATION_29_30 = object : Migration(29, 30) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `connected_accounts` ADD COLUMN `serverUrl` TEXT NOT NULL DEFAULT ''")
+        db.execSQL("DROP INDEX IF EXISTS `index_connected_accounts_email`")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_connected_accounts_providerId_serverUrl_email` " +
+                "ON `connected_accounts` (`providerId`, `serverUrl`, `email`)"
+        )
+        // As in schemas/.../30.json
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `task_sync_link` (`taskId` TEXT NOT NULL, `provider` TEXT NOT NULL, " +
+                "`accountEmail` TEXT NOT NULL, `serverUrl` TEXT NOT NULL DEFAULT '', `listId` TEXT NOT NULL, " +
+                "`remoteId` TEXT NOT NULL, `remoteVersion` TEXT, `syncedTitle` TEXT, `syncedCompleted` INTEGER NOT NULL, " +
+                "`syncedDueDay` TEXT, `syncedParentRemoteId` TEXT, `contentHash` TEXT, `remoteUndated` INTEGER NOT NULL, " +
+                "`orphanedAt` INTEGER, `syncedAt` INTEGER NOT NULL, PRIMARY KEY(`taskId`))"
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_task_sync_link_provider_accountEmail_serverUrl_listId_remoteId` " +
+                "ON `task_sync_link` (`provider`, `accountEmail`, `serverUrl`, `listId`, `remoteId`)"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `task_sync_outbox` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`op` TEXT NOT NULL, `taskId` TEXT NOT NULL, `provider` TEXT, `accountEmail` TEXT, `serverUrl` TEXT, " +
+                "`listId` TEXT, `remoteId` TEXT, `createdAt` INTEGER NOT NULL, `attempts` INTEGER NOT NULL, " +
+                "`nextAttemptAt` INTEGER NOT NULL, `lastError` TEXT)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_sync_outbox_taskId` ON `task_sync_outbox` (`taskId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_sync_outbox_nextAttemptAt` ON `task_sync_outbox` (`nextAttemptAt`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `task_sync_list` (`provider` TEXT NOT NULL, `accountEmail` TEXT NOT NULL, " +
+                "`serverUrl` TEXT NOT NULL DEFAULT '', `listId` TEXT NOT NULL, `title` TEXT NOT NULL, " +
+                "`isDefaultForNew` INTEGER NOT NULL, `pullCursor` TEXT, `lastFullCheckAt` INTEGER, " +
+                "PRIMARY KEY(`provider`, `accountEmail`, `serverUrl`, `listId`))"
+        )
+        TaskSyncSchema.createTriggers(db)
+    }
+}
