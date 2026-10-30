@@ -43,7 +43,7 @@ import com.boox.day.ui.theme.EInkTheme
 /**
  * First-run welcome popup shown once after installation.
  * Engaging introduction to BooxDay with feature highlights and
- * direction to badged settings for personalization.
+ * a note on the Settings dots (things that need the user, ui/attention).
  *
  * Part of Play Store launch onboarding (Jan 2026).
  *
@@ -195,7 +195,7 @@ fun WelcomePopup(
 
                             // Encouragement text
                             Text(
-                                text = "Start with the settings that have a dot. Settings \u2192 Help explains every feature.",
+                                text = "A dot marks a setting that needs you, with the reason next to it. Settings \u2192 Help explains every feature.",
                                 fontSize = 12.sp,
                                 color = EInkTheme.Colors.darkGray,
                                 textAlign = TextAlign.Center,

@@ -993,6 +993,12 @@ private fun KeyLegendsContent() {
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
+    SectionSubheader("Settings")
+    LegendItem("Number on the gear", "How many things in Settings need you, such as reminders blocked by Android or a calendar account to reconnect")
+    LegendItem("Dot in the menu", "The setting that needs you, with the reason under its name")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
     SectionSubheader("Boox Notes")
     LegendItem("Link icon", "Linked; the event's title follows")
     LegendItem("Star", "A suggested link")

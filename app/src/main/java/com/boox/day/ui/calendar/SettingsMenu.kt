@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,7 +47,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.R
-import com.boox.day.data.datastore.SetupChecklist
+import com.boox.day.ui.attention.SettingsAttention
+import com.boox.day.ui.attention.SettingsPlace
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 
@@ -61,7 +63,7 @@ import com.boox.day.ui.theme.EInkTheme
  * - Data: Data & Backup, Boox Notes
  * - Info: Task streak (narrow screens), Help, About
  *
- * @param setupChecklist Tracks which first-run setup items have been completed (for badge display)
+ * @param attention What needs the user's action (ui/attention): a dot and the reason on its entry
  * @param isStandaloneMode When true, "Calendar Accounts" is grayed out and shows tooltip on tap
  */
 @Composable
@@ -76,7 +78,7 @@ fun SettingsMenu(
     onHelp: () -> Unit,
     onAbout: () -> Unit,
     onClose: () -> Unit,
-    setupChecklist: SetupChecklist = SetupChecklist(),
+    attention: SettingsAttention = SettingsAttention(),
     isStandaloneMode: Boolean = false,
     // Narrow screens (Go 6, Oct 2026): the header's streak button doesn't fit, so the streak is
     // listed here (null hides it)
@@ -104,7 +106,7 @@ fun SettingsMenu(
             SettingsMenuItemWithIcon(
                 label = "Preferences",
                 icon = Icons.Default.Settings,
-                showBadge = !setupChecklist.preferencesReviewed,
+                reason = attention.reasonFor(SettingsPlace.PREFERENCES),
                 onClick = { onPreferences() }
             )
 
@@ -115,13 +117,13 @@ fun SettingsMenu(
             SettingsMenuItemWithIcon(
                 label = "Calendar & Sync",
                 icon = Icons.Default.CalendarToday,
-                showBadge = !setupChecklist.calendarModeChosen,
                 onClick = { onCalendarSettings() }
             )
             SettingsMenuItemWithIcon(
                 label = "Calendar Accounts",
                 icon = Icons.Default.AccountCircle,
                 enabled = !isStandaloneMode,
+                reason = attention.reasonFor(SettingsPlace.CALENDAR_ACCOUNTS),
                 onClick = {
                     if (isStandaloneMode) {
                         showStandaloneTooltip = true
@@ -149,7 +151,7 @@ fun SettingsMenu(
             SettingsMenuItemWithIcon(
                 label = "AI Settings",
                 icon = Icons.Default.Psychology,
-                showBadge = !setupChecklist.aiSettingsReviewed,
+                reason = attention.reasonFor(SettingsPlace.AI_SETTINGS),
                 onClick = { onAiSettings() }
             )
             SettingsMenuItemWithIcon("Voice-to-Text", Icons.Default.Mic) { onVoiceSettings() }
@@ -162,7 +164,7 @@ fun SettingsMenu(
             SettingsMenuItemWithIcon(
                 label = "Boox Notes",
                 icon = painterResource(R.drawable.boox_b_letter),  // Boox "B", as on the Memos toolbar
-                showBadge = !setupChecklist.booxNotesConfigured,
+                reason = attention.reasonFor(SettingsPlace.BOOX_NOTES),
                 onClick = { onBooxNotesSettings() }
             )
 
@@ -242,16 +244,16 @@ private fun SectionHeader(text: String) {
  * Menu item with icon for better visual hierarchy.
  * E-Ink optimized: uses noRippleClickable, proper touch targets.
  *
- * @param showBadge When true, displays a badge dot indicating this setting needs attention
+ * @param reason Why this setting needs the user's action: shown with a dot (null = nothing to do)
  */
 @Composable
 private fun SettingsMenuItemWithIcon(
     label: String,
     icon: ImageVector,
     enabled: Boolean = true,
-    showBadge: Boolean = false,
+    reason: String? = null,
     onClick: () -> Unit
-) = SettingsMenuItemWithIcon(label, rememberVectorPainter(icon), enabled, showBadge, onClick)
+) = SettingsMenuItemWithIcon(label, rememberVectorPainter(icon), enabled, reason, onClick)
 
 /** Same item with a drawable icon (e.g. the Boox Notes "B", `R.drawable.boox_b_letter`). */
 @Composable
@@ -259,20 +261,20 @@ private fun SettingsMenuItemWithIcon(
     label: String,
     icon: Painter,
     enabled: Boolean = true,
-    showBadge: Boolean = false,
+    reason: String? = null,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(EInkTheme.MenuItem.height)
+            .heightIn(min = EInkTheme.MenuItem.height)
             .noRippleClickable { onClick() }
             .padding(horizontal = EInkTheme.MenuItem.horizontalPadding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
     ) {
-        // Badge dot (shown before icon when setting needs attention)
-        if (showBadge) {
+        // Dot and reason when something here needs the user's action (ui/attention, Oct 2026)
+        if (reason != null) {
             BadgeDot()
         }
         Icon(
@@ -281,11 +283,20 @@ private fun SettingsMenuItemWithIcon(
             tint = if (enabled) EInkTheme.Colors.darkGray else EInkTheme.Colors.gray,
             modifier = Modifier.size(20.dp)
         )
-        Text(
-            text = label,
-            color = if (enabled) EInkTheme.MenuItem.textColor else EInkTheme.Colors.gray,
-            fontSize = EInkTheme.MenuItem.fontSize
-        )
+        Column(modifier = Modifier.padding(vertical = if (reason != null) 4.dp else 0.dp)) {
+            Text(
+                text = label,
+                color = if (enabled) EInkTheme.MenuItem.textColor else EInkTheme.Colors.gray,
+                fontSize = EInkTheme.MenuItem.fontSize
+            )
+            if (reason != null) {
+                Text(
+                    text = reason,
+                    color = EInkTheme.Colors.primary,
+                    fontSize = EInkTheme.Typography.bodySmall
+                )
+            }
+        }
     }
 }
 

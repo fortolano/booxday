@@ -448,7 +448,6 @@ fun MainScreen(
     // First-run onboarding state (Play Store launch - Jan 2026)
     // Oct 2026: read live (not copied once), so a value saved elsewhere shows at once
     val onboardingDismissedAt by remember { derivedStateOf { GlobalAppSettings.current.onboardingDismissedAt } }
-    val setupChecklist by remember { derivedStateOf { GlobalAppSettings.current.setupChecklist } }
 
     // Keep startup raw drawing gate in sync with welcome popup visibility.
     LaunchedEffect(onboardingDismissedAt) {
@@ -2321,8 +2320,10 @@ fun MainScreen(
                                    lastSyncMessage?.contains("no network", ignoreCase = true) == true,
                     // Disable "Calendar Accounts" menu when in Standalone mode
                     isStandaloneMode = syncModeSetting == AppSettings.SyncMode.STANDALONE,
-                    // First-run onboarding setup checklist for badge display
-                    setupChecklist = setupChecklist,
+                    // What needs the user's action in Settings: the gear's number and the menu dots
+                    attention = com.boox.day.ui.attention.rememberSettingsAttention(
+                        accountsToReconnect = (multiAccountUiState.googleAccounts + multiAccountUiState.outlookAccounts).count { it.needsReauth }
+                    ),
                     compact = isCompactLayout,
                     onMonthTitleClick = { showCompactMonthPopup = true },
                     onCompactPopupVisibleChange = { compactHeaderPopupVisible = it }
