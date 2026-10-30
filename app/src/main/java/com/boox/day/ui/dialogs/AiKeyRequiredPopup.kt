@@ -240,23 +240,25 @@ internal fun OpenRouterIntroCard(
             if (rejected) {
                 PopupText("OpenRouter did not accept your saved key. Connect again to get a new one.", bold = true)
             }
+            // Wording for people who aren't technical (owner, 29 Oct 2026): no "models", "keys" or "requests"
             PopupText(
-                "BooxDay can plan your day, read your handwriting and suggest tasks with AI. The AI comes " +
-                    "from companies like Google and OpenAI, through a service called OpenRouter."
+                "BooxDay's AI can read your handwriting, plan your day and suggest tasks. " +
+                    "To use it, connect an OpenRouter account."
             )
             QuestionAndAnswer(
                 "What is OpenRouter?",
-                "One account for many AI models. BooxDay connects to your account. It has no server of its own."
+                "One account that gives you many AIs, from the makers of ChatGPT, Gemini and Claude. " +
+                    "BooxDay picks a good one for each job."
             )
             QuestionAndAnswer(
-                "Is it free?",
+                "What does it cost?",
                 // Measured 29 Oct 2026 with BooxDay's models: 6 of 7 actions under a cent (Voice to Task 1.7)
-                "Signing up is free. Free models allow 50 requests a day and are often busy. Paid models use " +
-                    "credit you add on OpenRouter, from \$5; with BooxDay's choices most actions cost less than a cent."
+                "Signing up is free. Free AIs work, but they're often busy. For AI that just works, add " +
+                    "credit (from \$5). You pay only for what you use: most things cost less than a cent."
             )
             QuestionAndAnswer(
                 "What happens next?",
-                "OpenRouter opens in your browser. Sign in or create an account, tap Authorize, then Open BooxDay."
+                "Your browser opens. Sign in or create an account, tap Authorize, then Open BooxDay."
             )
         }
         // The main button is wider: "Continue to OpenRouter" must fit on the Go 6 too
