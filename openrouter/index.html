@@ -11,7 +11,7 @@
   OpenRouter sends the browser here with ?code=...&state=... after the user authorizes.
   The page only hands the code to the app (booxday-connect://openrouter). It loads nothing
   from other sites and stores nothing. The code is useless without the one-time secret the
-  app keeps, and it expires after 10 minutes.
+  app keeps, it works once, and OpenRouter lets it expire.
 -->
 <style>
   :root { color-scheme: light; }
@@ -44,7 +44,7 @@
     <p>Tap the button to finish connecting OpenRouter to BooxDay.</p>
     <a id="open-app" class="button" href="#">Open BooxDay</a>
     <hr>
-    <p class="small"><strong>The button didn't open BooxDay?</strong> Copy this code. In BooxDay, open AI Settings, paste it in the OpenRouter key box and tap Save Key. It works for 10 minutes.</p>
+    <p class="small"><strong>The button didn't open BooxDay?</strong> Copy this code. In BooxDay, open AI Settings, paste it in the OpenRouter key box and tap Save Key. Use it soon: it works only once.</p>
     <div id="code" class="code"></div>
     <button id="copy" class="button secondary" type="button">Copy Code</button>
     <p id="copied" class="small" role="status" aria-live="polite"></p>
