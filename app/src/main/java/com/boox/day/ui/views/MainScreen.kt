@@ -201,9 +201,7 @@ import com.boox.day.ai.SuggestionContextBuilder
 import com.boox.day.ai.intelligence.IntelligenceEngine
 import com.boox.day.data.ai.IntelligenceFeature
 import com.boox.day.data.ai.ScoredContext
-import com.boox.day.data.ai.AiPreferencesPromptManager
 import com.boox.day.data.ai.ProposalAction
-import com.boox.day.editor.ui.AiPreferencesInvitePopup
 import com.boox.day.ui.dialogs.AiScope
 import com.boox.day.ui.dialogs.MemoToTasksDialog
 import com.boox.day.tips.TipsService
@@ -403,8 +401,6 @@ fun MainScreen(
     var showBooxNotesSettingsDialog by remember { mutableStateOf(false) }
     var showVoiceEventDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
-    var showAiPreferencesDialog by remember { mutableStateOf(false) }
-    var showAiPreferencesInvitePopup by remember { mutableStateOf(false) }
     // Dec 2025 settings redesign - new dialogs
     var showPreferencesDialog by remember { mutableStateOf(false) }
     var showAiSettingsDialog by remember { mutableStateOf(false) }
@@ -419,9 +415,6 @@ fun MainScreen(
 
     // Multi-provider calendar sync dialog
     var showMultiProviderSyncDialog by remember { mutableStateOf(false) }
-
-    // AI Preferences prompt manager (for progressive backoff prompts)
-    val aiPreferencesPromptManager = remember { AiPreferencesPromptManager(context) }
 
     // Voice input parsed event data (for pre-filling AddEditEventDialog)
     var parsedEventData by remember { mutableStateOf<ParsedEventData?>(null) }
@@ -736,15 +729,13 @@ fun MainScreen(
         currentTaskPageId = tasks.firstOrNull()?.pageId
     }
 
-    val resolveTaskAiReferenceHour: (LocalDate) -> Int = remember(aiPreferencesPromptManager) {
+    // Today: the clock; another day: the start of the planning window (6:00)
+    val resolveTaskAiReferenceHour: (LocalDate) -> Int = remember {
         { targetDate ->
-            val constraints = com.boox.day.ai.PreferenceInterpreter.interpret(
-                aiPreferencesPromptManager.getPreferences()
-            )
             if (targetDate == LocalDate.now()) {
                 java.time.LocalTime.now().hour.coerceIn(0, 23)
             } else {
-                constraints.workHoursStart.coerceIn(0, 23)
+                com.boox.day.ai.CapacityAnalyzer.DEFAULT_DAY_START
             }
         }
     }
@@ -1424,8 +1415,6 @@ fun MainScreen(
                 showBooxNotesSettingsDialog ||
                 showVoiceEventDialog ||
                 showHelpDialog ||
-                showAiPreferencesDialog ||
-                showAiPreferencesInvitePopup ||
                 showPreferencesDialog ||
                 showAiSettingsDialog ||
                 showVoiceSettingsDialog ||
@@ -2810,12 +2799,6 @@ fun MainScreen(
                                     return@launch  // EXIT - No slots, don't waste an AI call
                                 }
 
-                                // Check if we should show proactive preferences prompt
-                                if (aiPreferencesPromptManager.shouldShowProactivePrompt()) {
-                                    aiPreferencesPromptManager.onProactivePromptShown()
-                                    showAiPreferencesInvitePopup = true
-                                }
-
                                 // Initialize dialog state
                                 smartSuggestionsProcessingState = SmartSuggestionsProcessingState.Processing("Gathering context...")
                                 smartSuggestionsResult = null
@@ -3836,10 +3819,6 @@ fun MainScreen(
                     val newSettings = GlobalAppSettings.current.copy(aiEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(aiSettingsReviewed = true) }
-                },
-                onOpenAiPreferences = {
-                    showAiSettingsDialog = false
-                    showAiPreferencesDialog = true
                 }
             )
         }
@@ -3946,28 +3925,6 @@ fun MainScreen(
 
 
 
-        // AI Preferences Dialog
-        if (showAiPreferencesDialog) {
-            val currentPreferences = remember { aiPreferencesPromptManager.getPreferences() }
-            com.boox.day.editor.ui.AiPreferencesDialog(
-                initialPreferences = currentPreferences,
-                onSave = { newPreferences ->
-                    scope.launch(Dispatchers.IO) {
-                        aiPreferencesPromptManager.savePreferences(newPreferences)
-                        if (newPreferences.setupComplete) {
-                            aiPreferencesPromptManager.onPreferencesCompleted()
-                        }
-                        withContext(Dispatchers.Main) {
-                            showAiPreferencesDialog = false
-                            SnackState.globalSnackFlow.tryEmit(
-                                SnackConf(text = "AI Preferences saved", duration = SnackConf.DURATION_QUICK)
-                            )
-                        }
-                    }
-                },
-                onDismiss = { showAiPreferencesDialog = false }
-            )
-        }
 
 
         // Boox Notes Settings Dialog
@@ -5209,35 +5166,10 @@ fun MainScreen(
                 onDismiss = {
                     showSmartSuggestionsDialog = false
                     smartSuggestionsResult = null
-                },
-                // AI Preferences reminder - show until user sets up preferences
-                showPreferencesReminder = aiPreferencesPromptManager.shouldShowInDialogReminder(),
-                onSetUpPreferences = {
-                    showSmartSuggestionsDialog = false
-                    smartSuggestionsResult = null
-                    showAiPreferencesDialog = true
                 }
             )
         }
 
-        // AI Preferences Invite Popup - proactive prompt with backoff
-        if (showAiPreferencesInvitePopup) {
-            AiPreferencesInvitePopup(
-                onSetUpNow = {
-                    showAiPreferencesInvitePopup = false
-                    showAiPreferencesDialog = true
-                },
-                onMaybeLater = {
-                    showAiPreferencesInvitePopup = false
-                    aiPreferencesPromptManager.onProactivePromptDismissed()
-                },
-                onDontAskAgain = {
-                    showAiPreferencesInvitePopup = false
-                    // Record as dismissed - backoff system will eventually deactivate
-                    aiPreferencesPromptManager.onProactivePromptDismissed()
-                }
-            )
-        }
 
         // Task Breakdown Dialog - break complex tasks into subtasks
         if (showTaskBreakdownDialog) {

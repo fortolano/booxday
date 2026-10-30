@@ -221,7 +221,7 @@ fun WelcomePopup(
                                     tint = EInkTheme.Colors.primary
                                 )
                                 Text(
-                                    text = "Tip: with an OpenRouter key, Settings → AI Settings → AI Preferences makes suggestions fit your day.",
+                                    text = "Tip: connect OpenRouter in Settings → AI Settings to plan your day and get task ideas with AI.",
                                     fontSize = 12.sp,
                                     color = EInkTheme.Colors.darkGray,
                                     lineHeight = 16.sp

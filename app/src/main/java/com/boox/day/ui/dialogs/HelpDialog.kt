@@ -627,7 +627,7 @@ private fun AiFeaturesContent() {
     BulletItem("Paying for AI", "Signing up is free. Free models need no credit but allow 50 requests a day (1,000 a day once you have bought \$10 of credit), and are often busy. Other models use credit you add on OpenRouter (openrouter.ai/settings/credits) by card, AliPay or USDC, from \$5. A key can have a spending limit.")
     BulletItem("AI Features", "The switch for voice input, the AI tools and reading pages for search. With it off, none of your data goes to OpenRouter.")
     BulletItem("AI Models", "The model for each job: Reading handwriting, Voice, Writing and summaries, Planning and suggestions, Search indexing. If a model fails, BooxDay's choice answers.")
-    BulletItem("AI Preferences", "Five short tabs: Priorities, About Me, Daily Rhythm, Lifestyle and AI Style (with Vacation, Crunch and Holiday modes). Smart Suggestions, Optimize My Day, Weekly Summary and Sort by Priority use your answers. Closing keeps what you picked.")
+    BulletItem("AI options", "How many Smart Suggestions (Fewer, Normal or More), Vacation mode for lighter plans and suggestions while you're away, and switches for health and social ideas. Smart Suggestions, Optimize My Day and Sort by Priority follow them.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
@@ -641,7 +641,7 @@ private fun AiFeaturesContent() {
 
     SectionSubheader("Task AI")
     BulletItem("Optimize My Day", "Proposes changes to your day, such as moving a task or blocking time. Nothing changes until you tap a proposal's button; Skip leaves it.")
-    BulletItem("Smart Suggestions", "Task ideas from your calendar, recent tasks, memos and AI Preferences. Add the ones you want, or all with Add All.")
+    BulletItem("Smart Suggestions", "Task ideas from your calendar, recent tasks and memos. Add the ones you want, or all with Add All.")
     BulletItem("Sort by Priority", "Orders this page or the whole day by importance, on the tablet. Check the order, then tap Apply Order.")
     BulletItem("Break Down Task", "Splits a big task into smaller ones.")
     BulletItem("Daily Summary", "What you finished today; move unfinished tasks to tomorrow one by one.")
@@ -650,7 +650,7 @@ private fun AiFeaturesContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("How the AI Works")
-    BodyText("When you use an AI feature, only what it needs (page images, memo text, your tasks and events, or a voice clip) is sent to OpenRouter and the company that runs the model. BooxDay has no server of its own. Some free models may keep what they are sent. The AI doesn't learn from your use: each request carries what it needs, plus your AI Preferences.")
+    BodyText("When you use an AI feature, only what it needs (page images, memo text, your tasks and events, or a voice clip) is sent to OpenRouter and the company that runs the model. BooxDay has no server of its own. Some free models may keep what they are sent. The AI doesn't learn from your use: each request carries what it needs, plus your AI options.")
     BodyText("The first time you use Optimize My Day, Daily Summary, Weekly Summary or Smart Suggestions, BooxDay tells you which calendar details it sends to OpenRouter, and how to keep them private: paid models (AI Settings → AI Models) and Zero Data Retention in your OpenRouter account's privacy settings. Free models keep working.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))

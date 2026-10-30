@@ -4,7 +4,6 @@ import android.app.Application
 import com.boox.day.api.OpenRouterAccount
 import com.boox.day.api.ai.AiProblem
 import com.boox.day.api.ai.AiResponse
-import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -17,7 +16,7 @@ import java.net.SocketTimeoutException
 /**
  * Voice says what went wrong in plain words (Oct 2026): an OpenRouter timeout said "No internet
  * connection", and other errors showed OpenRouter's raw HTTP answer. TranscriptionService (voice
- * to task, event, text) builds its message the same way.
+ * to task, event, text) builds its message with AiProblem.messageFor.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
@@ -36,10 +35,9 @@ class VoiceErrorMessageTest {
         OpenRouterAccount.onPaidRequestSucceeded()
     }
 
-    private fun parseWith(answer: AiResponse<String>): String? = runBlocking {
-        AiRetryExecutor.send = { _, _ -> answer }
-        VoicePreferencesParser.parseAudioInput("UklGRg==").error
-    }
+    // The voice setup that went through its own parser was removed with AI Preferences (29 Oct 2026);
+    // TranscriptionService (voice to task, event, text) uses this shared mapping
+    private fun parseWith(answer: AiResponse.Error): String = AiProblem.messageFor(answer)
 
     @Test
     fun `a timeout is OpenRouter not answering, not no internet`() {

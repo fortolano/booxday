@@ -836,7 +836,7 @@ TIME SCHEDULING GUIDELINES for "suggestedTimeBlock":
             }
 
             // User profile
-            // Oct 2026: only what the user told AI Preferences; no invented work hours or blocked times
+            // Oct 2026: no invented work hours or blocked times; only the AI options (Vacation, Health and Social)
             appendLine("## USER PROFILE")
             if (prefs.priorityRanking.isNotEmpty()) {
                 appendLine("Most important areas (user's picks): ${prefs.priorityRanking.joinToString(", ")}")

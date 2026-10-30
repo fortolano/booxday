@@ -22,10 +22,31 @@ object RemovedFeaturesCleanup {
         "device_info_prefs"
     )
 
+    /**
+     * AI Preferences (removed 29 Oct 2026, only three options kept): the other stored answers and the
+     * questions' invite schedule. Once per install, off the main thread (it reads the database).
+     */
+    private const val DONE_PREFS = "removed_features"
+    private const val AI_PREFERENCES_DONE = "ai_preferences_answers"
+
     fun run(context: Context) {
         val app = context.applicationContext
         WorkManager.getInstance(app).cancelUniqueWork(NEPHAI_SYNC_WORK)
         deletePrefs(app, NEPHAI_PREFS + COMMERCIAL_PREFS)
+        removeOldAiPreferencesAnswers(app)
+    }
+
+    private fun removeOldAiPreferencesAnswers(context: Context) {
+        val done = context.getSharedPreferences(DONE_PREFS, Context.MODE_PRIVATE)
+        if (done.getBoolean(AI_PREFERENCES_DONE, false)) return
+        Thread {
+            runCatching { com.boox.day.data.ai.AiPreferencesRepository(context).removeOldAnswers() }
+                .onSuccess {
+                    done.edit().putBoolean(AI_PREFERENCES_DONE, true).apply()
+                    Log.i(TAG, "Removed the old AI Preferences answers")
+                }
+                .onFailure { Log.w(TAG, "Old AI Preferences answers not removed: ${it.javaClass.simpleName}") }
+        }.start()
     }
 
     private fun deletePrefs(context: Context, names: List<String>) {

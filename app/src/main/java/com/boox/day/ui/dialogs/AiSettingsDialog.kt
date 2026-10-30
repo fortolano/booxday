@@ -36,6 +36,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.data.datastore.SetupChecklistStore
 import com.boox.day.ui.components.AiModelsCard
+import com.boox.day.ui.components.AiOptionsCard
 import com.boox.day.ui.components.ApiKeySettingsCard
 import com.boox.day.ui.components.EInkToggle
 import com.boox.day.ui.components.ScrollableWithIndicator
@@ -50,7 +51,7 @@ import com.boox.day.ui.theme.EInkTheme
  * - OpenRouter key: every AI feature runs on the user's own key, so it comes first
  * - AI Features: master toggle
  * - AI Models: the OpenRouter model each AI job uses
- * - AI Personalization: button to open AiPreferencesDialog wizard
+ * - AI options: how many suggestions, Vacation, Health and Social suggestions (ui/components/AiOptionsCard)
  * - Privacy: where requests go, BYOK link
  *
  * E-Ink optimized: Uses Popup (not Dialog), noRippleClickable, EInkTheme constants.
@@ -60,9 +61,7 @@ fun AiSettingsDialog(
     onDismiss: () -> Unit,
     // AI Features master toggle
     aiEnabled: Boolean,
-    onAiEnabledChanged: (Boolean) -> Unit,
-    // Open AI Preferences wizard
-    onOpenAiPreferences: () -> Unit
+    onAiEnabledChanged: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -179,64 +178,8 @@ fun AiSettingsDialog(
                         // Oct 2026: which OpenRouter model each AI job uses
                         AiModelsCard(aiEnabled = aiEnabled)
 
-                        // Personalization Section
-                        SettingCard(
-                            title = "AI Preferences",
-                            description = "A few questions about your priorities and your day, so suggestions fit you."
-                        ) {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-                            ) {
-                                Text(
-                                    text = "Smart Suggestions, Optimize My Day, Weekly Summary and Sort by Priority use your answers. You can change them at any time; closing the questions keeps what you picked.",
-                                    fontSize = EInkTheme.Preferences.explanationFontSize,
-                                    color = EInkTheme.Colors.gray
-                                )
-
-                                Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
-
-                                // Configure Preferences Button
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(EInkTheme.Button.height)
-                                        .background(
-                                            if (aiEnabled) EInkTheme.Colors.primary else EInkTheme.Colors.lightGray,
-                                            RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                                        )
-                                        .noRippleClickable(enabled = aiEnabled) {
-                                            onOpenAiPreferences()
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Set Up AI Preferences",
-                                            fontSize = EInkTheme.Typography.button,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (aiEnabled) EInkTheme.Colors.white else EInkTheme.Colors.gray
-                                        )
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
-                                            tint = if (aiEnabled) EInkTheme.Colors.white else EInkTheme.Colors.gray
-                                        )
-                                    }
-                                }
-
-                                if (!aiEnabled) {
-                                    Text(
-                                        text = "Turn on AI Features above to set up AI Preferences.",
-                                        fontSize = EInkTheme.Preferences.explanationFontSize,
-                                        color = EInkTheme.Colors.gray
-                                    )
-                                }
-                            }
-                        }
+                        // Oct 2026: the three AI options that measurably change answers (replaced AI Preferences)
+                        AiOptionsCard(aiEnabled = aiEnabled)
 
                         // Privacy (Oct 2026): where AI requests go. Getting a key is the key card's job
                         SettingCard(

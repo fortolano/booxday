@@ -3,11 +3,10 @@ package com.boox.day.data.ai
 import kotlinx.serialization.Serializable
 
 /**
- * User preferences for AI-driven Smart Suggestions personalization.
- * Stored via KvProxy in the Kv table.
- *
- * These preferences allow the AI to understand the user holistically and
- * generate more relevant, personalized task suggestions.
+ * The AI options (AI Settings → AI options), stored via KvProxy in the Kv table. Since 29 Oct 2026
+ * only suggestionCount, vacationMode, includeHealthReminders and includeSocialReminders are used
+ * ([keptOptions][AiPreferences.Companion.keptOptions]); the other fields are from the removed AI
+ * Preferences questions and are kept only so older saved data loads.
  */
 @Serializable
 data class AiPreferences(
@@ -75,121 +74,26 @@ data class AiPreferences(
 ) {
     companion object {
         /**
-         * The preferences to put in AI requests (Oct 2026): none until the user has set them up, so
-         * defaults are never presented as the user's own answers ("Working Professional, Suburban…").
+         * The AI options BooxDay still uses (29 Oct 2026). A measured test of every AI Preferences
+         * answer (252 AI answers) found only these change what the AI says: how many suggestions,
+         * Vacation, and the Health and Social suggestion switches. The owner chose to keep these
+         * three and remove the rest, so every other stored answer is dropped here and never reaches
+         * a prompt or a score. The other fields stay in the class only so older saved data still loads.
          */
-        fun AiPreferences?.forPrompt(): AiPreferences? = this?.takeIf { it.setupComplete }
+        fun AiPreferences?.keptOptions(): AiPreferences = AiPreferences(
+            suggestionCount = this?.suggestionCount ?: SuggestionCount.MODERATE,
+            includeHealthReminders = this?.includeHealthReminders ?: true,
+            includeSocialReminders = this?.includeSocialReminders ?: true,
+            vacationMode = this?.vacationMode ?: false,
+            setupComplete = true,
+            lastUpdated = this?.lastUpdated ?: 0L
+        )
 
-        /** The one special mode in force; only one applies, everywhere (vacation, then crunch, then holiday). */
-        fun AiPreferences.activeMode(): SpecialMode? = when {
-            vacationMode -> SpecialMode.VACATION
-            crunchMode -> SpecialMode.CRUNCH
-            holidayMode -> SpecialMode.HOLIDAY
-            else -> null
-        }
+        /** The preferences to put in AI requests: only the kept options ([keptOptions]). */
+        fun AiPreferences?.forPrompt(): AiPreferences = keptOptions()
 
-        /** The life areas the user picked as most important (all 9), named as in AI Preferences. */
-        fun AiPreferences.pickedAreas(): List<String> = listOf(
-            "Work & Career" to workPriority,
-            "Education" to educationPriority,
-            "Family" to familyPriority,
-            "Health" to healthPriority,
-            "Social" to socialPriority,
-            "Hobbies" to hobbyPriority,
-            "Finance" to financePriority,
-            "Home & Organization" to homePriority,
-            "Personal Growth" to growthPriority
-        ).filter { it.second > 3 }.sortedByDescending { it.second }.map { it.first }
-
-        /** Best time for focused work, from "When are you most productive?"; null when not answered. */
-        fun AiPreferences.bestFocusTime(): String? = when (energyPattern) {
-            EnergyPattern.MORNING_PERSON -> "morning"
-            EnergyPattern.AFTERNOON_PEAK -> "afternoon"
-            EnergyPattern.NIGHT_OWL -> "evening"
-            EnergyPattern.STEADY -> null
-        }
-
-        /**
-         * Returns a summary of priorities for prompt building.
-         * Only includes priorities that differ from the default (3).
-         */
-        fun AiPreferences.getPrioritySummary(): String {
-            val priorities = mutableListOf<String>()
-            if (workPriority != 3) priorities.add("work: ${priorityLabel(workPriority)}")
-            if (educationPriority != 3) priorities.add("education: ${priorityLabel(educationPriority)}")
-            if (familyPriority != 3) priorities.add("family: ${priorityLabel(familyPriority)}")
-            if (healthPriority != 3) priorities.add("health: ${priorityLabel(healthPriority)}")
-            if (socialPriority != 3) priorities.add("social: ${priorityLabel(socialPriority)}")
-            if (hobbyPriority != 3) priorities.add("hobbies: ${priorityLabel(hobbyPriority)}")
-            if (financePriority != 3) priorities.add("finance: ${priorityLabel(financePriority)}")
-            if (homePriority != 3) priorities.add("home: ${priorityLabel(homePriority)}")
-            if (growthPriority != 3) priorities.add("personal growth: ${priorityLabel(growthPriority)}")
-            return if (priorities.isEmpty()) "balanced priorities" else priorities.joinToString(", ")
-        }
-
-        private fun priorityLabel(priority: Int): String = when (priority) {
-            1 -> "very low"
-            2 -> "low"
-            3 -> "medium"
-            4 -> "high"
-            5 -> "very high"
-            else -> "medium"
-        }
-
-        /**
-         * Returns a summary of lifestyle flags for prompt building.
-         */
-        fun AiPreferences.getLifestyleSummary(): String {
-            val traits = mutableListOf<String>()
-            if (isActiveLifestyle) traits.add("active lifestyle")
-            if (isWeekendWarrior) traits.add("weekend warrior")
-            if (isHomebody) traits.add("homebody")
-            if (isSocialButterfly) traits.add("social butterfly")
-            if (isQuietIntrovert) traits.add("quiet introvert")
-            if (isOutdoorsLover) traits.add("outdoors lover")
-            if (isFoodie) traits.add("foodie")
-            if (isDigitalNative) traits.add("digital native")
-            return if (traits.isEmpty()) "" else traits.joinToString(", ")
-        }
-
-        /**
-         * Returns a summary of industry/profession for prompt building.
-         */
-        fun AiPreferences.getWorkProfileSummary(): String {
-            val parts = mutableListOf<String>()
-            if (industry != Industry.NOT_SET) parts.add(industry.displayName)
-            if (profession != Profession.NOT_SET) parts.add(profession.displayName)
-            return if (parts.isEmpty()) "" else parts.joinToString(", ")
-        }
-
-        /**
-         * Returns a summary of situation flags for prompt building.
-         */
-        fun AiPreferences.getSituationSummary(): String {
-            val situations = mutableListOf<String>()
-            if (hasKids) situations.add("has children")
-            if (hasPets) situations.add("has pets")
-            if (isCareGiver) situations.add("caregiver")
-            if (livesAlone) situations.add("lives alone")
-            return if (situations.isEmpty()) "" else situations.joinToString(", ")
-        }
-
-        /**
-         * Returns a summary of daily rhythm preferences for prompt building.
-         */
-        fun AiPreferences.getDailyRhythmSummary(): String {
-            // Oct 2026: only answers that differ from the pre-selected defaults; a default is not
-            // necessarily the user's answer (the wizard starts with every question answered)
-            val d = AiPreferences()
-            val traits = mutableListOf<String>()
-            if (planningHorizon != d.planningHorizon) traits.add("plans ${planningHorizon.displayName.lowercase()}")
-            if (focusStyle != d.focusStyle) traits.add("${focusStyle.displayName.lowercase()} work style")
-            if (sleepSchedule != d.sleepSchedule) traits.add("sleep: ${sleepSchedule.displayName.lowercase()}")
-            if (commuteStyle != d.commuteStyle) traits.add("${commuteStyle.displayName.lowercase()} work arrangement")
-            if (routinePreference != d.routinePreference) traits.add("${routinePreference.displayName.lowercase()} routine")
-            if (stressResponse != d.stressResponse) traits.add("when stressed: ${stressResponse.displayName.lowercase()}")
-            return traits.joinToString(", ")
-        }
+        /** The one special mode in force: Vacation, the only mode kept (29 Oct 2026). */
+        fun AiPreferences.activeMode(): SpecialMode? = if (vacationMode) SpecialMode.VACATION else null
     }
 }
 

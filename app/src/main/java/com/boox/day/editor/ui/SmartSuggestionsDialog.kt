@@ -59,10 +59,7 @@ fun SmartSuggestionsDialog(
     processingState: SmartSuggestionsProcessingState,
     onAddSuggestion: (TaskAiService.TaskSuggestion) -> Unit,
     onAddAll: (List<TaskAiService.TaskSuggestion>) -> Unit,
-    onDismiss: () -> Unit,
-    // AI Preferences reminder
-    showPreferencesReminder: Boolean = false,
-    onSetUpPreferences: () -> Unit = {}
+    onDismiss: () -> Unit
 ) {
     Popup(
         alignment = Alignment.Center,
@@ -125,17 +122,6 @@ fun SmartSuggestionsDialog(
                     fontSize = EInkTheme.Typography.bodySmall,
                     color = EInkTheme.Colors.gray
                 )
-
-                // AI Preferences reminder banner
-                if (showPreferencesReminder) {
-                    Spacer(Modifier.height(12.dp))
-                    PreferencesReminderBanner(
-                        onClick = {
-                            onDismiss()
-                            onSetUpPreferences()
-                        }
-                    )
-                }
 
                 Spacer(Modifier.height(16.dp))
 
@@ -517,63 +503,3 @@ sealed class SmartSuggestionsProcessingState {
     data class Error(val message: String) : SmartSuggestionsProcessingState()
 }
 
-/**
- * Banner encouraging users to set up AI Preferences for better suggestions.
- * Shown at the top of SmartSuggestionsDialog when preferences aren't configured.
- */
-@Composable
-private fun PreferencesReminderBanner(
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                EInkTheme.Colors.offWhite,
-                RoundedCornerShape(EInkTheme.Global.cornerRadius)
-            )
-            .border(
-                EInkTheme.Global.borderWidth,
-                EInkTheme.Colors.gray,
-                RoundedCornerShape(EInkTheme.Global.cornerRadius)
-            )
-            .noRippleClickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 10.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ai_sparkles),
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = EInkTheme.Colors.primary
-            )
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "Get personalized suggestions",
-                    fontSize = EInkTheme.Typography.bodySmall,
-                    fontWeight = FontWeight.Medium,
-                    color = EInkTheme.Colors.primary
-                )
-                Text(
-                    text = "Set up AI Preferences →",
-                    fontSize = EInkTheme.Typography.labelSmall,
-                    color = EInkTheme.Colors.darkGray
-                )
-            }
-
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Set up",
-                modifier = Modifier.size(20.dp),
-                tint = EInkTheme.Colors.gray
-            )
-        }
-    }
-}
