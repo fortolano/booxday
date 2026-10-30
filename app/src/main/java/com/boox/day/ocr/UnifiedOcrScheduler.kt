@@ -356,13 +356,7 @@ class UnifiedOcrScheduler(private val context: Context) {
         }
     }
 
-    private fun hasBooxStoragePermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Environment.isExternalStorageManager()
-        } else {
-            true
-        }
-    }
+    private fun hasBooxStoragePermission(): Boolean = com.boox.day.booxnotes.BooxNotesAccess.has(context)
 
     /**
      * Convert date string to timestamp for priority calculation.
