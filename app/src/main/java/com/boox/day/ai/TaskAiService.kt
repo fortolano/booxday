@@ -727,8 +727,16 @@ object TaskAiService {
             includeBooxNotes = false,
             includeSourceTypes = setOf(OcrSource.TASK, OcrSource.MEMO)
         )
+        // Oct 2026: the context is labelled as reference, so the AI doesn't turn a recent task or
+        // memo line into a new task; tasks come only from what the user said
         val userPrompt = if (contextBlock.isNotBlank()) {
-            "$contextBlock\n\n$correctedText"
+            buildString {
+                appendLine(TaskAiContextBuilderV1.REFERENCE_ONLY_HEADER)
+                appendLine(contextBlock)
+                appendLine()
+                appendLine("## WHAT THE USER SAID (make tasks only from this)")
+                append(correctedText)
+            }
         } else {
             correctedText
         }
