@@ -282,6 +282,12 @@ dependencies {
         exclude group: 'org.apache.httpcomponents'
     }
     implementation 'com.google.http-client:google-http-client-gson:1.43.3'
+    // Google Tasks API for task sync. 20240312 is the last revision on google-api-client 2.2.0
+    // (like Calendar and Drive); newer ones pull google-auth-library, whose META-INF/INDEX.LIST
+    // clashes with the Onyx SDK's objenesis when packaging.
+    implementation('com.google.apis:google-api-services-tasks:v1-rev20240312-2.0.0') {
+        exclude group: 'org.apache.httpcomponents'
+    }
 
     // Encrypted credential storage
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
