@@ -49,7 +49,7 @@ class ConnectedAccountSelectionSurvivalTest {
         selections.upsertAll(listOf(selection("acc-1", "work", enabled = false), selection("acc-1", "family", enabled = true)))
 
         // What GoogleCalendarProvider.handleSignInResult does for an account that is already connected
-        val existing = accounts.getByEmail("me@example.com")!!
+        val existing = accounts.getByEmail("GOOGLE", "", "me@example.com")!!
         accounts.upsert(existing.copy(displayName = "Me (renamed)", isActive = true))
 
         assertEquals(
@@ -68,7 +68,7 @@ class ConnectedAccountSelectionSurvivalTest {
         // Sign-in finds no active account for the email and creates a new one (new random id)
         accounts.upsert(account("new-id", "me@example.com"))
 
-        val saved = accounts.getByEmail("me@example.com")
+        val saved = accounts.getByEmail("GOOGLE", "", "me@example.com")
         assertEquals("new-id", saved?.id)
         assertTrue(saved!!.isActive)
         assertEquals(null, accounts.getById("old-id"))
@@ -115,10 +115,46 @@ class ConnectedAccountSelectionSurvivalTest {
         assertEquals(1, selections.getByAccountId("kept").size)
     }
 
-    private fun account(id: String, email: String, displayName: String? = null) = ConnectedAccountEntity(
+    @Test
+    fun theSameEmailOnGoogleAndOutlookKeepsBothAccountsAndTheirChoices() = runBlocking {
+        accounts.upsert(account("acc-g", "me@gmail.com"))
+        selections.upsertAll(listOf(selection("acc-g", "work", enabled = true)))
+
+        // Signing in to Outlook with the same address (v29: deleted the Google row and its choices)
+        accounts.upsert(account("acc-o", "me@gmail.com", providerId = "OUTLOOK", accountType = "OUTLOOK_PERSONAL"))
+
+        assertEquals("acc-g", accounts.getByEmail("GOOGLE", "", "me@gmail.com")?.id)
+        assertEquals("acc-o", accounts.getByEmail("OUTLOOK", "", "me@gmail.com")?.id)
+        assertEquals("the Google account keeps its calendar choices", 1, selections.getByAccountId("acc-g").size)
+    }
+
+    @Test
+    fun anAccountOfAnUnknownProviderIsNeverReadAsGoogle() = runBlocking {
+        val newer = account("acc-c", "me@icloud.com", providerId = "CALDAV", accountType = "CALDAV_ICLOUD")
+
+        assertEquals(null, newer.toDomainModelOrNull())
+        assertEquals(null, com.boox.day.data.model.ProviderId.fromKeyOrNull("CALDAV"))
+        assertEquals(
+            "events keep the display fallback",
+            com.boox.day.data.model.ProviderId.GOOGLE,
+            com.boox.day.data.model.ProviderId.fromKey("LOCAL")
+        )
+        assertEquals(
+            com.boox.day.data.model.ProviderId.GOOGLE,
+            account("acc-g", "me@gmail.com").toDomainModelOrNull()?.providerId
+        )
+    }
+
+    private fun account(
+        id: String,
+        email: String,
+        displayName: String? = null,
+        providerId: String = "GOOGLE",
+        accountType: String = "GOOGLE_PERSONAL"
+    ) = ConnectedAccountEntity(
         id = id,
-        providerId = "GOOGLE",
-        accountType = "GOOGLE_PERSONAL",
+        providerId = providerId,
+        accountType = accountType,
         email = email,
         displayName = displayName,
         isActive = true,

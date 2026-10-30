@@ -58,7 +58,10 @@ enum class AccountType(
          * Parse account type from database key string.
          * Returns GOOGLE_PERSONAL as default for migration compatibility.
          */
-        fun fromKey(key: String): AccountType = entries.find { it.key == key } ?: GOOGLE_PERSONAL
+        fun fromKey(key: String): AccountType = fromKeyOrNull(key) ?: GOOGLE_PERSONAL
+
+        /** The account type for a stored key, or null for one this version doesn't know. */
+        fun fromKeyOrNull(key: String): AccountType? = entries.find { it.key == key }
 
         /**
          * Get all account types for a specific provider.

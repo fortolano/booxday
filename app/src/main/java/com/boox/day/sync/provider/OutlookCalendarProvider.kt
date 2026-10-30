@@ -182,7 +182,7 @@ class OutlookCalendarProvider(
             }
 
             // Check if account already exists in database
-            val existingEntity = accountDao.getByEmail(authResult.email)
+            val existingEntity = accountDao.getByEmail(ProviderId.OUTLOOK.key, "", authResult.email)
             val accountEntity = if (existingEntity != null) {
                 // Update existing account
                 existingEntity.copy(

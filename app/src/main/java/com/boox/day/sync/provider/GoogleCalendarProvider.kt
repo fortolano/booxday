@@ -153,7 +153,7 @@ class GoogleCalendarProvider(
             val accountType = detectAccountType(googleAccount)
 
             // Create or update database record
-            val existingEntity = googleAccount.email?.let { accountDao.getByEmail(it) }
+            val existingEntity = googleAccount.email?.let { accountDao.getByEmail(ProviderId.GOOGLE.key, "", it) }
             val accountEntity = if (existingEntity != null) {
                 // Update existing account
                 existingEntity.copy(
@@ -776,7 +776,7 @@ class GoogleCalendarProvider(
      */
     suspend fun getCurrentAccountId(): String? = withContext(Dispatchers.IO) {
         val email = authManager.getUserEmail() ?: return@withContext null
-        val entity = accountDao.getByEmail(email)
+        val entity = accountDao.getByEmail(ProviderId.GOOGLE.key, "", email)
         entity?.id
     }
 
@@ -786,7 +786,7 @@ class GoogleCalendarProvider(
      */
     suspend fun getCurrentAccount(): ConnectedAccount? = withContext(Dispatchers.IO) {
         val email = authManager.getUserEmail() ?: return@withContext null
-        val entity = accountDao.getByEmail(email)
+        val entity = accountDao.getByEmail(ProviderId.GOOGLE.key, "", email)
         entity?.toDomainModel()
     }
 

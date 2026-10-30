@@ -171,9 +171,23 @@ class MultiAccountSyncManager(
      * Returns null if account not found.
      */
     private suspend fun getProviderForAccount(accountId: String): CalendarProvider? {
-        val account = accountDao.getById(accountId) ?: return null
-        return getProvider(ProviderId.fromKey(account.providerId))
+        val account = knownAccount(accountId) ?: return null
+        return providerOf(account)
     }
+
+    /**
+     * An account row this version can sync, or null. A row of a provider it doesn't know (one a
+     * newer version added, e.g. CalDAV) counts as not found: it is never synced as Google, which
+     * ProviderId.fromKey's fallback would do (Oct 2026).
+     */
+    private suspend fun knownAccount(accountId: String): ConnectedAccountEntity? =
+        accountDao.getById(accountId)?.takeIf { ProviderId.fromKeyOrNull(it.providerId) != null }
+
+    /** Only for rows from [knownAccount]. */
+    private fun providerIdOf(account: ConnectedAccountEntity): ProviderId =
+        checkNotNull(ProviderId.fromKeyOrNull(account.providerId)) { "Unknown provider ${account.providerId}" }
+
+    private fun providerOf(account: ConnectedAccountEntity): CalendarProvider = getProvider(providerIdOf(account))
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Account Management
@@ -183,7 +197,7 @@ class MultiAccountSyncManager(
      * Get all active connected accounts from all providers.
      */
     suspend fun getAllAccounts(): List<ConnectedAccount> = withContext(Dispatchers.IO) {
-        accountDao.getActiveAccounts().map { it.toDomainModel() }
+        accountDao.getActiveAccounts().mapNotNull { it.toDomainModelOrNull() }
     }
 
     /**
@@ -197,7 +211,7 @@ class MultiAccountSyncManager(
      * Get an account by ID.
      */
     suspend fun getAccountById(accountId: String): ConnectedAccount? = withContext(Dispatchers.IO) {
-        accountDao.getById(accountId)?.toDomainModel()
+        accountDao.getById(accountId)?.toDomainModelOrNull()
     }
 
     /**
@@ -268,7 +282,7 @@ class MultiAccountSyncManager(
      */
     suspend fun removeAccount(accountId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val account = accountDao.getById(accountId)
+            val account = knownAccount(accountId)
             if (account == null) {
                 Log.w(TAG, "Account not found for removal: $accountId")
                 return@withContext Result.failure(
@@ -276,7 +290,7 @@ class MultiAccountSyncManager(
                 )
             }
 
-            val provider = getProvider(ProviderId.fromKey(account.providerId))
+            val provider = providerOf(account)
 
             // Sign out from provider
             provider.removeAccount(accountId)
@@ -344,8 +358,8 @@ class MultiAccountSyncManager(
      * Get writable calendars for a specific account.
      */
     suspend fun getWritableCalendarsForAccount(accountId: String): List<WritableCalendar> = withContext(Dispatchers.IO) {
-        val account = accountDao.getById(accountId) ?: return@withContext emptyList()
-        val providerId = ProviderId.fromKey(account.providerId)
+        val account = knownAccount(accountId) ?: return@withContext emptyList()
+        val providerId = providerIdOf(account)
         val provider = getProvider(providerId)
         val calendarsResult = provider.fetchCalendars(accountId)
         if (calendarsResult.isFailure) return@withContext emptyList()
@@ -381,14 +395,14 @@ class MultiAccountSyncManager(
      */
     suspend fun refreshCalendarsForAccount(accountId: String): Result<List<CalendarSelection>> = withContext(Dispatchers.IO) {
         try {
-            val account = accountDao.getById(accountId)
+            val account = knownAccount(accountId)
             if (account == null) {
                 return@withContext Result.failure(
                     CalendarProviderException.NotFoundException("Account not found: $accountId")
                 )
             }
 
-            val provider = getProvider(ProviderId.fromKey(account.providerId))
+            val provider = providerOf(account)
             val calendarsResult = provider.fetchCalendars(accountId)
 
             if (calendarsResult.isFailure) {
@@ -396,7 +410,7 @@ class MultiAccountSyncManager(
             }
 
             val providerCalendars = calendarsResult.getOrThrow()
-            updateWritableCalendarsForAccount(accountId, ProviderId.fromKey(account.providerId), account.email, providerCalendars)
+            updateWritableCalendarsForAccount(accountId, providerIdOf(account), account.email, providerCalendars)
             val providerCalendarIds = providerCalendars.map { it.id }.toSet()
             val existingSelections = selectionDao.getByAccountId(accountId)
             val existingByCalendarId = existingSelections.associateBy { it.calendarId }
@@ -599,14 +613,14 @@ class MultiAccountSyncManager(
         var providerId: String? = null
 
         try {
-            val account = accountDao.getById(accountId)
+            val account = knownAccount(accountId)
             if (account == null) {
                 return@withContext SyncResult.Error("Account not found: $accountId")
             }
             accountEmail = account.email
             providerId = account.providerId
 
-            val provider = getProvider(ProviderId.fromKey(account.providerId))
+            val provider = providerOf(account)
 
 
 
@@ -882,7 +896,7 @@ class MultiAccountSyncManager(
         event: NewEventData
     ): Result<CalendarEvent> = withContext(Dispatchers.IO) {
         try {
-            val account = accountDao.getById(accountId)
+            val account = knownAccount(accountId)
                 ?: return@withContext Result.failure(
                     CalendarProviderException.NotFoundException("Account not found")
                 )
@@ -894,7 +908,7 @@ class MultiAccountSyncManager(
                     CalendarProviderException.ProviderException("No default calendar set")
                 )
 
-            val provider = getProvider(ProviderId.fromKey(account.providerId))
+            val provider = providerOf(account)
             val result = provider.createEvent(accountId, targetCalendarId, event)
 
             if (result.isFailure) {
@@ -938,12 +952,12 @@ class MultiAccountSyncManager(
         event: UpdateEventData
     ): Result<CalendarEvent> = withContext(Dispatchers.IO) {
         try {
-            val account = accountDao.getById(accountId)
+            val account = knownAccount(accountId)
                 ?: return@withContext Result.failure(
                     CalendarProviderException.NotFoundException("Account not found")
                 )
 
-            val provider = getProvider(ProviderId.fromKey(account.providerId))
+            val provider = providerOf(account)
             val previousCachedEvent = eventRepository.getEventById(eventId)
             val result = provider.updateEvent(accountId, calendarId, eventId, event)
 
@@ -990,12 +1004,12 @@ class MultiAccountSyncManager(
         eventId: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val account = accountDao.getById(accountId)
+            val account = knownAccount(accountId)
                 ?: return@withContext Result.failure(
                     CalendarProviderException.NotFoundException("Account not found")
                 )
 
-            val provider = getProvider(ProviderId.fromKey(account.providerId))
+            val provider = providerOf(account)
             val result = provider.deleteEvent(accountId, calendarId, eventId)
 
             if (result.isFailure) {

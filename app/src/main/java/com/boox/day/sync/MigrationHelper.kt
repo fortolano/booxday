@@ -144,7 +144,7 @@ object CalendarMigrationHelper {
     ): String? = withContext(Dispatchers.IO) {
         try {
             // Check if account already exists
-            val existingAccount = accountDao.getByEmail(email)
+            val existingAccount = accountDao.getByEmail(ProviderId.GOOGLE.key, "", email)
             if (existingAccount != null) {
                 Log.d(TAG, "Found existing account record for $email: ${existingAccount.id}")
                 return@withContext existingAccount.id

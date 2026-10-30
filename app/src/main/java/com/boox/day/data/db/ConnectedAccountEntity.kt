@@ -57,6 +57,22 @@ data class ConnectedAccountEntity(
         lastSyncAt = lastSyncAt
     )
 
+    /** Null for a row of a provider or account type this version doesn't know (never read as Google). */
+    fun toDomainModelOrNull(): ConnectedAccount? {
+        val provider = ProviderId.fromKeyOrNull(providerId) ?: return null
+        val type = AccountType.fromKeyOrNull(accountType)?.takeIf { it.providerId == provider } ?: return null
+        return ConnectedAccount(
+            id = id,
+            providerId = provider,
+            accountType = type,
+            email = email,
+            displayName = displayName,
+            isActive = isActive,
+            createdAt = createdAt,
+            lastSyncAt = lastSyncAt
+        )
+    }
+
     companion object {
         /**
          * Create entity from domain model.
@@ -105,28 +121,32 @@ interface ConnectedAccountDao {
     suspend fun getById(accountId: String): ConnectedAccountEntity?
 
     /**
-     * Get account by email.
+     * The active account of one provider (and server, "" except for CalDAV) with this email.
+     * Scoped by provider since v30: by email alone, signing in to Outlook with the address of a
+     * connected Google account found (and then updated) the Google row.
      */
-    @Query("SELECT * FROM connected_accounts WHERE email = :email AND isActive = 1")
-    suspend fun getByEmail(email: String): ConnectedAccountEntity?
+    @Query("SELECT * FROM connected_accounts WHERE providerId = :providerId AND serverUrl = :serverUrl AND email = :email AND isActive = 1")
+    suspend fun getByEmail(providerId: String, serverUrl: String, email: String): ConnectedAccountEntity?
 
     /**
      * Insert or update an account.
      *
      * An existing id is UPDATEd in place, never REPLACEd: REPLACE deletes the row first, and
      * calendar_selections cascade from it, so signing in again with a connected account wiped its
-     * calendar on/off choices (Oct 2026). The same email under another id is a removed (inactive)
-     * account being connected again with a new id: that old row goes first, as REPLACE did (its
-     * old choices with it); a plain upsert would hit the unique email index and then update nothing.
+     * calendar on/off choices (Oct 2026). The same provider + server + email under another id is a
+     * removed (inactive) account being connected again with a new id: that old row goes first, as
+     * REPLACE did (its old choices with it); a plain upsert would hit the unique index
+     * (providerId, serverUrl, email) and then update nothing. Accounts of other providers with the
+     * same email are left alone (until v30 the delete matched the email only).
      */
     @Transaction
     suspend fun upsert(account: ConnectedAccountEntity) {
-        deleteOtherAccountWithEmail(account.email, account.id)
+        deleteOtherAccount(account.providerId, account.serverUrl, account.email, account.id)
         upsertRow(account)
     }
 
-    @Query("DELETE FROM connected_accounts WHERE email = :email AND id != :id")
-    suspend fun deleteOtherAccountWithEmail(email: String, id: String)
+    @Query("DELETE FROM connected_accounts WHERE providerId = :providerId AND serverUrl = :serverUrl AND email = :email AND id != :id")
+    suspend fun deleteOtherAccount(providerId: String, serverUrl: String, email: String, id: String)
 
     /** Use [upsert]. */
     @Upsert
