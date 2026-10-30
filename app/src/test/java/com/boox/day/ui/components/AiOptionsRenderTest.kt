@@ -82,7 +82,20 @@ class AiOptionsRenderTest {
             // A short card: the questionnaire it replaces had five tabs
             assertTrue("${device.name} AI options is $heightDp dp", heightDp < 420f)
             render(device, "ai-options-off") { AiOptionsContent(AiPreferences(), enabled = false) {} }
+            val nextWeek = java.time.LocalDate.now().plusDays(6).toString()
+            render(device, "ai-options-vacation") {
+                AiOptionsContent(AiPreferences(vacationMode = true, vacationUntil = nextWeek), enabled = true) {}
+            }
+            render(device, "vacation-notice") { VacationNoticeText(vacationNoticeText(nextWeek)) }
         }
+    }
+
+    @Test
+    fun vacationNoticeWords() {
+        val today = java.time.LocalDate.of(2026, 10, 29)
+        assertTrue(vacationNoticeText("2026-11-05", today).startsWith("Vacation mode is on until Thu 5 Nov"))
+        assertTrue(vacationNoticeText("2027-01-04", today).contains("Mon 4 Jan 2027"))
+        assertTrue(vacationNoticeText(null, today).contains("until you turn it off"))
     }
 
     @Test
