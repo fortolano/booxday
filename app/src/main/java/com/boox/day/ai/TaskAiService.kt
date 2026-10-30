@@ -10,6 +10,9 @@ import com.boox.day.api.ai.AiClient
 import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
+import com.boox.day.data.ai.AiPreferences.Companion.activeMode
+import com.boox.day.data.ai.AiPreferences.Companion.forPrompt
+import com.boox.day.data.ai.AiPreferences.Companion.pickedAreas
 import com.boox.day.data.ai.AiPreferencesRepository
 import com.boox.day.data.ai.ScoredContext
 import com.boox.day.data.db.Task
@@ -1467,57 +1470,59 @@ OUTPUT FORMAT (JSON only):
     // SMART SUGGESTIONS V2 (with AI Preferences)
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private fun buildSuggestionPreferenceGuidance(
+    /**
+     * Smart Suggestions' preference rules (Oct 2026): only what the user set up (nothing before setup,
+     * no pre-selected default as an answer), all 9 life areas, and one active mode, Holiday included.
+     */
+    internal fun buildSuggestionPreferenceGuidance(
         preferences: com.boox.day.data.ai.AiPreferences?,
         targetCount: Int
     ): String {
-        val prefs = preferences ?: com.boox.day.data.ai.AiPreferences()
-        val priorities = listOf(
-            "Work" to prefs.workPriority,
-            "Health" to prefs.healthPriority,
-            "Family" to prefs.familyPriority,
-            "Social" to prefs.socialPriority,
-            "Learning" to prefs.educationPriority,
-            "Finance" to prefs.financePriority,
-            "Hobbies" to prefs.hobbyPriority
-        ).sortedByDescending { it.second }
-
+        val prefs = preferences.forPrompt()
+        val d = com.boox.day.data.ai.AiPreferences()
         return buildString {
             appendLine("## PREFERENCES")
             appendLine("Target suggestion count: $targetCount")
-            appendLine("Top priorities:")
-            priorities.take(3).forEach { (name, score) ->
-                appendLine("- $name: $score/5")
+            if (prefs == null) return@buildString
+            prefs.pickedAreas().takeIf { it.isNotEmpty() }?.let {
+                appendLine("Most important areas (user's picks): ${it.joinToString(", ")}")
             }
-            appendLine("Suggestion style: ${prefs.suggestionStyle.displayName}")
-            when (prefs.suggestionStyle) {
-                com.boox.day.data.ai.SuggestionStyle.PRACTICAL -> appendLine("  Focus on immediately actionable, practical tasks.")
-                com.boox.day.data.ai.SuggestionStyle.BALANCED -> appendLine("  Balance practical tasks with growth-oriented suggestions.")
-                com.boox.day.data.ai.SuggestionStyle.HOLISTIC -> appendLine("  Include self-care, reflection, and work-life balance suggestions.")
+            if (prefs.suggestionStyle != d.suggestionStyle) {
+                appendLine("Suggestion style: ${prefs.suggestionStyle.displayName}")
+                when (prefs.suggestionStyle) {
+                    com.boox.day.data.ai.SuggestionStyle.PRACTICAL -> appendLine("  Focus on immediately actionable, practical tasks.")
+                    com.boox.day.data.ai.SuggestionStyle.BALANCED -> appendLine("  Mix practical tasks with some wellness.")
+                    com.boox.day.data.ai.SuggestionStyle.HOLISTIC -> appendLine("  Include self-care, reflection, and work-life balance suggestions.")
+                }
             }
-            appendLine("Planning horizon: ${prefs.planningHorizon.displayName}")
-            when (prefs.planningHorizon) {
-                com.boox.day.data.ai.PlanningHorizon.DAY_BY_DAY -> appendLine("  Focus on TODAY's actionable tasks only.")
-                com.boox.day.data.ai.PlanningHorizon.WEEKLY -> appendLine("  Include tasks for later this week.")
-                com.boox.day.data.ai.PlanningHorizon.MONTHLY -> appendLine("  Include milestone and goal-oriented tasks.")
+            if (prefs.planningHorizon != d.planningHorizon) {
+                appendLine("Planning horizon: ${prefs.planningHorizon.displayName}")
+                when (prefs.planningHorizon) {
+                    com.boox.day.data.ai.PlanningHorizon.DAY_BY_DAY -> appendLine("  Focus on TODAY's actionable tasks only.")
+                    com.boox.day.data.ai.PlanningHorizon.WEEKLY -> appendLine("  Include tasks for later this week.")
+                    com.boox.day.data.ai.PlanningHorizon.MONTHLY -> appendLine("  Include milestone and goal-oriented tasks.")
+                }
             }
-            appendLine("Focus style: ${prefs.focusStyle.displayName}")
-            when (prefs.focusStyle) {
-                com.boox.day.data.ai.FocusStyle.DEEP_FOCUS -> appendLine("  Suggest fewer, more substantial tasks requiring concentration.")
-                com.boox.day.data.ai.FocusStyle.TASK_SWITCHING -> appendLine("  Suggest bite-sized, quick-win tasks.")
-                com.boox.day.data.ai.FocusStyle.MIXED -> appendLine("  Mix of deep work and quick tasks.")
+            if (prefs.focusStyle != d.focusStyle) {
+                appendLine("Focus style: ${prefs.focusStyle.displayName}")
+                when (prefs.focusStyle) {
+                    com.boox.day.data.ai.FocusStyle.DEEP_FOCUS -> appendLine("  Suggest fewer, more substantial tasks requiring concentration.")
+                    com.boox.day.data.ai.FocusStyle.TASK_SWITCHING -> appendLine("  Suggest bite-sized, quick-win tasks.")
+                    com.boox.day.data.ai.FocusStyle.MIXED -> appendLine("  Mix of deep work and quick tasks.")
+                }
             }
-            appendLine("Routine: ${prefs.routinePreference.displayName}")
-            when (prefs.routinePreference) {
-                com.boox.day.data.ai.RoutinePreference.STRUCTURED -> appendLine("  Suggest routine-building, repeatable tasks.")
-                com.boox.day.data.ai.RoutinePreference.SPONTANEOUS -> appendLine("  Suggest variety and novel activities.")
-                com.boox.day.data.ai.RoutinePreference.BALANCED -> appendLine("  Balance routine with variety.")
+            if (prefs.routinePreference != d.routinePreference) {
+                appendLine("Routine: ${prefs.routinePreference.displayName}")
+                when (prefs.routinePreference) {
+                    com.boox.day.data.ai.RoutinePreference.STRUCTURED -> appendLine("  Suggest routine-building, repeatable tasks.")
+                    com.boox.day.data.ai.RoutinePreference.SPONTANEOUS -> appendLine("  Suggest variety and novel activities.")
+                    com.boox.day.data.ai.RoutinePreference.BALANCED -> appendLine("  Balance routine with variety.")
+                }
             }
-            appendLine("Work arrangement: ${prefs.commuteStyle.displayName}")
             if (prefs.commuteStyle == com.boox.day.data.ai.CommuteStyle.COMMUTE) {
+                appendLine("Work arrangement: ${prefs.commuteStyle.displayName}")
                 appendLine("  Can suggest commute-friendly tasks (calls, podcasts, planning).")
             }
-
             if (!prefs.includeHealthReminders) {
                 appendLine("- Avoid health suggestions unless the context makes them clearly necessary.")
             }
@@ -1527,11 +1532,11 @@ OUTPUT FORMAT (JSON only):
             if (!prefs.includeDeadlineWarnings) {
                 appendLine("- Do not force deadline-focused suggestions unless the user already provided a deadline.")
             }
-            if (prefs.vacationMode) {
-                appendLine("- Vacation mode is active. Keep suggestions light and restorative.")
-            }
-            if (prefs.crunchMode) {
-                appendLine("- Crunch mode is active. Bias strongly toward urgent work tasks.")
+            when (prefs.activeMode()) {
+                com.boox.day.data.ai.SpecialMode.VACATION -> appendLine("- Vacation mode is active. Keep suggestions light and restorative.")
+                com.boox.day.data.ai.SpecialMode.CRUNCH -> appendLine("- Crunch mode is active. Bias strongly toward urgent work tasks.")
+                com.boox.day.data.ai.SpecialMode.HOLIDAY -> appendLine("- Holiday mode is active. Favour family and social time; keep work to essentials.")
+                null -> Unit
             }
         }.trim()
     }

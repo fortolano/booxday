@@ -1,5 +1,7 @@
 package com.boox.day.ai.intelligence.scorers
 
+import com.boox.day.ai.intelligence.KeywordMatch
+
 import com.boox.day.data.ai.*
 import java.time.LocalDate
 
@@ -94,8 +96,9 @@ class PatternScorer : Scorer {
             // 5. Low completion rate adjustment
             if (patterns.overallCompletionRate < LOW_COMPLETION_THRESHOLD) {
                 // When completion rate is low, boost simpler/quicker tasks
-                val textLength = item.text.length
-                if (textLength < 50) {
+                // Oct 2026: tasks with words only (it was every item, events and empty rows included)
+                val textLength = item.text.trim().length
+                if (item is ScorableItem.TaskItem && textLength in 1 until 50) {
                     score += 0.10f
                     itemSignals.add("Quick win helps rebuild momentum")
                 }
@@ -113,7 +116,6 @@ class PatternScorer : Scorer {
     }
 
     private fun detectPrimaryCategory(text: String): String? {
-        val lowerText = text.lowercase()
         val categoryPatterns = mapOf(
             "work" to listOf("work", "meeting", "email", "project", "client", "deadline"),
             "health" to listOf("exercise", "gym", "run", "walk", "yoga", "doctor", "health"),
@@ -123,8 +125,8 @@ class PatternScorer : Scorer {
         )
 
         return categoryPatterns.entries
-            .filter { (_, keywords) -> keywords.any { lowerText.contains(it) } }
-            .maxByOrNull { (_, keywords) -> keywords.count { lowerText.contains(it) } }
+            .filter { (_, keywords) -> KeywordMatch.containsAny(text, keywords) }
+            .maxByOrNull { (_, keywords) -> keywords.count { KeywordMatch.contains(text, it) } }
             ?.key
     }
 

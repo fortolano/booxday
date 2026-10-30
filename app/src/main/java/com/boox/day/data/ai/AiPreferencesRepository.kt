@@ -8,7 +8,7 @@ import com.boox.day.data.db.KvProxy
  * Repository for AI Preferences and Prompt State persistence.
  * Uses KvProxy to store serialized data in the Kv table.
  */
-class AiPreferencesRepository(context: Context) {
+class AiPreferencesRepository(private val context: Context) {
 
     private val kvProxy = KvProxy(context)
 
@@ -41,6 +41,10 @@ class AiPreferencesRepository(context: Context) {
     fun savePreferences(preferences: AiPreferences) {
         val updated = preferences.copy(lastUpdated = System.currentTimeMillis())
         kvProxy.setKv(AI_PREFERENCES_KEY, updated, AiPreferences.serializer())
+        // Oct 2026: results worked out with the old answers go (scores 15 min, summaries 4-20 h);
+        // their cache keys don't include the preferences
+        com.boox.day.ai.intelligence.IntelligenceCache.invalidateAll()
+        runCatching { com.boox.day.data.db.SummaryCacheRepository(context).clearAll() }
     }
 
     /**

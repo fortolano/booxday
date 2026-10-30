@@ -4,9 +4,12 @@ import android.content.Context
 import android.util.Log
 import com.boox.day.BuildConfig
 import com.boox.day.data.ai.AiPreferences
+import com.boox.day.data.ai.AiPreferences.Companion.activeMode
+import com.boox.day.data.ai.AiPreferences.Companion.bestFocusTime
+import com.boox.day.data.ai.AiPreferences.Companion.forPrompt
 import com.boox.day.data.ai.AiPreferences.Companion.getDailyRhythmSummary
 import com.boox.day.data.ai.AiPreferences.Companion.getLifestyleSummary
-import com.boox.day.data.ai.AiPreferences.Companion.getPrioritySummary
+import com.boox.day.data.ai.AiPreferences.Companion.pickedAreas
 import com.boox.day.data.ai.AiPreferences.Companion.getSituationSummary
 import com.boox.day.data.ai.AiPreferences.Companion.getWorkProfileSummary
 import com.boox.day.data.ai.AiPreferencesRepository
@@ -220,6 +223,36 @@ object TaskAiContextBuilderV1 {
         return contexts.any { hasSemanticSignals(it) }
     }
 
+    /**
+     * The user's AI Preferences as prompt lines (Oct 2026). Only what the user set up: nothing before
+     * setup, and no pre-selected default presented as an answer. All 9 life areas, one active mode.
+     */
+    internal fun preferenceLines(preferences: AiPreferences?): List<String> {
+        if (preferences == null) {
+            return listOf("Preferences: not shared. Don't assume the user's job, family, home or schedule.")
+        }
+        val d = AiPreferences()
+        val lines = mutableListOf("Preferences:")
+        preferences.pickedAreas().takeIf { it.isNotEmpty() }?.let { lines += "- Most important areas (user's picks): ${it.joinToString(", ")}" }
+        preferences.getDailyRhythmSummary().takeIf { it.isNotBlank() }?.let { lines += "- Daily rhythm: $it" }
+        if (preferences.lifeSituations.isNotEmpty() && preferences.lifeSituations != d.lifeSituations) {
+            lines += "- Life situation: ${preferences.lifeSituations.joinToString(" + ") { it.displayName }}"
+        }
+        preferences.bestFocusTime()?.let { lines += "- Best time for focused work: $it" }
+        if (preferences.livingEnvironment != d.livingEnvironment) lines += "- Living environment: ${preferences.livingEnvironment.displayName}"
+        if (preferences.interests.isNotEmpty()) lines += "- Interests: ${preferences.interests.joinToString(", ") { it.displayName }}"
+        if (!preferences.includeDeadlineWarnings) lines += "- Deadline-focused suggestions: off"
+        if (!preferences.includeHealthReminders) lines += "- Health and wellness suggestions: off"
+        if (!preferences.includeSocialReminders) lines += "- Social suggestions: off"
+        preferences.getWorkProfileSummary().takeIf { it.isNotBlank() }?.let { lines += "- Work profile: $it" }
+        preferences.getLifestyleSummary().takeIf { it.isNotBlank() }?.let { lines += "- Lifestyle: $it" }
+        preferences.getSituationSummary().takeIf { it.isNotBlank() }?.let { lines += "- Situation: $it" }
+        preferences.activeMode()?.let { lines += "- Active mode: ${it.displayName.lowercase()}" }
+        if (preferences.suggestionStyle != d.suggestionStyle) lines += "- Suggestion style: ${preferences.suggestionStyle.displayName}"
+        if (lines.size == 1) lines[0] = "Preferences: set up, all left at the defaults."
+        return lines
+    }
+
     private fun buildUserContextSection(
         date: LocalDate,
         dayOfWeek: String,
@@ -238,47 +271,8 @@ object TaskAiContextBuilderV1 {
             appendLine("Date: $date")
             appendLine("Time: ${String.format("%02d", currentHour)}:00 ($timeOfDay)")
             appendLine("Day: $dayOfWeek")
-            run {
-                appendLine()
-                appendLine("Preferences:")
-                appendLine("- Priorities: ${preferences.getPrioritySummary()}")
-                appendLine("- Daily rhythm: ${preferences.getDailyRhythmSummary()}")
-                appendLine("- Life situation: ${preferences.lifeSituations.joinToString(" + ") { it.displayName }}")
-                appendLine("- Energy pattern: ${preferences.energyPattern.displayName}")
-                appendLine("- Living environment: ${preferences.livingEnvironment.displayName}")
-
-                if (preferences.interests.isNotEmpty()) {
-                    val interestNames = preferences.interests.joinToString(", ") { it.displayName }
-                    appendLine("- Interests: $interestNames")
-                }
-                if (!preferences.includeDeadlineWarnings) {
-                    appendLine("- Deadline warnings: disabled")
-                }
-
-                val workProfile = preferences.getWorkProfileSummary()
-                if (workProfile.isNotBlank()) {
-                    appendLine("- Work profile: $workProfile")
-                }
-
-                val lifestyle = preferences.getLifestyleSummary()
-                if (lifestyle.isNotBlank()) {
-                    appendLine("- Lifestyle: $lifestyle")
-                }
-                val situation = preferences.getSituationSummary()
-                if (situation.isNotBlank()) {
-                    appendLine("- Situation: $situation")
-                }
-
-                val modes = mutableListOf<String>()
-                if (preferences.vacationMode) modes.add("vacation")
-                if (preferences.crunchMode) modes.add("crunch")
-                if (preferences.holidayMode) modes.add("holiday")
-                if (modes.isNotEmpty()) {
-                    appendLine("- Active modes: ${modes.joinToString(", ")}")
-                }
-                appendLine("- Suggestion style: ${preferences.suggestionStyle.displayName}")
-                appendLine("- Suggestion count: ${preferences.suggestionCount.displayName}")
-            }
+            appendLine()
+            preferenceLines(preferences.forPrompt()).forEach { appendLine(it) }
             patternSection?.takeIf { it.isNotBlank() }?.let {
                 appendLine()
                 appendLine(it.trim())

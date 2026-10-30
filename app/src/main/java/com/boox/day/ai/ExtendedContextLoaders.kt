@@ -2,6 +2,7 @@ package com.boox.day.ai
 
 import android.content.Context
 import android.util.Log
+import com.boox.day.ai.intelligence.KeywordMatch
 import com.boox.day.data.ai.CalendarEventWithDate
 import com.boox.day.data.ai.DeadlineEvent
 import com.boox.day.data.ai.DeadlineUrgency
@@ -217,6 +218,12 @@ object ExtendedContextLoaders {
      * uses). 29 Oct 2026: only the first two, so ticked handwritten tasks and the handwritten
      * tasks of other days had no words, and Smart Suggestions suggested them again.
      */
+    /** A row with words, or ticked: the day's empty rows are not tasks. */
+    internal fun isRealTask(task: Task): Boolean = task.isCompleted || taskText(task, emptyMap()).isNotBlank()
+
+    /** Fewer tasks with words than this: too little to call any area neglected. */
+    private const val MIN_TASKS_FOR_NEGLECTED = 5
+
     internal fun taskText(task: Task, ocrResults: Map<String, String>): String =
         ocrResults[task.id]?.takeIf { it.isNotBlank() }
             ?: task.typedText?.takeIf { it.isNotBlank() }
@@ -252,7 +259,9 @@ object ExtendedContextLoaders {
             val dateStr = targetDate.format(dateFormatter)
             val dayOfWeek = targetDate.dayOfWeek.name
 
-            val dayTasks = taskRepo.getTasksForDay(dateStr)
+            // Oct 2026: real tasks only. The day's empty rows count too in getTasksForDay, which put
+            // "Overall completion: 3%" next to "7-day completion rate: 100%" in the same prompt
+            val dayTasks = taskRepo.getTasksForDay(dateStr).filter { isRealTask(it) }
             tasksByDay[dateStr] = dayTasks
 
             // Track completion by day of week
@@ -292,9 +301,11 @@ object ExtendedContextLoaders {
         // Analyze category distribution (based on typed text patterns)
         val categoryDistribution = analyzeCategoryDistribution(allTasks)
 
-        // Find neglected categories
+        // Find neglected categories. Oct 2026: only with enough tasks that have words; with none,
+        // every area looked neglected ("Neglected areas: WORK, PERSONAL, HEALTH, SOCIAL")
         val expectedCategories = setOf("WORK", "PERSONAL", "HEALTH", "SOCIAL")
-        val neglectedCategories = expectedCategories
+        val tasksWithWords = allTasks.count { taskText(it, emptyMap()).isNotBlank() }
+        val neglectedCategories = if (tasksWithWords < MIN_TASKS_FOR_NEGLECTED) emptyList() else expectedCategories
             .filter { (categoryDistribution[it] ?: 0f) < 0.1f }
 
         // Calculate current streak
@@ -340,9 +351,10 @@ object ExtendedContextLoaders {
         val categoryCounts = mutableMapOf<String, Int>()
 
         tasks.forEach { task ->
-            val text = (task.typedText ?: "").lowercase()
+            // Oct 2026: handwritten tasks count too (it read typed text only), and whole words only
+            val text = taskText(task, emptyMap())
             categoryKeywords.forEach { (category, keywords) ->
-                if (keywords.any { text.contains(it) }) {
+                if (KeywordMatch.containsAny(text, keywords)) {
                     categoryCounts[category] = (categoryCounts[category] ?: 0) + 1
                 }
             }

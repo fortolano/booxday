@@ -267,10 +267,11 @@ data class CapacityAnalysis(
 
     /** Get capacity status label */
     fun getCapacityStatus(): String = when {
-        capacityPercentage >= 120 -> "Severely Overbooked"
-        capacityPercentage >= 100 -> "Overbooked"
-        capacityPercentage >= 80 -> "Busy"
-        capacityPercentage >= 50 -> "Moderate"
+        // Oct 2026: over the whole remaining day (6:00-22:00, from now for today), not an 8-hour
+        // "work day"; half that day in events is busy
+        capacityPercentage >= 100 -> "Fully booked"
+        capacityPercentage >= 50 -> "Busy"
+        capacityPercentage >= 25 -> "Moderate"
         else -> "Light"
     }
 
@@ -355,15 +356,21 @@ data class PreferenceConstraints(
     val energyPattern: EnergyPattern,
 
     /** Key lifestyle context */
-    val lifestyleContext: List<String>
+    val lifestyleContext: List<String>,
+
+    /** Best time for focused work (morning, afternoon, evening); null when the user didn't say */
+    val bestFocusTime: String? = null
 ) {
     companion object {
-        /** Default constraints when preferences are not set */
+        /**
+         * Constraints when preferences are not set up (Oct 2026): nothing assumed. No ranking, and the
+         * whole day (6:00-22:00) as the planning window; it was "work first" and 9-17.
+         */
         fun default() = PreferenceConstraints(
-            priorityRanking = listOf("work", "family", "health", "education", "social", "hobby", "finance"),
+            priorityRanking = emptyList(),
             blockedSlots = emptyList(),
-            workHoursStart = 9,
-            workHoursEnd = 17,
+            workHoursStart = 6,
+            workHoursEnd = 22,
             activeMode = null,
             aggressiveness = SuggestionAggressiveness.BALANCED,
             includeHealthReminders = true,

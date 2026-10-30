@@ -452,7 +452,7 @@ object TipsRepository {
         ),
         Tip(
             id = "ai_prefs_rhythm",
-            message = "Morning person or night owl? Set your Daily Rhythm in AI Preferences for better-timed suggestions.",
+            message = "Morning person or night owl? Tell AI Preferences when you're most productive (About Me).",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(

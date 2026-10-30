@@ -25,11 +25,11 @@ object CapacityAnalyzer {
     /** Minimum slot duration to consider useful (minutes) */
     private const val MIN_SLOT_DURATION = 30
 
-    /** Default work day start hour if no preferences */
-    private const val DEFAULT_DAY_START = 6
+    /** Start of the planning window: everyone's, since the user gives no working hours (Oct 2026) */
+    internal const val DEFAULT_DAY_START = 6
 
-    /** Default work day end hour if no preferences */
-    private const val DEFAULT_DAY_END = 22
+    /** End of the planning window */
+    internal const val DEFAULT_DAY_END = 22
 
     /**
      * Analyze capacity for a specific date.
@@ -44,17 +44,21 @@ object CapacityAnalyzer {
         date: LocalDate,
         events: List<LocalEvent>,
         preferences: PreferenceConstraints,
-        taskLoadEstimate: Int = 0
+        taskLoadEstimate: Int = 0,
+        fromMinute: Int? = null
     ): CapacityAnalysis {
-        // Determine work hours
+        // Planning window. For today ([fromMinute] = now) it starts now, so the totals and the free
+        // slots describe the time that is left (Oct 2026: past slots were offered, totals were all day)
         val dayStartHour = preferences.workHoursStart.coerceIn(0, 23)
         val dayEndHour = preferences.workHoursEnd.coerceIn(dayStartHour + 1, 24)
+        val endMin = dayEndHour * 60
+        val startMin = max(dayStartHour * 60, fromMinute ?: 0).coerceAtMost(endMin)
 
         // Total available minutes
-        val totalMinutes = (dayEndHour - dayStartHour) * 60
+        val totalMinutes = endMin - startMin
 
         // Build list of busy intervals (from events + blocked slots)
-        val busyIntervals = buildBusyIntervals(events, preferences.blockedSlots, date, dayStartHour, dayEndHour)
+        val busyIntervals = buildBusyIntervals(events, preferences.blockedSlots, date, startMin, endMin)
 
         // Merge overlapping intervals
         val mergedIntervals = mergeIntervals(busyIntervals)
@@ -63,7 +67,7 @@ object CapacityAnalyzer {
         val committedMinutes = mergedIntervals.sumOf { it.end - it.start }
 
         // Find free slots
-        val freeSlots = findFreeSlots(mergedIntervals, dayStartHour, dayEndHour)
+        val freeSlots = findFreeSlots(mergedIntervals, startMin, endMin)
 
         // Calculate metrics
         val freeMinutes = totalMinutes - committedMinutes
@@ -92,8 +96,8 @@ object CapacityAnalyzer {
         events: List<LocalEvent>,
         blockedSlots: List<BlockedSlot>,
         date: LocalDate,
-        dayStartHour: Int,
-        dayEndHour: Int
+        startMin: Int,
+        endMin: Int
     ): List<Interval> {
         val intervals = mutableListOf<Interval>()
 
@@ -101,7 +105,7 @@ object CapacityAnalyzer {
         for (event in events) {
             if (event.isAllDay) {
                 // All-day event blocks the entire day
-                intervals.add(Interval(dayStartHour * 60, dayEndHour * 60))
+                intervals.add(Interval(startMin, endMin))
             } else {
                 // Convert epoch millis to minutes since day start
                 val startMinutes = epochToMinutesSinceMidnight(event.startTime)
@@ -112,8 +116,8 @@ object CapacityAnalyzer {
                 }
 
                 // Clamp to day boundaries
-                val clampedStart = startMinutes.coerceIn(dayStartHour * 60, dayEndHour * 60)
-                val clampedEnd = endMinutes.coerceIn(dayStartHour * 60, dayEndHour * 60)
+                val clampedStart = startMinutes.coerceIn(startMin, endMin)
+                val clampedEnd = endMinutes.coerceIn(startMin, endMin)
 
                 if (clampedEnd > clampedStart) {
                     intervals.add(Interval(clampedStart, clampedEnd))
@@ -126,8 +130,8 @@ object CapacityAnalyzer {
             val slotStartMinutes = slot.startHour * 60
             val slotEndMinutes = slot.endHour * 60
 
-            val clampedStart = slotStartMinutes.coerceIn(dayStartHour * 60, dayEndHour * 60)
-            val clampedEnd = slotEndMinutes.coerceIn(dayStartHour * 60, dayEndHour * 60)
+            val clampedStart = slotStartMinutes.coerceIn(startMin, endMin)
+            val clampedEnd = slotEndMinutes.coerceIn(startMin, endMin)
 
             if (clampedEnd > clampedStart) {
                 intervals.add(Interval(clampedStart, clampedEnd))
@@ -169,12 +173,10 @@ object CapacityAnalyzer {
      */
     private fun findFreeSlots(
         busyIntervals: List<Interval>,
-        dayStartHour: Int,
-        dayEndHour: Int
+        dayStartMinutes: Int,
+        dayEndMinutes: Int
     ): List<FreeSlot> {
         val slots = mutableListOf<FreeSlot>()
-        val dayStartMinutes = dayStartHour * 60
-        val dayEndMinutes = dayEndHour * 60
 
         var currentMinute = dayStartMinutes
 

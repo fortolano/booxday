@@ -120,11 +120,14 @@ class AgenticContextBuilder(private val context: Context) {
         val timedTodayEvents = todayEvents.filterNot { it.isAllDay }
         val timedTomorrowEvents = tomorrowEvents.filterNot { it.isAllDay }
 
+        // Today: only the time that is left counts (Oct 2026)
+        val nowMinute = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
         val todayCapacity = CapacityAnalyzer.analyze(
             date = planningDate,
             events = timedTodayEvents,
             preferences = constraints,
-            taskLoadEstimate = taskLoadEstimate
+            taskLoadEstimate = taskLoadEstimate,
+            fromMinute = if (planningDate == LocalDate.now()) nowMinute else null
         )
 
         val tomorrowCapacity = CapacityAnalyzer.analyze(
@@ -324,9 +327,8 @@ class AgenticContextBuilder(private val context: Context) {
             if (tasks.isEmpty()) return null
 
             val completedTasks = tasks.filter { it.isCompleted }
-            val tasksWithContent = tasks.filter {
-                it.isCompleted || it.typedText?.isNotBlank() == true || it.priority.isNotBlank()
-            }
+            // Oct 2026: handwritten and converted tasks count too (it read typed text only)
+            val tasksWithContent = tasks.filter { ExtendedContextLoaders.isRealTask(it) || it.priority.isNotBlank() }
 
             // Completion rate
             val completionRate = if (tasksWithContent.isNotEmpty()) {

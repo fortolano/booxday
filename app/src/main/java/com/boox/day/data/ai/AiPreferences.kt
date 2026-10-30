@@ -75,6 +75,41 @@ data class AiPreferences(
 ) {
     companion object {
         /**
+         * The preferences to put in AI requests (Oct 2026): none until the user has set them up, so
+         * defaults are never presented as the user's own answers ("Working Professional, Suburban…").
+         */
+        fun AiPreferences?.forPrompt(): AiPreferences? = this?.takeIf { it.setupComplete }
+
+        /** The one special mode in force; only one applies, everywhere (vacation, then crunch, then holiday). */
+        fun AiPreferences.activeMode(): SpecialMode? = when {
+            vacationMode -> SpecialMode.VACATION
+            crunchMode -> SpecialMode.CRUNCH
+            holidayMode -> SpecialMode.HOLIDAY
+            else -> null
+        }
+
+        /** The life areas the user picked as most important (all 9), named as in AI Preferences. */
+        fun AiPreferences.pickedAreas(): List<String> = listOf(
+            "Work & Career" to workPriority,
+            "Education" to educationPriority,
+            "Family" to familyPriority,
+            "Health" to healthPriority,
+            "Social" to socialPriority,
+            "Hobbies" to hobbyPriority,
+            "Finance" to financePriority,
+            "Home & Organization" to homePriority,
+            "Personal Growth" to growthPriority
+        ).filter { it.second > 3 }.sortedByDescending { it.second }.map { it.first }
+
+        /** Best time for focused work, from "When are you most productive?"; null when not answered. */
+        fun AiPreferences.bestFocusTime(): String? = when (energyPattern) {
+            EnergyPattern.MORNING_PERSON -> "morning"
+            EnergyPattern.AFTERNOON_PEAK -> "afternoon"
+            EnergyPattern.NIGHT_OWL -> "evening"
+            EnergyPattern.STEADY -> null
+        }
+
+        /**
          * Returns a summary of priorities for prompt building.
          * Only includes priorities that differ from the default (3).
          */
@@ -143,13 +178,16 @@ data class AiPreferences(
          * Returns a summary of daily rhythm preferences for prompt building.
          */
         fun AiPreferences.getDailyRhythmSummary(): String {
+            // Oct 2026: only answers that differ from the pre-selected defaults; a default is not
+            // necessarily the user's answer (the wizard starts with every question answered)
+            val d = AiPreferences()
             val traits = mutableListOf<String>()
-            traits.add("plans ${planningHorizon.displayName.lowercase()}")
-            traits.add("${focusStyle.displayName.lowercase()} work style")
-            traits.add("${sleepSchedule.displayName.lowercase()}")
-            traits.add("${commuteStyle.displayName.lowercase()} work arrangement")
-            traits.add("${routinePreference.displayName.lowercase()} routine")
-            traits.add("when stressed: ${stressResponse.displayName.lowercase()}")
+            if (planningHorizon != d.planningHorizon) traits.add("plans ${planningHorizon.displayName.lowercase()}")
+            if (focusStyle != d.focusStyle) traits.add("${focusStyle.displayName.lowercase()} work style")
+            if (sleepSchedule != d.sleepSchedule) traits.add("sleep: ${sleepSchedule.displayName.lowercase()}")
+            if (commuteStyle != d.commuteStyle) traits.add("${commuteStyle.displayName.lowercase()} work arrangement")
+            if (routinePreference != d.routinePreference) traits.add("${routinePreference.displayName.lowercase()} routine")
+            if (stressResponse != d.stressResponse) traits.add("when stressed: ${stressResponse.displayName.lowercase()}")
             return traits.joinToString(", ")
         }
     }
