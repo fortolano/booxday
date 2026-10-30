@@ -62,6 +62,7 @@ import com.boox.day.data.db.UnifiedOcrStatistics
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.datastore.OcrSettings
 import com.boox.day.data.datastore.SetupChecklistStore
+import com.boox.day.booxnotes.BooxNotesAccess
 import com.boox.day.ocr.IndexingStatus
 import com.boox.day.ocr.OcrQuotaManager
 import com.boox.day.ocr.UnifiedOcrIdleProcessor
@@ -106,7 +107,7 @@ fun BooxNotesSettingsDialog(
 
     // Check current permission status
     var hasPermission by remember {
-        mutableStateOf(checkAllFilesAccessPermission())
+        mutableStateOf(BooxNotesAccess.has(localContext))
     }
 
     // Oct 2026: the Settings-menu dot clears once file access is given, from Settings or the
@@ -126,7 +127,7 @@ fun BooxNotesSettingsDialog(
     val allFilesAccessLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        val granted = checkAllFilesAccessPermission()
+        val granted = BooxNotesAccess.has(localContext)
         if (granted != hasPermission) {
             hasPermission = granted
             if (granted) {
@@ -137,11 +138,30 @@ fun BooxNotesSettingsDialog(
         }
     }
 
+    // Android 10 (Oct 2026): storage is a runtime permission there. Nothing asked for it, so Boox
+    // Notes never scanned; an instant refusal (Android stopped asking) opens App info instead
+    var legacyAskedAt by remember { mutableStateOf(0L) }
+    val legacyStorageLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val granted = results.values.all { it }
+        if (granted) {
+            hasPermission = true
+            if (!GlobalAppSettings.isBooxNotesReady) onScanNeeded?.invoke()
+        } else if (android.os.SystemClock.elapsedRealtime() - legacyAskedAt < 350) {
+            com.boox.day.notifications.NotificationPermissionHelper.openAppSettings(localContext)
+        }
+    }
+    val askLegacyStorage: () -> Unit = {
+        legacyAskedAt = android.os.SystemClock.elapsedRealtime()
+        legacyStorageLauncher.launch(BooxNotesAccess.LEGACY_PERMISSIONS)
+    }
+
     // Safety net polling in case ActivityResult does not fire
     LaunchedEffect(hasPermission) {
         while (!hasPermission) {
             delay(3000) // Check every 3 seconds
-            val newPermissionState = checkAllFilesAccessPermission()
+            val newPermissionState = BooxNotesAccess.has(localContext)
             if (newPermissionState && !hasPermission) {
                 // Permission just granted - trigger scan immediately
                 hasPermission = true
@@ -265,7 +285,9 @@ fun BooxNotesSettingsDialog(
                             EinkSecondaryButton(
                                 text = if (hasPermission) "Scan Now" else "Grant Access",
                                 onClick = {
-                                    if (!hasPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                    if (!hasPermission && BooxNotesAccess.usesRuntimePermission) {
+                                        askLegacyStorage()
+                                    } else if (!hasPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                                         try {
                                             val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
                                                 data = Uri.parse("package:${localContext.packageName}")
@@ -427,7 +449,9 @@ fun BooxNotesSettingsDialog(
                                     text = "Open Permission Settings",
                                     modifier = Modifier.fillMaxWidth(),
                                     onClick = {
-                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                        if (BooxNotesAccess.usesRuntimePermission) {
+                                            askLegacyStorage()
+                                        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                                             try {
                                                 val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
                                                     data = Uri.parse("package:${localContext.packageName}")
@@ -524,7 +548,10 @@ fun BooxNotesSettingsDialog(
                         onOcrSettingsChanged = onOcrSettingsChanged,
                         processingState = ocrProcessingState,
                         ocrRepository = ocrRepository,
-                        indexingControlsEnabled = hasPermission,
+                        // Oct 2026: memos and tasks are read without Boox file access, so indexing
+                        // is never locked behind it (only Boox Notes pages need it)
+                        indexingControlsEnabled = true,
+                        hasBooxAccess = hasPermission,
                         isStandaloneWithoutOcrKey = isStandaloneWithoutOcrKey
                     )
                 }
@@ -546,6 +573,7 @@ private fun OcrSettingsSection(
     processingState: UnifiedOcrIdleProcessor.ProcessingState? = null,
     ocrRepository: UnifiedOcrRepository? = null,
     indexingControlsEnabled: Boolean = true,
+    hasBooxAccess: Boolean = true,
     isStandaloneWithoutOcrKey: Boolean = false
 ) {
     val localContext = LocalContext.current
@@ -658,10 +686,10 @@ private fun OcrSettingsSection(
     // FIX 4: Visual indicator for incomplete setup
     // Show warning when indexing is disabled (safety net for edge cases)
     if (!ocrSettings.enabled) {
-        val warningText = if (indexingControlsEnabled) {
-            "Enable indexing below to unlock Smart Link and AI features"
+        val warningText = if (hasBooxAccess) {
+            "Turn on indexing to make your memos, tasks and Boox Notes searchable."
         } else {
-            "Grant Boox file access above to unlock indexing"
+            "Turn on indexing to make your memos and tasks searchable. Boox Notes pages are included once file access is allowed."
         }
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -1056,43 +1084,4 @@ private fun ClearIndexConfirmationPopup(
     }
 }
 
-/**
- * Check if the app has MANAGE_EXTERNAL_STORAGE permission (All Files Access).
- * Required for reading Boox Notes .ksync folder.
- */
-private fun checkAllFilesAccessPermission(): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        Environment.isExternalStorageManager()
-    } else {
-        // On Android 10 and below, we don't need this special permission
-        true
-    }
-}
 
-/**
- * Launch system settings to request All Files Access permission.
- * Opens the app-specific permission page if possible, otherwise general storage settings.
- */
-private fun requestAllFilesAccessPermission(context: Context) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        try {
-            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-            intent.data = Uri.parse("package:${context.packageName}")
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            // Fallback to general storage settings
-            try {
-                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(intent)
-            } catch (e2: Exception) {
-                // Last resort: open app settings
-                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                intent.data = Uri.parse("package:${context.packageName}")
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(intent)
-            }
-        }
-    }
-}

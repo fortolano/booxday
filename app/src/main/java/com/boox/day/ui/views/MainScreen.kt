@@ -494,39 +494,7 @@ fun MainScreen(
         multiAccountSyncViewModel.handleGoogleSignInResult(result.data, result.resultCode)
     }
 
-    // Notification permission launcher (Android 13+)
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            Log.d(TAG, "Notification permission granted via in-app launcher - triggering scheduling")
-
-            // Trigger scheduling immediately for existing tasks/events
-            scope.launch(Dispatchers.IO) {
-                val settings = GlobalAppSettings.current
-
-                if (settings.taskNotificationsEnabled) {
-                    try {
-                        TaskRepository(context).scheduleNotificationsForExistingTasks()
-                        Log.d(TAG, "Scheduled notifications for existing tasks")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to schedule task notifications: ${e.message}")
-                    }
-                }
-
-                if (settings.eventNotificationsEnabled) {
-                    try {
-                        LocalEventRepository(context).scheduleNotificationsForUpcomingEvents()
-                        Log.d(TAG, "Scheduled notifications for upcoming events")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to schedule event notifications: ${e.message}")
-                    }
-                }
-            }
-        } else {
-            Log.d(TAG, "Notification permission denied")
-        }
-    }
+    // Notification permission: the reminder card asks by itself (ui/permissions/PermissionAsk, Oct 2026)
 
     // State for selected date - starts with today
     var selectedDate by remember { mutableStateOf(today) }
@@ -3847,13 +3815,6 @@ fun MainScreen(
                     defaultEventReminderMinutes = minutes
                     val newSettings = GlobalAppSettings.current.copy(defaultEventReminderMinutes = minutes)
                     appRepository.kvProxy.setAppSettings(newSettings)
-                },
-                onRequestNotificationPermission = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        NotificationPermissionHelper.requestNotificationPermission(notificationPermissionLauncher)
-                    } else {
-                        NotificationPermissionHelper.openNotificationSettings(context)
-                    }
                 },
                 onOpenAlarmSettings = {
                     NotificationPermissionHelper.openExactAlarmSettings(context)

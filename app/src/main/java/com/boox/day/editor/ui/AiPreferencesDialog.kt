@@ -1,5 +1,7 @@
 ﻿package com.boox.day.editor.ui
 
+import com.boox.day.ui.permissions.AskState
+import com.boox.day.ui.permissions.rememberPermissionAsk
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -1616,18 +1618,10 @@ private fun VoicePreferencesInputPopup(
     val scope = rememberCoroutineScope()
 
     // Permission state
-    var hasPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                == PackageManager.PERMISSION_GRANTED
-        )
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasPermission = granted
-    }
+    // Oct 2026: asks Android, or opens Android settings once Android stopped asking (the button did
+    // nothing then); checked again when the app comes back
+    val micAsk = rememberPermissionAsk(Manifest.permission.RECORD_AUDIO)
+    val hasPermission = micAsk.granted
 
     // Audio recorder
     val audioRecorder = remember { AudioRecorder(context) }
@@ -1648,7 +1642,7 @@ private fun VoicePreferencesInputPopup(
     val statusMessage = when {
         isProcessing -> funMessage.ifEmpty { processingStage.ifEmpty { "Processing..." } }
         errorMessage != null -> errorMessage!!
-        !hasPermission -> "Tap to grant microphone permission"
+        !hasPermission -> if (micAsk.state == AskState.OPEN_SETTINGS) "Microphone is off for BooxDay. Tap to open Android settings." else "Tap to grant microphone permission"
         else -> when (recorderState) {
             is AudioRecorder.State.Idle -> "Tap to start recording"
             is AudioRecorder.State.Recording -> "Listening — describe yourself"
@@ -2278,7 +2272,7 @@ private fun VoicePreferencesInputPopup(
                             .background(EInkTheme.Colors.darkGray, RoundedCornerShape(8.dp))
                             .noRippleClickable {
                                 if (!hasPermission) {
-                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                    micAsk.request()
                                 } else {
                                     errorMessage = null
                                     audioRecorder.startRecording()

@@ -626,7 +626,7 @@ private fun AiFeaturesContent() {
     BulletItem("Connect OpenRouter", "Sign in to OpenRouter in the browser; BooxDay saves the key. You can also paste a key.")
     BulletItem("AI Features", "The switch for voice input, the AI tools and reading pages for search. With it off, none of your data goes to OpenRouter.")
     BulletItem("AI Models", "The model for each job: Reading handwriting, Voice, Writing and summaries, Planning and suggestions, Search indexing. If a model fails, BooxDay's choice answers.")
-    BulletItem("AI Preferences", "Five short tabs: Priorities, About Me, Daily Rhythm, Lifestyle and AI Style (with Vacation, Crunch and Holiday modes). Smart Suggestions and Optimize My Day use your answers. Closing keeps what you picked.")
+    BulletItem("AI Preferences", "Five short tabs: Priorities, About Me, Daily Rhythm, Lifestyle and AI Style (with Vacation, Crunch and Holiday modes). Smart Suggestions, Optimize My Day, Weekly Summary and Sort by Priority use your answers. Closing keeps what you picked.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
@@ -669,7 +669,7 @@ private fun SmartLinkContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Setting Up (Settings → Boox Notes)")
-    BulletPoint("Allow file access once (Open Permission Settings), then turn on Enable Indexing.")
+    BulletPoint("Turn on Enable Indexing to make memos and tasks searchable. Allow file access once (Open Permission Settings) to include Boox Notes pages.")
     BulletPoint("Reading pages needs an OpenRouter key and AI Features on; up to 1,000 pages a month are read. Linking notes by hand works without them.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))

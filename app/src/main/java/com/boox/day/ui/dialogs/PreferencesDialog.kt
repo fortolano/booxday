@@ -59,7 +59,11 @@ import androidx.compose.ui.window.PopupProperties
 import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.db.KvProxy
+import android.Manifest
 import com.boox.day.notifications.NotificationChannelManager
+import com.boox.day.notifications.ReminderScheduling
+import com.boox.day.ui.permissions.AskState
+import com.boox.day.ui.permissions.rememberPermissionAsk
 import com.boox.day.notifications.NotificationPermissionHelper
 import com.boox.day.ocr.DigitalInkModelManager
 import com.boox.day.ui.components.EInkToggle
@@ -107,7 +111,6 @@ fun PreferencesDialog(
     onDefaultTaskReminderChanged: (hour: Int, minute: Int) -> Unit = { _, _ -> },
     defaultEventReminderMinutes: Int = 15,
     onDefaultEventReminderChanged: (minutes: Int) -> Unit = {},
-    onRequestNotificationPermission: () -> Unit = {},
     onOpenAlarmSettings: () -> Unit = {},
     onOpenBatteryOptimizationSettings: () -> Unit = {}
 ) {
@@ -144,16 +147,13 @@ fun PreferencesDialog(
     var showBatteryExplanationDialog by remember { mutableStateOf(false) }
 
     // Detect if running on a Boox/Onyx device
-    val isBooxDevice = remember {
-        val manufacturer = Build.MANUFACTURER?.lowercase() ?: ""
-        val brand = Build.BRAND?.lowercase() ?: ""
-        val device = Build.DEVICE?.lowercase() ?: ""
-        val model = Build.MODEL?.lowercase() ?: ""
-        val product = Build.PRODUCT?.lowercase() ?: ""
-        manufacturer.contains("onyx") || brand.contains("onyx") ||
-               device.contains("onyx") || model.contains("onyx") || product.contains("onyx") ||
-               manufacturer.contains("boox") || brand.contains("boox") ||
-               device.contains("boox") || model.contains("boox") || product.contains("boox")
+    val isBooxDevice = remember { NotificationPermissionHelper.isBooxDevice() }
+
+    // Oct 2026: asks Android, or opens Settings once Android stopped asking (the button did nothing);
+    // on a grant, reminders that couldn't be scheduled are scheduled now
+    val notificationAsk = rememberPermissionAsk(Manifest.permission.POST_NOTIFICATIONS) {
+        currentNotificationPermission = true
+        ReminderScheduling.scheduleAfterGrant(context)
     }
 
     // Convenience: either notification type is enabled
@@ -458,11 +458,12 @@ fun PreferencesDialog(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = when {
-                                            taskNotificationsEnabled && currentNotificationPermission -> "Enabled"
-                                            taskNotificationsEnabled && !currentNotificationPermission -> "Permission Required"
-                                            else -> "Disabled"
-                                        },
+                                        text = reminderStatus(
+                                            on = taskNotificationsEnabled,
+                                            notificationsAllowed = currentNotificationPermission,
+                                            channelOn = isTaskChannelEnabled,
+                                            batteryOk = !isBooxDevice || currentBatteryOptimizationExempt
+                                        ),
                                         fontSize = EInkTheme.Typography.bodyMedium,
                                         color = EInkTheme.Colors.darkGray
                                     )
@@ -504,11 +505,12 @@ fun PreferencesDialog(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = when {
-                                            eventNotificationsEnabled && currentNotificationPermission -> "Enabled"
-                                            eventNotificationsEnabled && !currentNotificationPermission -> "Permission Required"
-                                            else -> "Disabled"
-                                        },
+                                        text = reminderStatus(
+                                            on = eventNotificationsEnabled,
+                                            notificationsAllowed = currentNotificationPermission,
+                                            channelOn = isEventChannelEnabled,
+                                            batteryOk = !isBooxDevice || currentBatteryOptimizationExempt
+                                        ),
                                         fontSize = EInkTheme.Typography.bodyMedium,
                                         color = EInkTheme.Colors.darkGray
                                     )
@@ -537,8 +539,10 @@ fun PreferencesDialog(
                         if (anyNotificationsEnabled && !currentNotificationPermission) {
                             Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
                             NotificationPermissionCard(
-                                hasExactAlarmPermission = currentExactAlarmPermission,
-                                onRequestNotificationPermission = onRequestNotificationPermission,
+                                // No exact-alarm step on BOOX: reminders always use WorkManager there
+                                showExactAlarmStep = !isBooxDevice && !currentExactAlarmPermission,
+                                openSettingsInstead = notificationAsk.state == AskState.OPEN_SETTINGS,
+                                onRequestNotificationPermission = { notificationAsk.request() },
                                 onOpenAlarmSettings = onOpenAlarmSettings
                             )
                         }
@@ -608,7 +612,8 @@ fun PreferencesDialog(
  */
 @Composable
 private fun NotificationPermissionCard(
-    hasExactAlarmPermission: Boolean,
+    showExactAlarmStep: Boolean,
+    openSettingsInstead: Boolean,
     onRequestNotificationPermission: () -> Unit,
     onOpenAlarmSettings: () -> Unit
 ) {
@@ -645,8 +650,12 @@ private fun NotificationPermissionCard(
 
             // Explanation
             Text(
-                text = "To send you reminders, BooxDay needs permission to show notifications. " +
-                        "Your notification preferences stay on your device.",
+                text = if (openSettingsInstead) {
+                    "Notifications are turned off for BooxDay in Android settings. Open Settings and turn them on."
+                } else {
+                    "To send you reminders, BooxDay needs permission to show notifications. " +
+                        "Your notification preferences stay on your device."
+                },
                 fontSize = EInkTheme.Preferences.explanationFontSize,
                 color = EInkTheme.Colors.darkGray
             )
@@ -673,15 +682,14 @@ private fun NotificationPermissionCard(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Grant Permission",
+                    text = if (openSettingsInstead) "Open Settings" else "Allow Notifications",
                     fontSize = EInkTheme.Typography.button,
                     fontWeight = FontWeight.SemiBold
                 )
             }
 
-            // Secondary action: Exact alarm permission (Android 12+)
-            // Only shown if notification permission granted but exact alarm not
-            if (!hasExactAlarmPermission) {
+            // Secondary action: exact alarms (Android 12+), not on BOOX (see the call)
+            if (showExactAlarmStep) {
                 Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
                 Text(
                     text = "For precise reminder timing, also enable exact alarms:",
@@ -1277,7 +1285,7 @@ private fun BatteryExemptionExplanationDialog(
                         }
 
                         Text(
-                            text = "On the next screen, tap \"Allow\" to enable notifications.",
+                            text = "On the next screen, tap \"Allow\" so BooxDay can send reminders on time.",
                             fontSize = EInkTheme.Typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             color = EInkTheme.Colors.darkGray
@@ -1324,7 +1332,7 @@ private fun BatteryExemptionExplanationDialog(
                             shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
                         ) {
                             Text(
-                                text = "Continue",
+                                text = "Allow in Android",
                                 fontSize = EInkTheme.Typography.button,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -1334,4 +1342,17 @@ private fun BatteryExemptionExplanationDialog(
             }
         }
     }
+}
+
+
+/**
+ * A reminder row's status (Oct 2026). It said "Enabled" while a card below said reminders wouldn't
+ * arrive; now it says what stands in the way.
+ */
+internal fun reminderStatus(on: Boolean, notificationsAllowed: Boolean, channelOn: Boolean, batteryOk: Boolean): String = when {
+    !on -> "Off"
+    !notificationsAllowed -> "On, but notifications are off for BooxDay"
+    !channelOn -> "On, but this reminder type is off in Android settings"
+    !batteryOk -> "On, but reminders may be late (battery saving)"
+    else -> "On"
 }

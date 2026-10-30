@@ -70,6 +70,13 @@ fun AiModelsCard(aiEnabled: Boolean, modifier: Modifier = Modifier) {
         modifier = modifier
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)) {
+            // Oct 2026 (owner): picking is allowed, results are not promised
+            Text(
+                text = "You can pick any model in the list, but BooxDay is tested with its own choices. " +
+                    "Another model may give different or weaker results, or no answer at all.",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.darkGray
+            )
             if (OpenRouterAccount.isFreeOnly()) {
                 Text(
                     text = "No credit: BooxDay's choice uses free models.",

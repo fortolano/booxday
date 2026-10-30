@@ -1563,9 +1563,7 @@ fun SharedToolbar(
 
                 // Boox Notes (Oct 2026): shared by the Boox Notes button and its page in the toolbar menu (≡)
                 // Check if we have file access permission
-                val hasBooxPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    Environment.isExternalStorageManager()
-                } else true
+                val hasBooxPermission = com.boox.day.booxnotes.BooxNotesAccess.has(context)
                 val onBooxNotesPermissionNeeded: () -> Unit = {
                     toolbarLog.i("Boox Notes permission needed, showing settings dialog...")
                     isBooxNotesSettingsDialogOpen = true
@@ -2462,7 +2460,7 @@ private fun toolbarMenuTools(
             badge = !hasBooxPermission,
             mayOpenPage = {
                 DrawCanvas.toolbarInteraction.tryEmit(Unit)
-                booxNotesMenuMayOpen(onPermissionNeeded = {
+                booxNotesMenuMayOpen(context, onPermissionNeeded = {
                     closeToolbarMenu()
                     onBooxNotesPermissionNeeded()
                 })

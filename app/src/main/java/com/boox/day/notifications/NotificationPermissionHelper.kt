@@ -218,7 +218,8 @@ object NotificationPermissionHelper {
         return isBooxDevice() && !isBatteryOptimizationExempt(context)
     }
 
-    private fun isBooxDevice(): Boolean {
+    /** BOOX (Onyx) tablet: the one check the reminder screens use (Oct 2026). */
+    fun isBooxDevice(): Boolean {
         val manufacturer = Build.MANUFACTURER?.lowercase() ?: ""
         val brand = Build.BRAND?.lowercase() ?: ""
         val device = Build.DEVICE?.lowercase() ?: ""

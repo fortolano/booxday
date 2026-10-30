@@ -97,7 +97,7 @@ fun NotesButton(
             isSelected = isActive && hasPermission,  // Dark when active (only if has permission)
             onSelect = {
                 DrawCanvas.toolbarInteraction.tryEmit(Unit)
-                if (booxNotesMenuMayOpen(onPermissionNeeded)) {
+                if (booxNotesMenuMayOpen(context, onPermissionNeeded)) {
                     onActivate()
                     setShowDropdown(true)
                 }
@@ -156,10 +156,8 @@ fun NotesButton(
  * hint while Boox Notes is being scanned, calls [onPermissionNeeded] when setup is missing, and
  * returns true when the menu may open.
  */
-fun booxNotesMenuMayOpen(onPermissionNeeded: () -> Unit): Boolean {
-    val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        Environment.isExternalStorageManager()
-    } else true
+fun booxNotesMenuMayOpen(context: android.content.Context, onPermissionNeeded: () -> Unit): Boolean {
+    val storagePermission = com.boox.day.booxnotes.BooxNotesAccess.has(context)
     val isScanning = GlobalAppSettings.isBooxNotesScanning
     val isReady = GlobalAppSettings.isBooxNotesReady
     val runtimeState = BooxNotesRuntimeEvaluator.evaluate(

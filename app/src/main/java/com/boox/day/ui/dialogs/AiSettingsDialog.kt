@@ -188,7 +188,7 @@ fun AiSettingsDialog(
                                 verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
                             ) {
                                 Text(
-                                    text = "Smart Suggestions and Optimize My Day use your answers. You can change them at any time; closing the questions keeps what you picked.",
+                                    text = "Smart Suggestions, Optimize My Day, Weekly Summary and Sort by Priority use your answers. You can change them at any time; closing the questions keeps what you picked.",
                                     fontSize = EInkTheme.Preferences.explanationFontSize,
                                     color = EInkTheme.Colors.gray
                                 )

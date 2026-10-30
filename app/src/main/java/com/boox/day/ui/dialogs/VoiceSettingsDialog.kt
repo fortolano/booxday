@@ -1,5 +1,7 @@
 package com.boox.day.ui.dialogs
 
+import com.boox.day.ui.permissions.AskState
+import com.boox.day.ui.permissions.rememberPermissionAsk
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -64,6 +66,8 @@ fun VoiceSettingsDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    // Oct 2026: the microphone's state, which no screen showed; "Open Settings" once Android stopped asking
+    val micAsk = rememberPermissionAsk(android.Manifest.permission.RECORD_AUDIO)
     val initialMode = if (hasGoogleSearchApp) VoiceTextMode.AUTO else currentMode
     var selectedMode by remember { mutableStateOf(initialMode) }
 
@@ -130,6 +134,19 @@ fun VoiceSettingsDialog(
                     fontSize = EInkTheme.Typography.bodySmall,
                     fontWeight = FontWeight.Medium,
                     color = EInkTheme.Colors.primary
+                )
+
+                // Microphone permission (both ways need it)
+                Text(
+                    text = when (micAsk.state) {
+                        AskState.GRANTED -> "Microphone: allowed"
+                        AskState.CAN_ASK -> "Microphone: BooxDay asks the first time you speak"
+                        AskState.OPEN_SETTINGS -> "Microphone: off for BooxDay in Android settings. Tap here to open them."
+                    },
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    fontWeight = if (micAsk.state == AskState.OPEN_SETTINGS) FontWeight.Bold else FontWeight.Normal,
+                    color = EInkTheme.Colors.primary,
+                    modifier = if (micAsk.state == AskState.OPEN_SETTINGS) Modifier.noRippleClickable { micAsk.request() } else Modifier
                 )
 
                 // Option 1: Google Speech Recognition

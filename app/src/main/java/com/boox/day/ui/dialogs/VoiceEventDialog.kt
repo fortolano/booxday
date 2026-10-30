@@ -1,5 +1,7 @@
 package com.boox.day.ui.dialogs
 
+import com.boox.day.ui.permissions.AskState
+import com.boox.day.ui.permissions.rememberPermissionAsk
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -75,18 +77,10 @@ fun VoiceEventDialog(
     val scope = rememberCoroutineScope()
 
     // Permission state
-    var hasPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                == PackageManager.PERMISSION_GRANTED
-        )
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasPermission = granted
-    }
+    // Oct 2026: asks Android, or opens Android settings once Android stopped asking (the button did
+    // nothing then); checked again when the app comes back
+    val micAsk = rememberPermissionAsk(Manifest.permission.RECORD_AUDIO)
+    val hasPermission = micAsk.granted
 
     // ═══════════════════════════════════════════════════════════════════════════
     // TRANSCRIPTION SERVICE (THE unified voice-to-text service)
@@ -126,7 +120,7 @@ fun VoiceEventDialog(
 
     // Status message - use correct state based on activeSource (technical message only)
     val statusMessage = when {
-        !hasPermission -> "Tap to grant microphone permission"
+        !hasPermission -> if (micAsk.state == AskState.OPEN_SETTINGS) "Microphone is off for BooxDay. Tap to open Android settings." else "Tap to grant microphone permission"
         isAiProcessing -> aiProcessingStage.ifEmpty { "Processing..." }
         aiError != null -> aiError!!
         transcriptionState == TranscriptionState.PROCESSING -> "Processing transcription..."
@@ -342,7 +336,7 @@ fun VoiceEventDialog(
                     voiceInputState = if (activeSource == TranscriptionSource.SPEECH_RECOGNIZER) speechRecognizerState else null,
                     recorderState = if (activeSource != TranscriptionSource.SPEECH_RECOGNIZER) recorderState else null,
                     onRequestPermission = {
-                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        micAsk.request()
                     },
                     onPause = { transcriptionService.pause() },
                     onResume = { transcriptionService.resume() },
