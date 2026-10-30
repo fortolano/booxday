@@ -623,7 +623,8 @@ private fun AiFeaturesContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Setting Up (Settings → AI Settings)")
-    BulletItem("Connect OpenRouter", "Sign in to OpenRouter in the browser; BooxDay saves the key. You can also paste a key.")
+    BulletItem("Connect OpenRouter", "BooxDay explains OpenRouter, then opens it in the browser: sign in or create an account, tap Authorize, then Open BooxDay. BooxDay saves the key and says \"AI is on\". Have a key already? Tap I already have a key and paste it.")
+    BulletItem("Paying for AI", "Signing up is free. Free models need no credit but allow 50 requests a day (1,000 a day once you have bought \$10 of credit), and are often busy. Other models use credit you add on OpenRouter (openrouter.ai/settings/credits) by card, AliPay or USDC, from \$5. A key can have a spending limit.")
     BulletItem("AI Features", "The switch for voice input, the AI tools and reading pages for search. With it off, none of your data goes to OpenRouter.")
     BulletItem("AI Models", "The model for each job: Reading handwriting, Voice, Writing and summaries, Planning and suggestions, Search indexing. If a model fails, BooxDay's choice answers.")
     BulletItem("AI Preferences", "Five short tabs: Priorities, About Me, Daily Rhythm, Lifestyle and AI Style (with Vacation, Crunch and Holiday modes). Smart Suggestions, Optimize My Day, Weekly Summary and Sort by Priority use your answers. Closing keeps what you picked.")

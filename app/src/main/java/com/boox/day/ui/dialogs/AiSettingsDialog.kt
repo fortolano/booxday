@@ -238,33 +238,11 @@ fun AiSettingsDialog(
                             }
                         }
 
-                        // Privacy (Oct 2026): where AI requests go
+                        // Privacy (Oct 2026): where AI requests go. Getting a key is the key card's job
                         SettingCard(
                             title = "Privacy",
                             description = "BooxDay sends nothing to its developer. AI requests go from this tablet to OpenRouter, on your own account, and to the company that runs the model. Reading pages for search also sends memo and Boox Notes pages, while Settings → Boox Notes → Enable Indexing is on. With AI Features off, none of your data goes to OpenRouter."
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = EInkTheme.Global.touchTarget)
-                                    .noRippleClickable { OpenRouterLinks.open(context, OpenRouterLinks.KEYS) },
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.OpenInNew,
-                                    contentDescription = "Open in browser",
-                                    tint = EInkTheme.Colors.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = "Get an OpenRouter key",
-                                    fontSize = EInkTheme.Typography.bodyMedium,
-                                    color = EInkTheme.Colors.primary,
-                                    textDecoration = TextDecoration.Underline
-                                )
-                            }
-                        }
+                        ) {}
                     }
                 }
             }
