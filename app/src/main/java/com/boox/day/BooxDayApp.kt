@@ -86,6 +86,8 @@ class BooxDayApp : Application() {
         runSafeStartupStep("Pending calendar push") { requestPendingCalendarPush() }
         // Automatic Drive backup check (does nothing unless Drive backup is on and due)
         runSafeStartupStep("Drive auto-backup schedule") { com.boox.day.sync.DriveAutoBackupWorker.schedule(this) }
+        // Calendars in the background on "Sync frequency" while an account is connected (Oct 2026)
+        runSafeStartupStep("Background sync schedule") { scheduleBackgroundSync() }
         // Today's agenda on the BOOX sleep screen, when turned on (sleepscreen/SleepAgenda)
         runSafeStartupStep("Sleep screen agenda") { com.boox.day.sleepscreen.SleepAgenda.onAppStart(this, applicationScope) }
         // Markdown daily notes, when turned on (export/DailyNotes)
@@ -137,6 +139,16 @@ class BooxDayApp : Application() {
         com.boox.day.ui.CalendarAiNotice.init(this)
         // Oct 2026: whether Wi-Fi is on, to say why an AI request failed
         com.boox.day.api.NetworkStatus.init(this)
+    }
+
+    private fun scheduleBackgroundSync() {
+        applicationScope.launch(Dispatchers.IO) {
+            try {
+                com.boox.day.sync.BackgroundSyncWorker.schedule(this@BooxDayApp)
+            } catch (e: Exception) {
+                Log.w("BooxDayApp", "Background sync schedule failed: ${e.message}")
+            }
+        }
     }
 
     /**

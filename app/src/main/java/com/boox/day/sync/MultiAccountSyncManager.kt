@@ -84,6 +84,27 @@ class MultiAccountSyncManager(
 ) {
     companion object {
         private const val TAG = "MultiAccountSyncManager"
+
+        /** Process-wide: every screen and worker builds its own manager. */
+        private val syncAllFlight = SingleFlight<Pair<LocalDate, LocalDate>, Map<String, SyncResult>>()
+
+        /** The manager as the app builds it, for workers and other code without a screen. */
+        fun create(context: Context): MultiAccountSyncManager {
+            val appContext = context.applicationContext
+            val database = com.boox.day.data.db.AppDatabase.getDatabase(appContext)
+            val accountDao = database.connectedAccountDao()
+            val eventRepository = CalendarEventRepository(appContext)
+            val googleAuth = GoogleAuthManager(appContext)
+            val outlookAuth = com.boox.day.sync.outlook.OutlookAuthManager(appContext)
+            return MultiAccountSyncManager(
+                appContext,
+                GoogleCalendarProvider(appContext, googleAuth, CalendarSyncManager(appContext, googleAuth, eventRepository), accountDao, eventRepository),
+                OutlookCalendarProvider(appContext, outlookAuth, com.boox.day.sync.outlook.OutlookCalendarService(outlookAuth), accountDao),
+                accountDao,
+                database.calendarSelectionDao(),
+                eventRepository
+            )
+        }
     }
 
     private val quotaManager by lazy { OcrQuotaManager(context.applicationContext) }
@@ -183,6 +204,15 @@ class MultiAccountSyncManager(
     private suspend fun knownAccount(accountId: String): ConnectedAccountEntity? =
         accountDao.getById(accountId)?.takeIf { ProviderId.fromKeyOrNull(it.providerId) != null }
 
+    /** Background sync runs only while an account is connected (BackgroundSyncWorker.schedule). */
+    private suspend fun rescheduleBackgroundSync() {
+        try {
+            BackgroundSyncWorker.schedule(context)
+        } catch (e: Exception) {
+            Log.w(TAG, "Background sync not rescheduled: ${e.message}")
+        }
+    }
+
     /** Only for rows from [knownAccount]. */
     private fun providerIdOf(account: ConnectedAccountEntity): ProviderId =
         checkNotNull(ProviderId.fromKeyOrNull(account.providerId)) { "Unknown provider ${account.providerId}" }
@@ -237,7 +267,7 @@ class MultiAccountSyncManager(
         data: android.content.Intent?
     ): Result<ConnectedAccount> = withContext(Dispatchers.IO) {
         val provider = getProvider(providerId)
-        provider.handleSignInResult(data)
+        provider.handleSignInResult(data).also { if (it.isSuccess) rescheduleBackgroundSync() }
     }
 
     /**
@@ -263,6 +293,7 @@ class MultiAccountSyncManager(
 
                 // Auto-fetch calendars for the new account
                 refreshCalendarsForAccount(account.id)
+                rescheduleBackgroundSync()
             }
 
             result
@@ -303,6 +334,7 @@ class MultiAccountSyncManager(
             accountDao.deleteById(accountId)
 
             Log.i(TAG, "Account removed successfully: ${account.email}")
+            rescheduleBackgroundSync()
             Result.success(Unit)
 
         } catch (e: Exception) {
@@ -548,6 +580,15 @@ class MultiAccountSyncManager(
         startDate: LocalDate,
         endDate: LocalDate,
         onProgress: ((accountId: String, MultiAccountSyncViewModel.SyncProgress) -> Unit)? = null
+    ): Map<String, SyncResult> =
+        // One full sync at a time in the app (Oct 2026); a caller that joins a running sync of the
+        // same dates shares its result (its onProgress is not called)
+        syncAllFlight.run(startDate to endDate) { syncAllAccountsNow(startDate, endDate, onProgress) }
+
+    private suspend fun syncAllAccountsNow(
+        startDate: LocalDate,
+        endDate: LocalDate,
+        onProgress: ((accountId: String, MultiAccountSyncViewModel.SyncProgress) -> Unit)?
     ): Map<String, SyncResult> = coroutineScope {
         val accounts = getAllAccounts()
 

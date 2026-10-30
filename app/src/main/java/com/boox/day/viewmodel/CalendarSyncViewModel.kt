@@ -537,6 +537,7 @@ class CalendarSyncViewModel(application: Application) : AndroidViewModel(applica
         _autoSyncEnabled.value = enabled
         authManager.setSyncEnabled(enabled)
         Log.d(TAG, "Auto-sync set to: $enabled")
+        rescheduleBackgroundSync()
     }
 
     /**
@@ -546,6 +547,18 @@ class CalendarSyncViewModel(application: Application) : AndroidViewModel(applica
         _syncFrequency.value = frequency
         authManager.setSyncFrequency(frequency)
         Log.d(TAG, "Sync frequency set to: $frequency")
+        rescheduleBackgroundSync()
+    }
+
+    /** The background sync follows these two settings (BackgroundSyncWorker, Oct 2026). */
+    private fun rescheduleBackgroundSync() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                com.boox.day.sync.BackgroundSyncWorker.schedule(getApplication())
+            } catch (e: Exception) {
+                Log.w(TAG, "Background sync not rescheduled: ${e.message}")
+            }
+        }
     }
 
     /**

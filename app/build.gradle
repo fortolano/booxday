@@ -295,6 +295,7 @@ dependencies {
     // WorkManager for background sync
     def work_version = "2.10.1"
     implementation "androidx.work:work-runtime-ktx:$work_version"
+    testImplementation "androidx.work:work-testing:$work_version"
 
     implementation 'br.com.devsrsouza.compose.icons.android:feather:1.0.0'
     // REMOVED: klaxon - not used anywhere in codebase (using kotlinx-serialization instead)

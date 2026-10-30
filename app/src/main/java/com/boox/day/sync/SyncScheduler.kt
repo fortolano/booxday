@@ -1,20 +1,16 @@
 package com.boox.day.sync
 
 import android.content.Context
-import androidx.work.BackoffPolicy
 import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.util.concurrent.TimeUnit
 
 /**
  * SyncScheduler - Manages WorkManager jobs for calendar synchronization.
@@ -44,57 +40,8 @@ class SyncScheduler(private val context: Context) {
         .setRequiredNetworkType(NetworkType.CONNECTED)
         .build()
 
-    /**
-     * Schedule periodic sync based on user's frequency preference.
-     *
-     * @param frequencyHours Sync frequency in hours (e.g., 4, 8, 24)
-     */
-    fun schedulePeriodicSync(frequencyHours: Long) {
-        Log.d(TAG, "Scheduling periodic sync every $frequencyHours hours")
-
-        val workRequest = PeriodicWorkRequestBuilder<SyncWorker>(
-            frequencyHours, TimeUnit.HOURS,
-            15, TimeUnit.MINUTES // Flex interval
-        )
-            .setConstraints(networkConstraint)
-            .setInputData(
-                workDataOf(
-                    SyncWorker.KEY_SYNC_TYPE to SyncWorker.SYNC_TYPE_FULL,
-                    SyncWorker.KEY_MONTHS_BEFORE to DEFAULT_MONTHS_BEFORE,
-                    SyncWorker.KEY_MONTHS_AFTER to DEFAULT_MONTHS_AFTER
-                )
-            )
-            .setBackoffCriteria(
-                BackoffPolicy.EXPONENTIAL,
-                1, TimeUnit.HOURS
-            )
-            .addTag(SyncWorker.WORK_NAME_PERIODIC)
-            .build()
-
-        workManager.enqueueUniquePeriodicWork(
-            SyncWorker.WORK_NAME_PERIODIC,
-            ExistingPeriodicWorkPolicy.UPDATE, // Replace existing if frequency changed
-            workRequest
-        )
-
-        Log.i(TAG, "Periodic sync scheduled: every $frequencyHours hours")
-    }
-
-    /**
-     * Schedule periodic sync using GoogleAuthManager frequency setting.
-     */
-    fun schedulePeriodicSync(authManager: GoogleAuthManager) {
-        val frequency = authManager.getSyncFrequency()
-        val hours = when (frequency) {
-            GoogleAuthManager.FREQUENCY_1_HOUR -> 1L
-            GoogleAuthManager.FREQUENCY_2_HOURS -> 2L
-            GoogleAuthManager.FREQUENCY_4_HOURS -> 4L
-            GoogleAuthManager.FREQUENCY_8_HOURS -> 8L
-            GoogleAuthManager.FREQUENCY_DAILY -> 24L
-            else -> 4L
-        }
-        schedulePeriodicSync(hours)
-    }
+    // Periodic sync on "Sync frequency" is BackgroundSyncWorker (Oct 2026). The periodic SyncWorker
+    // scheduler that stood here was never called, and its legacy pull covered one Google account only.
 
     /**
      * Request immediate sync (one-time).
