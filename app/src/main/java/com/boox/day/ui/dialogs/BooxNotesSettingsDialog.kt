@@ -177,20 +177,8 @@ fun BooxNotesSettingsDialog(
     val requestAccess: () -> Unit = {
         if (BooxNotesAccess.usesRuntimePermission) {
             askLegacyStorage()
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            try {
-                allFilesAccessLauncher.launch(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = Uri.parse("package:${localContext.packageName}")
-                })
-            } catch (e: Exception) {
-                try {
-                    allFilesAccessLauncher.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
-                } catch (e2: Exception) {
-                    allFilesAccessLauncher.launch(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.parse("package:${localContext.packageName}")
-                    })
-                }
-            }
+        } else {
+            com.boox.day.ui.permissions.FileAccess.openAllFilesSettings(localContext) { allFilesAccessLauncher.launch(it) }
         }
     }
 

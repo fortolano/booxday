@@ -107,10 +107,8 @@ import androidx.core.content.ContextCompat
 import com.boox.day.ocr.UnifiedOcrIdleProcessor
 import com.boox.day.ocr.TextAnnotationIndexer
 import com.boox.day.ui.dialogs.AttachmentPickerDialog
-import com.boox.day.ui.dialogs.LinkFilePermissionDialog
 import com.boox.day.ui.dialogs.BooxNotesSettingsDialog
 import com.boox.day.ui.dialogs.ImagePickerDialog
-import com.boox.day.ui.dialogs.ImagePickerPermissionDialog
 import com.boox.day.ui.dialogs.NativeBackgroundDialog
 import com.boox.day.ui.dialogs.TableCreationDialog
 import com.boox.day.editor.drawing.TableBitmapGenerator
@@ -360,13 +358,6 @@ fun SharedToolbar(
             pendingStorageAction?.invoke()
         }
         pendingStorageAction = null
-    }
-
-    fun hasLegacyStoragePermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        ) == PackageManager.PERMISSION_GRANTED
     }
 
     // If canvas not mounted yet AND no cached values, show empty toolbar skeleton
@@ -629,9 +620,10 @@ fun SharedToolbar(
 
     // Image picker permission dialog (shown when user taps Insert Image without permission)
     if (isImagePickerPermissionDialogOpen) {
-        ImagePickerPermissionDialog(
+        com.boox.day.ui.dialogs.FileAccessPopup(
+            purpose = com.boox.day.ui.dialogs.FileAccessPurpose.INSERT_IMAGE,
             onDismiss = { isImagePickerPermissionDialogOpen = false },
-            onPermissionGranted = {
+            onGranted = {
                 // Permission granted - close this dialog and open image picker
                 isImagePickerPermissionDialogOpen = false
                 toolbarLog.i("Permission granted, opening image picker dialog...")
@@ -716,9 +708,10 @@ fun SharedToolbar(
 
     // Link file permission dialog (shown when user taps Link File without permission)
     if (isLinkFilePermissionDialogOpen) {
-        LinkFilePermissionDialog(
+        com.boox.day.ui.dialogs.FileAccessPopup(
+            purpose = com.boox.day.ui.dialogs.FileAccessPurpose.LINK_FILE,
             onDismiss = { isLinkFilePermissionDialogOpen = false },
-            onPermissionGranted = {
+            onGranted = {
                 // Permission granted - close this dialog and open file picker
                 isLinkFilePermissionDialogOpen = false
                 toolbarLog.i("Permission granted, opening attachment picker dialog...")
@@ -1366,11 +1359,7 @@ fun SharedToolbar(
                 // Insert actions (Oct 2026): shared by the Insert button and its page in the toolbar menu (≡)
                 val onImageInsert: () -> Unit = {
                     DrawCanvas.toolbarInteraction.tryEmit(Unit)
-                    val hasStoragePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        Environment.isExternalStorageManager()
-                    } else {
-                        hasLegacyStoragePermission()
-                    }
+                    val hasStoragePermission = com.boox.day.ui.permissions.FileAccess.canBrowse(context)
 
                     if (hasStoragePermission) {
                         toolbarLog.i("Opening image picker dialog...")
@@ -1397,11 +1386,7 @@ fun SharedToolbar(
                 }
                 val onAttachmentInsert: () -> Unit = {
                     DrawCanvas.toolbarInteraction.tryEmit(Unit)
-                    val hasStoragePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        Environment.isExternalStorageManager()
-                    } else {
-                        hasLegacyStoragePermission()
-                    }
+                    val hasStoragePermission = com.boox.day.ui.permissions.FileAccess.canBrowse(context)
 
                     if (hasStoragePermission) {
                         toolbarLog.i("Opening attachment picker dialog...")
