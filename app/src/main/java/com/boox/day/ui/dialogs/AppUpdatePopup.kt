@@ -168,6 +168,16 @@ private fun AppUpdatePopup(state: State) {
                             }
                             ScrollMoreBar(notesScroll)
                         }
+                        // Buy Me a Coffee (Oct 2026): one plain line, Close stays the main button
+                        TextLink("Enjoying BooxDay? Buy me a coffee") {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(ProjectInfo.SUPPORT_URL))
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                            AppUpdateGate.close()
+                        }
                         Buttons(main = "Close" to { AppUpdateGate.close() })
                     }
                     is State.Failed -> {
@@ -274,7 +284,10 @@ private fun ProgressBar(percent: Int) {
 }
 
 @Composable
-private fun WebsiteLink(onClick: () -> Unit) {
+private fun WebsiteLink(onClick: () -> Unit) = TextLink("Download it from the website instead", onClick)
+
+@Composable
+private fun TextLink(text: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -283,7 +296,7 @@ private fun WebsiteLink(onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Download it from the website instead",
+            text = text,
             fontSize = EInkTheme.Typography.bodyMedium,
             color = EInkTheme.Colors.primary,
             textDecoration = TextDecoration.Underline

@@ -6,6 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import com.boox.day.ProjectInfo
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.components.ScrollableWithIndicator
 import androidx.compose.foundation.lazy.LazyColumn
@@ -822,6 +823,13 @@ private fun TroubleshootingContent() {
         solution = "Tap ≡ → Screen Refresh."
     )
 
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    // Buy Me a Coffee (Oct 2026)
+    SectionSubheader("Support BooxDay")
+    BodyText("BooxDay is free and made by one person. If it makes your days easier, you can buy me a coffee. BooxDay stays free for everyone either way.")
+    WebsiteLink("Buy Me a Coffee", ProjectInfo.SUPPORT_URL)
+
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 }
 
@@ -1036,8 +1044,8 @@ private fun WebsiteLink(label: String, url: String) {
     Row(
         modifier = Modifier
             .noRippleClickable {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                context.startActivity(intent)
+                // No browser on the tablet: the tap does nothing rather than crash
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
             }
             .padding(vertical = EInkTheme.Global.spacingSmall),
         verticalAlignment = Alignment.CenterVertically,

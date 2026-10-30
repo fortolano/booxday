@@ -207,6 +207,50 @@ fun AboutDialog(
                             }
                         }
 
+                        // Buy Me a Coffee (Oct 2026): the link, and a QR code because paying is easier on a phone
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            SectionTitle(stringResource(R.string.about_support_title))
+                            SectionCard {
+                                SectionBodyText(stringResource(R.string.about_support_content))
+                            }
+                            SectionCard(
+                                contentPadding = 0.dp,
+                                verticalSpacing = 0.dp
+                            ) {
+                                ExternalLinkAction(
+                                    label = stringResource(R.string.about_support_link),
+                                    supportingText = ProjectInfo.SUPPORT_URL.removePrefix("https://"),
+                                    emphasized = true,
+                                    onClick = { openUrl(context, ProjectInfo.SUPPORT_URL) }
+                                )
+                                Divider(
+                                    color = EInkTheme.Divider.subtleColor,
+                                    thickness = EInkTheme.Divider.subtleThickness
+                                )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.support_qr),
+                                        contentDescription = "QR code for ${ProjectInfo.SUPPORT_URL}",
+                                        modifier = Modifier.size(148.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.about_support_qr),
+                                        fontSize = EInkTheme.Typography.bodySmall,
+                                        color = EInkTheme.Colors.gray,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+
                         Column(
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
