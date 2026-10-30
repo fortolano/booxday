@@ -73,6 +73,8 @@ Calendar sync needs your own OAuth setup if you build and sign the app yourself:
 
 BooxDay is shared as is: there is no technical or product support. Bug reports and pull requests are welcome on the [Issues](../../issues) page, but there is no promise of a reply or a fix. The project is still being improved, and new versions are published on the [Releases](../../releases) page.
 
+BooxDay is free and made by one person. If it makes your days easier, you can [buy me a coffee](https://buymeacoffee.com/booxday). It doesn't buy support or features, and BooxDay stays free for everyone either way.
+
 ## Privacy
 
 Your memos, tasks and calendar are stored on the tablet. BooxDay has no server and sends nothing to its developer. It goes online to download Google's on-device handwriting model and for the features you turn on: calendar sync (Google or Microsoft), backup to your own Google Drive, and AI features (OpenRouter, with your own key).
