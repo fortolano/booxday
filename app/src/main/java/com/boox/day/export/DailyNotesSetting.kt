@@ -77,6 +77,17 @@ fun DailyNotesSetting() {
                     }
                 )
             }
+            // Oct 2026 (plan B2): the notes are written unseen, so say when (or what went wrong)
+            if (enabled) {
+                Text(
+                    text = com.boox.day.today.LastWrite.statusText(
+                        DailyNotes.lastWrite.read(context), done = "written",
+                        use24Hour = GlobalAppSettings.current.timeFormat == com.boox.day.data.datastore.AppSettings.TimeFormat.TwentyFourHour
+                    ),
+                    fontSize = EInkTheme.Typography.bodySmall,
+                    color = EInkTheme.Colors.primary
+                )
+            }
             Text(
                 text = "Folder: $folder",
                 fontSize = EInkTheme.Typography.bodySmall,

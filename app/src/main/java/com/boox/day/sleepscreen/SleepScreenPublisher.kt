@@ -49,6 +49,9 @@ object SleepScreenPublisher {
     /** The day the image on the sleep screen shows, or null when none was handed over. */
     fun shownDate(context: Context): String? = prefs(context).getString(KEY_DATE, null)
 
+    /** When the sleep screen was last updated (or found up to date), or why the last try failed. */
+    val lastWrite = com.boox.day.today.LastWrite(PREFS)
+
     /** Draws the agenda for now and hands it over when it changed. [force]: hand over even if unchanged. */
     suspend fun publish(context: Context, force: Boolean = false): Boolean = mutex.withLock {
         val app = context.applicationContext
@@ -63,6 +66,7 @@ object SleepScreenPublisher {
             val fingerprint = fingerprint(digest, nowMs, sizeClass, memo)
             if (!force && fingerprint == prefs(app).getString(KEY_FINGERPRINT, null)) {
                 memo?.recycle()
+                lastWrite.succeeded(app)  // still up to date
                 return@withLock true
             }
 
@@ -81,6 +85,7 @@ object SleepScreenPublisher {
 
             val accepted = ScreenResourceManager.setScreensaver(app, file.absolutePath, false)
             Log.i(TAG, "Sleep screen ${if (accepted) "set" else "refused"}: $today, ${sizeClass.name.lowercase()} ${width}x$height, ${file.name}")
+            if (accepted) lastWrite.succeeded(app) else lastWrite.failed(app, "BOOX didn't take the image")
             if (accepted) {
                 prefs(app).edit()
                     .putString(KEY_FINGERPRINT, fingerprint).putString(KEY_DATE, today.toString()).putString(KEY_FILE, file.name)
@@ -92,6 +97,7 @@ object SleepScreenPublisher {
             accepted
         } catch (t: Throwable) {
             Log.e(TAG, "Sleep screen not updated", t)
+            lastWrite.failed(app, "the image couldn't be made")
             false
         }
     }
