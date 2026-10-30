@@ -1285,7 +1285,7 @@ private fun AiStyleTabContent(
                     )
                     ToggleOptionWithDescription(
                         label = "Deadline Warnings",
-                        description = "Prep reminders for events",
+                        description = "Suggestions that help you meet deadlines",
                         isChecked = preferences.includeDeadlineWarnings,
                         onCheckedChange = { onPreferencesChanged(preferences.copy(includeDeadlineWarnings = it)) }
                     )
@@ -1296,7 +1296,7 @@ private fun AiStyleTabContent(
             QuestionCard(
                 title = "Special modes",
                 subtitle = "Turn these on temporarily to shift what kinds of suggestions you receive.",
-                helpText = "These override your normal preferences. Turn them off when you're back to your regular routine."
+                helpText = "Only one at a time. Turn it off when you're back to your normal week."
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1305,19 +1305,20 @@ private fun AiStyleTabContent(
                         label = "Vacation Mode",
                         description = "Relaxation-focused suggestions",
                         isChecked = preferences.vacationMode,
-                        onCheckedChange = { onPreferencesChanged(preferences.copy(vacationMode = it)) }
+                        // Oct 2026: one mode at a time; turning one on turns the others off
+                        onCheckedChange = { onPreferencesChanged(preferences.copy(vacationMode = it, crunchMode = false, holidayMode = false)) }
                     )
                     ToggleOptionWithDescription(
                         label = "Crunch Mode",
                         description = "Deadline-focused, minimal distractions",
                         isChecked = preferences.crunchMode,
-                        onCheckedChange = { onPreferencesChanged(preferences.copy(crunchMode = it)) }
+                        onCheckedChange = { onPreferencesChanged(preferences.copy(crunchMode = it, vacationMode = false, holidayMode = false)) }
                     )
                     ToggleOptionWithDescription(
                         label = "Holiday Mode",
-                        description = "Holiday-themed suggestions",
+                        description = "Family and social time, essential tasks only",
                         isChecked = preferences.holidayMode,
-                        onCheckedChange = { onPreferencesChanged(preferences.copy(holidayMode = it)) }
+                        onCheckedChange = { onPreferencesChanged(preferences.copy(holidayMode = it, vacationMode = false, crunchMode = false)) }
                     )
                 }
             }

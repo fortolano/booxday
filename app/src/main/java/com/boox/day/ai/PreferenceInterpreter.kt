@@ -1,14 +1,15 @@
 package com.boox.day.ai
 
 import com.boox.day.data.ai.AiPreferences
+import com.boox.day.data.ai.AiPreferences.Companion.activeMode
+import com.boox.day.data.ai.AiPreferences.Companion.bestFocusTime
+import com.boox.day.data.ai.AiPreferences.Companion.forPrompt
+import com.boox.day.data.ai.AiPreferences.Companion.pickedAreas
 import com.boox.day.data.ai.EnergyPattern
 import com.boox.day.data.ai.Industry
-import com.boox.day.data.ai.LifeSituation
 import com.boox.day.data.ai.SuggestionStyle
-import com.boox.day.data.ai.BlockedSlot
 import com.boox.day.data.ai.PreferenceConstraints
 import com.boox.day.data.ai.Profession
-import com.boox.day.data.ai.SpecialMode
 import com.boox.day.data.ai.SuggestionAggressiveness
 
 /**
@@ -25,117 +26,26 @@ object PreferenceInterpreter {
      * @param preferences User's AiPreferences (nullable - uses defaults if null)
      * @return PreferenceConstraints with interpreted rules
      */
+    /**
+     * Oct 2026: nothing invented. The planning window is the whole day for everyone (the user gives no
+     * working hours), there are no made-up blocked times ("School pickup 15-16" for anyone with
+     * children, weekends included), and only answers the user actually set up are used.
+     */
     fun interpret(preferences: AiPreferences?): PreferenceConstraints {
-        if (preferences == null) {
-            return PreferenceConstraints.default()
-        }
-
+        val prefs = preferences.forPrompt() ?: return PreferenceConstraints.default()
         return PreferenceConstraints(
-            priorityRanking = buildPriorityRanking(preferences),
-            blockedSlots = inferBlockedSlots(preferences),
-            workHoursStart = inferWorkHoursStart(preferences),
-            workHoursEnd = inferWorkHoursEnd(preferences),
-            activeMode = inferActiveMode(preferences),
-            aggressiveness = inferAggressiveness(preferences),
-            includeHealthReminders = preferences.includeHealthReminders,
-            includeSocialReminders = preferences.includeSocialReminders,
-            energyPattern = preferences.energyPattern,
-            lifestyleContext = buildLifestyleContext(preferences)
+            priorityRanking = prefs.pickedAreas(),
+            blockedSlots = emptyList(),
+            workHoursStart = CapacityAnalyzer.DEFAULT_DAY_START,
+            workHoursEnd = CapacityAnalyzer.DEFAULT_DAY_END,
+            activeMode = prefs.activeMode(),
+            aggressiveness = inferAggressiveness(prefs),
+            includeHealthReminders = prefs.includeHealthReminders,
+            includeSocialReminders = prefs.includeSocialReminders,
+            energyPattern = prefs.energyPattern,
+            lifestyleContext = buildLifestyleContext(prefs),
+            bestFocusTime = prefs.bestFocusTime()
         )
-    }
-
-    /**
-     * Build priority ranking from preference values (highest to lowest).
-     */
-    private fun buildPriorityRanking(prefs: AiPreferences): List<String> {
-        val priorities = listOf(
-            "work" to prefs.workPriority,
-            "education" to prefs.educationPriority,
-            "family" to prefs.familyPriority,
-            "health" to prefs.healthPriority,
-            "social" to prefs.socialPriority,
-            "hobby" to prefs.hobbyPriority,
-            "finance" to prefs.financePriority
-        )
-
-        return priorities
-            .sortedByDescending { it.second }
-            .map { it.first }
-    }
-
-    /**
-     * Infer blocked time slots from lifestyle factors.
-     */
-    private fun inferBlockedSlots(prefs: AiPreferences): List<BlockedSlot> {
-        val slots = mutableListOf<BlockedSlot>()
-
-        // Kids: School pickup window (3-4 PM)
-        if (prefs.hasKids) {
-            slots.add(BlockedSlot(15, 16, "School pickup"))
-        }
-
-        // Caregiver: Morning and evening care
-        if (prefs.isCareGiver) {
-            slots.add(BlockedSlot(7, 8, "Morning care routine"))
-            slots.add(BlockedSlot(18, 19, "Evening care routine"))
-        }
-
-        // Stay-at-home parent: Multiple blocks
-        if (prefs.lifeSituations.contains(LifeSituation.STAY_AT_HOME_PARENT)) {
-            slots.add(BlockedSlot(11, 13, "Lunch preparation/mealtime"))
-        }
-
-        // Pet owner: Morning and evening walk times
-        if (prefs.hasPets && prefs.isActiveLifestyle) {
-            slots.add(BlockedSlot(6, 7, "Morning pet care"))
-            slots.add(BlockedSlot(17, 18, "Evening pet care"))
-        }
-
-        return slots
-    }
-
-    /**
-     * Infer optimal work hours start based on energy pattern.
-     */
-    private fun inferWorkHoursStart(prefs: AiPreferences): Int {
-        return when (prefs.energyPattern) {
-            EnergyPattern.MORNING_PERSON -> 6
-            EnergyPattern.NIGHT_OWL -> 11
-            EnergyPattern.AFTERNOON_PEAK -> 10
-            EnergyPattern.STEADY -> 9
-        }
-    }
-
-    /**
-     * Infer optimal work hours end based on energy pattern and situation.
-     */
-    private fun inferWorkHoursEnd(prefs: AiPreferences): Int {
-        // Base on energy pattern
-        val baseEnd = when (prefs.energyPattern) {
-            EnergyPattern.MORNING_PERSON -> 14
-            EnergyPattern.NIGHT_OWL -> 22
-            EnergyPattern.AFTERNOON_PEAK -> 18
-            EnergyPattern.STEADY -> 17
-        }
-
-        // Adjust for family responsibilities
-        return if (prefs.hasKids || prefs.isCareGiver) {
-            minOf(baseEnd, 17)  // Cap at 5 PM for family time
-        } else {
-            baseEnd
-        }
-    }
-
-    /**
-     * Determine if a special mode is active.
-     */
-    private fun inferActiveMode(prefs: AiPreferences): SpecialMode? {
-        return when {
-            prefs.vacationMode -> SpecialMode.VACATION
-            prefs.crunchMode -> SpecialMode.CRUNCH
-            prefs.holidayMode -> SpecialMode.HOLIDAY
-            else -> null
-        }
     }
 
     /**
@@ -154,9 +64,10 @@ object PreferenceInterpreter {
      */
     private fun buildLifestyleContext(prefs: AiPreferences): List<String> {
         val context = mutableListOf<String>()
+        val defaults = AiPreferences()
 
-        // Life situation(s)
-        prefs.lifeSituations.forEach { context.add(it.displayName) }
+        // Life situation(s), unless still the pre-selected default
+        if (prefs.lifeSituations != defaults.lifeSituations) prefs.lifeSituations.forEach { context.add(it.displayName) }
 
         if (prefs.industry != Industry.NOT_SET) context.add(prefs.industry.displayName)
         if (prefs.profession != Profession.NOT_SET) context.add(prefs.profession.displayName)
@@ -177,8 +88,8 @@ object PreferenceInterpreter {
         if (prefs.isCareGiver) context.add("caregiver")
         if (prefs.livesAlone) context.add("lives alone")
 
-        // Environment
-        context.add(prefs.livingEnvironment.displayName)
+        // Environment, unless still the pre-selected default
+        if (prefs.livingEnvironment != defaults.livingEnvironment) context.add(prefs.livingEnvironment.displayName)
 
         return context
     }

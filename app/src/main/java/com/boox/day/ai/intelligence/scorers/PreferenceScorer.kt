@@ -1,6 +1,8 @@
 package com.boox.day.ai.intelligence.scorers
 
+import com.boox.day.ai.intelligence.KeywordMatch
 import com.boox.day.data.ai.*
+import com.boox.day.data.ai.AiPreferences.Companion.activeMode
 
 /**
  * Scores items based on alignment with user preferences:
@@ -20,7 +22,7 @@ class PreferenceScorer : Scorer {
             "education" to listOf("study", "learn", "course", "read", "book", "class",
                                  "practice", "exam", "homework", "research", "tutorial"),
             "family" to listOf("family", "kids", "children", "spouse", "parent", "mom",
-                              "dad", "wife", "husband", "dinner", "home", "pick up"),
+                              "dad", "wife", "husband", "pick up"),
             "health" to listOf("exercise", "gym", "run", "walk", "yoga", "meditation",
                               "doctor", "health", "sleep", "water", "vitamin", "stretch"),
             "social" to listOf("friend", "call", "meet", "lunch", "dinner", "party",
@@ -28,7 +30,12 @@ class PreferenceScorer : Scorer {
             "hobby" to listOf("hobby", "game", "play", "watch", "music", "art", "craft",
                              "garden", "cook", "bake", "photo", "travel"),
             "finance" to listOf("budget", "bill", "pay", "save", "invest", "bank",
-                               "money", "expense", "tax", "insurance", "account")
+                               "money", "expense", "tax", "insurance", "account"),
+            // Oct 2026: the two areas AI Preferences offers that were never scored
+            "home" to listOf("home", "house", "clean", "tidy", "laundry", "dishes", "vacuum",
+                            "declutter", "organize", "repair", "fix", "groceries", "chores"),
+            "growth" to listOf("goal", "habit", "journal", "reflect", "mindset", "mentor",
+                              "coaching", "self-improvement", "personal growth")
         )
 
         // Mode modifiers
@@ -63,8 +70,11 @@ class PreferenceScorer : Scorer {
             "health" to prefs.healthPriority,
             "social" to prefs.socialPriority,
             "hobby" to prefs.hobbyPriority,
-            "finance" to prefs.financePriority
+            "finance" to prefs.financePriority,
+            "home" to prefs.homePriority,
+            "growth" to prefs.growthPriority
         )
+        val mode = prefs.activeMode()
 
         val interestKeywords = buildInterestKeywords(prefs)
         val environmentKeywords = ENVIRONMENT_KEYWORDS[prefs.livingEnvironment] ?: emptyList()
@@ -95,7 +105,7 @@ class PreferenceScorer : Scorer {
             }
 
             // 3. Apply mode modifiers
-            if (prefs.crunchMode) {
+            if (mode == SpecialMode.CRUNCH) {
                 if (detectedCategories.contains("work")) {
                     score = (score + CRUNCH_MODE_WORK_BOOST).coerceAtMost(1f)
                     itemSignals.add("CRUNCH MODE: work tasks prioritized")
@@ -105,12 +115,12 @@ class PreferenceScorer : Scorer {
                 }
             }
 
-            if (prefs.vacationMode && detectedCategories.contains("work")) {
+            if (mode == SpecialMode.VACATION && detectedCategories.contains("work")) {
                 score = (score + VACATION_MODE_WORK_PENALTY).coerceAtLeast(0f)
                 itemSignals.add("VACATION MODE: work tasks deprioritized")
             }
 
-            if (prefs.holidayMode && detectedCategories.contains("family")) {
+            if (mode == SpecialMode.HOLIDAY && detectedCategories.contains("family")) {
                 score = (score + HOLIDAY_MODE_FAMILY_BOOST).coerceAtMost(1f)
                 itemSignals.add("HOLIDAY MODE: family tasks prioritized")
             }
@@ -122,8 +132,7 @@ class PreferenceScorer : Scorer {
 
             // 5. Interest-based boosts
             if (interestKeywords.isNotEmpty()) {
-                val lowerText = item.text.lowercase()
-                if (interestKeywords.any { lowerText.contains(it) }) {
+                if (KeywordMatch.containsAny(item.text, interestKeywords)) {
                     score = (score + INTEREST_MATCH_BOOST).coerceAtMost(1f)
                     itemSignals.add("Matches user interest")
                 }
@@ -138,8 +147,7 @@ class PreferenceScorer : Scorer {
 
             // 7. Living environment keyword match
             if (environmentKeywords.isNotEmpty()) {
-                val lowerText = item.text.lowercase()
-                if (environmentKeywords.any { lowerText.contains(it) }) {
+                if (KeywordMatch.containsAny(item.text, environmentKeywords)) {
                     score = (score + ENVIRONMENT_MATCH_BOOST).coerceAtMost(1f)
                     itemSignals.add("Matches living environment context")
                 }
@@ -157,11 +165,10 @@ class PreferenceScorer : Scorer {
     }
 
     private fun detectCategories(text: String): List<String> {
-        val lowerText = text.lowercase()
         val detected = mutableListOf<String>()
 
         CATEGORY_KEYWORDS.forEach { (category, keywords) ->
-            if (keywords.any { lowerText.contains(it) }) {
+            if (KeywordMatch.containsAny(text, keywords)) {
                 detected.add(category)
             }
         }

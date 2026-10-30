@@ -740,8 +740,8 @@ TIME SCHEDULING GUIDELINES for "suggestedTimeBlock":
                     response.data,
                     context,
                     allowedActions = planMyDayAllowedActions,
-                    minProposals = 3,
-                    maxProposals = 7
+                    minProposals = proposalRange(context.preferences.activeMode).first,
+                    maxProposals = proposalRange(context.preferences.activeMode).last
                 )
                 if (parsed.isSuccess) parsed else null
             }
@@ -761,6 +761,12 @@ TIME SCHEDULING GUIDELINES for "suggestedTimeBlock":
      * Build system prompt with Intelligence Engine context.
      * Unified prompt designed for capable reasoning models (Gemini 3+).
      */
+    /**
+     * How many proposals Optimize My Day asks for (Oct 2026). Vacation asks for "minimal" ones, so it
+     * allows 1-3: with the fixed minimum of 3, a short vacation answer failed as an error.
+     */
+    internal fun proposalRange(mode: SpecialMode?): IntRange = if (mode == SpecialMode.VACATION) 1..3 else 3..7
+
     private fun buildSystemPromptV3(context: AgenticContext, scoredContext: ScoredContext): String {
         val prefs = context.preferences
 
@@ -773,7 +779,12 @@ TIME SCHEDULING GUIDELINES for "suggestedTimeBlock":
                 in 10..11 -> "It's mid-morning. The day is underway. Focus on what's most impactful before lunch."
                 in 12..14 -> "It's early afternoon. Half the day is gone. Prioritize what MUST happen today."
                 in 15..17 -> "It's late afternoon. Time is limited. Only propose what's realistically achievable before end of day, plus quick wins."
-                in 18..20 -> "It's evening. The workday is over. Suggest wrapping up loose ends and prepping tomorrow."
+                // Oct 2026: someone most productive in the evening isn't told the day is over
+                in 18..20 -> if (prefs.bestFocusTime == "evening") {
+                    "It's evening, the user's most productive time. Focused work is fine now; also prep tomorrow."
+                } else {
+                    "It's evening. The workday is over. Suggest wrapping up loose ends and prepping tomorrow."
+                }
                 else -> "It's late. Suggest only light review or tomorrow-prep tasks."
             }
         }
@@ -825,10 +836,15 @@ TIME SCHEDULING GUIDELINES for "suggestedTimeBlock":
             }
 
             // User profile
+            // Oct 2026: only what the user told AI Preferences; no invented work hours or blocked times
             appendLine("## USER PROFILE")
-            appendLine("Priority ranking: ${prefs.priorityRanking.joinToString(" > ")}")
-            appendLine("Work hours: ${prefs.workHoursStart}:00 - ${prefs.workHoursEnd}:00")
-            appendLine("Energy pattern: ${prefs.energyPattern.name.lowercase().replace("_", " ")}")
+            if (prefs.priorityRanking.isNotEmpty()) {
+                appendLine("Most important areas (user's picks): ${prefs.priorityRanking.joinToString(", ")}")
+            }
+            prefs.bestFocusTime?.let { appendLine("Best time for focused work: $it") }
+            if (prefs.priorityRanking.isEmpty() && prefs.bestFocusTime == null && prefs.lifestyleContext.isEmpty()) {
+                appendLine("No preferences shared. Don't assume the user's job, family or schedule.")
+            }
             if (prefs.lifestyleContext.isNotEmpty()) {
                 appendLine("Lifestyle: ${prefs.lifestyleContext.joinToString(", ")}")
             }
@@ -861,7 +877,7 @@ TIME SCHEDULING GUIDELINES for "suggestedTimeBlock":
             appendLine()
 
             appendLine("## RULES")
-            appendLine("1. Generate 3-7 proposals, sorted by priority (1 = highest impact)")
+            appendLine("1. Generate ${proposalRange(prefs.activeMode).first}-${proposalRange(prefs.activeMode).last} proposals, sorted by priority (1 = highest impact)")
             appendLine("2. Optimize ONLY the selected planning date ${context.planningDate}; do not let the real current date or time override it")
             appendLine("3. Use nearby days only as supporting evidence for work that should happen on the selected planning date")
             appendLine("4. Do NOT propose moving tasks to other days")
@@ -870,7 +886,11 @@ TIME SCHEDULING GUIDELINES for "suggestedTimeBlock":
             appendLine("7. Vary proposal types — no more than 2 proposals of the same action type")
             appendLine("8. If the selected day is sparse, use ADD_TASK grounded in events, overdue items, or priorities")
             appendLine("9. For time blocks, use free slots from CAPACITY ANALYSIS; omit suggestedTimeBlock if no slot fits")
-            appendLine("10. Schedule focus tasks in morning slots, quick tasks in afternoon slots")
+            appendLine(
+                "10. Schedule focus tasks in " +
+                    (prefs.bestFocusTime?.let { "the user's best focus time ($it)" } ?: "the earliest free slot that fits") +
+                    ", quick tasks around them"
+            )
             appendLine("11. Never output duplicate or lightly reworded proposals")
             appendLine("12. Do not output ADD_TASK proposals that already exist in the task list")
             appendLine()
@@ -909,7 +929,7 @@ TIME SCHEDULING GUIDELINES for "suggestedTimeBlock":
             appendLine("USER PROFILE → EVERYTHING:")
             appendLine("- Use priority ranking to weight which cross-references matter most (a work-first user cares more about work-related connections).")
             appendLine("- Use energy pattern to suggest WHEN to do prep work (morning person → prep early, night owl → prep in evening slot).")
-            appendLine("- Use lifestyle flags to shape ADD_TASK proposals (has kids → suggest before pickup time, caregiver → respect blocked slots).")
+            appendLine("- Use lifestyle flags to shape ADD_TASK proposals, without inventing times the user didn't give.")
             appendLine()
 
             // Reason quality
@@ -929,7 +949,7 @@ TIME SCHEDULING GUIDELINES for "suggestedTimeBlock":
             appendLine("Good: \"Due tomorrow, HIGH urgency. You have a 2h free slot at 14:00 — ideal for focused work.\"")
             appendLine("Good: \"Deferred 4 times over 12 days. Break into 15-min steps or drop it — it's blocking your momentum.\"")
             appendLine("Good: \"Board Meeting at 15:00 discusses Q2 — prep the slides in this morning's free slot.\"")
-            appendLine("Bad: \"This is important.\" / \"Consider doing this today.\" / \"Go for a walk.\"")
+            appendLine("Bad: \"This is important.\" / \"Consider doing this today.\"")
             appendLine()
 
             // Output format with realistic example

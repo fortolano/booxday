@@ -136,7 +136,8 @@ internal object StructuredOutputSchemas {
                     required = listOf("text", "reason", "confidence", "category", "isFollowUp")
                 ),
                 minItems = 1,
-                maxItems = 7
+                // Oct 2026: 10, so "Comprehensive (8-10)" can be delivered (it asks for 9; the cap was 7)
+                maxItems = 10
             )
             // "patternInsights" was an optional object here; no screen showed it (Oct 2026)
         ),
