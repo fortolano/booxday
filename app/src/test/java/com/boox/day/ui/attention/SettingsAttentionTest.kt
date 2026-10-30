@@ -1,6 +1,7 @@
 package com.boox.day.ui.attention
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -52,5 +53,13 @@ class SettingsAttentionTest {
         val items = SettingsAttentionRules.items(allFine.copy(accountsToReconnect = 2))
         assertEquals(listOf(SettingsPlace.CALENDAR_ACCOUNTS), items.map { it.place })
         assertEquals("2 accounts need to reconnect", items[0].reason)
+    }
+
+    @Test
+    fun aJumpFromTheDotIsUsedOnceByItsOwnDialog() {
+        SettingsJump.request(SettingsPlace.PREFERENCES)
+        assertFalse("another dialog doesn't take it", SettingsJump.consume(SettingsPlace.AI_SETTINGS))
+        assertTrue(SettingsJump.consume(SettingsPlace.PREFERENCES))
+        assertFalse("only once", SettingsJump.consume(SettingsPlace.PREFERENCES))
     }
 }

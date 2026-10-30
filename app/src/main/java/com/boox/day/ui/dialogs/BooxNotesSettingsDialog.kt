@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -157,20 +158,27 @@ fun BooxNotesSettingsDialog(
         legacyStorageLauncher.launch(BooxNotesAccess.LEGACY_PERMISSIONS)
     }
 
-    // Safety net polling in case ActivityResult does not fire
-    LaunchedEffect(hasPermission) {
-        while (!hasPermission) {
-            delay(3000) // Check every 3 seconds
-            val newPermissionState = BooxNotesAccess.has(localContext)
-            if (newPermissionState && !hasPermission) {
-                // Permission just granted - trigger scan immediately
-                hasPermission = true
-                if (!GlobalAppSettings.isBooxNotesReady) {
-                    onScanNeeded?.invoke()
-                }
-            } else if (newPermissionState != hasPermission) {
-                hasPermission = newPermissionState
+    // Oct 2026 (plan B2): read again when BooxDay comes back from Android settings, instead of polling
+    // every 3 seconds while access was missing
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                val granted = BooxNotesAccess.has(localContext)
+                if (granted && !hasPermission && !GlobalAppSettings.isBooxNotesReady) onScanNeeded?.invoke()
+                hasPermission = granted
             }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // The one way to ask for access: Android 10's permission prompt, or the All files access screen
+    val requestAccess: () -> Unit = {
+        if (BooxNotesAccess.usesRuntimePermission) {
+            askLegacyStorage()
+        } else {
+            com.boox.day.ui.permissions.FileAccess.openAllFilesSettings(localContext) { allFilesAccessLauncher.launch(it) }
         }
     }
 
@@ -258,283 +266,44 @@ fun BooxNotesSettingsDialog(
 
                     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-                    // Boox Notes baseline card (always included)
-                    SettingCard(
-                        title = "Boox Notes",
-                        description = if (hasPermission) {
-                            "Your Boox notes show up on the days you wrote them"
-                        } else {
-                            "Requires 'All Files Access' permission"
-                        }
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = when {
-                                    hasPermission && GlobalAppSettings.isBooxNotesScanning -> "Scanning"
-                                    hasPermission && GlobalAppSettings.isBooxNotesReady -> "Active"
-                                    hasPermission -> "Preparing"
-                                    else -> "Setup Required"
-                                },
-                                fontSize = EInkTheme.Typography.bodyMedium,
-                                color = EInkTheme.Colors.darkGray
-                            )
-                            EinkSecondaryButton(
-                                text = if (hasPermission) "Scan Now" else "Grant Access",
-                                onClick = {
-                                    if (!hasPermission && BooxNotesAccess.usesRuntimePermission) {
-                                        askLegacyStorage()
-                                    } else if (!hasPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                        try {
-                                            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                                data = Uri.parse("package:${localContext.packageName}")
-                                            }
-                                            allFilesAccessLauncher.launch(intent)
-                                        } catch (e: Exception) {
-                                            try {
-                                                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                                                allFilesAccessLauncher.launch(intent)
-                                            } catch (e2: Exception) {
-                                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                                    data = Uri.parse("package:${localContext.packageName}")
-                                                }
-                                                allFilesAccessLauncher.launch(intent)
-                                            }
-                                        }
-                                    } else {
-                                        onScanNeeded?.invoke()
-                                    }
-                                },
-                                enabled = !GlobalAppSettings.isBooxNotesScanning
-                            )
-                        }
-                    }
-
-                    // Permission status / warning
+                    // Boox Notes (Oct 2026, plan B2): without access, one step with one button (it was a status
+                    // card with Grant Access plus a three-step card with a second button); with access, one
+                    // status line and Scan Now (the spinner card and "Permission granted" card are gone)
                     if (!hasPermission) {
-                        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                        // Permission instructions card
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = EInkTheme.Colors.background,
-                            border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.darkGray),
-                            elevation = 0.dp,
-                            shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(EInkTheme.Global.paddingMedium)
-                            ) {
-                                // Header
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Warning,
-                                        contentDescription = "Permission needed",
-                                        modifier = Modifier.size(20.dp),
-                                        tint = EInkTheme.Colors.primary
-                                    )
-                                    Text(
-                                        text = "One-Time Setup Required",
-                                        fontSize = EInkTheme.Typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = EInkTheme.Colors.primary
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                                // Step-by-step instructions
-                                Text(
-                                    text = "To access your Boox Notes, please grant file access permission:",
-                                    fontSize = EInkTheme.Preferences.explanationFontSize,
-                                    fontWeight = FontWeight.Medium,
-                                    color = EInkTheme.Colors.primary
-                                )
-
-                                Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
-
-                                // Step 1
-                                Row(
-                                    verticalAlignment = Alignment.Top,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        text = "1.",
-                                        fontSize = EInkTheme.Preferences.explanationFontSize,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = EInkTheme.Colors.darkGray
-                                    )
-                                    Text(
-                                        text = "Tap the button below to open Android settings",
-                                        fontSize = EInkTheme.Preferences.explanationFontSize,
-                                        color = EInkTheme.Colors.darkGray
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                // Step 2
-                                Row(
-                                    verticalAlignment = Alignment.Top,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        text = "2.",
-                                        fontSize = EInkTheme.Preferences.explanationFontSize,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = EInkTheme.Colors.darkGray
-                                    )
-                                    Text(
-                                        text = "Toggle \"Allow access to manage all files\" to ON",
-                                        fontSize = EInkTheme.Preferences.explanationFontSize,
-                                        color = EInkTheme.Colors.darkGray
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                // Step 3
-                                Row(
-                                    verticalAlignment = Alignment.Top,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        text = "3.",
-                                        fontSize = EInkTheme.Preferences.explanationFontSize,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = EInkTheme.Colors.darkGray
-                                    )
-                                    Text(
-                                        text = "Tap \"\u2190 All files access\" at the top to return",
-                                        fontSize = EInkTheme.Preferences.explanationFontSize,
-                                        color = EInkTheme.Colors.darkGray
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
-
-                                // Result note with B icon
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = "The",
-                                        fontSize = EInkTheme.Preferences.explanationFontSize,
-                                        color = EInkTheme.Colors.darkGray
-                                    )
-                                    Icon(
-                                        painter = painterResource(R.drawable.boox_b_letter),
-                                        contentDescription = "B button",
-                                        modifier = Modifier.size(16.dp),
-                                        tint = EInkTheme.Colors.primary
-                                    )
-                                    Text(
-                                        text = "button in the toolbar will then be enabled.",
-                                        fontSize = EInkTheme.Preferences.explanationFontSize,
-                                        color = EInkTheme.Colors.darkGray
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                                // Action button
-                                ActionButton(
-                                    text = "Open Permission Settings",
-                                    modifier = Modifier.fillMaxWidth(),
-                                    onClick = {
-                                        if (BooxNotesAccess.usesRuntimePermission) {
-                                            askLegacyStorage()
-                                        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                            try {
-                                                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                                    data = Uri.parse("package:${localContext.packageName}")
-                                                }
-                                                allFilesAccessLauncher.launch(intent)
-                                            } catch (e: Exception) {
-                                                try {
-                                                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                                                    allFilesAccessLauncher.launch(intent)
-                                                } catch (e2: Exception) {
-                                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                                        data = Uri.parse("package:${localContext.packageName}")
-                                                    }
-                                                    allFilesAccessLauncher.launch(intent)
-                                                }
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // Scanning progress
-                    if (hasPermission && GlobalAppSettings.isBooxNotesScanning) {
-                        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = EInkTheme.Colors.offWhite,
-                            border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.borderStrong),
-                            elevation = 0.dp,
-                            shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
+                        com.boox.day.ui.components.SetupStep(
+                            title = "Allow file access for Boox Notes",
+                            why = if (BooxNotesAccess.usesRuntimePermission) {
+                                "BooxDay reads your Boox notes from the tablet's storage, so they show on the days you wrote them. Allow storage access when Android asks."
+                            } else {
+                                "BooxDay reads your Boox notes from the tablet's storage, so they show on the days you wrote them. On the next screen, turn on Allow access to manage all files, then come back."
+                            },
+                            buttonText = if (BooxNotesAccess.usesRuntimePermission) "Allow Access" else "Open Android Settings",
+                            onClick = requestAccess
+                        )
+                    } else {
+                        SettingCard(
+                            title = "Boox Notes",
+                            description = "Your Boox notes show up on the days you wrote them"
                         ) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(EInkTheme.Global.paddingMedium),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = EInkTheme.Colors.primary,
-                                    strokeWidth = 2.dp
-                                )
                                 Text(
-                                    text = "Scanning Boox Notes...",
+                                    text = when {
+                                        GlobalAppSettings.isBooxNotesScanning -> "Scanning your notes…"
+                                        GlobalAppSettings.isBooxNotesReady -> "Active"
+                                        else -> "Ready: tap Scan Now to load your notes"
+                                    },
+                                    modifier = Modifier.weight(1f),
                                     fontSize = EInkTheme.Typography.bodyMedium,
                                     color = EInkTheme.Colors.darkGray
                                 )
-                            }
-                        }
-                    }
-
-                    // First-run status (permission granted, waiting for first successful scan)
-                    if (hasPermission && !GlobalAppSettings.isBooxNotesScanning && !GlobalAppSettings.isBooxNotesReady) {
-                        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = EInkTheme.Colors.offWhite,
-                            border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.borderStrong),
-                            elevation = 0.dp,
-                            shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(EInkTheme.Global.paddingMedium),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = "Preparing",
-                                    modifier = Modifier.size(20.dp),
-                                    tint = EInkTheme.Colors.primary
-                                )
-                                Text(
-                                    text = "Permission granted. Run a scan to load your Boox notes.",
-                                    fontSize = EInkTheme.Typography.bodyMedium,
-                                    color = EInkTheme.Colors.darkGray
+                                EinkSecondaryButton(
+                                    text = "Scan Now",
+                                    onClick = { onScanNeeded?.invoke() },
+                                    enabled = !GlobalAppSettings.isBooxNotesScanning
                                 )
                             }
                         }

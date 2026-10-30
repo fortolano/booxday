@@ -122,6 +122,8 @@ fun SmartSuggestionsDialog(
                     fontSize = EInkTheme.Typography.bodySmall,
                     color = EInkTheme.Colors.gray
                 )
+                // Oct 2026: Vacation changes the suggestions, so say so while it's on
+                com.boox.day.ui.components.VacationNotice(modifier = Modifier.padding(top = 8.dp))
 
                 Spacer(Modifier.height(16.dp))
 

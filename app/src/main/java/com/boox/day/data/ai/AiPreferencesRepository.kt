@@ -21,9 +21,18 @@ class AiPreferencesRepository(private val context: Context) {
         private const val OLD_PROMPT_STATE_KEY = "AI_PREFERENCES_PROMPT_STATE"
     }
 
-    /** The AI options; defaults when none were saved. */
-    fun getPreferences(): AiPreferences =
-        kvProxy.get(AI_PREFERENCES_KEY, AiPreferences.serializer()).keptOptions()
+    /**
+     * The AI options; defaults when none were saved. Vacation past its last day is saved as off here,
+     * so AI Settings shows it off too.
+     */
+    fun getPreferences(): AiPreferences {
+        val saved = kvProxy.get(AI_PREFERENCES_KEY, AiPreferences.serializer())
+        val options = saved.keptOptions()
+        if (saved?.vacationMode == true && !options.vacationMode) {
+            kvProxy.setKv(AI_PREFERENCES_KEY, options, AiPreferences.serializer())
+        }
+        return options
+    }
 
     /**
      * Saves the AI options (only the kept ones). Results worked out with the old options are dropped

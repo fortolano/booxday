@@ -115,7 +115,8 @@ fun CalendarAiNoticePopup(
                         "Optimize My Day, Daily Summary, Weekly Summary and Smart Suggestions send your events (titles, times, " +
                             "places, descriptions and the email addresses of invited people) with your tasks " +
                             "and notes to OpenRouter, on your OpenRouter account, and to the company that runs " +
-                            "the AI model."
+                            "the AI model. Smart Suggestions and Optimize My Day also send your AI options (how many " +
+                            "suggestions, Vacation, health and social ideas)."
                     )
                     NoticeText("Free models may keep what they are sent. To keep your calendar private:")
                     NoticeStep(

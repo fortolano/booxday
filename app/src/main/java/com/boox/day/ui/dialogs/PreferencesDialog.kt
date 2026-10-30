@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -170,6 +171,15 @@ fun PreferencesDialog(
     }
     val disabledChannelsText = disabledChannels.joinToString(", ")
     val anyChannelDisabled = disabledChannels.isNotEmpty()
+
+    // Oct 2026 (plan B3): opened from the Settings dot, Preferences shows the reminders at once
+    val remindersInView = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    LaunchedEffect(Unit) {
+        if (com.boox.day.ui.attention.SettingsJump.consume(com.boox.day.ui.attention.SettingsPlace.PREFERENCES)) {
+            delay(150)  // laid out first
+            remindersInView.bringIntoView()
+        }
+    }
 
     // Oct 2026 (plan B2): read again when BooxDay comes back from Android settings or a system
     // prompt, instead of polling every second while something was missing
@@ -412,6 +422,7 @@ fun PreferencesDialog(
                         Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
                         Text(
+                            modifier = Modifier.bringIntoViewRequester(remindersInView),
                             text = "Notifications",
                             fontSize = EInkTheme.Preferences.sectionHeaderFontSize,
                             fontWeight = FontWeight.Bold,

@@ -411,13 +411,6 @@ class IntelligenceEngine(private val context: Context) {
         }
     }
 
-    /**
-     * Clear all caches. Call when user modifies tasks/events/preferences.
-     */
-    fun invalidateCache() {
-        cache.clear()
-    }
-
     private data class ContextBundle(
         val preferences: AiPreferences?,
         val calendarContext: ExtendedCalendarContext?,

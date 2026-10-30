@@ -420,23 +420,23 @@ fun MainScreen(
     var parsedEventData by remember { mutableStateOf<ParsedEventData?>(null) }
 
     // Get settings (reactive to changes)
-    var firstDayOfWeek by remember { mutableStateOf(GlobalAppSettings.current.firstDayOfWeek) }
-    var dateFormatSetting by remember { mutableStateOf(GlobalAppSettings.current.dateFormat) }
-    var timeFormatSetting by remember { mutableStateOf(GlobalAppSettings.current.timeFormat) }
-    var showWeekNumbers by remember { mutableStateOf(GlobalAppSettings.current.showWeekNumbers) }
-    var startTabSetting by remember { mutableStateOf(GlobalAppSettings.current.startTab) }
-    var tipsEnabled by remember { mutableStateOf(GlobalAppSettings.current.tipsEnabled) }
-    var tipInterval by remember { mutableStateOf(GlobalAppSettings.current.tipInterval) }
-    var aiEnabled by remember { mutableStateOf(GlobalAppSettings.current.aiEnabled) }
+    val firstDayOfWeek by remember { derivedStateOf { GlobalAppSettings.current.firstDayOfWeek } }
+    val dateFormatSetting by remember { derivedStateOf { GlobalAppSettings.current.dateFormat } }
+    val timeFormatSetting by remember { derivedStateOf { GlobalAppSettings.current.timeFormat } }
+    val showWeekNumbers by remember { derivedStateOf { GlobalAppSettings.current.showWeekNumbers } }
+    val startTabSetting by remember { derivedStateOf { GlobalAppSettings.current.startTab } }
+    val tipsEnabled by remember { derivedStateOf { GlobalAppSettings.current.tipsEnabled } }
+    val tipInterval by remember { derivedStateOf { GlobalAppSettings.current.tipInterval } }
+    val aiEnabled by remember { derivedStateOf { GlobalAppSettings.current.aiEnabled } }
     var booxNotesEnabled by remember { mutableStateOf(true) }
     // Notification settings - decoupled task and event toggles
-    var taskNotificationsEnabled by remember { mutableStateOf(GlobalAppSettings.current.taskNotificationsEnabled) }
-    var eventNotificationsEnabled by remember { mutableStateOf(GlobalAppSettings.current.eventNotificationsEnabled) }
-    var defaultTaskReminderHour by remember { mutableStateOf(GlobalAppSettings.current.defaultTaskReminderHour) }
-    var defaultTaskReminderMinute by remember { mutableStateOf(GlobalAppSettings.current.defaultTaskReminderMinute) }
-    var defaultEventReminderMinutes by remember { mutableStateOf(GlobalAppSettings.current.defaultEventReminderMinutes) }
-    var syncModeSetting by remember { mutableStateOf(GlobalAppSettings.current.syncMode) }
-    var defaultSyncEnabled by remember { mutableStateOf(GlobalAppSettings.current.defaultSyncEnabled) }
+    val taskNotificationsEnabled by remember { derivedStateOf { GlobalAppSettings.current.taskNotificationsEnabled } }
+    val eventNotificationsEnabled by remember { derivedStateOf { GlobalAppSettings.current.eventNotificationsEnabled } }
+    val defaultTaskReminderHour by remember { derivedStateOf { GlobalAppSettings.current.defaultTaskReminderHour } }
+    val defaultTaskReminderMinute by remember { derivedStateOf { GlobalAppSettings.current.defaultTaskReminderMinute } }
+    val defaultEventReminderMinutes by remember { derivedStateOf { GlobalAppSettings.current.defaultEventReminderMinutes } }
+    val syncModeSetting by remember { derivedStateOf { GlobalAppSettings.current.syncMode } }
+    val defaultSyncEnabled by remember { derivedStateOf { GlobalAppSettings.current.defaultSyncEnabled } }
 
     // First-run onboarding state (Play Store launch - Jan 2026)
     // Oct 2026: read live (not copied once), so a value saved elsewhere shows at once
@@ -1106,8 +1106,8 @@ fun MainScreen(
                 }
             }
 
-            // A new summary needs the user's own OpenRouter key (Oct 2026)
-            if (!com.boox.day.ui.AiKeyGate.requireKey()) {
+            // A new summary needs the user's own OpenRouter key (Oct 2026); after Connect OpenRouter it goes on
+            if (!com.boox.day.ui.AiKeyGate.requireKey(resume = { launchWeeklySummary(forceRefresh) })) {
                 showWeeklySummaryDialog = false
                 return@launch
             }
@@ -2546,6 +2546,105 @@ fun MainScreen(
             ) {
                 // Full screen: the selected day above the toolbar (the calendar header is hidden)
                 com.boox.day.ui.FullScreenDateLine(selectedDate)
+                // Daily Summary in its own function, so it can go on after Connect OpenRouter (ui/AiKeyGate)
+                fun launchDailySummary() {
+                    // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
+                    com.boox.day.ui.FullScreenState.exitThen {
+                        dailySummaryProcessingState = DailySummaryProcessingState.Processing("Checking cache...")
+                        dailySummaryResult = null
+                        showDailySummaryDialog = true
+
+                        scope.launch {
+                            val cacheId = SummaryCache.dailyId(selectedDate)
+                            val (tasksForDay, contentHash) = withContext(Dispatchers.IO) {
+                                val tasks = appRepository.taskRepository.getTasksForDay(selectedDate)
+                                val hash = TaskAiService.computeDailySummaryContentHash(tasks)
+                                tasks to hash
+                            }
+                            val tasksById = tasksForDay.associateBy { it.id }
+
+                            // Check cache first (valid for 4 hours)
+                            val cachedEntry = withContext(Dispatchers.IO) {
+                                summaryCacheRepository.getValidCache(cacheId, contentHash)
+                            }
+
+                            if (cachedEntry != null) {
+                                // Cache hit - deserialize and show
+                                dailySummaryProcessingState = DailySummaryProcessingState.Processing("Loading cached summary...")
+                                val cached = TaskAiService.deserializeDailySummary(
+                                    json = cachedEntry.resultJson,
+                                    taskLookup = { taskIds ->
+                                        taskIds.mapNotNull { tasksById[it] }
+                                    }
+                                )
+                                if (cached != null) {
+                                    dailySummaryResult = cached
+                                    dailySummaryProcessingState = DailySummaryProcessingState.Ready
+                                    return@launch
+                                }
+                                // Cache invalid, fall through to generate fresh
+                            }
+
+                            // A new summary needs the user's own OpenRouter key (Oct 2026); after Connect OpenRouter it goes on
+                            if (!com.boox.day.ui.AiKeyGate.requireKey(resume = { launchDailySummary() })) {
+                                showDailySummaryDialog = false
+                                return@launch
+                            }
+                            // It sends today's events: the once-only notice (ui/CalendarAiNotice)
+                            if (!com.boox.day.ui.CalendarAiNotice.awaitAllowed()) {
+                                showDailySummaryDialog = false
+                                return@launch
+                            }
+
+                            // Generate fresh summary using Intelligence Engine V3
+                            dailySummaryProcessingState = DailySummaryProcessingState.Processing("Analyzing your day...")
+
+                            // Get scored context from Intelligence Engine
+                            val intelligenceEngine = IntelligenceEngine(context)
+                            val scoredContext = intelligenceEngine.getScoredContext(
+                                feature = IntelligenceFeature.DAILY_SUMMARY,
+                                tasks = tasksForDay
+                            )
+
+                            val result = TaskAiService.generateDailySummaryV3(
+                                tasksForDay = tasksForDay,
+                                currentDate = LocalDate.parse(selectedDate),
+                                density = context.resources.displayMetrics.density,
+                                scoredContext = scoredContext,
+                                onStageChange = { stage ->
+                                    dailySummaryProcessingState = DailySummaryProcessingState.Processing(stage)
+                                },
+                                context = context
+                            )
+
+                            // Save to cache and record usage if successful
+                            if (result.error == null) {
+                                withContext(Dispatchers.IO) {
+                                    val json = TaskAiService.serializeDailySummary(result)
+                                    val refreshedTasks = appRepository.taskRepository.getTasksForDay(selectedDate)
+                                    val cacheContentHash = TaskAiService.computeDailySummaryContentHash(refreshedTasks)
+                                    summaryCacheRepository.save(SummaryCache(
+                                        id = cacheId,
+                                        type = SummaryCache.TYPE_DAILY,
+                                        dateKey = selectedDate,
+                                        contentHash = cacheContentHash,
+                                        resultJson = json,
+                                        generatedAt = System.currentTimeMillis(),
+                                        validHours = SummaryCache.DAILY_VALID_HOURS
+                                    ))
+                                }
+                            }
+
+                            dailySummaryResult = result
+                            dailySummaryProcessingState = if (result.error != null) {
+                                DailySummaryProcessingState.Error(result.error!!)
+                            } else {
+                                DailySummaryProcessingState.Ready
+                            }
+                        }
+                    }
+                }
+
                 // SHARED TOOLBAR (single instance for both canvases)
                 // PERFORMANCE: Eliminates dual-toolbar sync overhead and latency
                 // NOTE: Do NOT add pointerInteropFilter here - it interferes with toolbar's
@@ -2649,7 +2748,8 @@ fun MainScreen(
                     // AI callbacks for Tasks
                     onVoiceToTask = {
                         // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
-                        com.boox.day.ui.FullScreenState.exitThen {
+                        // Needs the user's own OpenRouter key; after Connect OpenRouter it goes on (ui/AiKeyGate)
+                        com.boox.day.ui.AiKeyGate.withKey { com.boox.day.ui.FullScreenState.exitThen {
                             scope.launch {
                                 // Free task rows for the results (TaskSlotCalculator: at most 10 task pages a day)
                                 val slots = TaskSlotCalculator.getAvailableSlots(
@@ -2665,7 +2765,7 @@ fun MainScreen(
 
                                 showVoiceToTaskDialog = true
                             }
-                        }
+                        } }
                     },
                     onSortByPriority = {
                         // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
@@ -2673,103 +2773,7 @@ fun MainScreen(
                             showSortScopePopup = true
                         }
                     },
-                    onDailySummary = {
-                        // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
-                        com.boox.day.ui.FullScreenState.exitThen {
-                            dailySummaryProcessingState = DailySummaryProcessingState.Processing("Checking cache...")
-                            dailySummaryResult = null
-                            showDailySummaryDialog = true
-
-                            scope.launch {
-                                val cacheId = SummaryCache.dailyId(selectedDate)
-                                val (tasksForDay, contentHash) = withContext(Dispatchers.IO) {
-                                    val tasks = appRepository.taskRepository.getTasksForDay(selectedDate)
-                                    val hash = TaskAiService.computeDailySummaryContentHash(tasks)
-                                    tasks to hash
-                                }
-                                val tasksById = tasksForDay.associateBy { it.id }
-
-                                // Check cache first (valid for 4 hours)
-                                val cachedEntry = withContext(Dispatchers.IO) {
-                                    summaryCacheRepository.getValidCache(cacheId, contentHash)
-                                }
-
-                                if (cachedEntry != null) {
-                                    // Cache hit - deserialize and show
-                                    dailySummaryProcessingState = DailySummaryProcessingState.Processing("Loading cached summary...")
-                                    val cached = TaskAiService.deserializeDailySummary(
-                                        json = cachedEntry.resultJson,
-                                        taskLookup = { taskIds ->
-                                            taskIds.mapNotNull { tasksById[it] }
-                                        }
-                                    )
-                                    if (cached != null) {
-                                        dailySummaryResult = cached
-                                        dailySummaryProcessingState = DailySummaryProcessingState.Ready
-                                        return@launch
-                                    }
-                                    // Cache invalid, fall through to generate fresh
-                                }
-
-                                // A new summary needs the user's own OpenRouter key (Oct 2026)
-                                if (!com.boox.day.ui.AiKeyGate.requireKey()) {
-                                    showDailySummaryDialog = false
-                                    return@launch
-                                }
-                                // It sends today's events: the once-only notice (ui/CalendarAiNotice)
-                                if (!com.boox.day.ui.CalendarAiNotice.awaitAllowed()) {
-                                    showDailySummaryDialog = false
-                                    return@launch
-                                }
-
-                                // Generate fresh summary using Intelligence Engine V3
-                                dailySummaryProcessingState = DailySummaryProcessingState.Processing("Analyzing your day...")
-
-                                // Get scored context from Intelligence Engine
-                                val intelligenceEngine = IntelligenceEngine(context)
-                                val scoredContext = intelligenceEngine.getScoredContext(
-                                    feature = IntelligenceFeature.DAILY_SUMMARY,
-                                    tasks = tasksForDay
-                                )
-
-                                val result = TaskAiService.generateDailySummaryV3(
-                                    tasksForDay = tasksForDay,
-                                    currentDate = LocalDate.parse(selectedDate),
-                                    density = context.resources.displayMetrics.density,
-                                    scoredContext = scoredContext,
-                                    onStageChange = { stage ->
-                                        dailySummaryProcessingState = DailySummaryProcessingState.Processing(stage)
-                                    },
-                                    context = context
-                                )
-
-                                // Save to cache and record usage if successful
-                                if (result.error == null) {
-                                    withContext(Dispatchers.IO) {
-                                        val json = TaskAiService.serializeDailySummary(result)
-                                        val refreshedTasks = appRepository.taskRepository.getTasksForDay(selectedDate)
-                                        val cacheContentHash = TaskAiService.computeDailySummaryContentHash(refreshedTasks)
-                                        summaryCacheRepository.save(SummaryCache(
-                                            id = cacheId,
-                                            type = SummaryCache.TYPE_DAILY,
-                                            dateKey = selectedDate,
-                                            contentHash = cacheContentHash,
-                                            resultJson = json,
-                                            generatedAt = System.currentTimeMillis(),
-                                            validHours = SummaryCache.DAILY_VALID_HOURS
-                                        ))
-                                    }
-                                }
-
-                                dailySummaryResult = result
-                                dailySummaryProcessingState = if (result.error != null) {
-                                    DailySummaryProcessingState.Error(result.error!!)
-                                } else {
-                                    DailySummaryProcessingState.Ready
-                                }
-                            }
-                        }
-                    },
+                    onDailySummary = { launchDailySummary() },
                     onWeeklySummary = {
                         // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
                         com.boox.day.ui.FullScreenState.exitThen {
@@ -3503,7 +3507,6 @@ fun MainScreen(
                     // Auto-switch to HYBRID mode when first cloud account is added
                     if (syncModeSetting == AppSettings.SyncMode.STANDALONE) {
                         Log.i(TAG, "First cloud account added - switching to HYBRID mode")
-                        syncModeSetting = AppSettings.SyncMode.HYBRID
                         val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.HYBRID)
                         appRepository.kvProxy.setAppSettings(newSettings)
                     }
@@ -3516,7 +3519,6 @@ fun MainScreen(
                         // Clear all cloud-synced events from database
                         eventsViewModel.clearAllSyncedEvents()
                         // Switch to Standalone mode
-                        syncModeSetting = AppSettings.SyncMode.STANDALONE
                         val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.STANDALONE)
                         appRepository.kvProxy.setAppSettings(newSettings)
                         SnackState.globalSnackFlow.tryEmit(
@@ -3575,13 +3577,11 @@ fun MainScreen(
                 // Display settings (moved from General Settings)
                 firstDayOfWeek = firstDayOfWeek,
                 onFirstDayOfWeekChanged = { newValue ->
-                    firstDayOfWeek = newValue
                     val newSettings = GlobalAppSettings.current.copy(firstDayOfWeek = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                 },
                 showWeekNumbers = showWeekNumbers,
                 onShowWeekNumbersChanged = { newValue ->
-                    showWeekNumbers = newValue
                     val newSettings = GlobalAppSettings.current.copy(showWeekNumbers = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                 },
@@ -3595,7 +3595,6 @@ fun MainScreen(
                 syncedEventCount = syncedEventCountForSwitch,
                 onSyncModeChanged = { newMode ->
                     // Simple mode change (popup logic is now handled inside CalendarSettingsDialog)
-                    syncModeSetting = newMode
                     val newSettings = GlobalAppSettings.current.copy(syncMode = newMode)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(calendarModeChosen = true) }
@@ -3609,7 +3608,6 @@ fun MainScreen(
                         // Disconnect all accounts
                         multiAccountSyncViewModel.disconnectAllAccounts()
                         // Switch to Standalone mode
-                        syncModeSetting = AppSettings.SyncMode.STANDALONE
                         val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.STANDALONE)
                         appRepository.kvProxy.setAppSettings(newSettings)
                         SnackState.globalSnackFlow.tryEmit(
@@ -3627,7 +3625,6 @@ fun MainScreen(
                         // Disconnect all accounts
                         multiAccountSyncViewModel.disconnectAllAccounts()
                         // Switch to Standalone mode
-                        syncModeSetting = AppSettings.SyncMode.STANDALONE
                         val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.STANDALONE)
                         appRepository.kvProxy.setAppSettings(newSettings)
                         SnackState.globalSnackFlow.tryEmit(
@@ -3636,7 +3633,6 @@ fun MainScreen(
                     }
                 },
                 onDefaultSyncChanged = { newValue ->
-                    defaultSyncEnabled = newValue
                     val newSettings = GlobalAppSettings.current.copy(defaultSyncEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                 },
@@ -3721,35 +3717,30 @@ fun MainScreen(
                 onDismiss = { showPreferencesDialog = false },
                 dateFormat = dateFormatSetting,
                 onDateFormatChanged = { newValue ->
-                    dateFormatSetting = newValue
                     val newSettings = GlobalAppSettings.current.copy(dateFormat = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(preferencesReviewed = true) }
                 },
                 timeFormat = timeFormatSetting,
                 onTimeFormatChanged = { newValue ->
-                    timeFormatSetting = newValue
                     val newSettings = GlobalAppSettings.current.copy(timeFormat = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(preferencesReviewed = true) }
                 },
                 startTab = startTabSetting,
                 onStartTabChanged = { newValue ->
-                    startTabSetting = newValue
                     val newSettings = GlobalAppSettings.current.copy(startTab = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(preferencesReviewed = true) }
                 },
                 tipsEnabled = tipsEnabled,
                 onTipsEnabledChanged = { newValue ->
-                    tipsEnabled = newValue
                     val newSettings = GlobalAppSettings.current.copy(tipsEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(preferencesReviewed = true) }
                 },
                 tipInterval = tipInterval,
                 onTipIntervalChanged = { newValue ->
-                    tipInterval = newValue
                     val newSettings = GlobalAppSettings.current.copy(tipInterval = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     if (tipsEnabled) {
@@ -3760,7 +3751,6 @@ fun MainScreen(
                 // Notification settings - decoupled task and event toggles
                 taskNotificationsEnabled = taskNotificationsEnabled,
                 onTaskNotificationsEnabledChanged = { newValue ->
-                    taskNotificationsEnabled = newValue
                     val newSettings = GlobalAppSettings.current.copy(taskNotificationsEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     if (newValue) {
@@ -3771,7 +3761,6 @@ fun MainScreen(
                 },
                 eventNotificationsEnabled = eventNotificationsEnabled,
                 onEventNotificationsEnabledChanged = { newValue ->
-                    eventNotificationsEnabled = newValue
                     val newSettings = GlobalAppSettings.current.copy(eventNotificationsEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     if (newValue) {
@@ -3783,8 +3772,6 @@ fun MainScreen(
                 defaultTaskReminderHour = defaultTaskReminderHour,
                 defaultTaskReminderMinute = defaultTaskReminderMinute,
                 onDefaultTaskReminderChanged = { hour, minute ->
-                    defaultTaskReminderHour = hour
-                    defaultTaskReminderMinute = minute
                     val newSettings = GlobalAppSettings.current.copy(
                         defaultTaskReminderHour = hour,
                         defaultTaskReminderMinute = minute
@@ -3793,7 +3780,6 @@ fun MainScreen(
                 },
                 defaultEventReminderMinutes = defaultEventReminderMinutes,
                 onDefaultEventReminderChanged = { minutes ->
-                    defaultEventReminderMinutes = minutes
                     val newSettings = GlobalAppSettings.current.copy(defaultEventReminderMinutes = minutes)
                     appRepository.kvProxy.setAppSettings(newSettings)
                 },
@@ -3815,7 +3801,6 @@ fun MainScreen(
                 onDismiss = { showAiSettingsDialog = false },
                 aiEnabled = aiEnabled,
                 onAiEnabledChanged = { newValue ->
-                    aiEnabled = newValue
                     val newSettings = GlobalAppSettings.current.copy(aiEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(aiSettingsReviewed = true) }

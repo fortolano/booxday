@@ -525,10 +525,12 @@ Use this context to:
         } else text
         val userPrompt = buildString {
             if (contextBlock.isNotBlank()) {
+                // Oct 2026: reference only, so tasks come from the memo, not from the context
+                appendLine(TaskAiContextBuilderV1.REFERENCE_ONLY_HEADER)
                 appendLine(contextBlock)
                 appendLine()
             }
-            appendLine("Convert this memo to tasks:")
+            appendLine("Convert this memo to tasks (make tasks only from this memo):")
             appendLine()
             append(truncatedText)
         }

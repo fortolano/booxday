@@ -11,7 +11,6 @@
     <!-- Google Calendar Sync -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
 
     <!-- Voice Input (Speech Recognition) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>

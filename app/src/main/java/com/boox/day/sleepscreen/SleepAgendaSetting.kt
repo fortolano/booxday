@@ -83,6 +83,17 @@ fun SleepAgendaSetting() {
                     }
                 )
             }
+            // Oct 2026 (plan B2): it updates unseen, so say when (or what went wrong)
+            if (enabled) {
+                Text(
+                    text = com.boox.day.today.LastWrite.statusText(
+                        SleepScreenPublisher.lastWrite.read(context), done = "updated",
+                        use24Hour = GlobalAppSettings.current.timeFormat == com.boox.day.data.datastore.AppSettings.TimeFormat.TwentyFourHour
+                    ),
+                    fontSize = EInkTheme.Typography.bodySmall,
+                    color = EInkTheme.Colors.primary
+                )
+            }
             if (justTurnedOff) {
                 Text(
                     text = "Turned off. The sleep screen shows BOOX's own image again. To pick your own: BOOX Settings, then Screensaver.",

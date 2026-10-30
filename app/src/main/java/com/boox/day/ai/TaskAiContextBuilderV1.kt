@@ -217,6 +217,13 @@ object TaskAiContextBuilderV1 {
     }
 
     /**
+     * Put above a context block when the request turns the user's own words into tasks (Voice to Task,
+     * Memo to Tasks): the context explains names, places and dates and is never a source of tasks.
+     */
+    const val REFERENCE_ONLY_HEADER =
+        "## REFERENCE ONLY (recent context to understand names, places and dates; never make tasks from it)"
+
+    /**
      * The AI options as prompt lines (29 Oct 2026): the AI is told nothing is known about the user's
      * life, then only the kept options that differ from the defaults (Vacation, Health or Social
      * suggestions off). The rest of the old AI Preferences didn't change answers and is gone.

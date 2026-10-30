@@ -167,6 +167,8 @@ private fun DialogHeader(
                     fontWeight = FontWeight.Bold,
                     color = EInkTheme.PopupOverlay.titleColor
                 )
+                // Oct 2026: Vacation changes the plan, so say so while it's on
+                com.boox.day.ui.components.VacationNotice(modifier = Modifier.padding(vertical = 4.dp))
 
                 if (planResult != null && processingState is AgenticPlanProcessingState.Ready) {
                     // Capacity status

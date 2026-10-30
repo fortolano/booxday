@@ -48,6 +48,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.R
 import com.boox.day.ui.attention.SettingsAttention
+import com.boox.day.ui.attention.SettingsJump
 import com.boox.day.ui.attention.SettingsPlace
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
@@ -107,7 +108,11 @@ fun SettingsMenu(
                 label = "Preferences",
                 icon = Icons.Default.Settings,
                 reason = attention.reasonFor(SettingsPlace.PREFERENCES),
-                onClick = { onPreferences() }
+                onClick = {
+                    // From the dot: Preferences opens at the reminders (ui/attention/SettingsJump)
+                    if (attention.reasonFor(SettingsPlace.PREFERENCES) != null) SettingsJump.request(SettingsPlace.PREFERENCES)
+                    onPreferences()
+                }
             )
 
             MenuDivider()
@@ -152,7 +157,10 @@ fun SettingsMenu(
                 label = "AI Settings",
                 icon = Icons.Default.Psychology,
                 reason = attention.reasonFor(SettingsPlace.AI_SETTINGS),
-                onClick = { onAiSettings() }
+                onClick = {
+                    if (attention.reasonFor(SettingsPlace.AI_SETTINGS) != null) SettingsJump.request(SettingsPlace.AI_SETTINGS)
+                    onAiSettings()
+                }
             )
             SettingsMenuItemWithIcon("Voice-to-Text", Icons.Default.Mic) { onVoiceSettings() }
 

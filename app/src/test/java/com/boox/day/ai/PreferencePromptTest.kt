@@ -97,6 +97,19 @@ class PreferencePromptTest {
     }
 
     @Test
+    fun vacationEndsAfterItsLastDay() {
+        val today = LocalDate.of(2026, 10, 29)
+        val away = AiPreferences(vacationMode = true, vacationUntil = "2026-11-02")
+        assertTrue(away.keptOptions(today).vacationMode)
+        assertTrue("the last day still counts", away.keptOptions(LocalDate.of(2026, 11, 2)).vacationMode)
+        val after = away.keptOptions(LocalDate.of(2026, 11, 3))
+        assertFalse("off the day after", after.vacationMode)
+        assertNull(after.vacationUntil)
+        assertTrue("no date: until turned off", AiPreferences(vacationMode = true).keptOptions(LocalDate.of(2030, 1, 1)).vacationMode)
+        assertNull(PreferenceInterpreter.interpret(away.copy(vacationUntil = "2020-01-01")).activeMode)
+    }
+
+    @Test
     fun comprehensiveFitsTheAnswerFormat() {
         @Suppress("UNCHECKED_CAST")
         val suggestions = (StructuredOutputSchemas.suggestionsSchema["properties"] as Map<String, Any>)["suggestions"] as Map<String, Any>

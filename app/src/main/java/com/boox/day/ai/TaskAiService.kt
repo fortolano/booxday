@@ -727,8 +727,16 @@ object TaskAiService {
             includeBooxNotes = false,
             includeSourceTypes = setOf(OcrSource.TASK, OcrSource.MEMO)
         )
+        // Oct 2026: the context is labelled as reference, so the AI doesn't turn a recent task or
+        // memo line into a new task; tasks come only from what the user said
         val userPrompt = if (contextBlock.isNotBlank()) {
-            "$contextBlock\n\n$correctedText"
+            buildString {
+                appendLine(TaskAiContextBuilderV1.REFERENCE_ONLY_HEADER)
+                appendLine(contextBlock)
+                appendLine()
+                appendLine("## WHAT THE USER SAID (make tasks only from this)")
+                append(correctedText)
+            }
         } else {
             correctedText
         }
@@ -1650,6 +1658,7 @@ OUTPUT FORMAT (JSON only):
         // Tasks the user already has, to avoid duplicates: today's (ticked too), overdue and the
         // coming days' (29 Oct 2026: today's with words only, so ticked handwritten tasks were missing)
         val existingTaskTexts = SuggestionDuplicates.tasksToAvoid(suggestionContext.taskContext)
+        val openTaskTexts = SuggestionDuplicates.openTasks(suggestionContext.taskContext)
 
         // Build enhanced prompt with pre-scores
         val prompt = buildV3SuggestionsPrompt(
@@ -1687,9 +1696,14 @@ OUTPUT FORMAT (JSON only):
                 // feature with "Could not parse suggestions", no other model tried)
                 parseSuggestionsResponse(response.data).takeIf { it.error == null }?.let { parsed ->
                     // A suggestion that repeats a task the user has is dropped (29 Oct 2026)
-                    val kept = SuggestionDuplicates.withoutRepeats(parsed.suggestions, existingTaskTexts) { it.text }
-                    if (kept.size < parsed.suggestions.size) {
-                        Log.i(TAG, "Dropped ${parsed.suggestions.size - kept.size} suggestion(s) repeating existing tasks")
+                    val unique = SuggestionDuplicates.withoutRepeats(parsed.suggestions, existingTaskTexts, openTaskTexts) { it.text }
+                    if (unique.size < parsed.suggestions.size) {
+                        Log.i(TAG, "Dropped ${parsed.suggestions.size - unique.size} suggestion(s) repeating existing tasks")
+                    }
+                    // Health or Social suggestions off (AI options): those ideas are dropped too
+                    val kept = SuggestionOptionsFilter.keep(unique, suggestionContext.preferences.keptOptions()) { it.category }
+                    if (kept.size < unique.size) {
+                        Log.i(TAG, "Dropped ${unique.size - kept.size} suggestion(s) the AI options switch off")
                     }
                     parsed.copy(suggestions = kept.take(targetCount))
                 }

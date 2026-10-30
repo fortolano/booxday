@@ -78,12 +78,21 @@ object DailyNotes {
             use24Hour,
             memoWaitReason = IndexingStatus.waitingFor.value?.shortText
         )
-        DailyNoteWriter.write(app, name) { existing ->
-            DailyNoteMarkdown.merge(existing, block, DailyNoteMarkdown.frontMatter(digest))
+        try {
+            DailyNoteWriter.write(app, name) { existing ->
+                DailyNoteMarkdown.merge(existing, block, DailyNoteMarkdown.frontMatter(digest))
+            }
+        } catch (e: Exception) {
+            lastWrite.failed(app, if (e is SecurityException) "the folder can't be written to" else "the note couldn't be saved")
+            throw e
         }
+        lastWrite.succeeded(app)
         Log.i(TAG, "Wrote $name")
         name
     }
+
+    /** When a note was last written, or why the last try failed (the Preferences card shows it). */
+    val lastWrite = com.boox.day.today.LastWrite("daily_notes")
 
     private fun requestWrite(context: Context, date: LocalDate, force: Boolean = false) {
         val request = OneTimeWorkRequestBuilder<DailyNoteWorker>()

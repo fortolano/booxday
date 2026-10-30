@@ -57,6 +57,8 @@ data class AiPreferences(
 
     // ========== Special Modes ==========
     val vacationMode: Boolean = false,
+    /** Last day of Vacation mode, yyyy-MM-dd; null = until turned off (Oct 2026). */
+    val vacationUntil: String? = null,
     val crunchMode: Boolean = false,
     val holidayMode: Boolean = false,
 
@@ -80,14 +82,23 @@ data class AiPreferences(
          * three and remove the rest, so every other stored answer is dropped here and never reaches
          * a prompt or a score. The other fields stay in the class only so older saved data still loads.
          */
-        fun AiPreferences?.keptOptions(): AiPreferences = AiPreferences(
-            suggestionCount = this?.suggestionCount ?: SuggestionCount.MODERATE,
-            includeHealthReminders = this?.includeHealthReminders ?: true,
-            includeSocialReminders = this?.includeSocialReminders ?: true,
-            vacationMode = this?.vacationMode ?: false,
-            setupComplete = true,
-            lastUpdated = this?.lastUpdated ?: 0L
-        )
+        fun AiPreferences?.keptOptions(today: java.time.LocalDate = java.time.LocalDate.now()): AiPreferences {
+            // Vacation turns itself off after its last day, so it can't stay on unnoticed
+            val onVacation = (this?.vacationMode ?: false) && vacationLasts(this?.vacationUntil, today)
+            return AiPreferences(
+                suggestionCount = this?.suggestionCount ?: SuggestionCount.MODERATE,
+                includeHealthReminders = this?.includeHealthReminders ?: true,
+                includeSocialReminders = this?.includeSocialReminders ?: true,
+                vacationMode = onVacation,
+                vacationUntil = if (onVacation) this?.vacationUntil else null,
+                setupComplete = true,
+                lastUpdated = this?.lastUpdated ?: 0L
+            )
+        }
+
+        /** True while [today] is on or before the last day [until]; no date (or an unreadable one) = no end. */
+        private fun vacationLasts(until: String?, today: java.time.LocalDate): Boolean =
+            until == null || runCatching { !today.isAfter(java.time.LocalDate.parse(until)) }.getOrDefault(true)
 
         /** The preferences to put in AI requests: only the kept options ([keptOptions]). */
         fun AiPreferences?.forPrompt(): AiPreferences = keptOptions()
