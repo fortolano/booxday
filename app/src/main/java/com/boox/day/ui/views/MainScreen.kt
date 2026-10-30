@@ -420,23 +420,23 @@ fun MainScreen(
     var parsedEventData by remember { mutableStateOf<ParsedEventData?>(null) }
 
     // Get settings (reactive to changes)
-    var firstDayOfWeek by remember { mutableStateOf(GlobalAppSettings.current.firstDayOfWeek) }
-    var dateFormatSetting by remember { mutableStateOf(GlobalAppSettings.current.dateFormat) }
-    var timeFormatSetting by remember { mutableStateOf(GlobalAppSettings.current.timeFormat) }
-    var showWeekNumbers by remember { mutableStateOf(GlobalAppSettings.current.showWeekNumbers) }
-    var startTabSetting by remember { mutableStateOf(GlobalAppSettings.current.startTab) }
-    var tipsEnabled by remember { mutableStateOf(GlobalAppSettings.current.tipsEnabled) }
-    var tipInterval by remember { mutableStateOf(GlobalAppSettings.current.tipInterval) }
-    var aiEnabled by remember { mutableStateOf(GlobalAppSettings.current.aiEnabled) }
+    val firstDayOfWeek by remember { derivedStateOf { GlobalAppSettings.current.firstDayOfWeek } }
+    val dateFormatSetting by remember { derivedStateOf { GlobalAppSettings.current.dateFormat } }
+    val timeFormatSetting by remember { derivedStateOf { GlobalAppSettings.current.timeFormat } }
+    val showWeekNumbers by remember { derivedStateOf { GlobalAppSettings.current.showWeekNumbers } }
+    val startTabSetting by remember { derivedStateOf { GlobalAppSettings.current.startTab } }
+    val tipsEnabled by remember { derivedStateOf { GlobalAppSettings.current.tipsEnabled } }
+    val tipInterval by remember { derivedStateOf { GlobalAppSettings.current.tipInterval } }
+    val aiEnabled by remember { derivedStateOf { GlobalAppSettings.current.aiEnabled } }
     var booxNotesEnabled by remember { mutableStateOf(true) }
     // Notification settings - decoupled task and event toggles
-    var taskNotificationsEnabled by remember { mutableStateOf(GlobalAppSettings.current.taskNotificationsEnabled) }
-    var eventNotificationsEnabled by remember { mutableStateOf(GlobalAppSettings.current.eventNotificationsEnabled) }
-    var defaultTaskReminderHour by remember { mutableStateOf(GlobalAppSettings.current.defaultTaskReminderHour) }
-    var defaultTaskReminderMinute by remember { mutableStateOf(GlobalAppSettings.current.defaultTaskReminderMinute) }
-    var defaultEventReminderMinutes by remember { mutableStateOf(GlobalAppSettings.current.defaultEventReminderMinutes) }
-    var syncModeSetting by remember { mutableStateOf(GlobalAppSettings.current.syncMode) }
-    var defaultSyncEnabled by remember { mutableStateOf(GlobalAppSettings.current.defaultSyncEnabled) }
+    val taskNotificationsEnabled by remember { derivedStateOf { GlobalAppSettings.current.taskNotificationsEnabled } }
+    val eventNotificationsEnabled by remember { derivedStateOf { GlobalAppSettings.current.eventNotificationsEnabled } }
+    val defaultTaskReminderHour by remember { derivedStateOf { GlobalAppSettings.current.defaultTaskReminderHour } }
+    val defaultTaskReminderMinute by remember { derivedStateOf { GlobalAppSettings.current.defaultTaskReminderMinute } }
+    val defaultEventReminderMinutes by remember { derivedStateOf { GlobalAppSettings.current.defaultEventReminderMinutes } }
+    val syncModeSetting by remember { derivedStateOf { GlobalAppSettings.current.syncMode } }
+    val defaultSyncEnabled by remember { derivedStateOf { GlobalAppSettings.current.defaultSyncEnabled } }
 
     // First-run onboarding state (Play Store launch - Jan 2026)
     // Oct 2026: read live (not copied once), so a value saved elsewhere shows at once
@@ -3507,7 +3507,6 @@ fun MainScreen(
                     // Auto-switch to HYBRID mode when first cloud account is added
                     if (syncModeSetting == AppSettings.SyncMode.STANDALONE) {
                         Log.i(TAG, "First cloud account added - switching to HYBRID mode")
-                        syncModeSetting = AppSettings.SyncMode.HYBRID
                         val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.HYBRID)
                         appRepository.kvProxy.setAppSettings(newSettings)
                     }
@@ -3520,7 +3519,6 @@ fun MainScreen(
                         // Clear all cloud-synced events from database
                         eventsViewModel.clearAllSyncedEvents()
                         // Switch to Standalone mode
-                        syncModeSetting = AppSettings.SyncMode.STANDALONE
                         val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.STANDALONE)
                         appRepository.kvProxy.setAppSettings(newSettings)
                         SnackState.globalSnackFlow.tryEmit(
@@ -3579,13 +3577,11 @@ fun MainScreen(
                 // Display settings (moved from General Settings)
                 firstDayOfWeek = firstDayOfWeek,
                 onFirstDayOfWeekChanged = { newValue ->
-                    firstDayOfWeek = newValue
                     val newSettings = GlobalAppSettings.current.copy(firstDayOfWeek = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                 },
                 showWeekNumbers = showWeekNumbers,
                 onShowWeekNumbersChanged = { newValue ->
-                    showWeekNumbers = newValue
                     val newSettings = GlobalAppSettings.current.copy(showWeekNumbers = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                 },
@@ -3599,7 +3595,6 @@ fun MainScreen(
                 syncedEventCount = syncedEventCountForSwitch,
                 onSyncModeChanged = { newMode ->
                     // Simple mode change (popup logic is now handled inside CalendarSettingsDialog)
-                    syncModeSetting = newMode
                     val newSettings = GlobalAppSettings.current.copy(syncMode = newMode)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(calendarModeChosen = true) }
@@ -3613,7 +3608,6 @@ fun MainScreen(
                         // Disconnect all accounts
                         multiAccountSyncViewModel.disconnectAllAccounts()
                         // Switch to Standalone mode
-                        syncModeSetting = AppSettings.SyncMode.STANDALONE
                         val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.STANDALONE)
                         appRepository.kvProxy.setAppSettings(newSettings)
                         SnackState.globalSnackFlow.tryEmit(
@@ -3631,7 +3625,6 @@ fun MainScreen(
                         // Disconnect all accounts
                         multiAccountSyncViewModel.disconnectAllAccounts()
                         // Switch to Standalone mode
-                        syncModeSetting = AppSettings.SyncMode.STANDALONE
                         val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.STANDALONE)
                         appRepository.kvProxy.setAppSettings(newSettings)
                         SnackState.globalSnackFlow.tryEmit(
@@ -3640,7 +3633,6 @@ fun MainScreen(
                     }
                 },
                 onDefaultSyncChanged = { newValue ->
-                    defaultSyncEnabled = newValue
                     val newSettings = GlobalAppSettings.current.copy(defaultSyncEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                 },
@@ -3725,35 +3717,30 @@ fun MainScreen(
                 onDismiss = { showPreferencesDialog = false },
                 dateFormat = dateFormatSetting,
                 onDateFormatChanged = { newValue ->
-                    dateFormatSetting = newValue
                     val newSettings = GlobalAppSettings.current.copy(dateFormat = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(preferencesReviewed = true) }
                 },
                 timeFormat = timeFormatSetting,
                 onTimeFormatChanged = { newValue ->
-                    timeFormatSetting = newValue
                     val newSettings = GlobalAppSettings.current.copy(timeFormat = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(preferencesReviewed = true) }
                 },
                 startTab = startTabSetting,
                 onStartTabChanged = { newValue ->
-                    startTabSetting = newValue
                     val newSettings = GlobalAppSettings.current.copy(startTab = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(preferencesReviewed = true) }
                 },
                 tipsEnabled = tipsEnabled,
                 onTipsEnabledChanged = { newValue ->
-                    tipsEnabled = newValue
                     val newSettings = GlobalAppSettings.current.copy(tipsEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(preferencesReviewed = true) }
                 },
                 tipInterval = tipInterval,
                 onTipIntervalChanged = { newValue ->
-                    tipInterval = newValue
                     val newSettings = GlobalAppSettings.current.copy(tipInterval = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     if (tipsEnabled) {
@@ -3764,7 +3751,6 @@ fun MainScreen(
                 // Notification settings - decoupled task and event toggles
                 taskNotificationsEnabled = taskNotificationsEnabled,
                 onTaskNotificationsEnabledChanged = { newValue ->
-                    taskNotificationsEnabled = newValue
                     val newSettings = GlobalAppSettings.current.copy(taskNotificationsEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     if (newValue) {
@@ -3775,7 +3761,6 @@ fun MainScreen(
                 },
                 eventNotificationsEnabled = eventNotificationsEnabled,
                 onEventNotificationsEnabledChanged = { newValue ->
-                    eventNotificationsEnabled = newValue
                     val newSettings = GlobalAppSettings.current.copy(eventNotificationsEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     if (newValue) {
@@ -3787,8 +3772,6 @@ fun MainScreen(
                 defaultTaskReminderHour = defaultTaskReminderHour,
                 defaultTaskReminderMinute = defaultTaskReminderMinute,
                 onDefaultTaskReminderChanged = { hour, minute ->
-                    defaultTaskReminderHour = hour
-                    defaultTaskReminderMinute = minute
                     val newSettings = GlobalAppSettings.current.copy(
                         defaultTaskReminderHour = hour,
                         defaultTaskReminderMinute = minute
@@ -3797,7 +3780,6 @@ fun MainScreen(
                 },
                 defaultEventReminderMinutes = defaultEventReminderMinutes,
                 onDefaultEventReminderChanged = { minutes ->
-                    defaultEventReminderMinutes = minutes
                     val newSettings = GlobalAppSettings.current.copy(defaultEventReminderMinutes = minutes)
                     appRepository.kvProxy.setAppSettings(newSettings)
                 },
@@ -3819,7 +3801,6 @@ fun MainScreen(
                 onDismiss = { showAiSettingsDialog = false },
                 aiEnabled = aiEnabled,
                 onAiEnabledChanged = { newValue ->
-                    aiEnabled = newValue
                     val newSettings = GlobalAppSettings.current.copy(aiEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(aiSettingsReviewed = true) }
