@@ -19,6 +19,7 @@ import com.boox.day.sync.GoogleAuthManager
 import com.boox.day.sync.GoogleCalendarInfo
 import com.boox.day.sync.SignInErrorText
 import com.boox.day.sync.NewEventData
+import com.boox.day.sync.SyncErrorType
 import com.boox.day.sync.SyncResult
 import com.boox.day.sync.UpdateEventData
 import com.boox.day.sync.deletedCalendarIds
@@ -73,6 +74,18 @@ class GoogleCalendarProvider(
     companion object {
         private const val TAG = "GoogleCalendarProvider"
         private const val GOOGLE_SIGN_IN_NEEDED = "Google needs you to sign in again"
+
+        /**
+         * A failed calendar fetch as the error the account sees. A sign-in problem (a token Google
+         * refused, a 401, a missing permission) must be an AuthenticationException, which becomes
+         * "Reconnect" in Calendar Accounts; anything else stays a provider error.
+         */
+        internal fun fetchFailure(result: SyncResult.Error): CalendarProviderException =
+            if (result.exception?.isGoogleTokenRefused() == true || result.errorType == SyncErrorType.AUTHENTICATION) {
+                CalendarProviderException.AuthenticationException(GOOGLE_SIGN_IN_NEEDED, result.exception)
+            } else {
+                CalendarProviderException.ProviderException(result.message, cause = result.exception)
+            }
     }
 
     override val providerId: ProviderId = ProviderId.GOOGLE
@@ -357,15 +370,7 @@ class GoogleCalendarProvider(
                     Result.failure(CalendarProviderException.AuthenticationException("Not signed in"))
                 }
 
-                is SyncResult.Error -> {
-                    // A refused token must reach the account as an auth error, or Calendar
-                    // Accounts shows a generic error instead of Reconnect
-                    if (syncResult.exception?.isGoogleTokenRefused() == true) {
-                        Result.failure(CalendarProviderException.AuthenticationException(GOOGLE_SIGN_IN_NEEDED, syncResult.exception))
-                    } else {
-                        Result.failure(CalendarProviderException.ProviderException(syncResult.message, cause = syncResult.exception))
-                    }
-                }
+                is SyncResult.Error -> Result.failure(fetchFailure(syncResult))
 
                 is SyncResult.PartialSuccess -> {
                     val providerEvents = loadProviderEventsForRange(activeCalendarIds, startDate, endDate)

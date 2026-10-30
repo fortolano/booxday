@@ -27,7 +27,9 @@ import java.util.Date
 internal data class CalendarFetchFailure(
     val calendarId: String,
     val errorType: SyncErrorType,
-    val message: String
+    val message: String,
+    /** Kept so a refused token (isGoogleTokenRefused) still reaches the account as "sign in again". */
+    val cause: Exception? = null
 )
 
 internal fun buildCalendarFetchSyncResult(
@@ -78,8 +80,11 @@ internal fun buildCalendarFetchSyncResult(
         }
     }
 
+    // The failure's own exception goes with the result: until Oct 2026 it was dropped, so a token
+    // Google refused on every calendar reached Calendar Accounts as a generic error, with no Reconnect.
     return SyncResult.Error(
         message = message,
+        exception = (realFailures.firstOrNull { it.errorType == dominantErrorType } ?: realFailures.first()).cause,
         errorType = dominantErrorType,
         deletedCalendarIds = deletedCalendarIds
     )
@@ -255,7 +260,8 @@ class CalendarSyncManager(
                         CalendarFetchFailure(
                             calendarId = calendarId,
                             errorType = errorType,
-                            message = errorMessage
+                            message = errorMessage,
+                            cause = e
                         )
                     )
                 }

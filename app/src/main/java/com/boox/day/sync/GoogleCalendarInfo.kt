@@ -1,5 +1,7 @@
 package com.boox.day.sync
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
+import com.google.api.client.http.HttpResponseException
 import com.google.api.services.calendar.model.CalendarListEntry
 
 /**
@@ -180,26 +182,42 @@ fun Throwable.isGoogleTokenRefused(): Boolean =
 
 /**
  * Get error type from exception for proper error handling.
+ *
+ * Google API errors are classified by HTTP status and Google's reason (Oct 2026), not by the
+ * message text: before, every 403 counted as a sign-in problem although Google also answers 403
+ * for "rate limit exceeded", and any message containing the digit 5 counted as a server error.
  */
 fun Exception.toSyncErrorType(): SyncErrorType {
     return when {
         isGoogleTokenRefused() -> SyncErrorType.AUTHENTICATION
         this is java.net.UnknownHostException -> SyncErrorType.NETWORK
         this is java.net.SocketTimeoutException -> SyncErrorType.NETWORK
+        this is GoogleJsonResponseException -> googleErrorType(statusCode, details?.errors?.firstOrNull()?.reason)
+        this is HttpResponseException -> googleErrorType(statusCode, null)
         this is java.io.IOException && message?.contains("network", ignoreCase = true) == true -> SyncErrorType.NETWORK
-        this.javaClass.name.contains("GoogleJsonResponseException") -> {
-            // Parse Google API errors
-            val message = this.message ?: ""
-            when {
-                message.contains("401") || message.contains("403") -> SyncErrorType.AUTHENTICATION
-                message.contains("404") -> SyncErrorType.NOT_FOUND
-                message.contains("429") -> SyncErrorType.QUOTA
-                message.contains("5") -> SyncErrorType.SERVER
-                else -> SyncErrorType.UNKNOWN
-            }
-        }
         else -> SyncErrorType.UNKNOWN
     }
+}
+
+/**
+ * A Google API error by status and Google's reason
+ * (developers.google.com/workspace/calendar/api/guides/errors; the Tasks API answers the same way).
+ * 410 is not NOT_FOUND here: a calendar that is NOT_FOUND is taken off the account's selection.
+ */
+internal fun googleErrorType(statusCode: Int, reason: String?): SyncErrorType = when (statusCode) {
+    401 -> SyncErrorType.AUTHENTICATION
+    403 -> when (reason) {
+        "rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded", "dailyLimitExceeded" -> SyncErrorType.QUOTA
+        // Missing permission or refused credentials: signing in again fixes it
+        "insufficientPermissions", "authError" -> SyncErrorType.AUTHENTICATION
+        // e.g. "forbidden": this account may not use that calendar
+        else -> SyncErrorType.PERMISSION
+    }
+    404 -> SyncErrorType.NOT_FOUND
+    429 -> SyncErrorType.QUOTA
+    in 500..599 -> SyncErrorType.SERVER
+    in 400..499 -> SyncErrorType.CLIENT
+    else -> SyncErrorType.UNKNOWN
 }
 
 /**
