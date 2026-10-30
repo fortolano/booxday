@@ -34,6 +34,25 @@ data class SettingsAttention(val items: List<AttentionItem> = emptyList()) {
     fun reasonFor(place: SettingsPlace): String? = items.firstOrNull { it.place == place }?.reason
 }
 
+/**
+ * A Settings entry opened from its dot (Oct 2026, plan B3): its dialog scrolls once to the card that
+ * needs the user (Preferences: reminders; AI Settings: AI Models when a pick fails).
+ */
+object SettingsJump {
+    private var target: SettingsPlace? = null
+
+    fun request(place: SettingsPlace) {
+        target = place
+    }
+
+    /** True once after [request] for [place]. */
+    fun consume(place: SettingsPlace): Boolean {
+        if (target != place) return false
+        target = null
+        return true
+    }
+}
+
 /** The facts the rules read; plain values, so the rules are tested without Android. */
 data class AttentionInputs(
     val aiEnabled: Boolean,
