@@ -581,28 +581,3 @@ private fun FeatureItem(
  */
 fun hasFilePermission(context: Context): Boolean = com.boox.day.booxnotes.BooxNotesAccess.has(context)
 
-private fun requestPermissions(context: Context) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-        if (ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(
-                context as Activity,
-                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                1001
-            )
-        }
-    } else if (!Environment.isExternalStorageManager()) {
-        requestManageAllFilesPermission(context)
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.R)
-private fun requestManageAllFilesPermission(context: Context) {
-    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-    intent.data = Uri.fromParts("package", PACKAGE_NAME, null)
-    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-    context.startActivity(intent)
-}

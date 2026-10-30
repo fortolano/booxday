@@ -52,37 +52,12 @@ class TaskNotificationScheduler(private val context: Context) {
         const val WORK_NAME_DAILY_SCAN = "due_date_daily_scan"
         const val WORK_TAG_TASK_FALLBACK = "task_notification_fallback"
 
-        // Flag to log device detection only once per session
-        private var deviceTypeLogged = false
-
         /**
          * Check if running on a Boox/Onyx device.
          * These devices have firmware-level AlarmManager restrictions that silently
          * drop alarms even when all permissions are granted. Use WorkManager instead.
          */
-        private fun isBooxDevice(): Boolean {
-            val manufacturer = Build.MANUFACTURER?.lowercase() ?: ""
-            val brand = Build.BRAND?.lowercase() ?: ""
-            val device = Build.DEVICE?.lowercase() ?: ""
-            val model = Build.MODEL?.lowercase() ?: ""
-            val product = Build.PRODUCT?.lowercase() ?: ""
-            val isBoox = manufacturer.contains("onyx") || brand.contains("onyx") ||
-                         device.contains("onyx") || model.contains("onyx") || product.contains("onyx") ||
-                         manufacturer.contains("boox") || brand.contains("boox") ||
-                         device.contains("boox") || model.contains("boox") || product.contains("boox")
-
-            // Log once for debugging
-            if (!deviceTypeLogged) {
-                Log.i(
-                    TAG,
-                    "Device detection: manufacturer=$manufacturer, brand=$brand, device=$device, " +
-                        "model=$model, product=$product, isBoox=$isBoox"
-                )
-                deviceTypeLogged = true
-            }
-
-            return isBoox
-        }
+        private fun isBooxDevice(): Boolean = NotificationPermissionHelper.isBooxDevice()
     }
 
     /**

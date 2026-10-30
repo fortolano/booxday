@@ -187,17 +187,7 @@ class BooxDayApp : Application() {
      * Check if running on a Boox/Onyx device.
      * These devices have firmware-level AlarmManager restrictions.
      */
-    private fun isBooxDevice(): Boolean {
-        val manufacturer = Build.MANUFACTURER?.lowercase() ?: ""
-        val brand = Build.BRAND?.lowercase() ?: ""
-        val device = Build.DEVICE?.lowercase() ?: ""
-        val model = Build.MODEL?.lowercase() ?: ""
-        val product = Build.PRODUCT?.lowercase() ?: ""
-        return manufacturer.contains("onyx") || brand.contains("onyx") ||
-               device.contains("onyx") || model.contains("onyx") || product.contains("onyx") ||
-               manufacturer.contains("boox") || brand.contains("boox") ||
-               device.contains("boox") || model.contains("boox") || product.contains("boox")
-    }
+    private fun isBooxDevice(): Boolean = com.boox.day.notifications.NotificationPermissionHelper.isBooxDevice()
 
     /**
      * NOTIFICATION FIX: Initialize notification scheduling on app startup.
