@@ -14,9 +14,9 @@
 
     <!-- About - Support (Buy Me a Coffee) -->
     <string name="about_support_title">Support BooxDay</string>
-    <string name="about_support_content">BooxDay is free and made by one person. If it makes your days easier, you can buy me a coffee. It doesn\'t buy support or features, and BooxDay stays free for everyone either way.</string>
+    <string name="about_support_content">BooxDay is free and made by one person. If it makes your days easier, a cup of coffee helps keep the best calendar for BOOX growing. It\'s never required: BooxDay stays free for everyone.</string>
     <string name="about_support_link">Buy Me a Coffee</string>
-    <string name="about_support_qr">Or scan this with your phone and pay there.</string>
+    <string name="about_support_qr">Scan the code to pay on your phone, or tap below.</string>
 
     <!-- About - Features -->
     <string name="about_features_title">Features</string>

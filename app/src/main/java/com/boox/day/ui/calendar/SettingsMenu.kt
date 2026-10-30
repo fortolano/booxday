@@ -1,8 +1,6 @@
 package com.boox.day.ui.calendar
 
 import com.boox.day.ui.LocalNestedPopupOffset
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -43,14 +41,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
-import com.boox.day.ProjectInfo
+import com.boox.day.ui.dialogs.SupportPopup
 import com.boox.day.R
 import com.boox.day.ui.attention.SettingsAttention
 import com.boox.day.ui.attention.SettingsJump
@@ -192,10 +189,9 @@ fun SettingsMenu(
                 )
             }
             SettingsMenuItemWithIcon("Help", Icons.AutoMirrored.Filled.Help) { onHelp() }
-            // Buy Me a Coffee (Oct 2026): opens the page in the browser and closes the menu
-            val context = LocalContext.current
+            // Buy Me a Coffee (Oct 2026): the Support BooxDay popup, then the menu closes
             SettingsMenuItemWithIcon("Support BooxDay", Icons.Default.LocalCafe) {
-                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ProjectInfo.SUPPORT_URL))) }
+                SupportPopup.open()
                 onClose()
             }
             SettingsMenuItemWithIcon("About", Icons.Default.Info) { onAbout() }

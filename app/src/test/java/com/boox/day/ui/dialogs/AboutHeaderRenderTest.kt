@@ -34,7 +34,7 @@ import java.io.File
 import kotlin.math.abs
 
 /**
- * The About header with the Check for Updates button (Oct 2026), drawn at the Go 10.3's and the Go 6's
+ * The About header with the Support and Check for Updates buttons (Oct 2026), drawn at the Go 10.3's and the Go 6's
  * dialog width and density, saved to app/build/about-header-previews/ for review on the PC.
  * Robolectric native graphics: real text and shapes, as on the tablet. Checks the button is a full
  * touch target and the header stays on its two lines on the Go 6.
@@ -67,7 +67,10 @@ class AboutHeaderRenderTest {
                                 .background(Color.White)
                                 .onGloballyPositioned { bounds["header"] = it.boundsInRoot() }
                         ) {
-                            AboutHeader(versionLabel = "Version 1.0.48", onDismiss = {}, appName = "BooxDay")
+                            AboutHeader(versionLabel = "Version 1.0.48", onDismiss = {}, appName = "BooxDay", onSupport = {})
+                        }
+                        Box(Modifier.padding(16.dp).onGloballyPositioned { bounds["support"] = it.boundsInRoot() }) {
+                            SupportButton(onClick = {})
                         }
                         for (checking in listOf(false, true)) {
                             Box(Modifier.padding(16.dp).onGloballyPositioned { bounds["button-$checking"] = it.boundsInRoot() }) {
@@ -94,7 +97,8 @@ class AboutHeaderRenderTest {
                 val height = bounds.getValue("button-$checking").height
                 assertEquals("${device.name} button height (checking=$checking)", 44 * device.density, height, 1.5f)
             }
-            // Two lines (name, version) beside the button: about 81 dp; a wrapped name would add ~27 dp
+            assertEquals("${device.name} support button height", 44 * device.density, bounds.getValue("support").height, 1.5f)
+            // Two lines (name, version) beside the buttons: about 81 dp; a wrapped name would add ~27 dp
             val headerDp = bounds.getValue("header").height / device.density
             assertTrue("${device.name} header is $headerDp dp tall", headerDp < 95f)
             // The button is drawn: dark fill (#3A3A3A) just inside its left edge

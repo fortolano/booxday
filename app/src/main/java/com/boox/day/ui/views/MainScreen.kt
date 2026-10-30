@@ -2096,6 +2096,8 @@ fun MainScreen(
     com.boox.day.meetings.MeetingNotesHost()
     // In-app update popup (Oct 2026, update/AppUpdateGate)
     com.boox.day.ui.dialogs.AppUpdateHost()
+    // "Support BooxDay" (Oct 2026): from the Settings menu, About and Help
+    com.boox.day.ui.dialogs.SupportPopupHost()
     // "BooxDay closed unexpectedly" after a crash (Oct 2026, diagnostics/CrashReportGate)
     com.boox.day.ui.dialogs.CrashReportHost()
     // "AI and your calendar", once before the first AI feature that sends events (Oct 2026, ui/CalendarAiNotice)

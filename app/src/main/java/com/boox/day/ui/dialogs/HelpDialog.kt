@@ -31,6 +31,10 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.LocalCafe
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.boox.day.R
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Search
@@ -78,7 +82,8 @@ fun HelpDialog(
             HelpSection("Voice Input", Icons.Default.Mic),
             HelpSection("E-Ink & Sleep Screen", Icons.Default.PhoneAndroid),
             HelpSection("Data & Troubleshooting", Icons.Default.Warning),
-            HelpSection("Key Legends", Icons.Default.VpnKey)
+            HelpSection("Key Legends", Icons.Default.VpnKey),
+            HelpSection("Support BooxDay", Icons.Default.LocalCafe)
         )
     }
 
@@ -271,6 +276,7 @@ private fun HelpContent(
                 9 -> EInkOptimizationContent()
                 10 -> TroubleshootingContent()
                 11 -> KeyLegendsContent()
+                12 -> SupportContent()
             }
         }
     }
@@ -823,12 +829,49 @@ private fun TroubleshootingContent() {
         solution = "Tap ≡ → Screen Refresh."
     )
 
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 13: SUPPORT BOOXDAY
+// Buy Me a Coffee (Oct 2026): its own topic after Key Legends (owner, 30 Oct 2026)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun SupportContent() {
+    SectionHeader("Support BooxDay")
+
+    SectionSubtitle("For the price of a cup of coffee, you help keep the best calendar for BOOX growing.")
+
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    // Buy Me a Coffee (Oct 2026)
-    SectionSubheader("Support BooxDay")
-    BodyText("BooxDay is free and made by one person. If it makes your days easier, you can buy me a coffee. BooxDay stays free for everyone either way.")
+    SectionSubheader("Why BooxDay Is Free")
+    BodyText("BooxDay has no ads, no subscription and nothing to unlock. It's open source and made by one person, for people who plan their days on a BOOX.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("How a Coffee Helps")
+    BulletPoint("Time for new features, like the ones in each update")
+    BulletPoint("Fixes for new BOOX tablets and firmware updates")
+    BulletPoint("Fixes for the bugs you report")
+    BulletPoint("The OpenRouter credit used to test BooxDay's AI")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("How to Buy Me a Coffee")
+    BodyText("Tap Buy Me a Coffee to open the page in your browser, or scan the code with your phone and pay there. Any amount helps.")
     WebsiteLink("Buy Me a Coffee", ProjectInfo.SUPPORT_URL)
+    Image(
+        painter = painterResource(id = R.drawable.support_qr),
+        contentDescription = "QR code for ${ProjectInfo.SUPPORT_URL}",
+        modifier = Modifier.size(132.dp)
+    )
+    BodyText("It's never required: BooxDay stays free for everyone, with or without a coffee.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("Other Ways to Help")
+    BodyText("Tell a friend with a BOOX about BooxDay, or report a bug or an idea on GitHub (Settings → About → Report a Bug).")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 }
