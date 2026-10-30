@@ -1658,6 +1658,7 @@ OUTPUT FORMAT (JSON only):
         // Tasks the user already has, to avoid duplicates: today's (ticked too), overdue and the
         // coming days' (29 Oct 2026: today's with words only, so ticked handwritten tasks were missing)
         val existingTaskTexts = SuggestionDuplicates.tasksToAvoid(suggestionContext.taskContext)
+        val openTaskTexts = SuggestionDuplicates.openTasks(suggestionContext.taskContext)
 
         // Build enhanced prompt with pre-scores
         val prompt = buildV3SuggestionsPrompt(
@@ -1695,7 +1696,7 @@ OUTPUT FORMAT (JSON only):
                 // feature with "Could not parse suggestions", no other model tried)
                 parseSuggestionsResponse(response.data).takeIf { it.error == null }?.let { parsed ->
                     // A suggestion that repeats a task the user has is dropped (29 Oct 2026)
-                    val unique = SuggestionDuplicates.withoutRepeats(parsed.suggestions, existingTaskTexts) { it.text }
+                    val unique = SuggestionDuplicates.withoutRepeats(parsed.suggestions, existingTaskTexts, openTaskTexts) { it.text }
                     if (unique.size < parsed.suggestions.size) {
                         Log.i(TAG, "Dropped ${parsed.suggestions.size - unique.size} suggestion(s) repeating existing tasks")
                     }

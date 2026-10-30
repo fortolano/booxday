@@ -108,6 +108,28 @@ class SuggestionDuplicatesTest {
     }
 
     @Test
+    fun `an open task can't come back with more words`() {
+        // Owner, 29 Oct 2026: the overdue "Email the landlord" came back as a longer suggestion
+        assertTrue(SuggestionDuplicates.repeats("Send email follow-up to landlord regarding overdue notice", "Email the landlord", open = true))
+        assertTrue(SuggestionDuplicates.repeats("Call mom about the Lisbon trip dates", "Call mom", open = true))
+        // A done task still allows a follow-up
+        assertFalse(SuggestionDuplicates.repeats("Send email follow-up to landlord regarding overdue notice", "Email the landlord", open = false))
+        // Shared words only are still kept, open or not
+        assertFalse(SuggestionDuplicates.repeats("Review slides with Priya before Friday", "Finish slides for Friday", open = true))
+        // One-word tasks never swallow longer suggestions
+        assertFalse(SuggestionDuplicates.repeats("Buy konks", "Konks", open = true))
+    }
+
+    @Test
+    fun `open and done tasks in the answer check`() {
+        val suggestions = listOf("Send email follow-up to landlord regarding overdue notice", "Call mom about the Lisbon trip dates")
+        assertEquals(
+            listOf("Call mom about the Lisbon trip dates"),
+            SuggestionDuplicates.withoutRepeats(suggestions, listOf("Email the landlord", "Call mom"), openTasks = listOf("email the landlord")) { it }
+        )
+    }
+
+    @Test
     fun `only repeats are dropped from the answer`() {
         val suggestions = listOf(
             "Call mom", "Send mockups to Sam during or after lunch", "Print boarding passes for the Lisbon trip",
