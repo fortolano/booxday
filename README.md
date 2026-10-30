@@ -4,6 +4,10 @@ A daily planner for Onyx BOOX e-ink tablets: a calendar, handwritten memos and h
 
 BooxDay is free and open source under the [GNU General Public License v3.0](LICENSE).
 
+**Download:** the latest APK is on the [Releases](../../releases/latest) page. If BooxDay makes your days easier, you can [buy me a coffee](#buy-me-a-coffee).
+
+[![Buy me a coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=booxday&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/booxday)
+
 ## Features
 
 - Month calendar with the selected day's events and due tasks
@@ -73,7 +77,13 @@ Calendar sync needs your own OAuth setup if you build and sign the app yourself:
 
 BooxDay is shared as is: there is no technical or product support. Bug reports and pull requests are welcome on the [Issues](../../issues) page, but there is no promise of a reply or a fix. The project is still being improved, and new versions are published on the [Releases](../../releases) page.
 
-BooxDay is free and made by one person. If it makes your days easier, you can [buy me a coffee](https://buymeacoffee.com/booxday). It doesn't buy support or features, and BooxDay stays free for everyone either way.
+### Buy me a coffee
+
+BooxDay is free: no ads, no subscription, nothing to unlock. It's made by one person, for people who plan their days on a BOOX. If it makes your days a little easier, a cup of coffee helps keep the best calendar for BOOX growing: new features, support for new tablets and firmware, and fixes when something breaks.
+
+[![Buy me a coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=booxday&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/booxday)
+
+It's never required, and it doesn't buy support or features: BooxDay stays free for everyone. Thank you for using it.
 
 ## Privacy
 
