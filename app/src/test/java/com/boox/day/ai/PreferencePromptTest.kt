@@ -2,6 +2,7 @@ package com.boox.day.ai
 
 import com.boox.day.ai.intelligence.KeywordMatch
 import com.boox.day.data.ai.AiPreferences
+import com.boox.day.data.ai.AiPreferences.Companion.keptOptions
 import com.boox.day.data.ai.EnergyPattern
 import com.boox.day.data.ai.SpecialMode
 import com.boox.day.data.ai.SuggestionCount
@@ -16,20 +17,25 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * What AI Preferences put into AI requests (29 Oct 2026 audit, plan A2-A4): only what the user set
- * up, all 9 areas, one mode, no invented hours or blocked times, real tasks in the completion rate,
- * and whole-word keyword matching.
+ * What the AI options put into AI requests (29 Oct 2026, after the evidence test): only how many
+ * suggestions, Vacation, and the Health and Social switches; none of the removed AI Preferences
+ * answers, even when an older install still has them saved. Also: real tasks in the completion rate,
+ * whole-word keyword matching and every event of the day counted.
  */
 class PreferencePromptTest {
 
-    private val homeAndGrowth = AiPreferences(
-        homePriority = 5, growthPriority = 5, financePriority = 5, setupComplete = true
+    /** An older install's saved answers: everything the removed questions could set. */
+    private val oldAnswers = AiPreferences(
+        workPriority = 5, homePriority = 5, growthPriority = 5, financePriority = 5,
+        hasKids = true, isCareGiver = true, isSocialButterfly = true,
+        energyPattern = EnergyPattern.MORNING_PERSON, crunchMode = true, holidayMode = true,
+        setupComplete = true
     )
 
-    // ── Unanswered answers are not sent ──
+    // ── Nothing is assumed ──
 
     @Test
-    fun beforeSetupNothingIsAssumed() {
+    fun nothingIsAssumedAboutTheUser() {
         val lines = TaskAiContextBuilderV1.preferenceLines(null)
         assertEquals(1, lines.size)
         assertTrue(lines[0].contains("not shared"))
@@ -46,34 +52,48 @@ class PreferencePromptTest {
         }
     }
 
-    // ── All 9 areas ──
+    // ── The removed answers reach no prompt ──
 
     @Test
-    fun homeAndGrowthReachEveryPrompt() {
-        val userContext = TaskAiContextBuilderV1.preferenceLines(homeAndGrowth).joinToString("\n")
-        val suggestions = TaskAiService.buildSuggestionPreferenceGuidance(homeAndGrowth, 6)
-        val plan = PreferenceInterpreter.interpret(homeAndGrowth).priorityRanking
-        for (area in listOf("Home & Organization", "Personal Growth", "Finance")) {
-            assertTrue(userContext.contains(area))
-            assertTrue(suggestions.contains(area))
-            assertTrue(plan.contains(area))
+    fun removedAnswersReachNoPrompt() {
+        val userContext = TaskAiContextBuilderV1.preferenceLines(oldAnswers).joinToString("\n")
+        val suggestions = TaskAiService.buildSuggestionPreferenceGuidance(oldAnswers, 6)
+        for (text in listOf(userContext, suggestions)) {
+            for (word in listOf("Work & Career", "Home & Organization", "Personal Growth", "Finance", "children", "caregiver", "morning", "Crunch", "Holiday", "social butterfly")) {
+                assertFalse("$word in: $text", text.contains(word, ignoreCase = true))
+            }
         }
-        // Areas the user didn't pick are never "top"
-        assertFalse(suggestions.contains("Work"))
-        assertEquals(3, plan.size)
+        val plan = PreferenceInterpreter.interpret(oldAnswers)
+        assertTrue(plan.priorityRanking.isEmpty())
+        assertTrue(plan.lifestyleContext.isEmpty())
+        assertNull(plan.bestFocusTime)
+        assertNull("crunch and holiday are gone", plan.activeMode)
     }
 
-    // ── One mode ──
+    // ── The kept options reach every prompt ──
 
     @Test
-    fun oneModeEverywhereAndHolidayHasALine() {
-        val both = AiPreferences(vacationMode = true, crunchMode = true, setupComplete = true)
-        val userContext = TaskAiContextBuilderV1.preferenceLines(both).joinToString("\n")
-        assertTrue(userContext.contains("Active mode: vacation"))
-        assertFalse(userContext.contains("crunch"))
-        assertEquals(SpecialMode.VACATION, PreferenceInterpreter.interpret(both).activeMode)
-        val holiday = TaskAiService.buildSuggestionPreferenceGuidance(AiPreferences(holidayMode = true, setupComplete = true), 6)
-        assertTrue(holiday.contains("Holiday mode is active"))
+    fun keptOptionsReachEveryPrompt() {
+        val options = oldAnswers.copy(vacationMode = true, includeHealthReminders = false, includeSocialReminders = false)
+        val userContext = TaskAiContextBuilderV1.preferenceLines(options).joinToString("\n")
+        assertTrue(userContext.contains("Vacation mode: on"))
+        assertTrue(userContext.contains("Health and wellness suggestions: off"))
+        assertTrue(userContext.contains("Social suggestions: off"))
+        val suggestions = TaskAiService.buildSuggestionPreferenceGuidance(options, 4)
+        assertTrue(suggestions.contains("Target suggestion count: 4"))
+        assertTrue(suggestions.contains("Vacation mode is active"))
+        assertTrue(suggestions.contains("Avoid health suggestions"))
+        assertTrue(suggestions.contains("Avoid social suggestions"))
+        val plan = PreferenceInterpreter.interpret(options)
+        assertEquals(SpecialMode.VACATION, plan.activeMode)
+        assertFalse(plan.includeHealthReminders)
+        assertFalse(plan.includeSocialReminders)
+    }
+
+    @Test
+    fun onlyTheKeptOptionsAreSaved() {
+        val kept = oldAnswers.copy(suggestionCount = SuggestionCount.MINIMAL, vacationMode = true).keptOptions()
+        assertEquals(AiPreferences(suggestionCount = SuggestionCount.MINIMAL, vacationMode = true, setupComplete = true), kept)
     }
 
     @Test
@@ -93,8 +113,7 @@ class PreferencePromptTest {
         assertTrue(constraints.blockedSlots.isEmpty())
         assertEquals(6, constraints.workHoursStart)
         assertEquals(22, constraints.workHoursEnd)
-        assertEquals("morning", constraints.bestFocusTime)
-        assertNull(PreferenceInterpreter.interpret(AiPreferences(setupComplete = true)).bestFocusTime)
+        assertNull("best focus time was removed", constraints.bestFocusTime)
     }
 
     @Test

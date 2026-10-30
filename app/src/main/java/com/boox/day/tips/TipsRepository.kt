@@ -451,18 +451,13 @@ object TipsRepository {
             contexts = setOf(TipContext.GENERAL)
         ),
         Tip(
-            id = "ai_prefs_rhythm",
-            message = "Morning person or night owl? Tell AI Preferences when you're most productive (About Me).",
+            id = "ai_options_vacation",
+            message = "Going away? Turn on Vacation mode (Settings → AI Settings → AI options) for lighter plans and suggestions.",
             contexts = setOf(TipContext.TASKS)
         ),
         Tip(
-            id = "ai_prefs_modes",
-            message = "Routine changing? Turn on Vacation, Crunch or Holiday mode in AI Preferences → AI Style.",
-            contexts = setOf(TipContext.TASKS)
-        ),
-        Tip(
-            id = "ai_prefs_priorities",
-            message = "Pick your top priorities in AI Preferences so suggestions focus on them.",
+            id = "ai_options_count",
+            message = "Too many or too few Smart Suggestions? Pick Fewer, Normal or More in AI Settings → AI options.",
             contexts = setOf(TipContext.TASKS)
         ),
     )
@@ -514,8 +509,8 @@ object TipsRepository {
             isDiscovery = true
         ),
         Tip(
-            id = "discover_ai_preferences",
-            message = "AI suggestions too generic? Tell AI Preferences (Settings → AI Settings) a little about you.",
+            id = "discover_ai_options",
+            message = "No health or social ideas wanted? Turn them off in Settings → AI Settings → AI options.",
             contexts = setOf(TipContext.MEMOS, TipContext.TASKS),
             isDiscovery = true
         ),

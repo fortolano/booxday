@@ -69,7 +69,7 @@ import java.util.Calendar
 import java.util.Locale
 import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.datastore.GlobalAppSettings
-import com.boox.day.data.datastore.SetupChecklist
+import com.boox.day.ui.attention.SettingsAttention
 import com.boox.day.data.db.TaskRepository
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
@@ -115,7 +115,7 @@ fun CalendarView(
     showWeekNumbers: Boolean = false,
     isSyncing: Boolean = false,
     lastSyncTime: Long? = null,
-    setupChecklist: SetupChecklist = SetupChecklist(),
+    attention: SettingsAttention = SettingsAttention(),
     isStandaloneMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -166,7 +166,7 @@ fun CalendarView(
             onAbout = onAbout,
             isSyncing = isSyncing,
             lastSyncTime = lastSyncTime,
-            setupChecklist = setupChecklist,
+            attention = attention,
             isStandaloneMode = isStandaloneMode
         )
 
@@ -228,7 +228,7 @@ fun MonthHeaderWithToolbar(
     pendingSyncCount: Int = 0,
     hasSyncError: Boolean = false,
     // First-run onboarding - badges on settings that need attention
-    setupChecklist: SetupChecklist = SetupChecklist(),
+    attention: SettingsAttention = SettingsAttention(),
     // Standalone mode - disables Calendar Accounts menu item
     isStandaloneMode: Boolean = false,
     // Compact screens (plan Phase 1.5): ‹ Month Year › title opens the month popup; the other
@@ -515,8 +515,8 @@ fun MonthHeaderWithToolbar(
                     )
                 }
 
-                // Badge count overlay (only show if pending > 0)
-                val pendingCount = setupChecklist.pendingCount
+                // What needs the user's action in Settings (ui/attention, Oct 2026)
+                val pendingCount = attention.count
                 if (pendingCount > 0) {
                     Box(
                         modifier = Modifier
@@ -575,7 +575,7 @@ fun MonthHeaderWithToolbar(
                         isSettingsMenuOpen = false
                     },
                     onClose = { isSettingsMenuOpen = false },
-                    setupChecklist = setupChecklist,
+                    attention = attention,
                     isStandaloneMode = isStandaloneMode,
                     // Narrow screens (Go 6, Oct 2026): the header has no room for the streak button,
                     // so the menu lists it
@@ -681,7 +681,7 @@ fun MonthHeaderWithToolbar(
                     )
                 }
                 // Badge carries the counts of the buttons inside
-                val overflowBadgeCount = setupChecklist.pendingCount
+                val overflowBadgeCount = attention.count
                 val overflowNeedsAttention = overflowBadgeCount > 0 ||
                     (!syncOnBar && isSignedIn && (hasSyncError || pendingSyncCount > 0))
                 if (overflowNeedsAttention) {

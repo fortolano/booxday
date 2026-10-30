@@ -96,11 +96,9 @@ class IntelligenceEngineTest {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `smart suggestions weights preferences higher`() = runBlocking {
-        val preferences = createPreferences(
-            healthPriority = 5,
-            workPriority = 1
-        )
+    fun `smart suggestions follow the AI options`() = runBlocking {
+        // Health suggestions off (AI options, 29 Oct 2026): the gym task falls below the work task
+        val preferences = com.boox.day.data.ai.AiPreferences(includeHealthReminders = false)
         val tasks = listOf(
             createTask(id = "health", text = "Go to the gym for exercise"),
             createTask(id = "work", text = "Work on project deadline")
@@ -111,8 +109,7 @@ class IntelligenceEngineTest {
         val healthScore = result.find { it.itemId == "health" }?.finalScore ?: 0f
         val workScore = result.find { it.itemId == "work" }?.finalScore ?: 0f
 
-        // With health priority 5 and work priority 1, health should score higher
-        assertTrue("Health should score higher with high priority", healthScore > workScore)
+        assertTrue("Health should score lower with health suggestions off", healthScore < workScore)
     }
 
     @Test

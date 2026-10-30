@@ -29,7 +29,7 @@ object AiFeedbackMessages {
     private val summarizationMessageQueue = mutableListOf<String>()
     private val translationMessageQueue = mutableListOf<String>()
 
-    // Voice: events, Voice to Text, voice tasks, AI Preferences answers
+    // Voice: events, Voice to Text, voice tasks
     private val audioMessages = listOf(
         "Turning your words into ink...",
         "Taking dictation. No shorthand class needed...",

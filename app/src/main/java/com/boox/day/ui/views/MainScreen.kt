@@ -201,9 +201,7 @@ import com.boox.day.ai.SuggestionContextBuilder
 import com.boox.day.ai.intelligence.IntelligenceEngine
 import com.boox.day.data.ai.IntelligenceFeature
 import com.boox.day.data.ai.ScoredContext
-import com.boox.day.data.ai.AiPreferencesPromptManager
 import com.boox.day.data.ai.ProposalAction
-import com.boox.day.editor.ui.AiPreferencesInvitePopup
 import com.boox.day.ui.dialogs.AiScope
 import com.boox.day.ui.dialogs.MemoToTasksDialog
 import com.boox.day.tips.TipsService
@@ -403,8 +401,6 @@ fun MainScreen(
     var showBooxNotesSettingsDialog by remember { mutableStateOf(false) }
     var showVoiceEventDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
-    var showAiPreferencesDialog by remember { mutableStateOf(false) }
-    var showAiPreferencesInvitePopup by remember { mutableStateOf(false) }
     // Dec 2025 settings redesign - new dialogs
     var showPreferencesDialog by remember { mutableStateOf(false) }
     var showAiSettingsDialog by remember { mutableStateOf(false) }
@@ -419,9 +415,6 @@ fun MainScreen(
 
     // Multi-provider calendar sync dialog
     var showMultiProviderSyncDialog by remember { mutableStateOf(false) }
-
-    // AI Preferences prompt manager (for progressive backoff prompts)
-    val aiPreferencesPromptManager = remember { AiPreferencesPromptManager(context) }
 
     // Voice input parsed event data (for pre-filling AddEditEventDialog)
     var parsedEventData by remember { mutableStateOf<ParsedEventData?>(null) }
@@ -448,7 +441,6 @@ fun MainScreen(
     // First-run onboarding state (Play Store launch - Jan 2026)
     // Oct 2026: read live (not copied once), so a value saved elsewhere shows at once
     val onboardingDismissedAt by remember { derivedStateOf { GlobalAppSettings.current.onboardingDismissedAt } }
-    val setupChecklist by remember { derivedStateOf { GlobalAppSettings.current.setupChecklist } }
 
     // Keep startup raw drawing gate in sync with welcome popup visibility.
     LaunchedEffect(onboardingDismissedAt) {
@@ -737,15 +729,13 @@ fun MainScreen(
         currentTaskPageId = tasks.firstOrNull()?.pageId
     }
 
-    val resolveTaskAiReferenceHour: (LocalDate) -> Int = remember(aiPreferencesPromptManager) {
+    // Today: the clock; another day: the start of the planning window (6:00)
+    val resolveTaskAiReferenceHour: (LocalDate) -> Int = remember {
         { targetDate ->
-            val constraints = com.boox.day.ai.PreferenceInterpreter.interpret(
-                aiPreferencesPromptManager.getPreferences()
-            )
             if (targetDate == LocalDate.now()) {
                 java.time.LocalTime.now().hour.coerceIn(0, 23)
             } else {
-                constraints.workHoursStart.coerceIn(0, 23)
+                com.boox.day.ai.CapacityAnalyzer.DEFAULT_DAY_START
             }
         }
     }
@@ -1207,7 +1197,8 @@ fun MainScreen(
     // Break down one task from its task card (plan T3): same steps as the Daily Summary entry —
     // pre-select the task, open the break-down dialog and ask the AI (usage recorded on success)
     fun startTaskBreakdown(task: Task) {
-        if (!com.boox.day.ui.AiKeyGate.requireKey()) return  // the user's own OpenRouter key (Oct 2026)
+        // The user's own OpenRouter key; after Connect OpenRouter the break-down goes on (ui/AiKeyGate)
+        if (!com.boox.day.ui.AiKeyGate.requireKey(resume = { startTaskBreakdown(task) })) return
         val taskText = task.typedText?.takeIf { it.isNotBlank() }
             ?: task.convertedText?.takeIf { it.isNotBlank() }
             ?: task.recognizedText?.takeIf { it.isNotBlank() }
@@ -1424,8 +1415,6 @@ fun MainScreen(
                 showBooxNotesSettingsDialog ||
                 showVoiceEventDialog ||
                 showHelpDialog ||
-                showAiPreferencesDialog ||
-                showAiPreferencesInvitePopup ||
                 showPreferencesDialog ||
                 showAiSettingsDialog ||
                 showVoiceSettingsDialog ||
@@ -2221,8 +2210,8 @@ fun MainScreen(
                     onVoiceInput = {
                         // Voice input uses OpenRouter AI (Gemini), not Google Calendar
                         // Works in both Standalone and Hybrid modes - no sign-in required
-                        // Needs the user's own OpenRouter key (Oct 2026); otherwise the key popup opens
-                        if (com.boox.day.ui.AiKeyGate.requireKey()) {
+                        // Needs the user's own OpenRouter key; after Connect OpenRouter it goes on (ui/AiKeyGate)
+                        com.boox.day.ui.AiKeyGate.withKey {
                             parsedEventData = null  // Clear any previous parsed data
                             showVoiceEventDialog = true
                         }
@@ -2320,8 +2309,10 @@ fun MainScreen(
                                    lastSyncMessage?.contains("no network", ignoreCase = true) == true,
                     // Disable "Calendar Accounts" menu when in Standalone mode
                     isStandaloneMode = syncModeSetting == AppSettings.SyncMode.STANDALONE,
-                    // First-run onboarding setup checklist for badge display
-                    setupChecklist = setupChecklist,
+                    // What needs the user's action in Settings: the gear's number and the menu dots
+                    attention = com.boox.day.ui.attention.rememberSettingsAttention(
+                        accountsToReconnect = (multiAccountUiState.googleAccounts + multiAccountUiState.outlookAccounts).count { it.needsReauth }
+                    ),
                     compact = isCompactLayout,
                     onMonthTitleClick = { showCompactMonthPopup = true },
                     onCompactPopupVisibleChange = { compactHeaderPopupVisible = it }
@@ -2787,14 +2778,13 @@ fun MainScreen(
                     },
                     onSmartSuggestions = {
                         // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
-                        com.boox.day.ui.FullScreenState.exitThen {
+                        // Needs the user's own OpenRouter key; after Connect OpenRouter it goes on (ui/AiKeyGate)
+                        com.boox.day.ui.AiKeyGate.withKey { com.boox.day.ui.FullScreenState.exitThen {
                             // ─────────────────────────────────────────────────────────────────
                             // SMART SUGGESTIONS V2 - Full Context AI Personal Assistant
                             // ─────────────────────────────────────────────────────────────────
 
                             scope.launch {
-                                // Needs the user's own OpenRouter key (Oct 2026)
-                                if (!com.boox.day.ui.AiKeyGate.requireKey()) return@launch
                                 // It sends events: the once-only notice (ui/CalendarAiNotice)
                                 if (!com.boox.day.ui.CalendarAiNotice.awaitAllowed()) return@launch
                                 // Free task rows for the results (TaskSlotCalculator: at most 10 task pages a day)
@@ -2807,12 +2797,6 @@ fun MainScreen(
                                 if (slots.totalAvailable == 0) {
                                     showNoTaskSlotsDialog = true
                                     return@launch  // EXIT - No slots, don't waste an AI call
-                                }
-
-                                // Check if we should show proactive preferences prompt
-                                if (aiPreferencesPromptManager.shouldShowProactivePrompt()) {
-                                    aiPreferencesPromptManager.onProactivePromptShown()
-                                    showAiPreferencesInvitePopup = true
                                 }
 
                                 // Initialize dialog state
@@ -2887,14 +2871,13 @@ fun MainScreen(
                                     SmartSuggestionsProcessingState.Ready
                                 }
                             }
-                        }
+                        } }
                     },
                     onTaskBreakdown = {
                         // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
-                        com.boox.day.ui.FullScreenState.exitThen {
+                        // Needs the user's own OpenRouter key; after Connect OpenRouter it goes on (ui/AiKeyGate)
+                        com.boox.day.ui.AiKeyGate.withKey { com.boox.day.ui.FullScreenState.exitThen {
                             scope.launch {
-                                // Needs the user's own OpenRouter key (Oct 2026)
-                                if (!com.boox.day.ui.AiKeyGate.requireKey()) return@launch
                                 // Free task rows for the results (TaskSlotCalculator: at most 10 task pages a day)
                                 val slots = TaskSlotCalculator.getAvailableSlots(
                                     date = selectedDate,
@@ -2930,15 +2913,14 @@ fun MainScreen(
                                 tasksForBreakdown = tasks
                                 taskBreakdownProcessingState = TaskBreakdownProcessingState.SelectTask
                             }
-                        }
+                        } }
                     },
                     // Memos AI - Convert Memo to Tasks
                     onConvertMemoToTasks = {
                         // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
-                        com.boox.day.ui.FullScreenState.exitThen {
+                        // Needs the user's own OpenRouter key; after Connect OpenRouter it goes on (ui/AiKeyGate)
+                        com.boox.day.ui.AiKeyGate.withKey { com.boox.day.ui.FullScreenState.exitThen {
                             scope.launch {
-                                // Needs the user's own OpenRouter key (Oct 2026)
-                                if (!com.boox.day.ui.AiKeyGate.requireKey()) return@launch
                                 // Free task rows for the results (TaskSlotCalculator: at most 10 task pages a day)
                                 val slots = TaskSlotCalculator.getAvailableSlots(
                                     date = selectedDate,
@@ -2958,15 +2940,14 @@ fun MainScreen(
                                 memoToTasksSkipScopeSelection = false  // Show scope selection for toolbar trigger
                                 showMemoToTasksDialog = true
                             }
-                        }
+                        } }
                     },
                     // Plan My Day - Agentic Planning System
                     onPlanMyDay = {
                         // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
-                        com.boox.day.ui.FullScreenState.exitThen {
-                            if (!com.boox.day.ui.AiKeyGate.requireKey()) {
-                                // Needs the user's own OpenRouter key (Oct 2026): the key popup is open
-                            } else com.boox.day.ui.CalendarAiNotice.afterNotice {  // sends events: notice once (Oct 2026)
+                        // Needs the user's own OpenRouter key; after Connect OpenRouter it goes on (ui/AiKeyGate)
+                        com.boox.day.ui.AiKeyGate.withKey { com.boox.day.ui.FullScreenState.exitThen {
+                            com.boox.day.ui.CalendarAiNotice.afterNotice {  // sends events: notice once (Oct 2026)
                                 agenticPlanProcessingState = com.boox.day.data.ai.AgenticPlanProcessingState.Processing("Initializing...")
                                 agenticPlanResult = null
                                 agenticPendingTaskRefreshTarget = null
@@ -3011,7 +2992,7 @@ fun MainScreen(
                                 }
                                 }
                             }
-                        }
+                        } }
                     },
                     // Task stats
                     taskStats = remember(currentTasks, currentTaskPageInfo) {
@@ -3826,7 +3807,7 @@ fun MainScreen(
         }
 
         // "Add your OpenRouter key" (Oct 2026): AI features need the user's own key
-        com.boox.day.ui.dialogs.AiKeyGateHost(onOpenAiSettings = { showAiSettingsDialog = true })
+        com.boox.day.ui.dialogs.AiKeyGateHost(aiSettingsOpen = showAiSettingsDialog, onOpenAiSettings = { showAiSettingsDialog = true })
 
         // AI Settings Dialog (Dec 2025 Settings Redesign)
         if (showAiSettingsDialog) {
@@ -3838,10 +3819,6 @@ fun MainScreen(
                     val newSettings = GlobalAppSettings.current.copy(aiEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
                     markSetupComplete { it.copy(aiSettingsReviewed = true) }
-                },
-                onOpenAiPreferences = {
-                    showAiSettingsDialog = false
-                    showAiPreferencesDialog = true
                 }
             )
         }
@@ -3948,28 +3925,6 @@ fun MainScreen(
 
 
 
-        // AI Preferences Dialog
-        if (showAiPreferencesDialog) {
-            val currentPreferences = remember { aiPreferencesPromptManager.getPreferences() }
-            com.boox.day.editor.ui.AiPreferencesDialog(
-                initialPreferences = currentPreferences,
-                onSave = { newPreferences ->
-                    scope.launch(Dispatchers.IO) {
-                        aiPreferencesPromptManager.savePreferences(newPreferences)
-                        if (newPreferences.setupComplete) {
-                            aiPreferencesPromptManager.onPreferencesCompleted()
-                        }
-                        withContext(Dispatchers.Main) {
-                            showAiPreferencesDialog = false
-                            SnackState.globalSnackFlow.tryEmit(
-                                SnackConf(text = "AI Preferences saved", duration = SnackConf.DURATION_QUICK)
-                            )
-                        }
-                    }
-                },
-                onDismiss = { showAiPreferencesDialog = false }
-            )
-        }
 
 
         // Boox Notes Settings Dialog
@@ -5211,35 +5166,10 @@ fun MainScreen(
                 onDismiss = {
                     showSmartSuggestionsDialog = false
                     smartSuggestionsResult = null
-                },
-                // AI Preferences reminder - show until user sets up preferences
-                showPreferencesReminder = aiPreferencesPromptManager.shouldShowInDialogReminder(),
-                onSetUpPreferences = {
-                    showSmartSuggestionsDialog = false
-                    smartSuggestionsResult = null
-                    showAiPreferencesDialog = true
                 }
             )
         }
 
-        // AI Preferences Invite Popup - proactive prompt with backoff
-        if (showAiPreferencesInvitePopup) {
-            AiPreferencesInvitePopup(
-                onSetUpNow = {
-                    showAiPreferencesInvitePopup = false
-                    showAiPreferencesDialog = true
-                },
-                onMaybeLater = {
-                    showAiPreferencesInvitePopup = false
-                    aiPreferencesPromptManager.onProactivePromptDismissed()
-                },
-                onDontAskAgain = {
-                    showAiPreferencesInvitePopup = false
-                    // Record as dismissed - backoff system will eventually deactivate
-                    aiPreferencesPromptManager.onProactivePromptDismissed()
-                }
-            )
-        }
 
         // Task Breakdown Dialog - break complex tasks into subtasks
         if (showTaskBreakdownDialog) {
@@ -5898,8 +5828,9 @@ fun MainScreen(
                 },
                 // Voice input callback - opens voice dialog from within AddEditEventDialog
                 onVoiceInput = {
-                    // Without the user's OpenRouter key the event editor stays open under the key popup
-                    if (com.boox.day.ui.AiKeyGate.requireKey()) {
+                    // Without the user's OpenRouter key the event editor stays open under the key popup;
+                    // after Connect OpenRouter voice input goes on (ui/AiKeyGate)
+                    com.boox.day.ui.AiKeyGate.withKey {
                         showAddEventDialog = false
                         parsedEventData = null
                         showVoiceEventDialog = true

@@ -46,8 +46,11 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.boox.day.api.OpenRouterConnect
 import com.boox.day.api.OpenRouterKeyCheck
+import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.security.UserOpenRouterKey
+import com.boox.day.ui.AiKeyGate
 import com.boox.day.ui.dialogs.ActionButton
+import com.boox.day.ui.dialogs.OpenRouterIntroPopup
 import com.boox.day.ui.dialogs.OpenRouterKeySteps
 import com.boox.day.ui.dialogs.OpenRouterLinks
 import com.boox.day.ui.noRippleClickable
@@ -61,11 +64,12 @@ import java.util.Locale
  * The OpenRouter key card in AI Settings (Oct 2026): every AI feature runs on the user's own
  * OpenRouter account, so there is no app key to fall back to.
  *
- * - No key: Connect OpenRouter (OpenRouter's sign-in for apps, [OpenRouterConnect]); or a paste
- *   field for a key or the return page's connection code, Paste and Show (44 dp), Save Key, and
- *   the steps to get a key by hand.
- * - Saved: whether AI is ready (credit or free models only), masked key, spending limit,
- *   Remove Key and Replace Key.
+ * - No key: Connect OpenRouter (OpenRouter's sign-in for apps, [OpenRouterConnect]), which first
+ *   explains OpenRouter ([OpenRouterIntroPopup]). "I already have a key" shows a paste field for a
+ *   key or the return page's connection code, Paste and Show (44 dp), Save Key, and the steps to
+ *   get a key by hand.
+ * - Saved: whether AI is ready (credit or free models only, not checked yet, AI Features off),
+ *   masked key, spending limit, Remove Key (which says the key stays on OpenRouter) and Replace Key.
  *
  * Save Key first asks OpenRouter whether the key works ([OpenRouterKeyCheck], no tokens used);
  * a rejected key is not saved, and a key that could not be checked (offline) is saved anyway.
@@ -84,6 +88,10 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
     var showKey by remember { mutableStateOf(false) }
     var checking by remember { mutableStateOf(false) }
     var startingConnect by remember { mutableStateOf(false) }
+    var showIntro by remember { mutableStateOf(false) }
+    // The paste field and the steps by hand, behind "I already have a key" (Oct 2026); open at once
+    // when the key popup's "I already have a key" (or a missing browser) brought the user here
+    var manualEntry by remember { mutableStateOf(AiKeyGate.consumePasteRequest()) }
     var confirmingRemove by remember { mutableStateOf(false) }
     // What OpenRouter last said about the saved key (null = not checked yet in this popup)
     var lastCheck by remember { mutableStateOf<OpenRouterKeyCheck.Result?>(null) }
@@ -138,8 +146,8 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                 entryMessage = if (OpenRouterConnect.looksLikeKey(key)) {
                     "OpenRouter did not accept this key. Check that you copied all of it."
                 } else {
-                    // Not a key: most likely a connection code whose 10 minutes ran out
-                    "That isn't a working key. If it's a connection code, it has timed out: tap Connect OpenRouter again."
+                    // Not a key: most likely a connection code that expired or was already used
+                    "That isn't a working key. If it's a connection code, it may have expired: tap Connect OpenRouter again."
                 }
             } else {
                 withContext(Dispatchers.IO) { UserOpenRouterKey.save(context, key) }
@@ -170,8 +178,11 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                     )
                     check is OpenRouterKeyCheck.Result.Accepted -> StatusLine(Icons.Default.Check, "Connected. AI is ready.")
                     check == OpenRouterKeyCheck.Result.Rejected -> StatusLine(Icons.Default.Info, "OpenRouter did not accept this key. Replace it with a working one.", bold = true)
-                    check is OpenRouterKeyCheck.Result.Unreachable -> StatusLine(Icons.Default.Info, "Connected. The key is saved; OpenRouter couldn't be reached to check it.")
+                    check is OpenRouterKeyCheck.Result.Unreachable -> StatusLine(Icons.Default.Info, "Connected (not checked yet). OpenRouter couldn't be reached; BooxDay checks again next time.")
                     else -> StatusLine(Icons.Default.Info, "Key saved. Checking with OpenRouter...")
+                }
+                if (!GlobalAppSettings.current.aiEnabled) {
+                    StatusLine(Icons.Default.Info, "AI Features is off, so nothing is sent to OpenRouter.", bold = true)
                 }
                 if (check is OpenRouterKeyCheck.Result.Accepted && check.isFreeTier) {
                     OpenRouterLink("Add credit: openrouter.ai/settings/credits") {
@@ -194,10 +205,14 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                 }
                 if (confirmingRemove) {
                     Text(
-                        text = "Remove the key from this tablet? AI features stop until you add one again.",
+                        text = "Remove the key from this tablet? AI features stop until you add one again. " +
+                            "The key stays in your OpenRouter account: delete it there if you no longer need it.",
                         fontSize = EInkTheme.Typography.bodyMedium,
                         color = EInkTheme.Colors.primary
                     )
+                    OpenRouterLink("Your keys: openrouter.ai/settings/keys") {
+                        OpenRouterLinks.open(context, OpenRouterLinks.KEYS)
+                    }
                     Row(modifier = Modifier.fillMaxWidth()) {
                         EinkSecondaryButton(
                             text = "Cancel",
@@ -228,6 +243,7 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                             text = "Replace Key",
                             onClick = {
                                 replacing = true
+                                manualEntry = true
                                 input = ""
                                 entryMessage = null
                             },
@@ -266,16 +282,39 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                 } else {
                     ActionButton(
                         text = if (busy) "Connecting…" else "Connect OpenRouter",
-                        onClick = { if (!busy) startConnect() },
+                        onClick = { if (!busy) showIntro = true },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                Text(
-                    text = "Opens OpenRouter in the browser: sign in, tap Authorize, then tap Open BooxDay.",
-                    fontSize = EInkTheme.Typography.bodySmall,
-                    color = EInkTheme.Colors.darkGray
-                )
-
+                if (showIntro) {
+                    OpenRouterIntroPopup(
+                        rejected = false,
+                        onNotNow = { showIntro = false },
+                        onContinue = {
+                            showIntro = false
+                            startConnect()
+                        },
+                        onHaveKey = null
+                    )
+                }
+                if (!manualEntry) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = EInkTheme.Global.touchTarget)
+                            .noRippleClickable { manualEntry = true },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "I already have a key",
+                            fontSize = EInkTheme.Typography.bodyMedium,
+                            color = EInkTheme.Colors.primary,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    }
+                }
+            }
+            if ((savedKey.isNullOrBlank() || replacing) && manualEntry) {
                 Text(
                     text = "Or paste a key or connection code",
                     fontSize = EInkTheme.Typography.bodyMedium,
@@ -340,6 +379,7 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                             text = "Cancel",
                             onClick = {
                                 replacing = false
+                                manualEntry = false
                                 input = ""
                                 entryMessage = null
                             },
@@ -373,11 +413,6 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                     context = context,
                     lastStepTitle = "Paste it above",
                     lastStepDetail = " and tap Save Key."
-                )
-                Text(
-                    text = "Free models need no credit but allow 50 requests a day (1,000 after you buy \$10 of credit).",
-                    fontSize = EInkTheme.Typography.bodySmall,
-                    color = EInkTheme.Colors.darkGray
                 )
             }
         }

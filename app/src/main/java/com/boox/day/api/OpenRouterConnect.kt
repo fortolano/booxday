@@ -91,6 +91,13 @@ object OpenRouterConnect {
     var status: Status by mutableStateOf<Status>(Status.Idle)
         private set
 
+    /**
+     * Counts finished connections (key saved, or failed after the return). The "AI is on" popup shows
+     * each one once (ui/AiKeyGate); a problem before the browser opened doesn't count.
+     */
+    var resultCount by mutableStateOf(0)
+        private set
+
     // ═══════════════════════════════════════════════════════════════════════════
     // RULES (no Android, unit-tested)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -235,7 +242,7 @@ object OpenRouterConnect {
 
     /** Shown on the key card when a connection couldn't even start. */
     fun reportProblem(message: String) {
-        fail(message)
+        status = Status.Failed(message)
     }
 
     // One exchange at a time: the return screen can run twice if Android recreates it
@@ -277,12 +284,14 @@ object OpenRouterConnect {
         clearPending(context)
         Log.i(TAG, "OpenRouter connected, key saved")
         status = connected
+        resultCount++
         return connected
     }
 
     private fun fail(message: String, canRetry: Boolean = false): Status {
         val failed = Status.Failed(message, canRetry)
         status = failed
+        resultCount++
         return failed
     }
 

@@ -10,9 +10,7 @@ import com.boox.day.api.ai.AiClient
 import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
-import com.boox.day.data.ai.AiPreferences.Companion.activeMode
-import com.boox.day.data.ai.AiPreferences.Companion.forPrompt
-import com.boox.day.data.ai.AiPreferences.Companion.pickedAreas
+import com.boox.day.data.ai.AiPreferences.Companion.keptOptions
 import com.boox.day.data.ai.AiPreferencesRepository
 import com.boox.day.data.ai.ScoredContext
 import com.boox.day.data.db.Task
@@ -120,9 +118,8 @@ object TaskAiService {
         }
     }
 
-    private fun resolveSuggestionCount(preferences: com.boox.day.data.ai.AiPreferences?): Int {
-        return (preferences ?: com.boox.day.data.ai.AiPreferences()).suggestionCount.count
-    }
+    private fun resolveSuggestionCount(preferences: com.boox.day.data.ai.AiPreferences?): Int =
+        preferences.keptOptions().suggestionCount.count
 
     /**
      * A single parsed task from voice input.
@@ -1467,76 +1464,30 @@ OUTPUT FORMAT (JSON only):
     )
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // SMART SUGGESTIONS V2 (with AI Preferences)
+    // SMART SUGGESTIONS V2 (with the AI options)
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * Smart Suggestions' preference rules (Oct 2026): only what the user set up (nothing before setup,
-     * no pre-selected default as an answer), all 9 life areas, and one active mode, Holiday included.
+     * Smart Suggestions' option rules (29 Oct 2026): how many, and the kept options that differ from
+     * the defaults (Health or Social suggestions off, Vacation). The other old AI Preferences answers
+     * didn't change the suggestions in a measured test and are no longer sent.
      */
     internal fun buildSuggestionPreferenceGuidance(
         preferences: com.boox.day.data.ai.AiPreferences?,
         targetCount: Int
     ): String {
-        val prefs = preferences.forPrompt()
-        val d = com.boox.day.data.ai.AiPreferences()
+        val options = preferences.keptOptions()
         return buildString {
             appendLine("## PREFERENCES")
             appendLine("Target suggestion count: $targetCount")
-            if (prefs == null) return@buildString
-            prefs.pickedAreas().takeIf { it.isNotEmpty() }?.let {
-                appendLine("Most important areas (user's picks): ${it.joinToString(", ")}")
-            }
-            if (prefs.suggestionStyle != d.suggestionStyle) {
-                appendLine("Suggestion style: ${prefs.suggestionStyle.displayName}")
-                when (prefs.suggestionStyle) {
-                    com.boox.day.data.ai.SuggestionStyle.PRACTICAL -> appendLine("  Focus on immediately actionable, practical tasks.")
-                    com.boox.day.data.ai.SuggestionStyle.BALANCED -> appendLine("  Mix practical tasks with some wellness.")
-                    com.boox.day.data.ai.SuggestionStyle.HOLISTIC -> appendLine("  Include self-care, reflection, and work-life balance suggestions.")
-                }
-            }
-            if (prefs.planningHorizon != d.planningHorizon) {
-                appendLine("Planning horizon: ${prefs.planningHorizon.displayName}")
-                when (prefs.planningHorizon) {
-                    com.boox.day.data.ai.PlanningHorizon.DAY_BY_DAY -> appendLine("  Focus on TODAY's actionable tasks only.")
-                    com.boox.day.data.ai.PlanningHorizon.WEEKLY -> appendLine("  Include tasks for later this week.")
-                    com.boox.day.data.ai.PlanningHorizon.MONTHLY -> appendLine("  Include milestone and goal-oriented tasks.")
-                }
-            }
-            if (prefs.focusStyle != d.focusStyle) {
-                appendLine("Focus style: ${prefs.focusStyle.displayName}")
-                when (prefs.focusStyle) {
-                    com.boox.day.data.ai.FocusStyle.DEEP_FOCUS -> appendLine("  Suggest fewer, more substantial tasks requiring concentration.")
-                    com.boox.day.data.ai.FocusStyle.TASK_SWITCHING -> appendLine("  Suggest bite-sized, quick-win tasks.")
-                    com.boox.day.data.ai.FocusStyle.MIXED -> appendLine("  Mix of deep work and quick tasks.")
-                }
-            }
-            if (prefs.routinePreference != d.routinePreference) {
-                appendLine("Routine: ${prefs.routinePreference.displayName}")
-                when (prefs.routinePreference) {
-                    com.boox.day.data.ai.RoutinePreference.STRUCTURED -> appendLine("  Suggest routine-building, repeatable tasks.")
-                    com.boox.day.data.ai.RoutinePreference.SPONTANEOUS -> appendLine("  Suggest variety and novel activities.")
-                    com.boox.day.data.ai.RoutinePreference.BALANCED -> appendLine("  Balance routine with variety.")
-                }
-            }
-            if (prefs.commuteStyle == com.boox.day.data.ai.CommuteStyle.COMMUTE) {
-                appendLine("Work arrangement: ${prefs.commuteStyle.displayName}")
-                appendLine("  Can suggest commute-friendly tasks (calls, podcasts, planning).")
-            }
-            if (!prefs.includeHealthReminders) {
+            if (!options.includeHealthReminders) {
                 appendLine("- Avoid health suggestions unless the context makes them clearly necessary.")
             }
-            if (!prefs.includeSocialReminders) {
+            if (!options.includeSocialReminders) {
                 appendLine("- Avoid social suggestions unless the context makes them clearly necessary.")
             }
-            if (!prefs.includeDeadlineWarnings) {
-                appendLine("- Do not force deadline-focused suggestions unless the user already provided a deadline.")
-            }
-            when (prefs.activeMode()) {
-                com.boox.day.data.ai.SpecialMode.VACATION -> appendLine("- Vacation mode is active. Keep suggestions light and restorative.")
-                com.boox.day.data.ai.SpecialMode.CRUNCH -> appendLine("- Crunch mode is active. Bias strongly toward urgent work tasks.")
-                com.boox.day.data.ai.SpecialMode.HOLIDAY -> appendLine("- Holiday mode is active. Favour family and social time; keep work to essentials.")
-                null -> Unit
+            if (options.vacationMode) {
+                appendLine("- Vacation mode is active. Keep suggestions light and restorative.")
             }
         }.trim()
     }
@@ -1873,7 +1824,8 @@ OUTPUT FORMAT (JSON only):
         appendLine("5. Mine SEMANTIC MEMORY for the user's active keywords, entities, and pending action items — turn unfinished action items into suggested tasks")
         appendLine("6. Mine BOOX NOTES CONTEXT for recent note topics, synopses, and keywords — suggest follow-up tasks from meeting notes and brainstorms")
         appendLine("7. Leverage USER CONTEXT preferences: honor focus style, routine preference, and priority rankings")
-        appendLine("8. Keep each reason short and grounded in NAMED evidence from the input (cite the specific keyword, entity, note title, event name, or score signal)")
+        // The reason is shown to the user (Oct 2026): it quoted "[0.70]" scores when asked for a "score signal"
+        appendLine("8. Keep each reason short and grounded in NAMED evidence from the input (cite the specific keyword, entity, note title or event name). The user reads the reason: never mention scores, numbers in brackets or section names from these instructions")
 
         val targetCount = resolveSuggestionCount(preferences)
         appendLine("9. Target count: up to $targetCount suggestions")

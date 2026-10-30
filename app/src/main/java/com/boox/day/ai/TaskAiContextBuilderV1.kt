@@ -4,14 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.boox.day.BuildConfig
 import com.boox.day.data.ai.AiPreferences
-import com.boox.day.data.ai.AiPreferences.Companion.activeMode
-import com.boox.day.data.ai.AiPreferences.Companion.bestFocusTime
-import com.boox.day.data.ai.AiPreferences.Companion.forPrompt
-import com.boox.day.data.ai.AiPreferences.Companion.getDailyRhythmSummary
-import com.boox.day.data.ai.AiPreferences.Companion.getLifestyleSummary
-import com.boox.day.data.ai.AiPreferences.Companion.pickedAreas
-import com.boox.day.data.ai.AiPreferences.Companion.getSituationSummary
-import com.boox.day.data.ai.AiPreferences.Companion.getWorkProfileSummary
+import com.boox.day.data.ai.AiPreferences.Companion.keptOptions
 import com.boox.day.data.ai.AiPreferencesRepository
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.ocr.model.OcrSource
@@ -224,32 +217,16 @@ object TaskAiContextBuilderV1 {
     }
 
     /**
-     * The user's AI Preferences as prompt lines (Oct 2026). Only what the user set up: nothing before
-     * setup, and no pre-selected default presented as an answer. All 9 life areas, one active mode.
+     * The AI options as prompt lines (29 Oct 2026): the AI is told nothing is known about the user's
+     * life, then only the kept options that differ from the defaults (Vacation, Health or Social
+     * suggestions off). The rest of the old AI Preferences didn't change answers and is gone.
      */
     internal fun preferenceLines(preferences: AiPreferences?): List<String> {
-        if (preferences == null) {
-            return listOf("Preferences: not shared. Don't assume the user's job, family, home or schedule.")
-        }
-        val d = AiPreferences()
-        val lines = mutableListOf("Preferences:")
-        preferences.pickedAreas().takeIf { it.isNotEmpty() }?.let { lines += "- Most important areas (user's picks): ${it.joinToString(", ")}" }
-        preferences.getDailyRhythmSummary().takeIf { it.isNotBlank() }?.let { lines += "- Daily rhythm: $it" }
-        if (preferences.lifeSituations.isNotEmpty() && preferences.lifeSituations != d.lifeSituations) {
-            lines += "- Life situation: ${preferences.lifeSituations.joinToString(" + ") { it.displayName }}"
-        }
-        preferences.bestFocusTime()?.let { lines += "- Best time for focused work: $it" }
-        if (preferences.livingEnvironment != d.livingEnvironment) lines += "- Living environment: ${preferences.livingEnvironment.displayName}"
-        if (preferences.interests.isNotEmpty()) lines += "- Interests: ${preferences.interests.joinToString(", ") { it.displayName }}"
-        if (!preferences.includeDeadlineWarnings) lines += "- Deadline-focused suggestions: off"
-        if (!preferences.includeHealthReminders) lines += "- Health and wellness suggestions: off"
-        if (!preferences.includeSocialReminders) lines += "- Social suggestions: off"
-        preferences.getWorkProfileSummary().takeIf { it.isNotBlank() }?.let { lines += "- Work profile: $it" }
-        preferences.getLifestyleSummary().takeIf { it.isNotBlank() }?.let { lines += "- Lifestyle: $it" }
-        preferences.getSituationSummary().takeIf { it.isNotBlank() }?.let { lines += "- Situation: $it" }
-        preferences.activeMode()?.let { lines += "- Active mode: ${it.displayName.lowercase()}" }
-        if (preferences.suggestionStyle != d.suggestionStyle) lines += "- Suggestion style: ${preferences.suggestionStyle.displayName}"
-        if (lines.size == 1) lines[0] = "Preferences: set up, all left at the defaults."
+        val options = preferences.keptOptions()
+        val lines = mutableListOf("About the user: not shared. Don't assume their job, family, home or schedule.")
+        if (options.vacationMode) lines += "- Vacation mode: on. Keep things light; no new work unless it's urgent."
+        if (!options.includeHealthReminders) lines += "- Health and wellness suggestions: off"
+        if (!options.includeSocialReminders) lines += "- Social suggestions: off"
         return lines
     }
 
@@ -272,7 +249,7 @@ object TaskAiContextBuilderV1 {
             appendLine("Time: ${String.format("%02d", currentHour)}:00 ($timeOfDay)")
             appendLine("Day: $dayOfWeek")
             appendLine()
-            preferenceLines(preferences.forPrompt()).forEach { appendLine(it) }
+            preferenceLines(preferences).forEach { appendLine(it) }
             patternSection?.takeIf { it.isNotBlank() }?.let {
                 appendLine()
                 appendLine(it.trim())
