@@ -1873,7 +1873,8 @@ OUTPUT FORMAT (JSON only):
         appendLine("5. Mine SEMANTIC MEMORY for the user's active keywords, entities, and pending action items — turn unfinished action items into suggested tasks")
         appendLine("6. Mine BOOX NOTES CONTEXT for recent note topics, synopses, and keywords — suggest follow-up tasks from meeting notes and brainstorms")
         appendLine("7. Leverage USER CONTEXT preferences: honor focus style, routine preference, and priority rankings")
-        appendLine("8. Keep each reason short and grounded in NAMED evidence from the input (cite the specific keyword, entity, note title, event name, or score signal)")
+        // The reason is shown to the user (Oct 2026): it quoted "[0.70]" scores when asked for a "score signal"
+        appendLine("8. Keep each reason short and grounded in NAMED evidence from the input (cite the specific keyword, entity, note title or event name). The user reads the reason: never mention scores, numbers in brackets or section names from these instructions")
 
         val targetCount = resolveSuggestionCount(preferences)
         appendLine("9. Target count: up to $targetCount suggestions")
