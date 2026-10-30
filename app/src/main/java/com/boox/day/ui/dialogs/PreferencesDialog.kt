@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -73,6 +74,7 @@ import com.boox.day.ui.components.ScrollableWithIndicator
 import com.boox.day.ui.components.SettingCard
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
+import com.boox.day.ui.components.SetupStep
 import kotlinx.coroutines.delay
 
 /**
@@ -169,51 +171,25 @@ fun PreferencesDialog(
     val disabledChannelsText = disabledChannels.joinToString(", ")
     val anyChannelDisabled = disabledChannels.isNotEmpty()
 
-    // Poll every second when any notifications enabled but permission not granted
-    // OR when battery optimization not exempt on Boox device
-    LaunchedEffect(
-        taskNotificationsEnabled,
-        eventNotificationsEnabled,
-        currentNotificationPermission,
-        currentBatteryOptimizationExempt,
-        isTaskChannelEnabled,
-        isEventChannelEnabled
-    ) {
-        while (anyNotificationsEnabled &&
-            (!currentNotificationPermission ||
-                (isBooxDevice && !currentBatteryOptimizationExempt) ||
-                (taskNotificationsEnabled && !isTaskChannelEnabled) ||
-                (eventNotificationsEnabled && !isEventChannelEnabled))
-        ) {
-            delay(1000)
-            val newNotificationPermission = NotificationPermissionHelper.hasNotificationPermission(context)
-            val newExactAlarmPermission = NotificationPermissionHelper.canScheduleExactAlarms(context)
-            val newBatteryOptimizationExempt = NotificationPermissionHelper.isBatteryOptimizationExempt(context)
-            val newTaskChannelEnabled = NotificationChannelManager.isChannelEnabled(
-                context,
-                NotificationChannelManager.CHANNEL_ID_DUE_TASKS
-            )
-            val newEventChannelEnabled = NotificationChannelManager.isChannelEnabled(
-                context,
-                NotificationChannelManager.CHANNEL_ID_EVENT_REMINDERS
-            )
-
-            if (newNotificationPermission != currentNotificationPermission) {
-                currentNotificationPermission = newNotificationPermission
-            }
-            if (newExactAlarmPermission != currentExactAlarmPermission) {
-                currentExactAlarmPermission = newExactAlarmPermission
-            }
-            if (newBatteryOptimizationExempt != currentBatteryOptimizationExempt) {
-                currentBatteryOptimizationExempt = newBatteryOptimizationExempt
-            }
-            if (newTaskChannelEnabled != isTaskChannelEnabled) {
-                isTaskChannelEnabled = newTaskChannelEnabled
-            }
-            if (newEventChannelEnabled != isEventChannelEnabled) {
-                isEventChannelEnabled = newEventChannelEnabled
+    // Oct 2026 (plan B2): read again when BooxDay comes back from Android settings or a system
+    // prompt, instead of polling every second while something was missing
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                currentNotificationPermission = NotificationPermissionHelper.hasNotificationPermission(context)
+                currentExactAlarmPermission = NotificationPermissionHelper.canScheduleExactAlarms(context)
+                currentBatteryOptimizationExempt = NotificationPermissionHelper.isBatteryOptimizationExempt(context)
+                isTaskChannelEnabled = NotificationChannelManager.isChannelEnabled(
+                    context, NotificationChannelManager.CHANNEL_ID_DUE_TASKS
+                )
+                isEventChannelEnabled = NotificationChannelManager.isChannelEnabled(
+                    context, NotificationChannelManager.CHANNEL_ID_EVENT_REMINDERS
+                )
             }
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     // E-Ink: Use Popup instead of Dialog to avoid system scrim/dimming
     Popup(
@@ -444,6 +420,26 @@ fun PreferencesDialog(
 
                         Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
 
+                        // Oct 2026 (plan B2): one step at a time. The reminder switches show once
+                        // Android lets BooxDay show notifications; until then, the step that allows it
+                        // (on BOOX the battery step follows, elsewhere exact alarms)
+                        val reminderSteps = 2
+                        if (!currentNotificationPermission) {
+                            SetupStep(
+                                step = 1,
+                                steps = reminderSteps,
+                                title = "Reminders need notifications",
+                                why = when {
+                                    notificationAsk.state == AskState.OPEN_SETTINGS ->
+                                        "Notifications are turned off for BooxDay in Android settings. Turn them on there, then choose your reminders here."
+                                    anyNotificationsEnabled ->
+                                        "Your reminders are on, but Android doesn't let BooxDay show notifications yet."
+                                    else -> "Allow BooxDay to show notifications, then choose which reminders you want."
+                                },
+                                buttonText = if (notificationAsk.state == AskState.OPEN_SETTINGS) "Open Settings" else "Allow Notifications",
+                                onClick = { notificationAsk.request() }
+                            )
+                        } else {
                         // Task Due Date Reminders Toggle
                         SettingCard(
                             title = "Task Due Date Reminders",
@@ -535,36 +531,39 @@ fun PreferencesDialog(
                             }
                         }
 
-                        // Permission request card (shown when any toggle enabled but no permission)
-                        if (anyNotificationsEnabled && !currentNotificationPermission) {
+                        if (anyNotificationsEnabled && anyChannelDisabled) {
                             Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-                            NotificationPermissionCard(
-                                // No exact-alarm step on BOOX: reminders always use WorkManager there
-                                showExactAlarmStep = !isBooxDevice && !currentExactAlarmPermission,
-                                openSettingsInstead = notificationAsk.state == AskState.OPEN_SETTINGS,
-                                onRequestNotificationPermission = { notificationAsk.request() },
-                                onOpenAlarmSettings = onOpenAlarmSettings
+                            SetupStep(
+                                title = "Turned off in Android settings",
+                                why = "$disabledChannelsText ${if (disabledChannels.size > 1) "are" else "is"} off for BooxDay in Android's notification settings, so they don't show.",
+                                buttonText = "Open Settings",
+                                onClick = { NotificationPermissionHelper.openNotificationSettings(context) }
                             )
                         }
-
-                        if (anyNotificationsEnabled && currentNotificationPermission && anyChannelDisabled) {
+                        // BOOX stops background work to save battery: reminders come late without this
+                        if (anyNotificationsEnabled && isBooxDevice && !currentBatteryOptimizationExempt) {
                             Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-                            NotificationChannelWarningCard(
-                                disabledChannelsText = disabledChannelsText,
-                                onOpenNotificationSettings = {
-                                    NotificationPermissionHelper.openNotificationSettings(context)
-                                }
+                            SetupStep(
+                                step = 2,
+                                steps = reminderSteps,
+                                title = "Let reminders arrive on time",
+                                why = "BOOX pauses apps in the background to save battery. Allow BooxDay to run in the background so reminders come on time.",
+                                buttonText = "Allow in Android",
+                                onClick = { NotificationPermissionHelper.requestBatteryExemption(context) }
                             )
                         }
-
-                        // Battery optimization warning (shown on Boox devices when notifications enabled
-                        // but not exempt from battery optimization - WorkManager jobs get killed without this)
-                        if (anyNotificationsEnabled && currentNotificationPermission &&
-                            isBooxDevice && !currentBatteryOptimizationExempt) {
+                        // Other tablets: exact alarms for precise times (BOOX always uses WorkManager)
+                        if (anyNotificationsEnabled && !isBooxDevice && !currentExactAlarmPermission) {
                             Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-                            BatteryOptimizationWarningCard(
-                                onOpenBatterySettings = onOpenBatteryOptimizationSettings
+                            SetupStep(
+                                step = 2,
+                                steps = reminderSteps,
+                                title = "Exact reminder times",
+                                why = "Allow alarms and reminders in Android settings so reminders come at the exact minute.",
+                                buttonText = "Open Alarm Settings",
+                                onClick = onOpenAlarmSettings
                             )
+                        }
                         }
 
                         // ═══════════════════════════════════════════════════════════════
@@ -606,284 +605,6 @@ fun PreferencesDialog(
 // NOTIFICATION PERMISSION UI
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Permission request card - shown when notifications enabled but permission not granted.
- * Follows same pattern as BooxNotesSettingsDialog permission card.
- */
-@Composable
-private fun NotificationPermissionCard(
-    showExactAlarmStep: Boolean,
-    openSettingsInstead: Boolean,
-    onRequestNotificationPermission: () -> Unit,
-    onOpenAlarmSettings: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        backgroundColor = EInkTheme.Colors.background,
-        border = BorderStroke(0.5.dp, EInkTheme.Colors.borderStrong),
-        elevation = 0.dp,
-        shape = RoundedCornerShape(EInkTheme.Global.cornerRadius)
-    ) {
-        Column(
-            modifier = Modifier.padding(EInkTheme.Global.paddingMedium)
-        ) {
-            // Header
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = "Permission needed",
-                    modifier = Modifier.size(20.dp),
-                    tint = EInkTheme.Colors.primary
-                )
-                Text(
-                    text = "Permission Required",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = EInkTheme.Colors.primary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-            // Explanation
-            Text(
-                text = if (openSettingsInstead) {
-                    "Notifications are turned off for BooxDay in Android settings. Open Settings and turn them on."
-                } else {
-                    "To send you reminders, BooxDay needs permission to show notifications. " +
-                        "Your notification preferences stay on your device."
-                },
-                fontSize = EInkTheme.Preferences.explanationFontSize,
-                color = EInkTheme.Colors.darkGray
-            )
-
-            Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-            // Primary action: Notification permission (Android 13+)
-            OutlinedButton(
-                onClick = onRequestNotificationPermission,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    backgroundColor = EInkTheme.Colors.primary,
-                    contentColor = Color.White
-                ),
-                border = BorderStroke(EInkTheme.Button.borderWidth, EInkTheme.Colors.primary),
-                shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = if (openSettingsInstead) "Open Settings" else "Allow Notifications",
-                    fontSize = EInkTheme.Typography.button,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            // Secondary action: exact alarms (Android 12+), not on BOOX (see the call)
-            if (showExactAlarmStep) {
-                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-                Text(
-                    text = "For precise reminder timing, also enable exact alarms:",
-                    fontSize = EInkTheme.Preferences.explanationFontSize,
-                    color = EInkTheme.Colors.gray
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                OutlinedButton(
-                    onClick = onOpenAlarmSettings,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = EInkTheme.Colors.primary
-                    ),
-                    border = BorderStroke(EInkTheme.Button.borderWidth, EInkTheme.Colors.borderStrong),
-                    shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                ) {
-                    Text(
-                        text = "Open Alarm Settings",
-                        fontSize = EInkTheme.Typography.button,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * Notification channel warning card - shown when notifications are enabled but a channel is disabled.
- */
-@Composable
-private fun NotificationChannelWarningCard(
-    disabledChannelsText: String,
-    onOpenNotificationSettings: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        backgroundColor = EInkTheme.Colors.background,
-        border = BorderStroke(0.5.dp, EInkTheme.Colors.borderStrong),
-        elevation = 0.dp,
-        shape = RoundedCornerShape(EInkTheme.Global.cornerRadius)
-    ) {
-        Column(
-            modifier = Modifier.padding(EInkTheme.Global.paddingMedium)
-        ) {
-            // Header
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = "Channel disabled",
-                    modifier = Modifier.size(20.dp),
-                    tint = EInkTheme.Colors.primary
-                )
-                Text(
-                    text = "Channel Disabled",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = EInkTheme.Colors.primary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-            // Explanation
-            Text(
-                text = "Notifications are enabled, but the system channels are off: " +
-                    "$disabledChannelsText. Re-enable them to receive reminders.",
-                fontSize = EInkTheme.Preferences.explanationFontSize,
-                color = EInkTheme.Colors.darkGray
-            )
-
-            Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-            // Action button
-            OutlinedButton(
-                onClick = onOpenNotificationSettings,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    backgroundColor = EInkTheme.Colors.primary,
-                    contentColor = Color.White
-                ),
-                border = BorderStroke(EInkTheme.Button.borderWidth, EInkTheme.Colors.primary),
-                shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "Open Notification Settings",
-                    fontSize = EInkTheme.Typography.button,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-    }
-}
-
-/**
- * Battery optimization warning card - shown on Boox devices when notifications are enabled
- * but the app is not exempt from battery optimization.
- *
- * Boox devices aggressively kill background processes including WorkManager jobs.
- * Without battery optimization exemption, notification scheduling will silently fail.
- */
-@Composable
-private fun BatteryOptimizationWarningCard(
-    onOpenBatterySettings: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        backgroundColor = EInkTheme.Colors.background,
-        border = BorderStroke(0.5.dp, EInkTheme.Colors.borderStrong),
-        elevation = 0.dp,
-        shape = RoundedCornerShape(EInkTheme.Global.cornerRadius)
-    ) {
-        Column(
-            modifier = Modifier.padding(EInkTheme.Global.paddingMedium)
-        ) {
-            // Header
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = "Action needed",
-                    modifier = Modifier.size(20.dp),
-                    tint = EInkTheme.Colors.primary
-                )
-                Text(
-                    text = "Action Required for Reliable Notifications",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = EInkTheme.Colors.primary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
-
-            // Explanation
-            Text(
-                text = "Boox devices restrict background tasks by default. To ensure notifications " +
-                        "are delivered reliably, please exempt BooxDay from battery optimization.",
-                fontSize = EInkTheme.Preferences.explanationFontSize,
-                color = EInkTheme.Colors.darkGray
-            )
-
-            Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-            // Action button
-            OutlinedButton(
-                onClick = onOpenBatterySettings,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    backgroundColor = EInkTheme.Colors.primary,
-                    contentColor = Color.White
-                ),
-                border = BorderStroke(EInkTheme.Button.borderWidth, EInkTheme.Colors.primary),
-                shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "Open Battery Settings",
-                    fontSize = EInkTheme.Typography.button,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-    }
-}
-
-/**
- * Time picker section for default reminder times.
- * Shows two pickers:
- * 1. Task reminder: Time of day on due date (e.g., 9:00 AM)
- * 2. Event reminder: Minutes before event (e.g., 15 min)
- */
 @Composable
 private fun NotificationTimePickerSection(
     defaultTaskReminderHour: Int,
