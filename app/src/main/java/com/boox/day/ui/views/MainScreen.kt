@@ -1106,8 +1106,8 @@ fun MainScreen(
                 }
             }
 
-            // A new summary needs the user's own OpenRouter key (Oct 2026)
-            if (!com.boox.day.ui.AiKeyGate.requireKey()) {
+            // A new summary needs the user's own OpenRouter key (Oct 2026); after Connect OpenRouter it goes on
+            if (!com.boox.day.ui.AiKeyGate.requireKey(resume = { launchWeeklySummary(forceRefresh) })) {
                 showWeeklySummaryDialog = false
                 return@launch
             }
@@ -2546,6 +2546,105 @@ fun MainScreen(
             ) {
                 // Full screen: the selected day above the toolbar (the calendar header is hidden)
                 com.boox.day.ui.FullScreenDateLine(selectedDate)
+                // Daily Summary in its own function, so it can go on after Connect OpenRouter (ui/AiKeyGate)
+                fun launchDailySummary() {
+                    // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
+                    com.boox.day.ui.FullScreenState.exitThen {
+                        dailySummaryProcessingState = DailySummaryProcessingState.Processing("Checking cache...")
+                        dailySummaryResult = null
+                        showDailySummaryDialog = true
+
+                        scope.launch {
+                            val cacheId = SummaryCache.dailyId(selectedDate)
+                            val (tasksForDay, contentHash) = withContext(Dispatchers.IO) {
+                                val tasks = appRepository.taskRepository.getTasksForDay(selectedDate)
+                                val hash = TaskAiService.computeDailySummaryContentHash(tasks)
+                                tasks to hash
+                            }
+                            val tasksById = tasksForDay.associateBy { it.id }
+
+                            // Check cache first (valid for 4 hours)
+                            val cachedEntry = withContext(Dispatchers.IO) {
+                                summaryCacheRepository.getValidCache(cacheId, contentHash)
+                            }
+
+                            if (cachedEntry != null) {
+                                // Cache hit - deserialize and show
+                                dailySummaryProcessingState = DailySummaryProcessingState.Processing("Loading cached summary...")
+                                val cached = TaskAiService.deserializeDailySummary(
+                                    json = cachedEntry.resultJson,
+                                    taskLookup = { taskIds ->
+                                        taskIds.mapNotNull { tasksById[it] }
+                                    }
+                                )
+                                if (cached != null) {
+                                    dailySummaryResult = cached
+                                    dailySummaryProcessingState = DailySummaryProcessingState.Ready
+                                    return@launch
+                                }
+                                // Cache invalid, fall through to generate fresh
+                            }
+
+                            // A new summary needs the user's own OpenRouter key (Oct 2026); after Connect OpenRouter it goes on
+                            if (!com.boox.day.ui.AiKeyGate.requireKey(resume = { launchDailySummary() })) {
+                                showDailySummaryDialog = false
+                                return@launch
+                            }
+                            // It sends today's events: the once-only notice (ui/CalendarAiNotice)
+                            if (!com.boox.day.ui.CalendarAiNotice.awaitAllowed()) {
+                                showDailySummaryDialog = false
+                                return@launch
+                            }
+
+                            // Generate fresh summary using Intelligence Engine V3
+                            dailySummaryProcessingState = DailySummaryProcessingState.Processing("Analyzing your day...")
+
+                            // Get scored context from Intelligence Engine
+                            val intelligenceEngine = IntelligenceEngine(context)
+                            val scoredContext = intelligenceEngine.getScoredContext(
+                                feature = IntelligenceFeature.DAILY_SUMMARY,
+                                tasks = tasksForDay
+                            )
+
+                            val result = TaskAiService.generateDailySummaryV3(
+                                tasksForDay = tasksForDay,
+                                currentDate = LocalDate.parse(selectedDate),
+                                density = context.resources.displayMetrics.density,
+                                scoredContext = scoredContext,
+                                onStageChange = { stage ->
+                                    dailySummaryProcessingState = DailySummaryProcessingState.Processing(stage)
+                                },
+                                context = context
+                            )
+
+                            // Save to cache and record usage if successful
+                            if (result.error == null) {
+                                withContext(Dispatchers.IO) {
+                                    val json = TaskAiService.serializeDailySummary(result)
+                                    val refreshedTasks = appRepository.taskRepository.getTasksForDay(selectedDate)
+                                    val cacheContentHash = TaskAiService.computeDailySummaryContentHash(refreshedTasks)
+                                    summaryCacheRepository.save(SummaryCache(
+                                        id = cacheId,
+                                        type = SummaryCache.TYPE_DAILY,
+                                        dateKey = selectedDate,
+                                        contentHash = cacheContentHash,
+                                        resultJson = json,
+                                        generatedAt = System.currentTimeMillis(),
+                                        validHours = SummaryCache.DAILY_VALID_HOURS
+                                    ))
+                                }
+                            }
+
+                            dailySummaryResult = result
+                            dailySummaryProcessingState = if (result.error != null) {
+                                DailySummaryProcessingState.Error(result.error!!)
+                            } else {
+                                DailySummaryProcessingState.Ready
+                            }
+                        }
+                    }
+                }
+
                 // SHARED TOOLBAR (single instance for both canvases)
                 // PERFORMANCE: Eliminates dual-toolbar sync overhead and latency
                 // NOTE: Do NOT add pointerInteropFilter here - it interferes with toolbar's
@@ -2649,7 +2748,8 @@ fun MainScreen(
                     // AI callbacks for Tasks
                     onVoiceToTask = {
                         // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
-                        com.boox.day.ui.FullScreenState.exitThen {
+                        // Needs the user's own OpenRouter key; after Connect OpenRouter it goes on (ui/AiKeyGate)
+                        com.boox.day.ui.AiKeyGate.withKey { com.boox.day.ui.FullScreenState.exitThen {
                             scope.launch {
                                 // Free task rows for the results (TaskSlotCalculator: at most 10 task pages a day)
                                 val slots = TaskSlotCalculator.getAvailableSlots(
@@ -2665,7 +2765,7 @@ fun MainScreen(
 
                                 showVoiceToTaskDialog = true
                             }
-                        }
+                        } }
                     },
                     onSortByPriority = {
                         // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
@@ -2673,103 +2773,7 @@ fun MainScreen(
                             showSortScopePopup = true
                         }
                     },
-                    onDailySummary = {
-                        // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
-                        com.boox.day.ui.FullScreenState.exitThen {
-                            dailySummaryProcessingState = DailySummaryProcessingState.Processing("Checking cache...")
-                            dailySummaryResult = null
-                            showDailySummaryDialog = true
-
-                            scope.launch {
-                                val cacheId = SummaryCache.dailyId(selectedDate)
-                                val (tasksForDay, contentHash) = withContext(Dispatchers.IO) {
-                                    val tasks = appRepository.taskRepository.getTasksForDay(selectedDate)
-                                    val hash = TaskAiService.computeDailySummaryContentHash(tasks)
-                                    tasks to hash
-                                }
-                                val tasksById = tasksForDay.associateBy { it.id }
-
-                                // Check cache first (valid for 4 hours)
-                                val cachedEntry = withContext(Dispatchers.IO) {
-                                    summaryCacheRepository.getValidCache(cacheId, contentHash)
-                                }
-
-                                if (cachedEntry != null) {
-                                    // Cache hit - deserialize and show
-                                    dailySummaryProcessingState = DailySummaryProcessingState.Processing("Loading cached summary...")
-                                    val cached = TaskAiService.deserializeDailySummary(
-                                        json = cachedEntry.resultJson,
-                                        taskLookup = { taskIds ->
-                                            taskIds.mapNotNull { tasksById[it] }
-                                        }
-                                    )
-                                    if (cached != null) {
-                                        dailySummaryResult = cached
-                                        dailySummaryProcessingState = DailySummaryProcessingState.Ready
-                                        return@launch
-                                    }
-                                    // Cache invalid, fall through to generate fresh
-                                }
-
-                                // A new summary needs the user's own OpenRouter key (Oct 2026)
-                                if (!com.boox.day.ui.AiKeyGate.requireKey()) {
-                                    showDailySummaryDialog = false
-                                    return@launch
-                                }
-                                // It sends today's events: the once-only notice (ui/CalendarAiNotice)
-                                if (!com.boox.day.ui.CalendarAiNotice.awaitAllowed()) {
-                                    showDailySummaryDialog = false
-                                    return@launch
-                                }
-
-                                // Generate fresh summary using Intelligence Engine V3
-                                dailySummaryProcessingState = DailySummaryProcessingState.Processing("Analyzing your day...")
-
-                                // Get scored context from Intelligence Engine
-                                val intelligenceEngine = IntelligenceEngine(context)
-                                val scoredContext = intelligenceEngine.getScoredContext(
-                                    feature = IntelligenceFeature.DAILY_SUMMARY,
-                                    tasks = tasksForDay
-                                )
-
-                                val result = TaskAiService.generateDailySummaryV3(
-                                    tasksForDay = tasksForDay,
-                                    currentDate = LocalDate.parse(selectedDate),
-                                    density = context.resources.displayMetrics.density,
-                                    scoredContext = scoredContext,
-                                    onStageChange = { stage ->
-                                        dailySummaryProcessingState = DailySummaryProcessingState.Processing(stage)
-                                    },
-                                    context = context
-                                )
-
-                                // Save to cache and record usage if successful
-                                if (result.error == null) {
-                                    withContext(Dispatchers.IO) {
-                                        val json = TaskAiService.serializeDailySummary(result)
-                                        val refreshedTasks = appRepository.taskRepository.getTasksForDay(selectedDate)
-                                        val cacheContentHash = TaskAiService.computeDailySummaryContentHash(refreshedTasks)
-                                        summaryCacheRepository.save(SummaryCache(
-                                            id = cacheId,
-                                            type = SummaryCache.TYPE_DAILY,
-                                            dateKey = selectedDate,
-                                            contentHash = cacheContentHash,
-                                            resultJson = json,
-                                            generatedAt = System.currentTimeMillis(),
-                                            validHours = SummaryCache.DAILY_VALID_HOURS
-                                        ))
-                                    }
-                                }
-
-                                dailySummaryResult = result
-                                dailySummaryProcessingState = if (result.error != null) {
-                                    DailySummaryProcessingState.Error(result.error!!)
-                                } else {
-                                    DailySummaryProcessingState.Ready
-                                }
-                            }
-                        }
-                    },
+                    onDailySummary = { launchDailySummary() },
                     onWeeklySummary = {
                         // Full screen (Oct 2026): this tool runs in the normal view (ui/FullScreenState)
                         com.boox.day.ui.FullScreenState.exitThen {

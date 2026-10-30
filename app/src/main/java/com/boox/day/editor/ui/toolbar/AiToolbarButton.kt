@@ -141,7 +141,9 @@ fun AiToolbarButton(
 
 /**
  * The Memos AI menu's items, shared by the toolbar dropdown and the toolbar menu (≡) when AI is not
- * on the bar (Oct 2026). [onDone] closes whichever menu shows them.
+ * on the bar (Oct 2026). [onDone] closes whichever menu shows them. Each needs the user's OpenRouter
+ * key ([AiKeyGate.withKey][com.boox.day.ui.AiKeyGate.withKey]): without one the key popup opens, and
+ * after Connect OpenRouter the tool goes on. Convert Memo to Tasks checks it in MainScreen.
  */
 @Composable
 fun AiMenuItems(
@@ -161,7 +163,7 @@ fun AiMenuItems(
         icon = R.drawable.speech_to_text_40px,
         onClick = {
             onDone()
-            onVoiceInput()
+            com.boox.day.ui.AiKeyGate.withKey(onVoiceInput)
         }
     )
 
@@ -175,7 +177,7 @@ fun AiMenuItems(
         enabled = hasPageContent,
         onClick = {
             onDone()
-            onRecognizePage()
+            com.boox.day.ui.AiKeyGate.withKey(onRecognizePage)
         }
     )
 
@@ -188,7 +190,7 @@ fun AiMenuItems(
         enabled = (hasPageContent || hasTextAnnotations),
         onClick = {
             onDone()
-            onSummarize()
+            com.boox.day.ui.AiKeyGate.withKey(onSummarize)
         }
     )
 
@@ -201,7 +203,7 @@ fun AiMenuItems(
         enabled = (hasPageContent || hasTextAnnotations),
         onClick = {
             onDone()
-            onTranslate()
+            com.boox.day.ui.AiKeyGate.withKey(onTranslate)
         }
     )
 

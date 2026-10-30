@@ -1489,9 +1489,8 @@ fun SharedToolbar(
                     DrawCanvas.toolbarInteraction.tryEmit(Unit)
                     isVoiceInputDialogOpen = true
                 }
-                val onSummarize: () -> Unit = summarize@{
-                    // AI needs the user's own OpenRouter key (Oct 2026)
-                    if (!com.boox.day.ui.AiKeyGate.requireKey()) return@summarize
+                // The key check is in AiMenuItems (AiKeyGate.withKey), so the tool goes on after Connect OpenRouter
+                val onSummarize: () -> Unit = {
                     toolbarLog.i("Opening summarization dialog from AI menu...")
                     DrawCanvas.toolbarInteraction.tryEmit(Unit)
                     summarizationRequest = SummarizationRequest(
@@ -1508,8 +1507,7 @@ fun SharedToolbar(
                         totalPages = activeState.dayPageInfo?.totalPages ?: 1
                     )
                 }
-                val onTranslate: () -> Unit = translate@{
-                    if (!com.boox.day.ui.AiKeyGate.requireKey()) return@translate
+                val onTranslate: () -> Unit = {
                     toolbarLog.i("Opening translation dialog from AI menu...")
                     DrawCanvas.toolbarInteraction.tryEmit(Unit)
                     translationRequest = TranslationRequest(
