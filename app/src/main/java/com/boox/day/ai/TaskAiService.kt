@@ -1687,9 +1687,14 @@ OUTPUT FORMAT (JSON only):
                 // feature with "Could not parse suggestions", no other model tried)
                 parseSuggestionsResponse(response.data).takeIf { it.error == null }?.let { parsed ->
                     // A suggestion that repeats a task the user has is dropped (29 Oct 2026)
-                    val kept = SuggestionDuplicates.withoutRepeats(parsed.suggestions, existingTaskTexts) { it.text }
-                    if (kept.size < parsed.suggestions.size) {
-                        Log.i(TAG, "Dropped ${parsed.suggestions.size - kept.size} suggestion(s) repeating existing tasks")
+                    val unique = SuggestionDuplicates.withoutRepeats(parsed.suggestions, existingTaskTexts) { it.text }
+                    if (unique.size < parsed.suggestions.size) {
+                        Log.i(TAG, "Dropped ${parsed.suggestions.size - unique.size} suggestion(s) repeating existing tasks")
+                    }
+                    // Health or Social suggestions off (AI options): those ideas are dropped too
+                    val kept = SuggestionOptionsFilter.keep(unique, suggestionContext.preferences.keptOptions()) { it.category }
+                    if (kept.size < unique.size) {
+                        Log.i(TAG, "Dropped ${unique.size - kept.size} suggestion(s) the AI options switch off")
                     }
                     parsed.copy(suggestions = kept.take(targetCount))
                 }
