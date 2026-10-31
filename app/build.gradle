@@ -227,6 +227,9 @@ dependencies {
     implementation group: 'io.reactivex.rxjava2', name: 'rxandroid', version: '2.1.1'
 
     testImplementation 'junit:junit:4.13.2'
+    // CalDAV tests (plan stage 3): a local https server with its own certificate
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+    testImplementation 'com.squareup.okhttp3:okhttp-tls:4.12.0'
     // Room + SQLite (FTS4) tests on the JVM, no device: UnifiedOcrFtsConsistencyTest
     testImplementation 'org.robolectric:robolectric:4.16'
     testImplementation 'androidx.test:core:1.7.0'
