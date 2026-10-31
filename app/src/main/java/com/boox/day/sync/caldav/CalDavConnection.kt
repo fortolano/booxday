@@ -1,16 +1,19 @@
 package com.boox.day.sync.caldav
 
 import at.bitfire.dav4jvm.BasicDigestAuthHandler
+import at.bitfire.dav4jvm.DavCalendar
 import at.bitfire.dav4jvm.DavResource
 import at.bitfire.dav4jvm.Property
 import at.bitfire.dav4jvm.Response
 import at.bitfire.dav4jvm.exception.HttpException
 import at.bitfire.dav4jvm.property.CalendarColor
+import at.bitfire.dav4jvm.property.CalendarData
 import at.bitfire.dav4jvm.property.CalendarHomeSet
 import at.bitfire.dav4jvm.property.CurrentUserPrincipal
 import at.bitfire.dav4jvm.property.CurrentUserPrivilegeSet
 import at.bitfire.dav4jvm.property.DisplayName
 import at.bitfire.dav4jvm.property.GetCTag
+import at.bitfire.dav4jvm.property.GetETag
 import at.bitfire.dav4jvm.property.ResourceType
 import at.bitfire.dav4jvm.property.SupportedCalendarComponentSet
 import at.bitfire.dav4jvm.property.SyncToken
@@ -24,6 +27,7 @@ import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
+import java.util.Date
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLHandshakeException
@@ -116,6 +120,40 @@ internal class CalDavConnection(
     /** The calendars in the account's calendar home now (names, colours and change markers move). */
     suspend fun listCalendars(calendarHomeUrl: String): List<RemoteCalendar> = call { listCalendarsAt(httpsUrl(calendarHomeUrl)) }
 
+    /** One event file as the server holds it. [href] is its URL path. */
+    data class RemoteEventFile(val href: String, val etag: String?, val ics: String)
+
+    /**
+     * The calendar's event files with a moment in [start]..[end], path → change tag (RFC 4791
+     * calendar-query with a time range: the server works out repeats). A file the server gives no tag
+     * maps to null, so it is always downloaded. A calendar removed on the server fails with
+     * [Failure.Server] 404 or 410.
+     */
+    suspend fun eventTags(calendarUrl: String, start: Date, end: Date): Map<String, String?> = call {
+        val found = LinkedHashMap<String, String?>()
+        DavCalendar(client, httpsUrl(calendarUrl)).calendarQuery("VEVENT", start, end) { response, relation ->
+            if (relation != Response.HrefRelation.SELF && response.isSuccess()) {
+                found[response.href.encodedPath] = response[GetETag::class.java]?.eTag
+            }
+        }
+        found
+    }
+
+    /** The files at [hrefs] (paths in the calendar), [MULTIGET_BATCH] per request; files gone meanwhile are left out. */
+    suspend fun downloadEvents(calendarUrl: String, hrefs: List<String>): List<RemoteEventFile> = call {
+        val url = httpsUrl(calendarUrl)
+        val files = mutableListOf<RemoteEventFile>()
+        for (batch in hrefs.chunked(MULTIGET_BATCH)) {
+            DavCalendar(client, url).multiget(batch.mapNotNull { url.resolve(it) }) { response, _ ->
+                val ics = response[CalendarData::class.java]?.iCalendar
+                if (response.isSuccess() && ics != null) {
+                    files += RemoteEventFile(response.href.encodedPath, response[GetETag::class.java]?.eTag, ics)
+                }
+            }
+        }
+        files
+    }
+
     // ── Discovery steps ──
 
     /** RFC 6764: the well-known address first, then the address itself; null when neither names a principal. */
@@ -195,6 +233,9 @@ internal class CalDavConnection(
     }
 
     companion object {
+        /** Files per multiget request: small enough for any server's request limits. */
+        const val MULTIGET_BATCH = 50
+
         /** "AB:CD:…", as browsers show a certificate's SHA-256 fingerprint. */
         fun sha256(cert: X509Certificate): String =
             MessageDigest.getInstance("SHA-256").digest(cert.encoded).joinToString(":") { "%02X".format(it) }
