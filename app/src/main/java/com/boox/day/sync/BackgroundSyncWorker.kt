@@ -18,6 +18,18 @@ import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
 /**
+ * The saved settings, for a worker. A worker often runs with no screen open: then MainActivity
+ * hasn't loaded them and GlobalAppSettings holds the defaults (Private Mode), so they come from Kv.
+ */
+internal fun workerAppSettings(context: Context): AppSettings =
+    if (GlobalAppSettings.loaded) {
+        GlobalAppSettings.current
+    } else {
+        runCatching { KvProxy(context).get(APP_SETTINGS_KEY, AppSettings.serializer()) }.getOrNull()
+            ?: AppSettings(version = 1)
+    }
+
+/**
  * Background sync (task sync Groundwork, Oct 2026): every connected Google and Outlook account,
  * on the "Sync frequency" setting (4 h / 8 h / Daily) while "Background auto-sync" is on.
  * Until now nothing ran it: SyncScheduler.schedulePeriodicSync had no callers, so calendars synced
@@ -35,14 +47,7 @@ class BackgroundSyncWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        // A worker may run with no screen open: then MainActivity hasn't loaded the settings
-        val settings = if (GlobalAppSettings.loaded) {
-            GlobalAppSettings.current
-        } else {
-            runCatching { KvProxy(applicationContext).get(APP_SETTINGS_KEY, AppSettings.serializer()) }.getOrNull()
-                ?: AppSettings(version = 1)
-        }
-        if (settings.syncMode != AppSettings.SyncMode.HYBRID) {
+        if (workerAppSettings(applicationContext).syncMode != AppSettings.SyncMode.HYBRID) {
             Log.d(TAG, "Private Mode: no background sync")
             return Result.success()
         }

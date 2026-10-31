@@ -5,7 +5,6 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.boox.day.data.datastore.AppSettings
-import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.CalendarEventRepository
 import com.boox.day.data.db.LocalEventRepository
@@ -84,8 +83,9 @@ class SyncWorker(
     override suspend fun doWork(): Result {
         Log.d(TAG, "SyncWorker started")
 
-        // Check if we're in hybrid mode
-        if (GlobalAppSettings.current.syncMode != AppSettings.SyncMode.HYBRID) {
+        // Check if we're in hybrid mode. The saved settings: with no screen open, GlobalAppSettings
+        // holds defaults (Private Mode), and the push skipped until BooxDay was opened (Oct 2026).
+        if (workerAppSettings(applicationContext).syncMode != AppSettings.SyncMode.HYBRID) {
             Log.d(TAG, "Not in HYBRID mode, skipping sync")
             return Result.success(workDataOf(KEY_RESULT_MESSAGE to "Skipped: standalone mode"))
         }
