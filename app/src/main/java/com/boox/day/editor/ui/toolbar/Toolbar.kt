@@ -2073,8 +2073,8 @@ fun SharedToolbar(
                 }
 
                 // Full screen switch, just before ≡ (Oct 2026, FullScreenButton.kt); in ≡ when the compact
-                // bar has no room for it
-                if (compactFit.fullScreen) {
+                // bar has no room for it, and on the regular bar's Tasks tab when Task AI needs its place
+                if (compactFit.fullScreen && BarTool.FullScreen !in barOverflow) {
                     ToolbarGap(toolGap)
                     FullScreenToolbarButton()
                 }
@@ -2266,9 +2266,9 @@ private fun MenuIcon(iconId: Int, tint: Color, size: Dp = Dp.Unspecified) {
 
 /**
  * The tools that are not on the bar at this width, listed in the toolbar menu (≡) in bar order (Oct
- * 2026). Compact bar: Memos — insert, AI, meeting notes; Tasks — task AI, Boox Notes; plus whatever
- * [compactToolbarFit] left off (full screen on the Go 6). Regular bar: [regularToolbarOverflow] (Go 10.3 at
- * 385 dpi: Memos — meeting notes, insert; Tasks — task AI). Kept out of [SharedToolbar], which is at ART's JIT method-size limit
+ * 2026). Compact bar: Memos — insert, AI, meeting notes; Tasks — task AI (first in the menu, Oct 2026), Boox
+ * Notes; plus whatever [compactToolbarFit] left off (full screen on the Go 6). Regular bar: [regularToolbarOverflow]
+ * (Go 10.3 at 385 dpi: Memos — meeting notes, insert; Tasks — full screen). Kept out of [SharedToolbar], which is at ART's JIT method-size limit
  * (above it, ART runs the whole toolbar composable interpreted).
  */
 private fun toolbarMenuTools(
@@ -2416,7 +2416,9 @@ private fun toolbarMenuTools(
             ))
         }
         if (isCompactToolbar || BarTool.TaskAi in barOverflow) {
-            add(ToolbarMenuTool(
+            // Compact bar: first in the menu, above pen size and color (owner, 31 Oct 2026: the Tasks AI
+            // features should be easy to find); regular bar: in bar order
+            add(if (isCompactToolbar) 0 else size, ToolbarMenuTool(
                 label = "Task AI",
                 icon = { tint -> MenuIcon(R.drawable.ai_sparkles_text, tint) },
                 // AI is on when the user hasn't turned it off (aiEnabled)
@@ -2451,8 +2453,9 @@ private fun toolbarMenuTools(
             page = { closeMenu -> BooxNotesMenuItems(onDone = closeMenu) }
         ))
     }
-    // Full screen (Oct 2026): here when the compact bar has no room for its button (Go 6)
-    if (isCompactToolbar && !compactFit.fullScreen) {
+    // Full screen (Oct 2026): here when the compact bar has no room for its button (Go 6), and on the
+    // regular bar's Tasks tab when Task AI took its place (Go 10.3)
+    if (if (isCompactToolbar) !compactFit.fullScreen else BarTool.FullScreen in barOverflow) {
         val isOn = FullScreenState.isOn
         add(ToolbarMenuTool(
             label = when {
@@ -2555,19 +2558,20 @@ private fun compactToolbarFit(barWidth: Dp, hasPageNav: Boolean, hasPenSettings:
 }
 
 /** The optional tools of the regular toolbar, which go into the toolbar menu (≡) when the bar is too narrow (Oct 2026). */
-private enum class BarTool { Lasso, Insert, Ai, MeetingNotes, TaskActions, QuickAdd, TaskAi }
+internal enum class BarTool { Lasso, Insert, Ai, MeetingNotes, TaskActions, QuickAdd, TaskAi, FullScreen }
 
 /**
  * The tools that go into the toolbar menu (≡) on the regular bar (Oct 2026): the 7 Oct Action items and
  * Meeting notes buttons pushed page navigation and the page menu off the Go 10.3 (then 720 dp at 413 dpi).
- * Tabs, pen, pen size, eraser, Boox Notes, undo, redo, page navigation, full screen and ≡ always stay; the
- * optional tools leave the bar lowest priority first — Memos: Meeting notes, Insert, AI, lasso; Tasks: Task AI,
- * quick add, task actions. Every control keeps a gap of at least REGULAR_TOOL_GAP. Go 10.3 at 385 dpi
- * (773 dp), since the full screen button (Oct 2026): Memos — Meeting notes and Insert; Tasks — Task AI.
+ * Tabs, pen, pen size, eraser, Boox Notes, undo, redo, page navigation and ≡ always stay, and full screen on
+ * Memos; the optional tools leave the bar lowest priority first — Memos: Meeting notes, Insert, AI, lasso;
+ * Tasks: full screen (owner, 31 Oct 2026: Task AI matters more there, and Tasks is seldom made full screen),
+ * Task AI, quick add, task actions. Every control keeps a gap of at least REGULAR_TOOL_GAP. Go 10.3 at 385 dpi
+ * (773 dp): Memos — Meeting notes and Insert; Tasks — full screen.
  * The widths are those of the composables in [SharedToolbar] (every tool 44 dp, its dropdown buttons
  * included) — keep them in step when sizes change; debug builds log a warning when ≡ gets squeezed.
  */
-private fun regularToolbarOverflow(barWidth: Dp, isMemos: Boolean, hasPageNav: Boolean): Set<BarTool> {
+internal fun regularToolbarOverflow(barWidth: Dp, isMemos: Boolean, hasPageNav: Boolean): Set<BarTool> {
     val t = EInkTheme.Toolbar
     // Each control after the tabs follows a gap of at least REGULAR_TOOL_GAP (ToolbarGap)
     val gap = REGULAR_TOOL_GAP
@@ -2576,14 +2580,14 @@ private fun regularToolbarOverflow(barWidth: Dp, isMemos: Boolean, hasPageNav: B
         gap + t.buttonSizeMedium +                                                   // Boox Notes
         gap + t.buttonSizeLarge + gap + t.buttonSizeLarge +                          // undo, redo
         (if (hasPageNav) gap + t.navChevronWidth * 2 + 32.dp else 0.dp) +           // page navigation (label 32dp)
-        gap + t.buttonSizeMedium +                                                   // full screen
+        (if (isMemos) gap + t.buttonSizeMedium else 0.dp) +                          // full screen (Memos)
         gap + t.buttonSizeLarge                                                      // ≡
     val leaveFirst = if (isMemos) {
         listOf(BarTool.MeetingNotes, BarTool.Insert, BarTool.Ai, BarTool.Lasso)
     } else {
-        listOf(BarTool.TaskAi, BarTool.QuickAdd, BarTool.TaskActions)
+        listOf(BarTool.FullScreen, BarTool.TaskAi, BarTool.QuickAdd, BarTool.TaskActions)
     }
-    val toolWidth = gap + t.buttonSizeMedium
+    val toolWidth = gap + t.buttonSizeMedium  // the full screen button too (FullScreenToolbarButton)
     var width = fixed + toolWidth * leaveFirst.size
     val overflow = mutableSetOf<BarTool>()
     for (tool in leaveFirst) {

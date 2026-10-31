@@ -17,7 +17,8 @@ import com.boox.day.ui.FullScreenState
 import com.boox.day.ui.theme.EInkTheme
 
 /**
- * Full screen switch (Oct 2026), just before ≡ on both toolbars ([FullScreenState]): expand shows
+ * Full screen switch (Oct 2026), just before ≡ on both toolbars ([FullScreenState]; in ≡ where the bar
+ * has no room, and on the regular bar's Tasks tab, where Task AI takes its place): expand shows
  * the toolbar and canvas on the whole screen, collapse brings the calendar back. In the normal view
  * a small down arrow under the icon says the memo page has more ink below the visible area. It is on
  * the toolbar, not on the canvas, so the pen can tap it (on the canvas the pen draws).
