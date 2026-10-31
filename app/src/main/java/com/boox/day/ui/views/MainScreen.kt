@@ -3235,7 +3235,7 @@ fun MainScreen(
                                 }
                             }
                         },
-                        // Navigate to a different date (used by TaskDueDateDialog to jump to due date)
+                        // Navigate to a different date (used by the task card's Show Day to jump to the due date)
                         onDateChange = { newDate ->
                             selectedDate = newDate
                         },
@@ -6043,7 +6043,7 @@ private fun PersistentCanvasHost(
     // Callback to refresh tasks from database after operations that modify multiple tasks
     // Optional pageIndex parameter: if null, refresh current page; if provided, navigate to that page
     onTasksNeedRefresh: ((pageIndex: Int?) -> Unit)? = null,
-    // Callback to navigate to a different date (used by TaskDueDateDialog)
+    // Callback to navigate to a different date (used by the task card's Show Day)
     onDateChange: ((String) -> Unit)? = null,
     // Convert lasso selection to tasks (Memos AI feature)
     onConvertSelectionToTasks: ((List<com.boox.day.data.db.Stroke>) -> Unit)? = null,
@@ -6251,55 +6251,45 @@ private fun PersistentCanvasHost(
         var taskBeingMoved by remember { mutableStateOf<Task?>(null) }
         var taskBeingTyped by remember { mutableStateOf<Task?>(null) }
         var childTaskBeingCopied by remember { mutableStateOf<Task?>(null) }
-        var dueDateTargetTask by remember { mutableStateOf<Task?>(null) }
-        var dueDateTargetTemplate by remember { mutableStateOf<com.boox.day.data.db.RecurringTaskTemplate?>(null) }
-        var dueDateTargetBlockedReason by remember { mutableStateOf<String?>(null) }
         var recurringSeriesDeleteTask by remember { mutableStateOf<Task?>(null) }
         var visibleRecurringTemplates by remember {
             mutableStateOf<Map<String, com.boox.day.data.db.RecurringTaskTemplate>>(emptyMap())
         }
         var taskContentVersion by remember { mutableIntStateOf(0) }
 
-        // Task card (plan T3, Oct 2026): the chevron of a row with content opens one card with the
-        // task's text, priority, due date, repeat, reminder time, subtasks, move/copy and delete
+        // Task card (31 Oct 2026, task dialogs review option B): the chevron of a row with content opens
+        // one card with the task's text, priority, due date, reminder, repeat and subtasks, each setting
+        // on its own screen inside the card; the row's calendar icon opens it at the Due screen
         var taskCard by remember { mutableStateOf<com.boox.day.editor.ui.TaskCardData?>(null) }
         var taskPendingDelete by remember { mutableStateOf<Task?>(null) }
 
-        fun openTaskCard(task: Task) {
-            scope.launch {
-                taskCard = withContext(Dispatchers.IO) {
-                    val fresh = appRepository.taskRepository.getTaskById(task.id) ?: task
-                    val template = fresh.templateId?.let { appRepository.taskRepository.getRecurringTemplateById(it) }
-                    val children = appRepository.taskRepository.getChildTasks(fresh.id)
-                    com.boox.day.editor.ui.TaskCardData(
-                        task = fresh,
-                        repeatLabel = template?.let { com.boox.day.editor.ui.taskRepeatLabel(it) },
-                        subtaskCount = children.size,
-                        subtasksDone = children.count { it.isCompleted }
-                    )
-                }
+        suspend fun loadTaskCard(task: Task, startScreen: com.boox.day.editor.ui.TaskCardScreen) =
+            withContext(Dispatchers.IO) {
+                val repo = appRepository.taskRepository
+                val fresh = repo.getTaskById(task.id) ?: task
+                fun words(t: Task) = t.typedText?.takeIf { it.isNotBlank() }
+                    ?: t.convertedText?.takeIf { it.isNotBlank() }
+                    ?: t.recognizedText?.takeIf { it.isNotBlank() }
+                com.boox.day.editor.ui.TaskCardData(
+                    task = fresh,
+                    template = fresh.templateId?.let { repo.getRecurringTemplateById(it) },
+                    repeatBlockedReason = repo.getRecurringSeriesBlockedReason(fresh),
+                    subtasks = repo.getChildTasks(fresh.id).sortedWith(compareBy({ it.taskPageIndex }, { it.rowIndex }))
+                        .map { com.boox.day.editor.ui.TaskCardSubtask(words(it) ?: "Handwritten subtask", it.isCompleted) },
+                    parentWords = fresh.parentTaskId?.let { repo.getTaskById(it) }?.let { words(it) },
+                    startScreen = startScreen
+                )
             }
+
+        fun openTaskCard(task: Task, startScreen: com.boox.day.editor.ui.TaskCardScreen = com.boox.day.editor.ui.TaskCardScreen.Main) {
+            scope.launch { taskCard = loadTaskCard(task, startScreen) }
         }
 
-        fun dismissTaskScheduleDialog() {
-            dueDateTargetTask = null
-            dueDateTargetTemplate = null
-            dueDateTargetBlockedReason = null
-        }
-
-        fun openTaskScheduleDialog(task: Task) {
+        /** Reloads the open card after a change saved elsewhere (repeat series); never reopens a closed one. */
+        fun refreshTaskCard(task: Task) {
             scope.launch {
-                val dialogData = withContext(Dispatchers.IO) {
-                    val freshTask = appRepository.taskRepository.getTaskById(task.id) ?: task
-                    Triple(
-                        freshTask,
-                        freshTask.templateId?.let { appRepository.taskRepository.getRecurringTemplateById(it) },
-                        appRepository.taskRepository.getRecurringSeriesBlockedReason(freshTask)
-                    )
-                }
-                dueDateTargetTask = dialogData.first
-                dueDateTargetTemplate = dialogData.second
-                dueDateTargetBlockedReason = dialogData.third
+                val data = loadTaskCard(task, com.boox.day.editor.ui.TaskCardScreen.Main)
+                if (taskCard?.task?.id == task.id) taskCard = data
             }
         }
 
@@ -6614,7 +6604,6 @@ private fun PersistentCanvasHost(
                     taskPendingDelete != null ||
                     taskBeingTyped != null ||
                     childTaskBeingCopied != null ||
-                    dueDateTargetTask != null ||
                     recurringSeriesDeleteTask != null ||
                     showDeletePageDialog ||
                     (currentTab == EditorTab.Memos && memosIsLoading) ||
@@ -6871,7 +6860,8 @@ private fun PersistentCanvasHost(
                             },
                             onDueDateTap = { task ->
                                 if (taskHasInteractiveContent(task)) {
-                                    openTaskScheduleDialog(task)
+                                    // The task card at its Due screen (Back shows the rest of the card)
+                                    openTaskCard(task, com.boox.day.editor.ui.TaskCardScreen.Due)
                                 }
                             },
                             onChevronTap = { task ->
@@ -6999,81 +6989,6 @@ private fun PersistentCanvasHost(
                 )
             }
 
-            // Show TaskDueDateDialog when setting/changing due date
-            dueDateTargetTask?.let { taskForDueDate ->
-                val activeRecurringTemplate = dueDateTargetTemplate
-                com.boox.day.editor.ui.TaskDueDateDialog(
-                    task = taskForDueDate,
-                    recurringTemplate = activeRecurringTemplate,
-                    recurringBlockedReason = dueDateTargetBlockedReason,
-                    onDueDateSelected = { newDueDate ->
-                        onDueDateChanged(taskForDueDate, newDueDate)
-                    },
-                    onRecurringSave = { recurringDraft ->
-                        scope.launch(Dispatchers.IO) {
-                            val result = appRepository.taskRepository.saveRecurringTemplateForTask(
-                                taskForDueDate.id,
-                                recurringDraft
-                            )
-                            withContext(Dispatchers.Main) {
-                                if (result.isSuccess) {
-                                    onTasksNeedRefresh?.invoke(null)
-                                    snackManager.displaySnack(
-                                        SnackConf(
-                                            text = if (taskForDueDate.templateId != null) "Series updated" else "Series saved",
-                                            duration = SnackConf.DURATION_STANDARD
-                                        )
-                                    )
-                                } else {
-                                    snackManager.displaySnack(
-                                        SnackConf(
-                                            text = result.blockedReason ?: "Could not save repeating task",
-                                            duration = SnackConf.DURATION_ERROR
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    onRecurringToggleActive = activeRecurringTemplate?.let { template ->
-                        {
-                            dismissTaskScheduleDialog()
-                            scope.launch(Dispatchers.IO) {
-                                appRepository.taskRepository.setRecurringTemplateActive(
-                                    template.id,
-                                    !template.isActive
-                                )
-                                withContext(Dispatchers.Main) {
-                                    onTasksNeedRefresh?.invoke(null)
-                                    snackManager.displaySnack(
-                                        SnackConf(
-                                            text = if (template.isActive) "Series paused" else "Series resumed",
-                                            duration = SnackConf.DURATION_STANDARD
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    onRecurringDelete = activeRecurringTemplate?.let {
-                        {
-                            dismissTaskScheduleDialog()
-                            recurringSeriesDeleteTask = taskForDueDate
-                        }
-                    },
-                    onDismiss = { dismissTaskScheduleDialog() },
-                    onNavigateToDueDate = onDateChange?.let { dateChange ->
-                        { dueDateString: String ->
-                            // Navigate to the due date and switch to Tasks tab
-                            dateChange(dueDateString)
-                            // STALENESS FIX: Pass new date, pageId is null (will be loaded by MainScreen LaunchedEffect)
-                            tabManager.switchToTasks(dueDateString, null)
-                            dismissTaskScheduleDialog()
-                        }
-                    }
-                )
-            }
-
             recurringSeriesDeleteTask?.let { recurringTask ->
                 com.boox.day.editor.ui.ConfirmationDialog(
                     title = "Delete Series",
@@ -7102,7 +7017,7 @@ private fun PersistentCanvasHost(
                 )
             }
 
-            // Show MoveTaskDialog or ChildTaskDialog when a task is selected
+            // The task card (31 Oct 2026, option B of the task dialogs review)
             taskCard?.let { card ->
                 val cardTask = card.task
                 val cardTitle = cardTask.typedText?.takeIf { it.isNotBlank() }
@@ -7111,88 +7026,147 @@ private fun PersistentCanvasHost(
                 val reminderDefault = GlobalAppSettings.current.let {
                     it.defaultTaskReminderHour * 60 + it.defaultTaskReminderMinute
                 }
+                val cardTemplate = card.template
                 com.boox.day.editor.ui.TaskCardPopup(
-                    task = cardTask,
+                    data = card,
                     titleText = cardTitle,
                     recognizedText = cardRecognized,
-                    repeatLabel = card.repeatLabel,
-                    subtaskCount = card.subtaskCount,
-                    subtasksDone = card.subtasksDone,
                     defaultReminderMinuteOfDay = reminderDefault,
-                    onEditText = {
-                        taskCard = null
-                        taskBeingTyped = cardTask
-                    },
-                    onConvertToText = if (cardTitle == null && cardRecognized != null) {
-                        {
-                            // Same as saving the type dialog with the recognized text
-                            val text = cardRecognized.take(EInkTheme.TasksTab.typedTextMaxLength)
+                    actions = com.boox.day.editor.ui.TaskCardActions(
+                        onEditText = {
                             taskCard = null
-                            onTaskTypedTextChanged(cardTask, text)
-                            scope.launch(Dispatchers.IO) {
-                                appRepository.taskRepository.setTypedText(cardTask.id, text)
-                                appRepository.taskRepository.clearStrokesForRow(cardTask, tasksNormalHeight)
-                                TasksCanvasRefresh.request()
+                            taskBeingTyped = cardTask
+                        },
+                        onConvertToText = if (cardTitle == null && cardRecognized != null) {
+                            {
+                                // Same as saving the type dialog with the recognized text
+                                val text = cardRecognized.take(EInkTheme.TasksTab.typedTextMaxLength)
+                                taskCard = null
+                                onTaskTypedTextChanged(cardTask, text)
+                                scope.launch(Dispatchers.IO) {
+                                    appRepository.taskRepository.setTypedText(cardTask.id, text)
+                                    appRepository.taskRepository.clearStrokesForRow(cardTask, tasksNormalHeight)
+                                    TasksCanvasRefresh.request()
+                                }
                             }
-                        }
-                    } else null,
-                    onPriorityChange = { priority ->
-                        onChangeTaskPriority(cardTask, priority)
-                        taskCard = card.copy(task = cardTask.copy(priority = priority))
-                    },
-                    onEditDueAndRepeat = {
-                        taskCard = null
-                        openTaskScheduleDialog(cardTask)
-                    },
-                    onClearDue = {
-                        onDueDateChanged(cardTask, null)
-                        taskCard = card.copy(task = cardTask.copy(dueDay = null))
-                    },
-                    onReminderChange = { minuteOfDay ->
-                        taskCard = card.copy(task = cardTask.copy(reminderMinuteOfDay = minuteOfDay))
-                        scope.launch(Dispatchers.IO) {
-                            appRepository.taskRepository.setReminderMinuteOfDay(cardTask.id, minuteOfDay)
-                        }
-                    },
-                    onBreakDown = if (onBreakDownTask != null && cardTask.parentTaskId == null &&
-                        (cardTitle != null || cardRecognized != null)
-                    ) {
-                        {
+                        } else null,
+                        onPriorityChange = { priority ->
+                            onChangeTaskPriority(cardTask, priority)
+                            taskCard = card.copy(task = cardTask.copy(priority = priority))
+                        },
+                        onSaveDue = { day ->
+                            onDueDateChanged(cardTask, com.boox.day.data.db.TaskDueDates.startOfDayMillis(day.toString()))
+                            taskCard = card.copy(task = cardTask.copy(dueDay = day.toString()))
+                        },
+                        onClearDue = {
+                            onDueDateChanged(cardTask, null)
+                            taskCard = card.copy(task = cardTask.copy(dueDay = null))
+                        },
+                        onShowDay = onDateChange?.let { dateChange ->
+                            { day: java.time.LocalDate ->
+                                // Go to that day and the Tasks tab (pageId null: MainScreen's LaunchedEffect loads it)
+                                taskCard = null
+                                dateChange(day.toString())
+                                tabManager.switchToTasks(day.toString(), null)
+                            }
+                        },
+                        onReminderChange = { minuteOfDay ->
+                            taskCard = card.copy(task = cardTask.copy(reminderMinuteOfDay = minuteOfDay))
+                            scope.launch(Dispatchers.IO) {
+                                appRepository.taskRepository.setReminderMinuteOfDay(cardTask.id, minuteOfDay)
+                            }
+                        },
+                        onSaveRepeat = { recurringDraft ->
+                            scope.launch(Dispatchers.IO) {
+                                val result = appRepository.taskRepository.saveRecurringTemplateForTask(
+                                    cardTask.id,
+                                    recurringDraft
+                                )
+                                withContext(Dispatchers.Main) {
+                                    if (result.isSuccess) {
+                                        onTasksNeedRefresh?.invoke(null)
+                                        refreshTaskCard(cardTask)
+                                        snackManager.displaySnack(
+                                            SnackConf(
+                                                text = if (cardTemplate != null) "Series updated" else "Series saved",
+                                                duration = SnackConf.DURATION_STANDARD
+                                            )
+                                        )
+                                    } else {
+                                        snackManager.displaySnack(
+                                            SnackConf(
+                                                text = result.blockedReason ?: "Could not save repeating task",
+                                                duration = SnackConf.DURATION_ERROR
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        onPauseRepeat = cardTemplate?.let { template ->
+                            {
+                                scope.launch(Dispatchers.IO) {
+                                    appRepository.taskRepository.setRecurringTemplateActive(template.id, !template.isActive)
+                                    withContext(Dispatchers.Main) {
+                                        onTasksNeedRefresh?.invoke(null)
+                                        refreshTaskCard(cardTask)
+                                        snackManager.displaySnack(
+                                            SnackConf(
+                                                text = if (template.isActive) "Series paused" else "Series resumed",
+                                                duration = SnackConf.DURATION_STANDARD
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        // Off on a repeating task: the series' own question (tasks already made stay)
+                        onStopRepeat = cardTemplate?.let {
+                            {
+                                taskCard = null
+                                recurringSeriesDeleteTask = cardTask
+                            }
+                        },
+                        onBreakDown = if (onBreakDownTask != null && cardTask.parentTaskId == null &&
+                            (cardTitle != null || cardRecognized != null)
+                        ) {
+                            {
+                                taskCard = null
+                                // Full screen (Oct 2026): runs in the normal view, on the task as it is there
+                                com.boox.day.ui.FullScreenState.exitThen {
+                                    scope.launch {
+                                        val fresh = withContext(Dispatchers.IO) {
+                                            appRepository.taskRepository.getTaskById(cardTask.id)
+                                        } ?: return@launch
+                                        onBreakDownTask(fresh)
+                                    }
+                                }
+                            }
+                        } else null,
+                        onDelete = {
                             taskCard = null
-                            // Full screen (Oct 2026): runs in the normal view, on the task as it is there
+                            taskPendingDelete = cardTask
+                        },
+                        onMove = {
+                            taskCard = null
+                            // Full screen (Oct 2026): moving and copying run in the normal view, on the task
+                            // as it is there (its row may differ from the full screen one)
                             com.boox.day.ui.FullScreenState.exitThen {
                                 scope.launch {
                                     val fresh = withContext(Dispatchers.IO) {
                                         appRepository.taskRepository.getTaskById(cardTask.id)
                                     } ?: return@launch
-                                    onBreakDownTask(fresh)
+                                    if (fresh.parentTaskId != null) {
+                                        childTaskBeingCopied = fresh  // subtasks move with their parent
+                                    } else {
+                                        taskBeingMoved = fresh
+                                    }
                                 }
                             }
-                        }
-                    } else null,
-                    onDelete = {
-                        taskCard = null
-                        taskPendingDelete = cardTask
-                    },
-                    onMove = {
-                        taskCard = null
-                        // Full screen (Oct 2026): moving and copying run in the normal view, on the task
-                        // as it is there (its row may differ from the full screen one)
-                        com.boox.day.ui.FullScreenState.exitThen {
-                            scope.launch {
-                                val fresh = withContext(Dispatchers.IO) {
-                                    appRepository.taskRepository.getTaskById(cardTask.id)
-                                } ?: return@launch
-                                if (fresh.parentTaskId != null) {
-                                    childTaskBeingCopied = fresh  // subtasks move with their parent
-                                } else {
-                                    taskBeingMoved = fresh
-                                }
-                            }
-                        }
-                    },
-                    onDismiss = { taskCard = null },
-                    moveLabel = if (cardTask.parentTaskId != null) "Copy" else "Move"
+                        },
+                        onDismiss = { taskCard = null },
+                        moveLabel = if (cardTask.parentTaskId != null) "Copy" else "Move"
+                    )
                 )
             }
 
