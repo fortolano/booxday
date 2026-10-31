@@ -250,9 +250,33 @@ class TaskSyncMergerTest {
     }
 
     @Test
+    fun aTickedTaskDeletedOnThePhoneStaysOnItsDay() = runBlocking {
+        // "Delete all completed tasks" on the phone (owner decision 26)
+        val id = synced(row = 0, text = "Call mom", remoteId = "r-1") { repo.setCompleted(it, true) }
+
+        merger.merge(remote("r-1", "Call mom", completed = true, deleted = true))
+
+        assertEquals("Call mom", tasks.getById(id)!!.typedText)
+        assertTrue(sync.getLink(id)!!.keptOnTablet)
+        assertNothingWaits()
+    }
+
+    @Test
+    fun aTaskTickedOnThePhoneThenDeletedThereStaysTickedHere() = runBlocking {
+        val id = synced(row = 0, text = "Call mom", remoteId = "r-1")
+
+        merger.merge(remote("r-1", "Call mom", completed = true, deleted = true))
+
+        assertTrue(tasks.getById(id)!!.isCompleted)
+        assertTrue(sync.getLink(id)!!.keptOnTablet)
+        assertNothingWaits()
+    }
+
+    @Test
     fun aListDeletedInGoogleClearsItsTasks() = runBlocking {
         val a = synced(row = 0, text = "One", remoteId = "r-a")
         val b = synced(row = 1, text = "Two", remoteId = "r-b")
+        val done = synced(row = 2, text = "Three", remoteId = "r-c") { repo.setCompleted(it, true) }
         db.openHelper.writableDatabase.execSQL(
             "INSERT INTO task_sync_list (provider, accountEmail, serverUrl, listId, title, isDefaultForNew) " +
                 "VALUES ('${TaskSyncProvider.GOOGLE_TASKS}', '$EMAIL', '', '$LIST', 'Shopping', 1)"
@@ -268,6 +292,7 @@ class TaskSyncMergerTest {
 
         assertNull(tasks.getById(a)!!.typedText)
         assertNull(tasks.getById(b)!!.typedText)
+        assertEquals("a ticked one stays as a record (decision 26)", "Three", tasks.getById(done)!!.typedText)
         assertTrue(sync.getLists().isEmpty())
         assertTrue("its waiting deletes went with it", sync.getOutbox().isEmpty())
     }

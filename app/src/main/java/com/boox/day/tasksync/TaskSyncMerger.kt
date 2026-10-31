@@ -21,8 +21,9 @@ import java.time.LocalDate
  * - **Subtasks:** each side keeps its own grouping (decision 24); the service's parent is only
  *   recorded (remoteParentId), for deleting a parent safely.
  * - **Deleted in the service:** the row is cleared, unless the task changed on the tablet since the
- *   last sync: then it stays on the tablet only (keptOnTablet) and is never sent again. A whole list
- *   deleted: each of its tasks the same way (decision 23).
+ *   last sync, or is ticked (a past day's record, decision 26): then it stays on the tablet only
+ *   (keptOnTablet) and is never sent again. A whole list deleted: each of its tasks the same way
+ *   (decision 23).
  * - **New in the service:** linked to an unlinked tablet task with the same words and due day if
  *   there is one (a reply lost on the way, a restore), else added to the tablet (step 2.4).
  *
@@ -51,15 +52,18 @@ internal class TaskSyncMerger(
         val link = sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, remote.remoteId)
             ?: return incoming(remote)
         if (link.keptOnTablet) return Result.UNCHANGED
-        if (remote.deleted) return gone(link)
+        if (remote.deleted) return gone(link, completedThere = remote.completed)
         // Unchanged since the last sync: the pull's margin brings our own writes back too
         if (remote.version != null && remote.version == link.remoteVersion) return Result.UNCHANGED
         val task = tasks.getById(link.taskId) ?: return Result.UNCHANGED
         return notNowIsWaits { tablet.inTransaction { update(task, link, remote) } }
     }
 
-    /** The copy is gone from the service: deleted there, or missing from the daily check. */
-    fun gone(link: TaskSyncLink): Result {
+    /**
+     * The copy is gone from the service: deleted there, or missing from the daily check.
+     * [completedThere]: it was ticked in the service when it was deleted.
+     */
+    fun gone(link: TaskSyncLink, completedThere: Boolean = false): Result {
         if (link.keptOnTablet) return Result.UNCHANGED
         val task = tasks.getById(link.taskId)
         if (task == null) {
@@ -69,12 +73,16 @@ internal class TaskSyncMerger(
         // A row that only lost its words to recognition hasn't changed (owner decision 21)
         val changedHere = link.orphanedAt == null &&
             (TaskSyncRules.contentHash(task, hashParentOf(task)) != link.contentHash || sync.queuedUpsertAt(task.id) != null)
+        // A ticked task stays on its day as a record ("Delete all completed tasks" on the phone,
+        // owner decision 26), also one ticked there just before it was deleted
+        val ticked = task.isCompleted || completedThere
         return notNowIsWaits {
             tablet.inTransaction {
                 tasks.dropQueuedSyncUpsert(task.id)
-                if (changedHere) {
+                if (changedHere || ticked) {
+                    if (!changedHere && !task.isCompleted) tablet.setCompleted(task.id, true)
                     sync.markKeptOnTablet(task.id)
-                    Log.i(TAG, "Deleted in the service but changed here: kept on the tablet only")
+                    Log.i(TAG, "Deleted in the service, kept on the tablet only (${if (changedHere) "changed here" else "ticked"})")
                 } else {
                     tasks.dropSyncLink(task.id)  // first: clearing a linked row would delete the copy again
                     if (!tablet.clear(task)) throw NotNow()
