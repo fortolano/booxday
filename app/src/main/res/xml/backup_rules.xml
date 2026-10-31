@@ -7,10 +7,13 @@
    - API keys stay on the device.
    - Page previews are rebuilt from the strokes; leaving them out keeps the backup under
      Android's 25 MB limit (over it, nothing is backed up).
+   - Account passwords (account_secrets, Oct 2026) stay on the device like the encrypted
+     preferences: their Keystore key is never backed up.
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="boox_day_google_auth.xml" />
     <exclude domain="sharedpref" path="api_key_prefs.xml" />
     <exclude domain="sharedpref" path="user_api_key_encrypted.xml" />
+    <exclude domain="sharedpref" path="account_secrets.xml" />
     <exclude domain="file" path="pages/previews/" />
 </full-backup-content>
