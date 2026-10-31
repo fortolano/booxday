@@ -108,6 +108,10 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             buildConfigField("boolean", "IS_NEXT", IS_NEXT)
+            // Task sync (Oct 2026): on in debug builds; off in release builds until Google approves the
+            // Tasks permission. It gates the whole engine, not just the settings card: a release build
+            // installed over a debug build must not keep syncing.
+            buildConfigField("boolean", "TASK_SYNC_ENABLED", "true")
             // No OpenRouter key in the APK (Oct 2026): AI runs only on the user's own key, entered in AI Settings
             // No Cloud Vision key in the APK (Oct 2026): search indexing reads pages with AI on the user's own OpenRouter key
             // Apply signing config if available (env var or keystore.properties)
@@ -120,6 +124,7 @@ android {
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             buildConfigField("boolean", "IS_NEXT", IS_NEXT)
+            buildConfigField("boolean", "TASK_SYNC_ENABLED", "false")  // see debug
             // No OpenRouter key in the APK (Oct 2026): AI runs only on the user's own key, entered in AI Settings
             // No Cloud Vision key in the APK (Oct 2026): search indexing reads pages with AI on the user's own OpenRouter key
             // Apply signing config if available (env var or keystore.properties)

@@ -88,6 +88,8 @@ class BooxDayApp : Application() {
         runSafeStartupStep("Drive auto-backup schedule") { com.boox.day.sync.DriveAutoBackupWorker.schedule(this) }
         // Calendars in the background on "Sync frequency" while an account is connected (Oct 2026)
         runSafeStartupStep("Background sync schedule") { scheduleBackgroundSync() }
+        // Task sync's change watcher, only when the user turned task sync on (tasksync/TaskSync)
+        runSafeStartupStep("Task sync") { com.boox.day.tasksync.TaskSync.startIfOn(this, applicationScope) }
         // Today's agenda on the BOOX sleep screen, when turned on (sleepscreen/SleepAgenda)
         runSafeStartupStep("Sleep screen agenda") { com.boox.day.sleepscreen.SleepAgenda.onAppStart(this, applicationScope) }
         // Markdown daily notes, when turned on (export/DailyNotes)

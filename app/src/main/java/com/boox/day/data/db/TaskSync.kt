@@ -115,6 +115,31 @@ interface TaskSyncDao {
     @Query("SELECT * FROM task_sync_link WHERE taskId IN (:taskIds)")
     fun getLinksFor(taskIds: Collection<String>): List<TaskSyncLink>
 
+    /**
+     * What the change watcher looks at: every linked row, and the unlinked rows dated [today] or
+     * later that have words (owner decision 9: older tasks stay on the tablet).
+     */
+    @Query(
+        "SELECT * FROM task WHERE id IN (SELECT taskId FROM task_sync_link) OR (dayDate >= :today AND (" +
+            "(typedText IS NOT NULL AND trim(typedText) != '') OR (convertedText IS NOT NULL AND trim(convertedText) != '') " +
+            "OR (recognizedText IS NOT NULL AND trim(recognizedText) != '')))"
+    )
+    fun getRowsToScan(today: String): List<Task>
+
+    /** One open UPSERT per task: a second change before it is sent sends the latest state anyway. */
+    @Query(
+        "INSERT INTO task_sync_outbox (op, taskId, createdAt, attempts, nextAttemptAt) SELECT 'UPSERT', :taskId, :now, 0, 0 " +
+            "WHERE NOT EXISTS (SELECT 1 FROM task_sync_outbox WHERE op = 'UPSERT' AND taskId = :taskId)"
+    )
+    fun queueUpsert(taskId: String, now: Long)
+
+    /** The row lost its words without being cleared; kept, with no change sent (owner decision 21). */
+    @Query("UPDATE task_sync_link SET orphanedAt = :now WHERE taskId = :taskId AND orphanedAt IS NULL")
+    fun markOrphaned(taskId: String, now: Long)
+
+    @Query("UPDATE task_sync_link SET orphanedAt = NULL WHERE taskId = :taskId")
+    fun clearOrphaned(taskId: String)
+
     @Insert
     fun insertOutboxEntry(entry: TaskSyncOutboxEntry): Long
 

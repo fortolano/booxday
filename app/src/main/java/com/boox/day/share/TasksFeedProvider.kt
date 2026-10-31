@@ -139,13 +139,17 @@ class TasksFeedProvider : ContentProvider() {
  * Tasks rows holding intentional handwriting (hasIntentionalInk, the rule the app uses for a row's
  * content), on the row geometry the stored Tasks ink belongs to (TasksInkLayout). Reads each page's
  * stroke bounds once, never the points. No geometry yet (Tasks never shown): no row counts as handwritten.
+ * Also used by task sync (tasksync/TaskSyncScanner), which checks [known] first.
  */
-private class HandwrittenRows(context: Context, private val db: SupportSQLiteDatabase) {
+internal class HandwrittenRows(context: Context, private val db: SupportSQLiteDatabase) {
     private val settings = GlobalAppSettings.current.takeIf { it.tasksInkCanvasHeight > 0f }
         ?: runCatching { KvProxy(context).get(APP_SETTINGS_KEY, AppSettings.serializer()) }.getOrNull()
     private val canvasHeight = settings?.tasksInkCanvasHeight ?: 0f
     private val topOffset = settings?.tasksInkTopOffset ?: 0f
     private val inkByPage = HashMap<String, List<FloatArray>>()
+
+    /** False until Tasks has been shown once: then [inRow] can't tell and says false. */
+    val known: Boolean get() = canvasHeight > topOffset
 
     fun inRow(pageId: String, day: String, rowIndex: Int): Boolean {
         if (canvasHeight <= topOffset) return false
