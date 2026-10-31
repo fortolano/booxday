@@ -54,13 +54,21 @@ data class TaskSyncLink(
     val syncedTitle: String? = null,
     val syncedCompleted: Boolean = false,
     val syncedDueDay: String? = null,
+    /** The tablet's grouping as last sent: a parent move is sent only when it changes (owner decision 24). */
     val syncedParentRemoteId: String? = null,
     val contentHash: String? = null,
     /** The service's copy has no date (owner decision 1): it stays undated until the user sets one. */
     val remoteUndated: Boolean = false,
     /** When the row lost its words without being cleared (recognition hiccup, Undo of a move). */
     val orphanedAt: Long? = null,
-    val syncedAt: Long
+    val syncedAt: Long,
+    /**
+     * The parent the service's copy has now (v31). Can differ from [syncedParentRemoteId]: a subtask
+     * made on the phone stays a normal row on the tablet. Used before deleting a parent.
+     */
+    val remoteParentId: String? = null,
+    /** Deleted in the service while changed on the tablet: stays on the tablet only, never sent again (v31). */
+    @ColumnInfo(defaultValue = "0") val keptOnTablet: Boolean = false
 )
 
 /** Changes waiting to be sent. Device-only (not backed up). */
@@ -148,8 +156,8 @@ interface TaskSyncDao {
     @Query("DELETE FROM task_sync_outbox WHERE id = :id")
     fun deleteOutboxEntry(id: Long)
 
-    @Query("SELECT EXISTS(SELECT 1 FROM task_sync_outbox WHERE id = :id)")
-    fun hasOutboxEntry(id: Long): Boolean
+    @Query("SELECT * FROM task_sync_outbox WHERE id = :id")
+    fun getOutboxEntry(id: Long): TaskSyncOutboxEntry?
 
     @Query("UPDATE task_sync_outbox SET attempts = :attempts, nextAttemptAt = :nextAttemptAt, lastError = :error WHERE id = :id")
     fun markOutboxFailed(id: Long, attempts: Int, nextAttemptAt: Long, error: String?)
@@ -166,7 +174,7 @@ interface TaskSyncDao {
     /** An orphaned link whose task was last sent with these words (match before create). */
     @Query(
         "SELECT * FROM task_sync_link WHERE provider = :provider AND accountEmail = :accountEmail AND serverUrl = :serverUrl " +
-            "AND orphanedAt IS NOT NULL AND syncedTitle = :title ORDER BY orphanedAt DESC LIMIT 1"
+            "AND orphanedAt IS NOT NULL AND keptOnTablet = 0 AND syncedTitle = :title ORDER BY orphanedAt DESC LIMIT 1"
     )
     fun findOrphan(provider: String, accountEmail: String, serverUrl: String, title: String): TaskSyncLink?
 
@@ -176,23 +184,100 @@ interface TaskSyncDao {
     )
     fun getDefaultList(provider: String, accountEmail: String, serverUrl: String): TaskSyncList?
 
-    /** The tasks whose copies were last sent as subtasks of [parentRemoteId]. */
+    /** The tasks whose copies are subtasks of [parentRemoteId] in the service (made there or on the tablet). */
     @Query(
         "SELECT * FROM task_sync_link WHERE provider = :provider AND accountEmail = :accountEmail AND serverUrl = :serverUrl " +
-            "AND listId = :listId AND syncedParentRemoteId = :parentRemoteId ORDER BY taskId"
+            "AND listId = :listId AND remoteParentId = :parentRemoteId AND keptOnTablet = 0 ORDER BY taskId"
     )
     fun getChildLinks(provider: String, accountEmail: String, serverUrl: String, listId: String, parentRemoteId: String): List<TaskSyncLink>
 
     /** After a send: what the service now holds. Updated in place (no REPLACE: the remote id is a unique index). */
     @Query(
         "UPDATE task_sync_link SET listId = :listId, remoteId = :remoteId, remoteVersion = :remoteVersion, syncedTitle = :title, " +
-            "syncedCompleted = :completed, syncedDueDay = :dueDay, syncedParentRemoteId = :parentRemoteId, contentHash = :contentHash, " +
+            "syncedCompleted = :completed, syncedDueDay = :dueDay, syncedParentRemoteId = :parentRemoteId, " +
+            "remoteParentId = :remoteParentId, contentHash = :contentHash, " +
             "remoteUndated = :remoteUndated, orphanedAt = NULL, syncedAt = :now WHERE taskId = :taskId"
     )
     fun updateSyncedLink(
         taskId: String, listId: String, remoteId: String, remoteVersion: String?, title: String, completed: Boolean,
-        dueDay: String?, parentRemoteId: String?, contentHash: String, remoteUndated: Boolean, now: Long
+        dueDay: String?, parentRemoteId: String?, remoteParentId: String?, contentHash: String, remoteUndated: Boolean, now: Long
     )
+
+    // ── Merging what the service changed (tasksync/TaskSyncMerger) ─────────────────────────
+
+    @Query(
+        "SELECT * FROM task_sync_link WHERE provider = :provider AND accountEmail = :accountEmail AND serverUrl = :serverUrl " +
+            "AND listId = :listId AND remoteId = :remoteId"
+    )
+    fun getLinkByRemote(provider: String, accountEmail: String, serverUrl: String, listId: String, remoteId: String): TaskSyncLink?
+
+    @Query(
+        "SELECT * FROM task_sync_link WHERE provider = :provider AND accountEmail = :accountEmail AND serverUrl = :serverUrl " +
+            "AND listId = :listId ORDER BY taskId"
+    )
+    fun getLinksInList(provider: String, accountEmail: String, serverUrl: String, listId: String): List<TaskSyncLink>
+
+    /**
+     * After a merge: the service's copy as it is now. [syncedParentRemoteId] stays: it is the tablet's
+     * grouping, which a change in the service doesn't touch (owner decision 24).
+     */
+    @Query(
+        "UPDATE task_sync_link SET remoteVersion = :remoteVersion, syncedTitle = :title, syncedCompleted = :completed, " +
+            "syncedDueDay = :dueDay, remoteUndated = :remoteUndated, remoteParentId = :remoteParentId, " +
+            "contentHash = :contentHash, syncedAt = :now WHERE taskId = :taskId"
+    )
+    fun updateMergedLink(
+        taskId: String, remoteVersion: String?, title: String, completed: Boolean, dueDay: String?,
+        remoteUndated: Boolean, remoteParentId: String?, contentHash: String, now: Long
+    )
+
+    @Query("UPDATE task_sync_link SET keptOnTablet = 1 WHERE taskId = :taskId")
+    fun markKeptOnTablet(taskId: String)
+
+    @Query("SELECT COUNT(*) FROM task_sync_link WHERE keptOnTablet = 1")
+    fun countKeptOnTablet(): Int
+
+    /** When the task's waiting change was first noticed, if one waits. */
+    @Query("SELECT MIN(createdAt) FROM task_sync_outbox WHERE op = 'UPSERT' AND taskId = :taskId")
+    fun queuedUpsertAt(taskId: String): Long?
+
+    /** Unlinked rows that hold a task due on [day] (its own due day, or the day it sits on). */
+    @Query(
+        "SELECT * FROM task WHERE id NOT IN (SELECT taskId FROM task_sync_link) " +
+            "AND (dueDay = :day OR (dueDay IS NULL AND dayDate = :day)) ORDER BY taskPageIndex, rowIndex"
+    )
+    fun getUnlinkedTasksDue(day: String): List<Task>
+
+    @Query(
+        "SELECT * FROM task_sync_list WHERE provider = :provider AND accountEmail = :accountEmail AND serverUrl = :serverUrl " +
+            "ORDER BY title"
+    )
+    fun getListsFor(provider: String, accountEmail: String, serverUrl: String): List<TaskSyncList>
+
+    @Query(
+        "UPDATE task_sync_list SET pullCursor = :cursor WHERE provider = :provider AND accountEmail = :accountEmail " +
+            "AND serverUrl = :serverUrl AND listId = :listId"
+    )
+    fun setPullCursor(provider: String, accountEmail: String, serverUrl: String, listId: String, cursor: String?)
+
+    @Query(
+        "UPDATE task_sync_list SET lastFullCheckAt = :at WHERE provider = :provider AND accountEmail = :accountEmail " +
+            "AND serverUrl = :serverUrl AND listId = :listId"
+    )
+    fun setLastFullCheck(provider: String, accountEmail: String, serverUrl: String, listId: String, at: Long)
+
+    @Query(
+        "DELETE FROM task_sync_list WHERE provider = :provider AND accountEmail = :accountEmail " +
+            "AND serverUrl = :serverUrl AND listId = :listId"
+    )
+    fun deleteList(provider: String, accountEmail: String, serverUrl: String, listId: String)
+
+    /** Deletes waiting for a list that is gone: its copies went with it. */
+    @Query(
+        "DELETE FROM task_sync_outbox WHERE op = 'DELETE' AND provider = :provider AND accountEmail = :accountEmail " +
+            "AND serverUrl = :serverUrl AND listId = :listId"
+    )
+    fun dropDeletesForList(provider: String, accountEmail: String, serverUrl: String, listId: String)
 
     @Insert
     fun insertOutboxEntry(entry: TaskSyncOutboxEntry): Long

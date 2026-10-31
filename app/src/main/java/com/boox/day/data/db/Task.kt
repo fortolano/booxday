@@ -440,9 +440,11 @@ interface TaskDao {
         rekeyQueuedSyncUpsert(fromTaskId, toTaskId)
     }
 
+    /** Not for a task kept on the tablet (v31): its copy is already gone from the service. */
     @Query(
         "INSERT INTO task_sync_outbox (op, taskId, provider, accountEmail, serverUrl, listId, remoteId, createdAt, attempts, nextAttemptAt) " +
-            "SELECT 'DELETE', taskId, provider, accountEmail, serverUrl, listId, remoteId, :now, 0, 0 FROM task_sync_link WHERE taskId = :taskId"
+            "SELECT 'DELETE', taskId, provider, accountEmail, serverUrl, listId, remoteId, :now, 0, 0 FROM task_sync_link " +
+            "WHERE taskId = :taskId AND keptOnTablet = 0"
     )
     fun queueSyncDeleteFor(taskId: String, now: Long)
 
@@ -1038,6 +1040,13 @@ class TaskRepository(internal val context: Context) {
         effects.forEach { it() }
         return result
     }
+
+    /**
+     * Task sync's merge (tasksync/TaskSyncMerger, Oct 2026): a change from the task service and its
+     * link update in one transaction, so the change watcher never sees one without the other.
+     * Moves and clears inside it join it; their screen updates wait for the commit.
+     */
+    internal fun <T> inSyncTransaction(block: () -> T): T = inTransaction(block)
 
     /** Runs [effect] after the current [inTransaction] commits (immediately outside one). */
     private fun afterCommit(effect: () -> Unit) {

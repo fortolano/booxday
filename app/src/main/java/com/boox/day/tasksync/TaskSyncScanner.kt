@@ -42,6 +42,7 @@ internal class TaskSyncScanner(
         val rows = sync.getRowsToScan(today)
         for (row in rows) {
             val link = links[row.id]
+            if (link?.keptOnTablet == true) continue  // deleted in the service while changed here: tablet only
             val text = TaskSyncRules.textToSend(row)
 
             if (text == null) {

@@ -26,7 +26,7 @@ import java.io.File
 
 /**
  * v29 → v30 on the PC: a v29 database is built from Room's own exported schema (29.json), then
- * opened with MIGRATION_29_30, so Room checks the migrated tables against the v30 entities.
+ * opened with MIGRATION_29_30 (and 30_31 after it), so Room checks the migrated tables against the entities.
  * (The instrumented MigrationTest can't run here: no emulator, and never on the tablets.)
  */
 @RunWith(RobolectricTestRunner::class)
@@ -129,7 +129,7 @@ class Migration29To30Test {
 
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbFile.absolutePath)
-            .addMigrations(MIGRATION_29_30)
+            .addMigrations(MIGRATION_29_30, MIGRATION_30_31)
             .addCallback(TaskSyncSchema.CALLBACK)
             .allowMainThreadQueries()
             .build()

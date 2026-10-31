@@ -16,6 +16,7 @@ import com.boox.day.data.db.MIGRATION_26_27
 import com.boox.day.data.db.MIGRATION_27_28
 import com.boox.day.data.db.MIGRATION_28_29
 import com.boox.day.data.db.MIGRATION_29_30
+import com.boox.day.data.db.MIGRATION_30_31
 import com.boox.day.data.db.TaskSyncSchema
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -352,6 +353,27 @@ class MigrationTest {
         migratedDb.query(
             "SELECT 1 FROM sqlite_master WHERE type = 'trigger' AND name = '${TaskSyncSchema.ROW_DELETED_TRIGGER}'"
         ).use { c -> assertTrue(c.moveToFirst()) }
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate30To31_tracksTheServiceParentAndKeptTasks() {
+        val dbName = "migration-test-30-31"
+        helper.createDatabase(dbName, 30).apply {
+            execSQL(
+                "INSERT INTO task_sync_link (taskId, provider, accountEmail, serverUrl, listId, remoteId, syncedCompleted, " +
+                    "syncedParentRemoteId, remoteUndated, syncedAt) VALUES ('t-1', 'GOOGLE_TASKS', 'me@gmail.com', '', 'l-1', 'r-1', 0, 'r-p', 0, 1)"
+            )
+            close()
+        }
+
+        val migratedDb = helper.runMigrationsAndValidate(dbName, 31, true, MIGRATION_30_31)
+
+        migratedDb.query("SELECT remoteParentId, keptOnTablet FROM task_sync_link WHERE taskId = 't-1'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("r-p", c.getString(0))
+            assertEquals(0, c.getInt(1))
+        }
     }
 
     @Test

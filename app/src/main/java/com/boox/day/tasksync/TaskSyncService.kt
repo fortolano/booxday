@@ -48,7 +48,9 @@ internal data class RemoteTaskState(
     val parentRemoteId: String?,
     val deleted: Boolean,
     /** Google `updated` (RFC 3339), CalDAV etag: compared with the link's remoteVersion. */
-    val version: String?
+    val version: String?,
+    /** When it last changed in the service (epoch ms), for "the later change wins"; null if unknown. */
+    val modifiedAt: Long? = null
 )
 
 /** What BooxDay sends for one task. [dueDay] null: the copy stays undated (owner decision 1). */

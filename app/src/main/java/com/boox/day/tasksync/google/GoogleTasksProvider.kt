@@ -300,7 +300,8 @@ internal class GoogleTasksProvider(
             dueDay = dayOf(task.due),
             parentRemoteId = task.parent,
             deleted = task.deleted == true,
-            version = task.updated
+            version = task.updated,
+            modifiedAt = task.updated?.let(::instantOf)?.toEpochMilli()
         )
 
         private fun remoteTaskOf(listId: String, task: Task) = RemoteTask(listId, task.id, task.updated, task.title)

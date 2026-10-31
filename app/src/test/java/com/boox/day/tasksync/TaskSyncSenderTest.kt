@@ -23,7 +23,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** The sending side against a stand-in service (Groundwork 1.8): Google Tasks plugs in later. */
+/** The sending side against a stand-in service (Groundwork 1.8; Google Tasks stage 2.2-2.3). */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class TaskSyncSenderTest {
@@ -280,7 +280,99 @@ class TaskSyncSenderTest {
         assertTrue("nothing new to send", db.taskSyncDao().getOutbox().isEmpty())
     }
 
-    private fun newSender() = TaskSyncSender(db, service, EMAIL, prefs = prefs, clock = { now })
+    @Test
+    fun aCopyChangedOnThePhoneIsMergedThenSentAgain() = runBlocking {
+        insert("t-1", row = 0, typed = "Call mom")
+        link("t-1", "r-1")
+        db.taskDao().setTypedText("t-1", "Call mom today")
+        db.taskSyncDao().queueUpsert("t-1", now)
+        // Ticked on the phone since the last sync
+        service.failNext = TaskSyncServiceException.RemoteChanged(
+            RemoteTaskState("list-1", "r-1", "Call mom", true, DAY, null, false, "v9", now - 1_000)
+        )
+
+        sender.sendDue()
+
+        assertEquals("tried, merged, sent again", listOf("update r-1 Call mom today", "update r-1 Call mom today"), service.calls)
+        assertTrue("the phone's tick is on the tablet", db.taskDao().getById("t-1")!!.isCompleted)
+        assertTrue(db.taskSyncDao().getOutbox().isEmpty())
+    }
+
+    @Test
+    fun aCopyDeletedOnThePhoneWhileChangedHereStaysOnTheTabletOnly() = runBlocking {
+        insert("t-1", row = 0, typed = "Call mom")
+        link("t-1", "r-1")
+        db.taskDao().setTypedText("t-1", "Call mom today")
+        db.taskSyncDao().queueUpsert("t-1", now)
+        service.failNext = TaskSyncServiceException.NotFound()
+
+        sender.sendDue()
+
+        assertEquals("Call mom today", db.taskDao().getById("t-1")!!.typedText)
+        assertTrue(db.taskSyncDao().getLink("t-1")!!.keptOnTablet)
+        assertTrue(db.taskSyncDao().getOutbox().isEmpty())
+
+        db.taskSyncDao().queueUpsert("t-1", now)
+        sender.sendDue()
+        assertEquals("never sent again", 1, service.calls.size)
+    }
+
+    @Test
+    fun aListGoneWhileSendingClearsItsUnchangedTasks() = runBlocking {
+        insert("t-1", row = 0, typed = "Call mom")
+        link("t-1", "r-1")
+        db.taskDao().setTypedText("t-1", "Call mom today")
+        db.taskSyncDao().queueUpsert("t-1", now)
+        insert("t-2", row = 1, typed = "Pay rent")
+        link("t-2", "r-2")
+        service.failNext = TaskSyncServiceException.ListGone("list-1")
+
+        sender.sendDue()
+
+        assertEquals("unchanged: cleared (owner decision 23)", listOf("t-2"), tablet.cleared)
+        assertTrue("changed here: kept on the tablet", db.taskSyncDao().getLink("t-1")!!.keptOnTablet)
+        assertTrue(db.taskSyncDao().getOutbox().isEmpty())
+    }
+
+    @Test
+    fun aPhoneMadeSubtaskMovesOutBeforeItsParentIsDeleted() = runBlocking {
+        // A normal row on the tablet, a subtask in Google (owner decision 24)
+        insert("t-child", row = 1, typed = "Buy milk")
+        link("t-child", "r-child", remoteParentId = "r-parent")
+        db.taskSyncDao().insertOutboxEntry(delete("r-parent"))
+
+        sender.sendDue()
+
+        assertEquals(listOf("update r-child Buy milk", "delete list-1 r-parent"), service.calls)
+        assertEquals(listOf("r-child" to null), service.parentsSent)
+        assertNull(db.taskSyncDao().getLink("t-child")!!.remoteParentId)
+    }
+
+    private fun newSender() = TaskSyncSender(db, service, merger, EMAIL, prefs = prefs, clock = { now })
+
+    private val tablet by lazy { FakeTablet() }
+    private val merger by lazy {
+        TaskSyncMerger(db, tablet, TaskSyncProvider.GOOGLE_TASKS, EMAIL, clock = { now }, today = { DAY })
+    }
+
+    /** The tablet's task operations reduced to their database writes. */
+    private inner class FakeTablet : TabletTasks {
+        val cleared = mutableListOf<String>()
+        override fun <T> inTransaction(block: () -> T): T = db.runInTransaction<T> { block() }
+        override fun setWords(task: Task, words: String) = db.taskDao().setTypedText(task.id, words)
+        override fun setCompleted(taskId: String, completed: Boolean) = db.taskDao().setCompleted(taskId, completed)
+        override fun setDueDay(taskId: String, dueDay: String?): Boolean {
+            db.taskDao().setDueDay(taskId, dueDay)
+            return true
+        }
+        override fun moveToDay(task: Task, day: String) = false
+        override fun clear(task: Task): Boolean {
+            db.taskDao().clearTaskMetadata(task.id)
+            cleared += task.id
+            return true
+        }
+        override suspend fun add(day: String, words: String, completed: Boolean, link: (Task) -> Unit) = false
+    }
 
     private fun insert(id: String, row: Int, typed: String? = null, recognized: String? = null, parent: String? = null) {
         db.taskDao().insertAll(
@@ -293,14 +385,23 @@ class TaskSyncSenderTest {
         )
     }
 
-    /** As the last sync left it: the task's current fields. */
-    private fun link(taskId: String, remoteId: String, listId: String = "list-1", parentRemoteId: String? = null) {
+    /**
+     * As the last sync left it: the task's current fields. [parentRemoteId]: the tablet's grouping as
+     * sent; [remoteParentId]: Google's parent (the same unless made on the phone).
+     */
+    private fun link(
+        taskId: String,
+        remoteId: String,
+        listId: String = "list-1",
+        parentRemoteId: String? = null,
+        remoteParentId: String? = parentRemoteId
+    ) {
         val task = db.taskDao().getById(taskId)!!
         db.taskSyncDao().insertLink(
             TaskSyncLink(
                 taskId = taskId, provider = TaskSyncProvider.GOOGLE_TASKS, accountEmail = EMAIL,
                 listId = listId, remoteId = remoteId, syncedTitle = TaskSyncRules.textToSend(task),
-                syncedDueDay = DAY, syncedParentRemoteId = parentRemoteId,
+                syncedDueDay = DAY, syncedParentRemoteId = parentRemoteId, remoteParentId = remoteParentId,
                 contentHash = TaskSyncRules.contentHash(task, parentRemoteId), syncedAt = 1
             )
         )
