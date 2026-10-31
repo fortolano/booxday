@@ -42,6 +42,14 @@ internal interface TaskSyncService {
      * [dueDay]. Null: not found there.
      */
     suspend fun findInOtherLists(skip: Set<String>, remoteId: String, title: String?, dueDay: String?, since: Long): RemoteTaskState? = null
+
+    /**
+     * Moves a copy to another list of the account (owner decision 47), under [parentRemoteId] there
+     * if given; returns it as it is now (the service may give it a new id). [TaskSyncServiceException.Refused]:
+     * the service won't move this one (Google: repeating tasks).
+     */
+    suspend fun moveToList(fromListId: String, remoteId: String, toListId: String, parentRemoteId: String? = null): RemoteTaskState =
+        throw UnsupportedOperationException("Moving between lists")
 }
 
 internal data class RemoteList(val listId: String, val title: String)
@@ -95,6 +103,9 @@ internal sealed class TaskSyncServiceException(message: String, cause: Throwable
 
     /** The copy being updated is gone (deleted in the service): the merge decides what happens. */
     class NotFound(cause: Throwable? = null) : TaskSyncServiceException("Gone from the service", cause)
+
+    /** The service won't do this to this copy (Google won't move a repeating task to another list). */
+    class Refused(cause: Throwable? = null) : TaskSyncServiceException("Refused by the service", cause)
 
     /** The whole list is gone (deleted in the service): the user picks another. */
     class ListGone(val listId: String, cause: Throwable? = null) : TaskSyncServiceException("List gone from the service", cause)

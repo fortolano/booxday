@@ -121,6 +121,20 @@ internal class GoogleTasksProvider(
         ids
     }
 
+    override suspend fun moveToList(fromListId: String, remoteId: String, toListId: String, parentRemoteId: String?): RemoteTaskState = call {
+        val move = tasks.tasks().move(fromListId, remoteId)
+        // Google's destinationTasklist (tasks.move): newer than this library revision, sent as a query parameter
+        move.set("destinationTasklist", toListId)
+        parentRemoteId?.let { move.setParent(it) }
+        val moved = try {
+            onTask(fromListId) { move.execute() }
+        } catch (e: HttpResponseException) {
+            if (e.statusCode == 400) throw TaskSyncServiceException.Refused(e)  // "Recurrent tasks cannot currently be moved between lists"
+            throw e
+        }
+        stateOf(toListId, moved)
+    }
+
     // One list call, then one per list not skipped: only when a synced copy is gone (owner decision 49)
     override suspend fun findInOtherLists(skip: Set<String>, remoteId: String, title: String?, dueDay: String?, since: Long): RemoteTaskState? {
         for (list in lists()) {

@@ -254,6 +254,17 @@ interface TaskSyncDao {
     @Query("UPDATE task_sync_link SET listId = :listId, remoteId = :remoteId WHERE taskId = :taskId")
     fun moveLinkToList(taskId: String, listId: String, remoteId: String)
 
+    /** After BooxDay moved the copy itself: the version it got there, so the next pull doesn't merge it again. */
+    @Query("UPDATE task_sync_link SET remoteVersion = :version, syncedAt = :now WHERE taskId = :taskId")
+    fun setMovedVersion(taskId: String, version: String?, now: Long)
+
+    /** A subtask's parent copy moved (maybe under a new id): its Google parent, and the tablet's grouping as last sent. */
+    @Query(
+        "UPDATE task_sync_link SET remoteParentId = :parentRemoteId, syncedParentRemoteId = CASE WHEN syncedParentRemoteId = :oldParentRemoteId " +
+            "THEN :parentRemoteId ELSE syncedParentRemoteId END WHERE taskId = :taskId"
+    )
+    fun setMovedParent(taskId: String, oldParentRemoteId: String, parentRemoteId: String)
+
     /**
      * After a merge: the service's copy as it is now. [syncedParentRemoteId] stays: it is the tablet's
      * grouping, which a change in the service doesn't touch (owner decision 24).
