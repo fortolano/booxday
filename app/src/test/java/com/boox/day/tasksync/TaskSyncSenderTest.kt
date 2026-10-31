@@ -1,0 +1,256 @@
+package com.boox.day.tasksync
+
+import android.app.Application
+import android.content.Context
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import com.boox.day.data.db.AppDatabase
+import com.boox.day.data.db.Page
+import com.boox.day.data.db.Task
+import com.boox.day.data.db.TaskSyncLink
+import com.boox.day.data.db.TaskSyncOp
+import com.boox.day.data.db.TaskSyncOutboxEntry
+import com.boox.day.data.db.TaskSyncProvider
+import com.boox.day.data.db.TaskSyncSchema
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+/** The sending side against a stand-in service (Groundwork 1.8): Google Tasks plugs in later. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class)
+class TaskSyncSenderTest {
+
+    private val context: Context = ApplicationProvider.getApplicationContext()
+    private lateinit var db: AppDatabase
+    private val prefs by lazy { context.getSharedPreferences("task_sync_sender_test", Context.MODE_PRIVATE) }
+    private val service = FakeService()
+    private var now = 1_800_000_000_000L
+    private lateinit var sender: TaskSyncSender
+
+    @Before
+    fun setUp() {
+        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .addCallback(TaskSyncSchema.CALLBACK)
+            .allowMainThreadQueries()
+            .build()
+        prefs.edit().clear().commit()
+        db.pageDao().create(Page(id = "page-1"))
+        db.openHelper.writableDatabase.execSQL(
+            "INSERT INTO task_sync_list (provider, accountEmail, serverUrl, listId, title, isDefaultForNew) " +
+                "VALUES ('${TaskSyncProvider.GOOGLE_TASKS}', '$EMAIL', '', 'list-new', 'BooxDay test', 1)"
+        )
+        sender = newSender()
+    }
+
+    @After
+    fun tearDown() {
+        db.close()
+    }
+
+    @Test
+    fun aNewTaskIsCreatedInTheNewTasksListAndLinked() = runBlocking {
+        insert("t-1", row = 0, typed = "Call mom")
+        db.taskSyncDao().queueUpsert("t-1", now)
+
+        assertEquals(TaskSyncSender.Outcome.Sent(1), sender.sendDue())
+
+        assertEquals(listOf("create list-new Call mom due 2026-11-02"), service.calls)
+        val link = db.taskSyncDao().getLink("t-1")!!
+        assertEquals("r-1", link.remoteId)
+        assertEquals(TaskSyncRules.contentHash(db.taskDao().getById("t-1")!!, null), link.contentHash)
+        assertTrue(db.taskSyncDao().getOutbox().isEmpty())
+        // The next scan finds nothing new to send
+        TaskSyncScanner(db) { { true } }.scan(now, DAY)
+        assertTrue(db.taskSyncDao().getOutbox().isEmpty())
+    }
+
+    @Test
+    fun aLinkedTaskIsUpdatedAndADeleteDeletes() = runBlocking {
+        insert("t-1", row = 0, typed = "Call mom")
+        link("t-1", "r-9")
+        db.taskSyncDao().queueUpsert("t-1", now)
+        db.taskSyncDao().insertOutboxEntry(delete("r-old"))
+
+        sender.sendDue()
+
+        assertEquals(listOf("update r-9 Call mom", "delete list-1 r-old"), service.calls)
+        assertTrue(db.taskSyncDao().getOutbox().isEmpty())
+    }
+
+    @Test
+    fun aFailureWaitsLongerEachTime() = runBlocking {
+        insert("t-1", row = 0, typed = "Call mom")
+        db.taskSyncDao().queueUpsert("t-1", now)
+        service.failNext = IllegalStateException("boom")
+
+        sender.sendDue()
+        val entry = db.taskSyncDao().getOutbox().single()
+        assertEquals(1, entry.attempts)
+        assertEquals(now + 60_000, entry.nextAttemptAt)
+
+        now += 30_000
+        sender.sendDue()
+        assertEquals("not due yet", 1, service.calls.size)
+
+        now += 31_000
+        sender.sendDue()
+        assertEquals("sent on the retry", 2, service.calls.size)
+        assertTrue(db.taskSyncDao().getOutbox().isEmpty())
+    }
+
+    @Test
+    fun whatWaitsSurvivesARestart() = runBlocking {
+        insert("t-1", row = 0, typed = "Call mom")
+        db.taskSyncDao().queueUpsert("t-1", now)
+        service.failNext = TaskSyncServiceException.Offline()
+        assertEquals(TaskSyncSender.Outcome.Offline, sender.sendDue())
+
+        val afterRestart = newSender()
+        afterRestart.sendDue()
+
+        assertEquals("tried offline, then sent after the restart", 2, service.calls.count { it.startsWith("create") })
+        assertEquals("r-1", db.taskSyncDao().getLink("t-1")?.remoteId)
+        assertTrue(db.taskSyncDao().getOutbox().isEmpty())
+    }
+
+    @Test
+    fun signInNeededStopsAndKeepsEverything() = runBlocking {
+        insert("t-1", row = 0, typed = "One")
+        insert("t-2", row = 1, typed = "Two")
+        db.taskSyncDao().queueUpsert("t-1", now)
+        db.taskSyncDao().queueUpsert("t-2", now)
+        service.failNext = TaskSyncServiceException.SignInNeeded()
+
+        assertEquals(TaskSyncSender.Outcome.NeedsReconnect, sender.sendDue())
+
+        assertEquals("stopped at the first", 1, service.calls.size)
+        assertEquals(2, db.taskSyncDao().getOutbox().size)
+    }
+
+    @Test
+    fun moreThanTwentyDeletesWaitForTheUser() = runBlocking {
+        repeat(21) { db.taskSyncDao().insertOutboxEntry(delete("r-$it")) }
+
+        assertEquals(TaskSyncSender.Outcome.PausedForDeletes(21), sender.sendDue())
+        assertTrue("nothing deleted", service.calls.isEmpty())
+
+        sender.approveWaitingDeletes()
+        sender.sendDue()
+        assertEquals(21, service.calls.size)
+    }
+
+    @Test
+    fun keepingThemInTheServiceDropsTheDeletes() = runBlocking {
+        repeat(25) { db.taskSyncDao().insertOutboxEntry(delete("r-$it")) }
+
+        sender.keepWaitingDeletesInService()
+        sender.sendDue()
+
+        assertTrue(service.calls.isEmpty())
+        assertTrue(db.taskSyncDao().getOutbox().isEmpty())
+    }
+
+    @Test
+    fun aNewTaskWithAnOrphansWordsTakesItsLinkOver() = runBlocking {
+        insert("t-old", row = 5)  // lost its words (Undo of a move): orphaned link
+        db.taskSyncDao().insertLink(
+            TaskSyncLink(
+                taskId = "t-old", provider = TaskSyncProvider.GOOGLE_TASKS, accountEmail = EMAIL, listId = "list-1",
+                remoteId = "r-rent", syncedTitle = "Pay rent", orphanedAt = now - 5_000, syncedAt = 1
+            )
+        )
+        insert("t-new", row = 2, recognized = "Pay rent")
+        db.taskSyncDao().queueUpsert("t-new", now)
+
+        sender.sendDue()
+
+        assertEquals("an update, not a second copy", listOf("update r-rent Pay rent"), service.calls)
+        assertEquals("r-rent", db.taskSyncDao().getLink("t-new")?.remoteId)
+        assertNull(db.taskSyncDao().getLink("t-old"))
+        assertTrue("no delete for the orphan", db.taskSyncDao().getOutbox().isEmpty())
+    }
+
+    @Test
+    fun anUndatedCopyStaysUndatedUntilTheTaskMoves() = runBlocking {
+        insert("t-1", row = 0, typed = "Someday")
+        db.taskSyncDao().insertLink(
+            TaskSyncLink(
+                taskId = "t-1", provider = TaskSyncProvider.GOOGLE_TASKS, accountEmail = EMAIL, listId = "list-1",
+                remoteId = "r-1", syncedDueDay = DAY, remoteUndated = true, syncedAt = 1
+            )
+        )
+        db.taskSyncDao().queueUpsert("t-1", now)
+        sender.sendDue()
+        assertEquals("update r-1 Someday undated", service.calls.single())
+
+        db.openHelper.writableDatabase.execSQL("UPDATE task SET dayDate = '2026-11-04' WHERE id = 't-1'")
+        db.taskSyncDao().queueUpsert("t-1", now)
+        sender.sendDue()
+        assertEquals("moved: now dated", "update r-1 Someday due 2026-11-04", service.calls.last())
+    }
+
+    @Test
+    fun withNoListForNewTasksTheTaskWaits() = runBlocking {
+        db.openHelper.writableDatabase.execSQL("DELETE FROM task_sync_list")
+        insert("t-1", row = 0, typed = "Call mom")
+        db.taskSyncDao().queueUpsert("t-1", now)
+
+        sender.sendDue()
+
+        assertTrue(service.calls.isEmpty())
+        assertEquals(1, db.taskSyncDao().getOutbox().single().attempts)
+    }
+
+    private fun newSender() = TaskSyncSender(db, service, EMAIL, prefs = prefs, clock = { now })
+
+    private fun insert(id: String, row: Int, typed: String? = null, recognized: String? = null) {
+        db.taskDao().insertAll(
+            listOf(Task(id = id, dayDate = DAY, taskPageIndex = 0, rowIndex = row, pageId = "page-1", typedText = typed, recognizedText = recognized))
+        )
+    }
+
+    private fun link(taskId: String, remoteId: String) = db.taskSyncDao().insertLink(
+        TaskSyncLink(
+            taskId = taskId, provider = TaskSyncProvider.GOOGLE_TASKS, accountEmail = EMAIL,
+            listId = "list-1", remoteId = remoteId, syncedAt = 1
+        )
+    )
+
+    private fun delete(remoteId: String) = TaskSyncOutboxEntry(
+        op = TaskSyncOp.DELETE, taskId = "gone-$remoteId", provider = TaskSyncProvider.GOOGLE_TASKS,
+        accountEmail = EMAIL, serverUrl = "", listId = "list-1", remoteId = remoteId, createdAt = now
+    )
+
+    private class FakeService : TaskSyncService {
+        override val provider = TaskSyncProvider.GOOGLE_TASKS
+        val calls = mutableListOf<String>()
+        var failNext: Exception? = null
+        private var next = 0
+
+        override suspend fun upsert(task: OutgoingTask, link: TaskSyncLink?): RemoteTask {
+            val due = task.dueDay?.let { "due $it" } ?: "undated"
+            calls += if (link == null) "create ${task.listId} ${task.title} $due" else
+                "update ${link.remoteId} ${task.title}" + if (link.remoteUndated || task.dueDay != DAY) " $due" else ""
+            failNext?.let { failNext = null; throw it }
+            return RemoteTask(task.listId, link?.remoteId ?: "r-${++next}", "v$next")
+        }
+
+        override suspend fun delete(listId: String, remoteId: String) {
+            calls += "delete $listId $remoteId"
+            failNext?.let { failNext = null; throw it }
+        }
+    }
+
+    private companion object {
+        const val EMAIL = "me@gmail.com"
+        const val DAY = "2026-11-02"
+    }
+}

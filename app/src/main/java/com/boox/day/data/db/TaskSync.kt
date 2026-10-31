@@ -140,6 +140,50 @@ interface TaskSyncDao {
     @Query("UPDATE task_sync_link SET orphanedAt = NULL WHERE taskId = :taskId")
     fun clearOrphaned(taskId: String)
 
+    // ── Sending (tasksync/TaskSyncSender) ───────────────────────────────────────────────────
+
+    @Query("SELECT * FROM task_sync_outbox WHERE nextAttemptAt <= :now ORDER BY id")
+    fun getDueOutbox(now: Long): List<TaskSyncOutboxEntry>
+
+    @Query("DELETE FROM task_sync_outbox WHERE id = :id")
+    fun deleteOutboxEntry(id: Long)
+
+    @Query("UPDATE task_sync_outbox SET attempts = :attempts, nextAttemptAt = :nextAttemptAt, lastError = :error WHERE id = :id")
+    fun markOutboxFailed(id: Long, attempts: Int, nextAttemptAt: Long, error: String?)
+
+    @Query("SELECT COUNT(*) FROM task_sync_outbox WHERE op = 'DELETE' AND id > :afterId")
+    fun countDeletesAfter(afterId: Long): Int
+
+    @Query("SELECT COALESCE(MAX(id), 0) FROM task_sync_outbox WHERE op = 'DELETE'")
+    fun lastDeleteId(): Long
+
+    @Query("DELETE FROM task_sync_outbox WHERE op = 'DELETE' AND id > :afterId")
+    fun dropDeletesAfter(afterId: Long)
+
+    /** An orphaned link whose task was last sent with these words (match before create). */
+    @Query(
+        "SELECT * FROM task_sync_link WHERE provider = :provider AND accountEmail = :accountEmail AND serverUrl = :serverUrl " +
+            "AND orphanedAt IS NOT NULL AND syncedTitle = :title ORDER BY orphanedAt DESC LIMIT 1"
+    )
+    fun findOrphan(provider: String, accountEmail: String, serverUrl: String, title: String): TaskSyncLink?
+
+    @Query(
+        "SELECT * FROM task_sync_list WHERE provider = :provider AND accountEmail = :accountEmail AND serverUrl = :serverUrl " +
+            "AND isDefaultForNew = 1 LIMIT 1"
+    )
+    fun getDefaultList(provider: String, accountEmail: String, serverUrl: String): TaskSyncList?
+
+    /** After a send: what the service now holds. Updated in place (no REPLACE: the remote id is a unique index). */
+    @Query(
+        "UPDATE task_sync_link SET listId = :listId, remoteId = :remoteId, remoteVersion = :remoteVersion, syncedTitle = :title, " +
+            "syncedCompleted = :completed, syncedDueDay = :dueDay, syncedParentRemoteId = :parentRemoteId, contentHash = :contentHash, " +
+            "remoteUndated = :remoteUndated, orphanedAt = NULL, syncedAt = :now WHERE taskId = :taskId"
+    )
+    fun updateSyncedLink(
+        taskId: String, listId: String, remoteId: String, remoteVersion: String?, title: String, completed: Boolean,
+        dueDay: String?, parentRemoteId: String?, contentHash: String, remoteUndated: Boolean, now: Long
+    )
+
     @Insert
     fun insertOutboxEntry(entry: TaskSyncOutboxEntry): Long
 
