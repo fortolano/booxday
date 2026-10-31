@@ -294,6 +294,15 @@ dependencies {
         exclude group: 'org.apache.httpcomponents'
     }
 
+    // CalDAV calendars and tasks (plan stage 3, owner decision 20, checked in throwaway builds on
+    // 30 Oct 2026): dav4jvm 2.2.1 is the last on OkHttp without raising the app's Kotlin; ical4j 3.x
+    // because 4.x references java.time.zone.ZoneRulesProvider, missing on Android. xpp3 clashes with
+    // Android's own XmlPullParser in R8 (DAVx5 excludes it too).
+    implementation('com.github.bitfireAT:dav4jvm:2.2.1') {
+        exclude group: 'org.ogce', module: 'xpp3'
+    }
+    implementation 'org.mnode.ical4j:ical4j:3.2.19'
+
     // Encrypted credential storage
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
 

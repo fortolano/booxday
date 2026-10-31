@@ -323,3 +323,17 @@
 -dontwarn org.ietf.jgss.GSSManager
 -dontwarn org.ietf.jgss.GSSName
 -dontwarn org.ietf.jgss.Oid
+
+# CalDAV (plan stage 3): ical4j finds its parts by reflection; Groovy, JCache and xpp3 are optional
+# parts the app doesn't use (owner decision 20, throwaway builds of 30 Oct 2026)
+-keep,allowoptimization class net.fortuna.ical4j.** { *; }
+-dontwarn groovy.**
+-dontwarn org.codehaus.groovy.**
+-dontwarn javax.cache.**
+-dontwarn org.xmlpull.**
+-dontwarn org.slf4j.**
+# ical4j's filter expressions (jparsec), JSON validation (jsonsKema) and Groovy builder (java.beans):
+# not used, BooxDay only parses and writes calendar files
+-dontwarn org.jparsec.**
+-dontwarn com.github.erosb.jsonsKema.**
+-dontwarn java.beans.**
