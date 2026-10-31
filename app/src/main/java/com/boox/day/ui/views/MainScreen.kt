@@ -3408,6 +3408,7 @@ fun MainScreen(
             }
         }
 
+      SplitOutDialogs {
         // ========== DIALOGS ==========
 
         // Compact layout popups (plan Phase 1.5): month grid and Events/Due list over the page
@@ -4688,6 +4689,9 @@ fun MainScreen(
                 }
             )
         }
+      }  // end SplitOutDialogs (first half)
+
+      SplitOutDialogs {
 
         // Daily Summary Dialog - end-of-day task review with migration option
         if (showDailySummaryDialog) {
@@ -6000,6 +6004,7 @@ fun MainScreen(
                 }
             )
         }
+      }  // end SplitOutDialogs
     }
 }
 
@@ -7632,6 +7637,17 @@ private fun NotePreviewOverlay(
  */
 @Composable
 private fun RowScope.SplitOutOfMainScreen(content: @Composable RowScope.() -> Unit) {
+    content()
+}
+
+/**
+ * Holds MainScreen's dialogs and popups (31 Oct 2026): like [SplitOutOfMainScreen], moves them out of
+ * MainScreen's root lambda into a lambda class of their own, with no behaviour of its own. That lambda
+ * was 20,414 dex code units, over ART's compiler limit of 16,383 ("Method exceeds compiler instruction
+ * limit"), so the main screen's code ran interpreted.
+ */
+@Composable
+private fun SplitOutDialogs(content: @Composable () -> Unit) {
     content()
 }
 
