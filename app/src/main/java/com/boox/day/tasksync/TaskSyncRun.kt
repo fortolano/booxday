@@ -71,7 +71,7 @@ internal object TaskSyncRun {
 
         TaskSync.scanner(app).scan(System.currentTimeMillis(), LocalDate.now().toString(), wordsSettled = handwritingNow)
         val service = GoogleTasksProvider.create(app, email)
-        val merger = TaskSyncMerger(db, RepositoryTabletTasks(app), provider, email)
+        val merger = TaskSyncMerger(db, RepositoryTabletTasks(app), provider, email, service = service)
         val result = try {
             val pulled = TaskSyncPuller(db, service, merger, email).pull()
             val sent = TaskSyncSender(db, service, merger, email, prefs = TaskSync.prefs(app)).sendDue()

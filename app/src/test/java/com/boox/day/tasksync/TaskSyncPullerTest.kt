@@ -8,6 +8,7 @@ import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.TaskDao
 import com.boox.day.data.db.TaskRepository
 import com.boox.day.data.db.TaskSyncDao
+import com.boox.day.data.db.TaskSyncKept
 import com.boox.day.data.db.TaskSyncLink
 import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.data.getDbDir
@@ -53,7 +54,7 @@ class TaskSyncPullerTest {
         )
         val merger = TaskSyncMerger(
             db, RepositoryTabletTasks(context, repo, canvasHeight = { canvasHeight }, penOn = { false }), TaskSyncProvider.GOOGLE_TASKS, EMAIL,
-            clock = { now }, today = { DAY }
+            clock = { now }, today = { DAY }, service = service
         )
         puller = TaskSyncPuller(db, service, merger, EMAIL, clock = { now })
     }
@@ -150,7 +151,60 @@ class TaskSyncPullerTest {
         }
     }
 
+    // ── A task moved to another list on the phone (owner decision 49) ──
+
+    @Test
+    fun aTaskMovedToAnotherSyncedListUnderTheSameIdKeepsItsRow() = runBlocking {
+        tickSecondList()
+        val id = synced(0, "Call mom", "r-1")
+        tasks.setPriority(id, "A")  // only the original has it (like its ink): a task added from Google has none
+        // The old list may still report it deleted; it is merged last
+        service.changesByList[LIST] = RemoteChanges(listOf(remote("r-1", "Call mom").copy(deleted = true)), "c1")
+        service.changesByList[LIST_2] = RemoteChanges(listOf(remote("r-1", "Call mom").copy(listId = LIST_2)), "c2")
+
+        puller.pull()
+
+        assertEquals("the row keeps the task (and its ink)", "A", tasks.getById(id)?.priority)
+        assertEquals(LIST_2, sync.getLink(id)?.listId)
+        assertEquals(1, tasks.getTasksForDay(DAY).count { it.typedText == "Call mom" })
+    }
+
+    @Test
+    fun aTaskMovedToAnotherSyncedListUnderANewIdIsFollowedNotCopied() = runBlocking {
+        tickSecondList()
+        val id = synced(0, "Call mom", "r-1")
+        tasks.setPriority(id, "A")
+        service.changesByList[LIST] = RemoteChanges(listOf(remote("r-1", "Call mom").copy(deleted = true)), "c1")
+        service.changesByList[LIST_2] = RemoteChanges(listOf(remote("r-9", "Call mom").copy(listId = LIST_2)), "c2")
+
+        puller.pull()
+
+        assertEquals("the original, not a copy", "A", tasks.getById(id)?.priority)
+        assertEquals(LIST_2 to "r-9", sync.getLink(id)?.let { it.listId to it.remoteId })
+        assertEquals("no typed copy", 1, tasks.getTasksForDay(DAY).count { it.typedText == "Call mom" })
+    }
+
+    @Test
+    fun aTaskMovedToAListThatIsntSyncedStaysOnTheTablet() = runBlocking {
+        val id = synced(0, "Call mom", "r-1")
+        service.changesByList[LIST] = RemoteChanges(listOf(remote("r-1", "Call mom").copy(deleted = true)), "c1")
+        service.elsewhere = remote("r-1", "Call mom").copy(listId = "unsynced")
+
+        puller.pull()
+
+        assertEquals("not cleared", "Call mom", tasks.getById(id)?.typedText)
+        assertEquals(TaskSyncKept.MOVED_TO_UNSYNCED_LIST, sync.getLink(id)?.keptReason)
+        assertTrue("no longer synced", sync.getLink(id)!!.keptOnTablet)
+    }
+
     // ── Helpers ──
+
+    private fun tickSecondList() {
+        db.openHelper.writableDatabase.execSQL(
+            "INSERT INTO task_sync_list (provider, accountEmail, serverUrl, listId, title, isDefaultForNew) " +
+                "VALUES ('${TaskSyncProvider.GOOGLE_TASKS}', '$EMAIL', '', '$LIST_2', 'Work', 0)"
+        )
+    }
 
     private fun synced(row: Int, text: String, remoteId: String, syncedAt: Long = 1): String {
         val (page, _) = repo.getOrCreateTasksForPage(DAY, 0)
@@ -174,6 +228,8 @@ class TaskSyncPullerTest {
     private class FakeService : TaskSyncService {
         override val provider = TaskSyncProvider.GOOGLE_TASKS
         var changes = RemoteChanges(emptyList(), null)
+        val changesByList = HashMap<String, RemoteChanges>()
+        var elsewhere: RemoteTaskState? = null
         var ids: Set<String>? = null
         var listGone = false
         var failure: Exception? = null
@@ -184,8 +240,12 @@ class TaskSyncPullerTest {
             failure?.let { throw it }
             if (listGone) throw TaskSyncServiceException.ListGone(listId)
             cursorsAsked += cursor
+            changesByList.remove(listId)?.let { return it }
             return changes.also { changes = RemoteChanges(emptyList(), it.nextCursor) }
         }
+
+        override suspend fun findInOtherLists(skip: Set<String>, remoteId: String, title: String?, dueDay: String?, since: Long) =
+            elsewhere?.takeIf { it.listId !in skip }
 
         override suspend fun allIds(listId: String): Set<String> {
             idChecks++
@@ -204,6 +264,7 @@ class TaskSyncPullerTest {
     private companion object {
         const val EMAIL = "me@gmail.com"
         const val LIST = "list-1"
+        const val LIST_2 = "list-2"
         const val DAY = "2026-11-02"
         const val CANVAS_HEIGHT = 1386f
     }

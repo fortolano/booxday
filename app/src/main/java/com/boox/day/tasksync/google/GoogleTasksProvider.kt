@@ -121,6 +121,37 @@ internal class GoogleTasksProvider(
         ids
     }
 
+    // One list call, then one per list not skipped: only when a synced copy is gone (owner decision 49)
+    override suspend fun findInOtherLists(skip: Set<String>, remoteId: String, title: String?, dueDay: String?, since: Long): RemoteTaskState? {
+        for (list in lists()) {
+            if (list.listId in skip) continue
+            val found = call {
+                var page: String? = null
+                var match: RemoteTaskState? = null
+                do {
+                    val result = try {
+                        onList(list.listId) {
+                            tasks.tasks().list(list.listId)
+                                .setShowCompleted(true).setShowHidden(true).setShowDeleted(false)
+                                .setUpdatedMin(Instant.ofEpochMilli(since).toString())
+                                .setMaxResults(TASKS_PAGE_SIZE).setPageToken(page)
+                                .execute()
+                        }
+                    } catch (e: TaskSyncServiceException.ListGone) {
+                        null  // deleted meanwhile: nothing there
+                    } ?: break
+                    match = result.items.orEmpty().map { stateOf(list.listId, it) }.firstOrNull { copy ->
+                        copy.remoteId == remoteId || (title != null && copy.title == title && copy.dueDay == dueDay)
+                    }
+                    page = result.nextPageToken
+                } while (match == null && page != null)
+                match
+            }
+            if (found != null) return found
+        }
+        return null
+    }
+
     override suspend fun upsert(task: OutgoingTask, link: TaskSyncLink?): RemoteTask = call {
         if (link == null) insert(task) else update(task, link)
     }

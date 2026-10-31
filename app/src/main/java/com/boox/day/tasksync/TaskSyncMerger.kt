@@ -30,6 +30,11 @@ import java.time.LocalDate
  *   (step 2.4): unticked ones only (decision 27), typed, due on the service's due date with its
  *   reminder (decision 43, replaced 28's "no due day"; undated ones have none).
  *
+ * - **Moved to another list in the service** (owner decision 49): followed, so the row and its ink
+ *   stay: the same id in a synced list, or the same words and due day under a new id while the old
+ *   copy is gone. Gone from a synced list but found in one that isn't synced: kept on the tablet,
+ *   no longer synced. [service] looks; without it a copy gone from its list is handled as deleted.
+ *
  * A change that can't be made now ([Result.WAITS]: a full-screen day, no row size yet) leaves
  * everything as it was; the pull keeps its cursor, so it comes again at the next sync.
  */
@@ -40,9 +45,13 @@ internal class TaskSyncMerger(
     private val accountEmail: String,
     private val serverUrl: String = "",
     private val clock: () -> Long = System::currentTimeMillis,
-    private val today: () -> String = { LocalDate.now().toString() }
+    private val today: () -> String = { LocalDate.now().toString() },
+    private val service: TaskSyncService? = null
 ) {
     enum class Result { APPLIED, UNCHANGED, WAITS }
+
+    /** Copies reported deleted in the pull now running ((list, id)): set by [TaskSyncPuller]. */
+    var goneInThisPull: Set<Pair<String, String>> = emptySet()
 
     /** Rolls a merge's transaction back when part of it can't be done now. */
     private class NotNow : Exception("Not now")
@@ -53,6 +62,7 @@ internal class TaskSyncMerger(
     /** One task as the service has it now: from a pull, or a send that found it changed. */
     suspend fun merge(remote: RemoteTaskState): Result {
         val link = sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, remote.remoteId)
+            ?: movedHere(remote)
             ?: return incoming(remote)
         if (link.keptOnTablet) return Result.UNCHANGED
         if (remote.deleted) return gone(link, completedThere = remote.completed)
@@ -63,10 +73,40 @@ internal class TaskSyncMerger(
     }
 
     /**
-     * The copy is gone from the service: deleted there, or missing from the daily check.
-     * [completedThere]: it was ticked in the service when it was deleted.
+     * A copy new in [remote]'s list that is a synced task moved there from another list (owner
+     * decision 49): its link moves with it and the merge goes on as for any change. Null: it isn't.
      */
-    fun gone(link: TaskSyncLink, completedThere: Boolean = false): Result {
+    private suspend fun movedHere(remote: RemoteTaskState): TaskSyncLink? {
+        if (remote.deleted) return null
+        val elsewhere = sync.getLinksElsewhere(provider, accountEmail, serverUrl, remote.listId, remote.remoteId, remote.title)
+        val moved = elsewhere.firstOrNull { it.remoteId == remote.remoteId }
+            ?: elsewhere.firstOrNull { it.syncedTitle == remote.title && dueOf(it) == remote.dueDay && oldCopyGone(it) }
+            ?: return null
+        sync.moveLinkToList(moved.taskId, remote.listId, remote.remoteId)
+        Log.i(TAG, "A synced task was moved to another list in the service; followed")
+        return sync.getLink(moved.taskId)
+    }
+
+    /** Its copy was reported deleted in this pull, or isn't there any more. */
+    private suspend fun oldCopyGone(link: TaskSyncLink): Boolean {
+        if ((link.listId to link.remoteId) in goneInThisPull) return true
+        val service = service ?: return false
+        return try {
+            service.fetch(link.listId, link.remoteId) == null
+        } catch (e: TaskSyncServiceException.ListGone) {
+            true
+        }
+    }
+
+    /** The due day the service had at the last sync (null: undated). */
+    private fun dueOf(link: TaskSyncLink): String? = if (link.remoteUndated) null else link.syncedDueDay
+
+    /**
+     * The copy is gone from the service: deleted there, or missing from the daily check.
+     * [completedThere]: it was ticked in the service when it was deleted. [lookElsewhere]: before
+     * clearing the row, look for the copy in the lists that aren't synced (owner decision 49).
+     */
+    suspend fun gone(link: TaskSyncLink, completedThere: Boolean = false, lookElsewhere: Boolean = true): Result {
         if (link.keptOnTablet) return Result.UNCHANGED
         val task = tasks.getById(link.taskId)
         if (task == null) {
@@ -79,6 +119,14 @@ internal class TaskSyncMerger(
         // A ticked task stays on its day as a record ("Delete all completed tasks" on the phone,
         // owner decision 26), also one ticked there just before it was deleted
         val ticked = task.isCompleted || completedThere
+        if (!changedHere && !ticked && lookElsewhere && movedToUnsyncedList(link)) {
+            tablet.inTransaction {
+                tasks.dropQueuedSyncUpsert(task.id)
+                sync.markKeptOnTablet(task.id, TaskSyncKept.MOVED_TO_UNSYNCED_LIST)
+            }
+            Log.i(TAG, "Moved in the service to a list that isn't synced; kept on the tablet only")
+            return Result.APPLIED
+        }
         return notNowIsWaits {
             tablet.inTransaction {
                 tasks.dropQueuedSyncUpsert(task.id)
@@ -95,11 +143,21 @@ internal class TaskSyncMerger(
         }
     }
 
+    /** The copy is in a list that isn't synced (a failed look throws: nothing is cleared on a guess). */
+    private suspend fun movedToUnsyncedList(link: TaskSyncLink): Boolean {
+        val service = service ?: return false
+        val synced = sync.getListsFor(provider, accountEmail, serverUrl).mapTo(HashSet()) { it.listId }
+        return service.findInOtherLists(
+            skip = synced + link.listId, remoteId = link.remoteId, title = link.syncedTitle, dueDay = dueOf(link),
+            since = link.syncedAt - MOVE_LOOK_BACK_MS
+        ) != null
+    }
+
     /** The whole list is gone from the service: each of its tasks as if deleted there (owner decision 23). */
-    fun listGone(listId: String): Result {
+    suspend fun listGone(listId: String): Result {
         var waits = false
         for (link in sync.getLinksInList(provider, accountEmail, serverUrl, listId)) {
-            if (gone(link) == Result.WAITS) waits = true
+            if (gone(link, lookElsewhere = false) == Result.WAITS) waits = true
         }
         if (waits) return Result.WAITS  // the list stays until every task is done, so this comes again
         sync.dropDeletesForList(provider, accountEmail, serverUrl, listId)
@@ -246,5 +304,7 @@ internal class TaskSyncMerger(
 
     private companion object {
         const val TAG = "TaskSyncMerger"
+        /** A moved copy changed in its new list after it was last synced; a little earlier for clocks. */
+        const val MOVE_LOOK_BACK_MS = 5 * 60_000L
     }
 }

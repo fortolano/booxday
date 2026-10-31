@@ -35,6 +35,13 @@ internal interface TaskSyncService {
 
     /** Every copy's id in [listId], for the daily check that catches deletions the service stopped reporting. */
     suspend fun allIds(listId: String): Set<String> = emptySet()
+
+    /**
+     * A copy gone from its list may have been moved to another one (owner decision 49): looks in the
+     * lists not in [skip] for one changed since [since] (epoch ms) with [remoteId], or with [title] and
+     * [dueDay]. Null: not found there.
+     */
+    suspend fun findInOtherLists(skip: Set<String>, remoteId: String, title: String?, dueDay: String?, since: Long): RemoteTaskState? = null
 }
 
 internal data class RemoteList(val listId: String, val title: String)

@@ -81,6 +81,8 @@ object TaskSyncKept {
     const val TICKED = "TICKED"
     /** Already ticked when task sync was turned on (owner decision 9). */
     const val TICKED_AT_TURN_ON = "TICKED_AT_TURN_ON"
+    /** Moved in the service to a list that isn't synced (owner decision 49). */
+    const val MOVED_TO_UNSYNCED_LIST = "MOVED_TO_UNSYNCED_LIST"
 }
 
 /** Changes waiting to be sent. Device-only (not backed up). */
@@ -240,6 +242,17 @@ interface TaskSyncDao {
             "AND listId = :listId ORDER BY taskId"
     )
     fun getLinksInList(provider: String, accountEmail: String, serverUrl: String, listId: String): List<TaskSyncLink>
+
+    /** Links of copies in lists other than [listId] that were last synced with [title] (owner decision 49). */
+    @Query(
+        "SELECT * FROM task_sync_link WHERE provider = :provider AND accountEmail = :accountEmail AND serverUrl = :serverUrl " +
+            "AND listId != :listId AND keptOnTablet = 0 AND (remoteId = :remoteId OR syncedTitle = :title) ORDER BY taskId"
+    )
+    fun getLinksElsewhere(provider: String, accountEmail: String, serverUrl: String, listId: String, remoteId: String, title: String): List<TaskSyncLink>
+
+    /** The copy was moved in the service to [listId], maybe under a new id [remoteId]. */
+    @Query("UPDATE task_sync_link SET listId = :listId, remoteId = :remoteId WHERE taskId = :taskId")
+    fun moveLinkToList(taskId: String, listId: String, remoteId: String)
 
     /**
      * After a merge: the service's copy as it is now. [syncedParentRemoteId] stays: it is the tablet's
