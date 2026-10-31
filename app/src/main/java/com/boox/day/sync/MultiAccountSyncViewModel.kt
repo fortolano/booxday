@@ -228,8 +228,8 @@ class MultiAccountSyncViewModel(
 
                 _uiState.update {
                     it.copy(
-                        googleAccounts = googleWithCalendars,
-                        outlookAccounts = outlookWithCalendars,
+                        googleAccounts = keepSyncStatus(googleWithCalendars, it.googleAccounts),
+                        outlookAccounts = keepSyncStatus(outlookWithCalendars, it.outlookAccounts),
                         isLoading = false
                     )
                 }
@@ -816,5 +816,23 @@ class MultiAccountSyncViewModel(
                 }
             )
         }
+    }
+}
+
+/**
+ * Accounts reloaded by [MultiAccountSyncViewModel.loadAccounts] keep what the last sync said about
+ * them: "sign in again" ([MultiAccountSyncViewModel.AccountWithCalendars.needsReauth]), its error and
+ * its message. Opening Calendar Accounts reloads them; until Oct 2026 that dropped needsReauth, so the
+ * Re-auth button and the Settings gear's reconnect dot vanished as soon as the window opened.
+ * A new sign-in still clears it: syncAccount starts by setting needsReauth back to false.
+ */
+internal fun keepSyncStatus(
+    loaded: List<MultiAccountSyncViewModel.AccountWithCalendars>,
+    shown: List<MultiAccountSyncViewModel.AccountWithCalendars>
+): List<MultiAccountSyncViewModel.AccountWithCalendars> {
+    val before = shown.associateBy { it.account.id }
+    return loaded.map { account ->
+        val last = before[account.account.id] ?: return@map account
+        account.copy(needsReauth = last.needsReauth, error = last.error, lastSyncMessage = last.lastSyncMessage)
     }
 }
