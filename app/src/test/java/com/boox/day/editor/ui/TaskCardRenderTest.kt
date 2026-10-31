@@ -123,6 +123,27 @@ abstract class TaskCardRenderBase(private val device: String) {
                 onDelete = {}, onMove = {}, onDismiss = {}, moveLabel = "Copy"
             )
         )
+        // Task sync's List line and screen (owner decisions 47, 53)
+        val lists = listOf("l1" to "BooxDay test", "l2" to "Work", "l3" to "Personal shopping and errands")
+        val withList = TaskCardActions(
+            onEditText = {}, onConvertToText = {}, onPriorityChange = {}, onSaveDue = {}, onClearDue = {}, onShowDay = {},
+            onReminderChange = {}, onSaveRepeat = {}, onPauseRepeat = {}, onStopRepeat = {}, onBreakDown = {},
+            onDelete = {}, onMove = {}, onDismiss = {}, onListChange = {}
+        )
+        val listCard = typedCard.copy(list = TaskCardList(lists, "l2"))
+        render("14-main-list", listCard, TaskCardScreen.Main, title, null, withList)
+        render("15-list", listCard, TaskCardScreen.List, title, null, withList)
+        render("16-main-subtask-list", TaskCardData(
+            typed.copy(parentTaskId = "parent", typedText = "Find the insurance card", priority = "", dueDay = "2026-10-29"),
+            null, "Subtasks cannot repeat on their own yet.", emptyList(), "Call the dentist about Tuesday",
+            list = TaskCardList(lists, "l2", fixedReason = "with its main task")
+        ), TaskCardScreen.Main, "Find the insurance card", null,
+            TaskCardActions(
+                onEditText = {}, onConvertToText = null, onPriorityChange = {}, onSaveDue = {}, onClearDue = {}, onShowDay = {},
+                onReminderChange = {}, onSaveRepeat = {}, onPauseRepeat = null, onStopRepeat = null, onBreakDown = null,
+                onDelete = {}, onMove = {}, onDismiss = {}, moveLabel = "Copy"
+            )
+        )
     }
 }
 

@@ -181,6 +181,37 @@ class TaskSyncSetupTest {
         assertEquals("Task Sync's Google account isn't connected", TaskSync.attentionReason(context))
     }
 
+    @Test
+    fun theCardsListLineShowsWithTwoListsAndASubtaskGoesWithItsMainTask() = runBlocking {
+        // Owner decisions 53 and 56
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY, testList = null)
+        val (page, _) = repo.getOrCreateTasksForPage(TODAY, 0)
+        repo.setTypedText(page[0].id, "Plan trip")
+        repo.setTypedText(page[1].id, "Book hotel")
+        repo.setParentTask(page[1].id, page[0].id)
+        val trip = db.taskDao().getById(page[0].id)!!
+        val hotel = db.taskDao().getById(page[1].id)!!
+        assertNull("one synced list: nothing to choose", TaskSync.cardList(context, trip))
+
+        TaskSync.tickList(context, provider, EMAIL, "work", "Work", ticked = true)
+
+        val list = TaskSync.cardList(context, trip)!!
+        assertEquals("not in Google yet: where it will go", "main", list.currentId)
+        assertNull(list.fixedReason)
+        assertEquals("with its main task", TaskSync.cardList(context, hotel)?.fixedReason)
+    }
+
+    @Test
+    fun theMenusNewTasksItemShowsWithTwoListsAndSetsTheList() = runBlocking {
+        // Owner decisions 46 and 52
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY, testList = null)
+        assertNull(com.boox.day.ui.components.newTasksMenuTool(context))
+
+        TaskSync.tickList(context, provider, EMAIL, "work", "Work", ticked = true)
+
+        assertEquals("New tasks go to: My Tasks", com.boox.day.ui.components.newTasksMenuTool(context)?.label)
+    }
+
     private class FakeService : TaskSyncService {
         override val provider = TaskSyncProvider.GOOGLE_TASKS
         override suspend fun lists() = listOf(RemoteList("main", "My Tasks"), RemoteList("work", "Work"))

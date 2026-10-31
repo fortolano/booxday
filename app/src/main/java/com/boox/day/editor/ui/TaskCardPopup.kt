@@ -72,7 +72,8 @@ import java.util.Locale
  */
 enum class TaskCardScreen(val title: String) {
     Main(""), Text("Text"), Due("Due date"), Reminder("Reminder"), ReminderTime("Reminder time"),
-    Repeat("Repeat"), RepeatStart("Repeat starts"), RepeatEnd("Repeat ends"), Subtasks("Subtasks");
+    Repeat("Repeat"), RepeatStart("Repeat starts"), RepeatEnd("Repeat ends"), Subtasks("Subtasks"),
+    List("Google Tasks list");
 
     /** Where Back goes; null on the main list (Back closes the card). */
     val parent: TaskCardScreen?
@@ -95,7 +96,20 @@ data class TaskCardData(
     val subtasks: List<TaskCardSubtask>,
     /** The parent task's words, for a subtask. */
     val parentWords: String?,
-    val startScreen: TaskCardScreen = TaskCardScreen.Main
+    val startScreen: TaskCardScreen = TaskCardScreen.Main,
+    /** The task's Google Tasks list (task sync, owner decisions 47 and 53); null hides the List line. */
+    val list: TaskCardList? = null
+)
+
+data class TaskCardList(
+    /** The lists BooxDay syncs: id to name. */
+    val lists: List<Pair<String, String>>,
+    /** The list it is in, or goes to when it first syncs. */
+    val currentId: String?,
+    /** Why it can't be changed here ("with its main task"), or null. */
+    val fixedReason: String? = null,
+    /** The list it is being moved to right now (owner decision 57), or null. */
+    val movingToId: String? = null
 )
 
 class TaskCardActions(
@@ -120,7 +134,9 @@ class TaskCardActions(
     val onMove: () -> Unit,
     val onDismiss: () -> Unit,
     /** "Move", or "Copy" for subtasks (they move with their parent). */
-    val moveLabel: String = "Move"
+    val moveLabel: String = "Move",
+    /** Move the task to that Google Tasks list (its subtasks along); null: can't be changed. */
+    val onListChange: ((String) -> Unit)? = null
 )
 
 @Composable
@@ -248,6 +264,7 @@ fun TaskCardContent(
                     go(TaskCardScreen.Repeat)
                 }, "Use Date", enabled = picked != null && !picked!!.isBefore(repeatForm.start))
             }
+            TaskCardScreen.List -> data.list?.let { ListScreen(it, subtitle, go, actions) }
             TaskCardScreen.Subtasks -> {
                 Header(screen.title, subtitle)
                 Body {
@@ -304,6 +321,26 @@ private fun MainList(
             go(TaskCardScreen.Subtasks)
         }
     }
+    data.list?.let { list ->
+        val name = list.lists.firstOrNull { it.first == list.currentId }?.second ?: "None"
+        val moving = list.movingToId?.let { id -> list.lists.firstOrNull { it.first == id }?.second }
+        if (moving != null) InfoLine("List", "Moving to $moving…")
+        else if (list.fixedReason == null && actions.onListChange != null) ValueLine("List", name) { go(TaskCardScreen.List) }
+        else InfoLine("List", list.fixedReason?.let { "$name ($it)" } ?: name)
+    }
+}
+
+/** The Google Tasks lists BooxDay syncs; picking one moves the task there (owner decision 47). */
+@Composable
+private fun ColumnScope.ListScreen(list: TaskCardList, subtitle: String, go: (TaskCardScreen) -> Unit, actions: TaskCardActions) {
+    Header(TaskCardScreen.List.title, subtitle)
+    for ((id, name) in list.lists) {
+        ChoiceLine(name, id == list.currentId) {
+            if (id != list.currentId) actions.onListChange?.invoke(id)
+            go(TaskCardScreen.Main)
+        }
+    }
+    Footer1({ go(TaskCardScreen.Main) }, "Back")
 }
 
 @Composable
@@ -498,6 +535,19 @@ private fun ValueLine(label: String, value: String, bold: Boolean = false, onCli
             color = EInkTheme.Colors.primary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis
         )
         Chevron()
+    }
+    Thin()
+}
+
+/** Like [ValueLine], for a value that can't be changed here: no arrow, no tap. */
+@Composable
+private fun InfoLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().heightIn(min = ROW_HEIGHT), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, fontSize = EInkTheme.Typography.bodyLarge, color = EInkTheme.Colors.darkGray, modifier = Modifier.width(LABEL_WIDTH))
+        Text(
+            value, fontSize = EInkTheme.Typography.bodyLarge, color = EInkTheme.Colors.primary,
+            modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis
+        )
     }
     Thin()
 }

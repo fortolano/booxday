@@ -6277,7 +6277,8 @@ private fun PersistentCanvasHost(
                     subtasks = repo.getChildTasks(fresh.id).sortedWith(compareBy({ it.taskPageIndex }, { it.rowIndex }))
                         .map { com.boox.day.editor.ui.TaskCardSubtask(words(it) ?: "Handwritten subtask", it.isCompleted) },
                     parentWords = fresh.parentTaskId?.let { repo.getTaskById(it) }?.let { words(it) },
-                    startScreen = startScreen
+                    startScreen = startScreen,
+                    list = com.boox.day.tasksync.TaskSync.cardList(context, fresh)
                 )
             }
 
@@ -7165,7 +7166,18 @@ private fun PersistentCanvasHost(
                             }
                         },
                         onDismiss = { taskCard = null },
-                        moveLabel = if (cardTask.parentTaskId != null) "Copy" else "Move"
+                        moveLabel = if (cardTask.parentTaskId != null) "Copy" else "Move",
+                        // Task sync (owner decisions 47, 57): moves at once in Google, then the card shows where it is
+                        onListChange = card.list?.let { list ->
+                            { listId: String ->
+                                taskCard = card.copy(list = list.copy(movingToId = listId))
+                                scope.launch {
+                                    val message = com.boox.day.tasksync.TaskSyncRun.moveToList(context, cardTask.id, listId)
+                                    refreshTaskCard(cardTask)
+                                    snackManager.displaySnack(SnackConf(text = message, duration = SnackConf.DURATION_STANDARD))
+                                }
+                            }
+                        }
                     )
                 )
             }

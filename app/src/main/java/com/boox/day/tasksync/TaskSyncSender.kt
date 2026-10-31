@@ -117,7 +117,16 @@ internal class TaskSyncSender(
      * [leavingParent]: the service's parent is about to be deleted, so the copy moves out of it
      * even where the tablet's grouping didn't change.
      */
-    private suspend fun sendUpsert(taskId: String, leavingParent: String? = null, retried: Boolean = false): Boolean {
+    /**
+     * The task card's List for a task not in the service yet (owner decision 57): it goes now, to
+     * [listId]. False: it has no words yet (handwriting not read), so it can't go.
+     */
+    suspend fun sendNewTo(taskId: String, listId: String): Boolean {
+        if (sync.getLink(taskId) == null) sendUpsert(taskId, toListId = listId)
+        return sync.getLink(taskId) != null
+    }
+
+    private suspend fun sendUpsert(taskId: String, leavingParent: String? = null, retried: Boolean = false, toListId: String? = null): Boolean {
         val task = tasks.getById(taskId) ?: return false  // row gone: the trigger queued its delete
         val title = TaskSyncRules.textToSend(task) ?: return false  // no words: the scanner decides
         var link: TaskSyncLink? = sync.getLink(task.id)
@@ -134,6 +143,7 @@ internal class TaskSyncSender(
         val parentLink = task.parentTaskId?.let { sync.getLink(it) }
         // A new subtask goes to its parent's list: a service keeps a subtask in its parent's list
         val listId = current?.listId
+            ?: toListId?.takeIf { it in ticked }
             ?: parentLink?.listId?.takeIf { it in ticked }
             ?: sync.getDefaultList(service.provider, accountEmail, serverUrl)?.listId
             ?: throw NoListYet()

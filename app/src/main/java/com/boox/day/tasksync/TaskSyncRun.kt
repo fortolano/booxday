@@ -12,6 +12,8 @@ import com.boox.day.sync.SingleFlight
 import com.boox.day.sync.workerAppSettings
 import com.boox.day.tasksync.google.GoogleTasksProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
@@ -31,6 +33,8 @@ internal object TaskSyncRun {
     enum class Result { DONE, OFF, NO_LIST, OFFLINE, BUSY, NEEDS_RECONNECT, PAUSED_FOR_DELETES, FAILED }
 
     private val flight = SingleFlight<String, Result>()
+    /** A run and a list move never overlap (both change links). */
+    private val work = Mutex()
 
     /**
      * [changedAt]: when the change that asked for this run was made. A run that started before then
@@ -41,7 +45,51 @@ internal object TaskSyncRun {
     suspend fun run(context: Context, changedAt: Long = 0L, handwritingNow: Boolean = false): Result {
         val app = context.applicationContext
         if (handwritingNow) readFreshHandwriting(app)
-        return flight.run("task-sync", startedSince = changedAt) { withContext(Dispatchers.IO) { runNow(app, handwritingNow) } }
+        return flight.run("task-sync", startedSince = changedAt) { withContext(Dispatchers.IO) { work.withLock { runNow(app, handwritingNow) } } }
+    }
+
+    /**
+     * The task card's List (owner decisions 47, 53, 57): moves the task to [listId] at once, its
+     * subtasks along; a task not in Google yet goes there now. Returns what to tell the user.
+     */
+    suspend fun moveToList(context: Context, taskId: String, listId: String): String {
+        val app = context.applicationContext
+        return withContext(Dispatchers.IO) { work.withLock { moveNow(app, taskId, listId) } }
+    }
+
+    private suspend fun moveNow(app: Context, taskId: String, listId: String): String {
+        val email = TaskSync.account(app)
+        if (!TaskSync.isOn(app) || email == null || workerAppSettings(app).syncMode != AppSettings.SyncMode.HYBRID) {
+            return "Task Sync is off, so the task stays where it is."
+        }
+        val db = AppDatabase.getDatabase(app)
+        val provider = TaskSyncProvider.GOOGLE_TASKS
+        val lists = db.taskSyncDao().getListsFor(provider, email, "")
+        val name = lists.firstOrNull { it.listId == listId }?.title ?: return "That list isn't synced any more."
+        val from = db.taskSyncDao().getLink(taskId)?.listId?.let { id -> lists.firstOrNull { it.listId == id }?.title }
+        val stays = from?.let { "It stays in $it." } ?: "It stays where it is."
+        val service = GoogleTasksProvider.create(app, email)
+        return try {
+            if (db.taskSyncDao().getLink(taskId) == null) {
+                val merger = TaskSyncMerger(db, RepositoryTabletTasks(app), provider, email, service = service)
+                val sent = TaskSyncSender(db, service, merger, email, prefs = TaskSync.prefs(app)).sendNewTo(taskId, listId)
+                if (sent) "Moved to $name." else "The words of this task aren't read yet. Try again in a moment."
+            } else when (TaskSyncListMover(db, service, email).move(taskId, listId)) {
+                TaskSyncListMover.Outcome.MOVED, TaskSyncListMover.Outcome.ALREADY_THERE -> "Moved to $name."
+                TaskSyncListMover.Outcome.REFUSED -> "Google doesn't move repeating tasks to another list. $stays"
+                TaskSyncListMover.Outcome.SUBTASK -> "A subtask moves with its main task."
+                TaskSyncListMover.Outcome.NOT_SYNCED -> "This task isn't synced with Google Tasks."
+            }
+        } catch (e: TaskSyncServiceException.Offline) {
+            "No connection to Google. $stays"
+        } catch (e: TaskSyncServiceException.SignInNeeded) {
+            "Task Sync needs you to sign in again (Settings → Preferences → Task Sync). $stays"
+        } catch (e: TaskSyncServiceException.Busy) {
+            "Google is busy. Try again in a moment. $stays"
+        } catch (e: Exception) {
+            Log.w(TAG, "Move to another list failed (${e.javaClass.simpleName})")  // never the message: it can hold words
+            "The task couldn't be moved. Try again in a moment. $stays"
+        }
     }
 
     /**

@@ -45,6 +45,28 @@ object TaskSync {
     }
 
     /**
+     * The task card's List line (owner decisions 47, 53, 56): only with Task Sync on and 2+ synced lists;
+     * not for a task kept on the tablet only. A subtask shows its main task's list, not changeable.
+     */
+    internal fun cardList(context: Context, task: com.boox.day.data.db.Task): com.boox.day.editor.ui.TaskCardList? {
+        if (!BuildConfig.TASK_SYNC_ENABLED || !isOn(context)) return null
+        val email = account(context) ?: return null
+        val sync = AppDatabase.getDatabase(context.applicationContext).taskSyncDao()
+        val lists = sync.getListsFor(com.boox.day.data.db.TaskSyncProvider.GOOGLE_TASKS, email, "")
+        if (lists.size < 2) return null
+        val link = sync.getLink(task.id)
+        if (link?.keptOnTablet == true) return null
+        val parentLink = task.parentTaskId?.let { sync.getLink(it) }
+        val current = link?.listId ?: parentLink?.listId ?: lists.firstOrNull { it.isDefaultForNew }?.listId
+        val subtask = task.parentTaskId != null || link?.remoteParentId != null
+        return com.boox.day.editor.ui.TaskCardList(
+            lists = lists.map { it.listId to it.title },
+            currentId = current,
+            fixedReason = if (subtask) "with its main task" else null
+        )
+    }
+
+    /**
      * Days a new task from the service couldn't be placed on: all 10 pages full (plan step 2.4).
      * The Task Sync card says so; the task comes once a row is free.
      */

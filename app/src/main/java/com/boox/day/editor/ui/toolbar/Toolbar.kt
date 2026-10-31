@@ -2506,6 +2506,8 @@ private fun toolbarMenuTools(
             }
         ))
     }
+    // Task sync (owner decisions 46, 52): first in the menu on the Tasks tab, with 2+ synced lists
+    if (!isMemosTab) com.boox.day.ui.components.newTasksMenuTool(context)?.let { add(0, it) }
 }
 
 /** Gap between neighbouring controls on the compact bar, so a finger tap never lands on two. */
