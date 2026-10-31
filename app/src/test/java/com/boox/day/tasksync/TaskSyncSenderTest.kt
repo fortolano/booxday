@@ -209,20 +209,102 @@ class TaskSyncSenderTest {
         assertEquals(1, db.taskSyncDao().getOutbox().single().attempts)
     }
 
+    @Test
+    fun aClearedParentsSubtasksMoveOutBeforeItIsDeleted() = runBlocking {
+        // The parent's row was cleared: its DELETE waits, the subtask stays on the tablet as a task
+        insert("t-child", row = 1, typed = "Buy milk")
+        link("t-child", "r-child", parentRemoteId = "r-parent")
+        db.taskSyncDao().insertOutboxEntry(delete("r-parent"))
+        db.taskSyncDao().queueUpsert("t-child", now)
+
+        sender.sendDue()
+
+        assertEquals(listOf("update r-child Buy milk", "delete list-1 r-parent"), service.calls)
+        assertEquals("moved to the top level first", listOf("r-child" to null), service.parentsSent)
+        assertNull(db.taskSyncDao().getLink("t-child")?.syncedParentRemoteId)
+        assertTrue(db.taskSyncDao().getOutbox().isEmpty())
+    }
+
+    @Test
+    fun whenASubtaskCantMoveOutItsParentsDeleteWaits() = runBlocking {
+        insert("t-child", row = 1, typed = "Buy milk")
+        link("t-child", "r-child", parentRemoteId = "r-parent")
+        db.taskSyncDao().insertOutboxEntry(delete("r-parent"))
+        service.failNext = IllegalStateException("boom")
+
+        sender.sendDue()
+
+        assertEquals("no delete", listOf("update r-child Buy milk"), service.calls)
+        assertEquals(1, db.taskSyncDao().getOutbox().single { it.op == TaskSyncOp.DELETE }.attempts)
+    }
+
+    @Test
+    fun aNewSubtaskGoesToItsParentsListUnderIt() = runBlocking {
+        insert("t-parent", row = 0, typed = "Groceries")
+        link("t-parent", "r-parent", listId = "list-shop")
+        insert("t-child", row = 1, typed = "Buy milk", parent = "t-parent")
+        db.taskSyncDao().queueUpsert("t-child", now)
+
+        sender.sendDue()
+
+        assertEquals(listOf("create list-shop Buy milk due $DAY"), service.calls)
+        assertEquals(listOf("new" to "r-parent"), service.parentsSent)
+    }
+
+    @Test
+    fun aParentInAnotherListIsNotSentAndTheTaskIsNotSentAgain() = runBlocking {
+        insert("t-parent", row = 0, typed = "Groceries")
+        link("t-parent", "r-parent", listId = "list-shop")
+        insert("t-child", row = 1, typed = "Buy milk", parent = "t-parent")
+        link("t-child", "r-child")  // in list-1
+        db.taskSyncDao().queueUpsert("t-child", now)
+
+        sender.sendDue()
+        assertEquals(listOf("update r-child Buy milk"), service.calls)
+        assertTrue("no parent sent", service.parentsSent.isEmpty())
+
+        TaskSyncScanner(db) { { true } }.scan(now, DAY)
+        assertTrue("nothing new to send", db.taskSyncDao().getOutbox().isEmpty())
+    }
+
+    @Test
+    fun theLinkKeepsTheWordsAsTheServiceKeepsThem() = runBlocking {
+        insert("t-1", row = 0, typed = "Call mom" + "!".repeat(30))
+        db.taskSyncDao().queueUpsert("t-1", now)
+        service.keepsTitle = { it.take(10) }
+
+        sender.sendDue()
+
+        assertEquals("Call mom!!", db.taskSyncDao().getLink("t-1")?.syncedTitle)
+        TaskSyncScanner(db) { { true } }.scan(now, DAY)
+        assertTrue("nothing new to send", db.taskSyncDao().getOutbox().isEmpty())
+    }
+
     private fun newSender() = TaskSyncSender(db, service, EMAIL, prefs = prefs, clock = { now })
 
-    private fun insert(id: String, row: Int, typed: String? = null, recognized: String? = null) {
+    private fun insert(id: String, row: Int, typed: String? = null, recognized: String? = null, parent: String? = null) {
         db.taskDao().insertAll(
-            listOf(Task(id = id, dayDate = DAY, taskPageIndex = 0, rowIndex = row, pageId = "page-1", typedText = typed, recognizedText = recognized))
+            listOf(
+                Task(
+                    id = id, dayDate = DAY, taskPageIndex = 0, rowIndex = row, pageId = "page-1",
+                    typedText = typed, recognizedText = recognized, parentTaskId = parent
+                )
+            )
         )
     }
 
-    private fun link(taskId: String, remoteId: String) = db.taskSyncDao().insertLink(
-        TaskSyncLink(
-            taskId = taskId, provider = TaskSyncProvider.GOOGLE_TASKS, accountEmail = EMAIL,
-            listId = "list-1", remoteId = remoteId, syncedAt = 1
+    /** As the last sync left it: the task's current fields. */
+    private fun link(taskId: String, remoteId: String, listId: String = "list-1", parentRemoteId: String? = null) {
+        val task = db.taskDao().getById(taskId)!!
+        db.taskSyncDao().insertLink(
+            TaskSyncLink(
+                taskId = taskId, provider = TaskSyncProvider.GOOGLE_TASKS, accountEmail = EMAIL,
+                listId = listId, remoteId = remoteId, syncedTitle = TaskSyncRules.textToSend(task),
+                syncedDueDay = DAY, syncedParentRemoteId = parentRemoteId,
+                contentHash = TaskSyncRules.contentHash(task, parentRemoteId), syncedAt = 1
+            )
         )
-    )
+    }
 
     private fun delete(remoteId: String) = TaskSyncOutboxEntry(
         op = TaskSyncOp.DELETE, taskId = "gone-$remoteId", provider = TaskSyncProvider.GOOGLE_TASKS,
@@ -232,15 +314,20 @@ class TaskSyncSenderTest {
     private class FakeService : TaskSyncService {
         override val provider = TaskSyncProvider.GOOGLE_TASKS
         val calls = mutableListOf<String>()
+        /** Parents sent: (copy, parent) when new ("new") or when the parent changed. */
+        val parentsSent = mutableListOf<Pair<String, String?>>()
         var failNext: Exception? = null
+        var keepsTitle: (String) -> String? = { null }
         private var next = 0
 
         override suspend fun upsert(task: OutgoingTask, link: TaskSyncLink?): RemoteTask {
             val due = task.dueDay?.let { "due $it" } ?: "undated"
             calls += if (link == null) "create ${task.listId} ${task.title} $due" else
                 "update ${link.remoteId} ${task.title}" + if (link.remoteUndated || task.dueDay != DAY) " $due" else ""
+            if (link == null && task.parentRemoteId != null) parentsSent += "new" to task.parentRemoteId
+            if (link != null && task.parentRemoteId != link.syncedParentRemoteId) parentsSent += link.remoteId to task.parentRemoteId
             failNext?.let { failNext = null; throw it }
-            return RemoteTask(task.listId, link?.remoteId ?: "r-${++next}", "v$next")
+            return RemoteTask(task.listId, link?.remoteId ?: "r-${++next}", "v$next", keepsTitle(task.title))
         }
 
         override suspend fun delete(listId: String, remoteId: String) {

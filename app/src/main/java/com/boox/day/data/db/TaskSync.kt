@@ -148,6 +148,9 @@ interface TaskSyncDao {
     @Query("DELETE FROM task_sync_outbox WHERE id = :id")
     fun deleteOutboxEntry(id: Long)
 
+    @Query("SELECT EXISTS(SELECT 1 FROM task_sync_outbox WHERE id = :id)")
+    fun hasOutboxEntry(id: Long): Boolean
+
     @Query("UPDATE task_sync_outbox SET attempts = :attempts, nextAttemptAt = :nextAttemptAt, lastError = :error WHERE id = :id")
     fun markOutboxFailed(id: Long, attempts: Int, nextAttemptAt: Long, error: String?)
 
@@ -172,6 +175,13 @@ interface TaskSyncDao {
             "AND isDefaultForNew = 1 LIMIT 1"
     )
     fun getDefaultList(provider: String, accountEmail: String, serverUrl: String): TaskSyncList?
+
+    /** The tasks whose copies were last sent as subtasks of [parentRemoteId]. */
+    @Query(
+        "SELECT * FROM task_sync_link WHERE provider = :provider AND accountEmail = :accountEmail AND serverUrl = :serverUrl " +
+            "AND listId = :listId AND syncedParentRemoteId = :parentRemoteId ORDER BY taskId"
+    )
+    fun getChildLinks(provider: String, accountEmail: String, serverUrl: String, listId: String, parentRemoteId: String): List<TaskSyncLink>
 
     /** After a send: what the service now holds. Updated in place (no REPLACE: the remote id is a unique index). */
     @Query(

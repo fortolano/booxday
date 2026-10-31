@@ -52,10 +52,11 @@ internal class TaskSyncSender(
             .sortedBy { entry -> entry.op == TaskSyncOp.UPSERT && tasks.getById(entry.taskId)?.parentTaskId != null }
         var sent = 0
         for (entry in due) {
+            if (!sync.hasOutboxEntry(entry.id)) continue  // already sent with another (a subtask before its parent's delete)
             try {
                 val stillChanged = when (entry.op) {
                     TaskSyncOp.DELETE -> sendDelete(entry)
-                    else -> sendUpsert(entry)
+                    else -> sendUpsert(entry.taskId)
                 }
                 if (!stillChanged) sync.deleteOutboxEntry(entry.id)
                 sent++
@@ -89,15 +90,21 @@ internal class TaskSyncSender(
     }
 
     private suspend fun sendDelete(entry: TaskSyncOutboxEntry): Boolean {
-        val listId = entry.listId
-        val remoteId = entry.remoteId
-        if (listId != null && remoteId != null) service.delete(listId, remoteId)
+        val listId = entry.listId ?: return false
+        val remoteId = entry.remoteId ?: return false
+        // A cleared parent's subtasks stay on the tablet (TaskRepository.clearTaskSlot), but Google
+        // may delete them with their parent (its docs don't say): they move out first. If one
+        // can't be sent, the delete waits with it.
+        for (child in sync.getChildLinks(service.provider, accountEmail, serverUrl, listId, remoteId)) {
+            if (!sendUpsert(child.taskId)) tasks.dropQueuedSyncUpsert(child.taskId)
+        }
+        service.delete(listId, remoteId)
         return false
     }
 
     /** Sends the task's current state; true when it changed again while being sent (sent again). */
-    private suspend fun sendUpsert(entry: TaskSyncOutboxEntry): Boolean {
-        val task = tasks.getById(entry.taskId) ?: return false  // row gone: the trigger queued its delete
+    private suspend fun sendUpsert(taskId: String): Boolean {
+        val task = tasks.getById(taskId) ?: return false  // row gone: the trigger queued its delete
         val title = TaskSyncRules.textToSend(task) ?: return false  // no words: the scanner decides
         var link: TaskSyncLink? = sync.getLink(task.id)
         if (link == null) {
@@ -107,17 +114,23 @@ internal class TaskSyncSender(
             }
         }
         val current = link
+        val parentLink = task.parentTaskId?.let { sync.getLink(it) }
+        // A new subtask goes to its parent's list: a service keeps a subtask in its parent's list
         val listId = current?.listId
+            ?: parentLink?.listId
             ?: sync.getDefaultList(service.provider, accountEmail, serverUrl)?.listId
             ?: throw NoListYet()
-        val parentRemoteId = task.parentTaskId?.let { sync.getLink(it)?.remoteId }
+        // The hash uses the parent's copy as the scanner does; one in another list isn't sent as parent
+        val hashParentId = parentLink?.remoteId
+        val parentRemoteId = parentLink?.takeIf { it.listId == listId }?.remoteId
         // Undated in the service until the user gives it a due day or moves it (owner decision 1)
         val staysUndated = current != null && current.remoteUndated && task.dueDay == null && task.dayDate == current.syncedDueDay
         val dueDay = if (staysUndated) null else TaskSyncRules.dueDay(task)
 
         val remote = service.upsert(OutgoingTask(task.id, listId, title, task.isCompleted, dueDay, parentRemoteId), current)
 
-        val sentHash = TaskSyncRules.contentHash(task, parentRemoteId)
+        val sentHash = TaskSyncRules.contentHash(task, hashParentId)
+        val keptTitle = remote.title ?: title  // as the service keeps it, so the pull sees no change
         val now = clock()
         db.runInTransaction<Unit> {
             if (sync.getLink(task.id) == null) {
@@ -125,20 +138,20 @@ internal class TaskSyncSender(
                     TaskSyncLink(
                         taskId = task.id, provider = service.provider, accountEmail = accountEmail, serverUrl = serverUrl,
                         listId = remote.listId, remoteId = remote.remoteId, remoteVersion = remote.version,
-                        syncedTitle = title, syncedCompleted = task.isCompleted, syncedDueDay = dueDay ?: task.dayDate,
+                        syncedTitle = keptTitle, syncedCompleted = task.isCompleted, syncedDueDay = dueDay ?: task.dayDate,
                         syncedParentRemoteId = parentRemoteId, contentHash = sentHash, remoteUndated = staysUndated, syncedAt = now
                     )
                 )
             } else {
                 sync.updateSyncedLink(
-                    task.id, remote.listId, remote.remoteId, remote.version, title, task.isCompleted,
+                    task.id, remote.listId, remote.remoteId, remote.version, keptTitle, task.isCompleted,
                     dueDay ?: task.dayDate, parentRemoteId, sentHash, staysUndated, now
                 )
             }
         }
         // Changed while it was being sent: keep the entry, the newer state goes next
         val after = tasks.getById(task.id) ?: return false
-        return TaskSyncRules.contentHash(after, parentRemoteId) != sentHash
+        return TaskSyncRules.contentHash(after, hashParentId) != sentHash
     }
 
     companion object {
