@@ -173,6 +173,10 @@ interface TaskSyncDao {
     @Query("SELECT * FROM task_sync_outbox WHERE nextAttemptAt <= :now ORDER BY id")
     fun getDueOutbox(now: Long): List<TaskSyncOutboxEntry>
 
+    /** When the soonest waiting change may be sent (tasksync/TaskSyncTriggers' retry); null when none waits. */
+    @Query("SELECT MIN(nextAttemptAt) FROM task_sync_outbox")
+    fun nextOutboxAttemptAt(): Long?
+
     @Query("DELETE FROM task_sync_outbox WHERE id = :id")
     fun deleteOutboxEntry(id: Long)
 

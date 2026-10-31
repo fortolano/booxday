@@ -2246,7 +2246,7 @@ fun MainScreen(
                             SnackState.tryEmitRateLimited(
                                 SnackConf(
                                     key = "sync-calendars",
-                                    text = "Syncing calendars...",
+                                    text = "Syncing...",  // calendars, and tasks when task sync is on
                                     duration = SnackConf.DURATION_QUICK
                                 )
                             )

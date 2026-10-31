@@ -21,21 +21,112 @@ class TaskSyncTriggersTest {
     private val runs = mutableListOf<Long>()
     private val finished = mutableListOf<Long>()
     private var hold: CompletableDeferred<Unit>? = null
+    /** What each run returns, in turn; DONE once used up. */
+    private val results = ArrayDeque<TaskSyncRun.Result>()
+    private var waitingAt: Long? = null
+    private var afterRun: () -> Unit = {}
 
     private fun CoroutineScope.triggers() = TaskSyncTriggers.Triggers(
         this,
         isOn = { on },
         lastRunAt = { lastRun },
+        nextWaitingAt = { waitingAt },
         run = { changedAt ->
             runs += changedAt
             hold?.await()
             finished += changedAt
             lastRun = now
-            TaskSyncRun.Result.DONE
+            afterRun()
+            results.removeFirstOrNull() ?: TaskSyncRun.Result.DONE
         },
         clock = { now },
-        afterEditMs = 100L
+        afterEditMs = 100L,
+        retryWaitsMs = listOf(50L, 50L, 50L)
     )
+
+    // ── Retries (owner, 30 Oct 2026: 1, 2, 4, 8, 15 minutes in the app; 50 ms here) ──
+
+    @Test
+    fun offlineIsRetriedAFewTimesThenStops() = runBlocking {
+        repeat(10) { results += TaskSyncRun.Result.OFFLINE }
+        val triggers = triggers()
+        triggers.syncNow()
+        delay(500)
+        assertEquals("the run and its 3 retries", 4, runs.size)
+        delay(200)
+        assertEquals("then it stops", 4, runs.size)
+    }
+
+    @Test
+    fun retriesStopOnceASyncWorks() = runBlocking {
+        results += listOf(TaskSyncRun.Result.BUSY, TaskSyncRun.Result.FAILED)
+        val triggers = triggers()
+        triggers.syncNow()
+        delay(500)
+        assertEquals(3, runs.size)
+    }
+
+    @Test
+    fun whatNeedsTheUserIsNotRetried() = runBlocking {
+        results += listOf(TaskSyncRun.Result.NEEDS_RECONNECT)
+        triggers().syncNow()
+        delay(300)
+        assertEquals(1, runs.size)
+        results += listOf(TaskSyncRun.Result.PAUSED_FOR_DELETES)
+        triggers().syncNow()
+        delay(300)
+        assertEquals(2, runs.size)
+    }
+
+    @Test
+    fun aChangeThatFailedToSendIsRetriedAtItsOwnTime() = runBlocking {
+        waitingAt = now + 300  // the sender's own wait, or Google's Retry-After
+        afterRun = { if (runs.size == 2) waitingAt = null }
+        val triggers = triggers()
+        triggers.syncNow()
+        delay(150)
+        assertEquals("not at 50 ms: the change isn't due yet", 1, runs.size)
+        delay(300)
+        assertEquals(2, runs.size)
+        delay(200)
+        assertEquals("sent: no more retries", 2, runs.size)
+    }
+
+    @Test
+    fun anEditStartsTheRetriesAgain() = runBlocking {
+        repeat(20) { results += TaskSyncRun.Result.OFFLINE }
+        val triggers = triggers()
+        triggers.syncNow()
+        delay(500)
+        assertEquals(4, runs.size)
+        triggers.afterEdit()
+        delay(700)
+        assertEquals("the edit's run and 3 more retries", 8, runs.size)
+    }
+
+    @Test
+    fun turningOffStopsRetries() = runBlocking {
+        repeat(10) { results += TaskSyncRun.Result.OFFLINE }
+        val triggers = triggers()
+        triggers.syncNow()
+        delay(20)
+        triggers.cancel()
+        delay(300)
+        assertEquals(1, runs.size)
+    }
+
+    @Test
+    fun aRetryWaitingIsDroppedWhenAnotherSyncWorks() = runBlocking {
+        results += TaskSyncRun.Result.OFFLINE
+        val triggers = triggers()
+        triggers.syncNow()
+        delay(10)
+        triggers.syncNow()  // DONE before the retry's 50 ms
+        delay(300)
+        assertEquals(2, runs.size)
+    }
+
+    // ── Edits, returns, Sync ──
 
     @Test
     fun aBurstOfEditsIsOneRunAfterTheLast() = runBlocking {
