@@ -111,6 +111,29 @@ interface TaskSyncDao {
     @Query("SELECT * FROM task_sync_link WHERE taskId = :taskId")
     fun getLink(taskId: String): TaskSyncLink?
 
+    /** Up to SQLITE_ID_CHUNK_SIZE ids (one page sort is at most a few dozen). */
+    @Query("SELECT * FROM task_sync_link WHERE taskId IN (:taskIds)")
+    fun getLinksFor(taskIds: Collection<String>): List<TaskSyncLink>
+
+    @Insert
+    fun insertOutboxEntry(entry: TaskSyncOutboxEntry): Long
+
+    /** A DELETE of [link]'s remote copy (the link itself is already off its row). */
+    fun queueDelete(link: TaskSyncLink, now: Long) {
+        insertOutboxEntry(
+            TaskSyncOutboxEntry(
+                op = TaskSyncOp.DELETE,
+                taskId = link.taskId,
+                provider = link.provider,
+                accountEmail = link.accountEmail,
+                serverUrl = link.serverUrl,
+                listId = link.listId,
+                remoteId = link.remoteId,
+                createdAt = now
+            )
+        )
+    }
+
     /** Restore only (after [clearLinks]). A clash on the remote identity fails loudly. */
     @Insert(onConflict = OnConflictStrategy.ABORT)
     fun insertLink(link: TaskSyncLink)

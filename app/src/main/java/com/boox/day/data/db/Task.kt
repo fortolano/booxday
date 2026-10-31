@@ -11,6 +11,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Transaction
 import com.aventrix.jnanoid.jnanoid.NanoIdUtils
 import android.util.Log
 import com.boox.day.data.PageDataManager
@@ -401,8 +402,61 @@ interface TaskDao {
      * NOTE: Caller must cancel notifications separately before calling this
      * if the task has a dueDate set.
      */
+    @Transaction
+    fun clearTaskMetadata(taskId: String, updatedAt: Date = Date()) {
+        // Task sync (Oct 2026): the task is gone, so its synced copy goes too. Moves take the link
+        // off the row first (moveSyncLink), so this clears only rows whose task is really gone.
+        retireSyncLink(taskId)
+        clearTaskMetadataRow(taskId, updatedAt)
+    }
+
+    /** Use [clearTaskMetadata]. */
     @Query("UPDATE task SET isCompleted = 0, priority = '', typedText = NULL, convertedText = NULL, recognizedText = NULL, parentTaskId = NULL, dueDate = NULL, dueDay = NULL, reminderMinuteOfDay = NULL, estimatedMinutes = NULL, migrationCount = 0, originalDate = NULL, lastMigratedAt = NULL, templateId = NULL, updatedAt = :updatedAt WHERE id = :taskId")
-    fun clearTaskMetadata(taskId: String, updatedAt: Date = Date())
+    fun clearTaskMetadataRow(taskId: String, updatedAt: Date = Date())
+
+    // ── Task sync links (v30, TaskSync.kt) ──────────────────────────────────────────────────
+    // A row is a slot, not a task: the link to the service's copy moves with the content
+    // (transferTaskContent, Break Down, sort) and becomes an outbox DELETE when the task is
+    // cleared (above) or its row deleted (TaskSyncSchema's trigger).
+
+    /** The row's link, if any, becomes a DELETE of the service's copy; nothing else is left of it. */
+    @Transaction
+    fun retireSyncLink(taskId: String) {
+        queueSyncDeleteFor(taskId, System.currentTimeMillis())
+        dropQueuedSyncUpsert(taskId)
+        dropSyncLink(taskId)
+    }
+
+    /**
+     * The link of the task on [fromTaskId] moves with its content to [toTaskId]. A link already on
+     * the target (an orphan: its row lost its words without being cleared) is retired: that row
+     * now holds another task.
+     */
+    @Transaction
+    fun moveSyncLink(fromTaskId: String, toTaskId: String) {
+        if (fromTaskId == toTaskId) return
+        retireSyncLink(toTaskId)
+        rekeySyncLink(fromTaskId, toTaskId)
+        rekeyQueuedSyncUpsert(fromTaskId, toTaskId)
+    }
+
+    @Query(
+        "INSERT INTO task_sync_outbox (op, taskId, provider, accountEmail, serverUrl, listId, remoteId, createdAt, attempts, nextAttemptAt) " +
+            "SELECT 'DELETE', taskId, provider, accountEmail, serverUrl, listId, remoteId, :now, 0, 0 FROM task_sync_link WHERE taskId = :taskId"
+    )
+    fun queueSyncDeleteFor(taskId: String, now: Long)
+
+    @Query("DELETE FROM task_sync_outbox WHERE op = 'UPSERT' AND taskId = :taskId")
+    fun dropQueuedSyncUpsert(taskId: String)
+
+    @Query("DELETE FROM task_sync_link WHERE taskId = :taskId")
+    fun dropSyncLink(taskId: String)
+
+    @Query("UPDATE task_sync_link SET taskId = :toTaskId WHERE taskId = :fromTaskId")
+    fun rekeySyncLink(fromTaskId: String, toTaskId: String)
+
+    @Query("UPDATE task_sync_outbox SET taskId = :toTaskId WHERE op = 'UPSERT' AND taskId = :fromTaskId")
+    fun rekeyQueuedSyncUpsert(fromTaskId: String, toTaskId: String)
 
     /**
      * Move a task to a different date/page/row.
@@ -834,6 +888,7 @@ private data class TaskPageCacheEntry(
 class TaskRepository(internal val context: Context) {
     private val taskDao = AppDatabase.getDatabase(context).taskDao()
     private val pageDao = AppDatabase.getDatabase(context).pageDao()
+    private val taskSyncDao = AppDatabase.getDatabase(context).taskSyncDao()
     private val strokeDao = AppDatabase.getDatabase(context).strokeDao()
     private val recurringTaskTemplateDao = AppDatabase.getDatabase(context).recurringTaskTemplateDao()
     private val recurringTaskExceptionDao = AppDatabase.getDatabase(context).recurringTaskExceptionDao()
@@ -944,6 +999,9 @@ class TaskRepository(internal val context: Context) {
             if (source.templateId != null) taskDao.setTemplateId(source.id, null)
             if (source.dueDay != null) afterCommit { cancelTaskNotification(source.id) }
         }
+        // Task sync (Oct 2026): the synced copy is this task's, so its link moves with it, before
+        // the caller clears the source row (which would otherwise delete the copy)
+        taskDao.moveSyncLink(source.id, targetTaskId)
         taskDao.setCompleted(targetTaskId, source.isCompleted)
         taskDao.setPriority(targetTaskId, priority)
         taskDao.setTypedText(targetTaskId, source.typedText)
@@ -2695,6 +2753,8 @@ class TaskRepository(internal val context: Context) {
         taskDao.updateRolloverTracking(targetTaskId, fresh.migrationCount, fresh.originalDate, fresh.lastMigratedAt)
         writeDueDay(targetTaskId, fresh.dueDay)
         if (fresh.dueDay != null) cancelTaskNotification(fresh.id)
+        // Task sync: the new parent row is the original task, so its synced copy goes with it
+        taskDao.moveSyncLink(fresh.id, targetTaskId)
         taskDao.clearTaskMetadata(fresh.id)
         invalidateTaskCache(fresh.dayDate)
     }
@@ -5363,6 +5423,15 @@ class TaskRepository(internal val context: Context) {
                     ))
                 }
 
+                // Task sync (Oct 2026): the wipe clears every involved row, which would delete their
+                // tasks' synced copies. Take the links off first; each goes back on the row its task
+                // moves to after the write phase. A row-by-row move would collide on swaps.
+                val syncLinks = taskSyncDao.getLinksFor(slotsToWipeIds)
+                for (link in syncLinks) {
+                    taskDao.dropSyncLink(link.taskId)
+                    taskDao.dropQueuedSyncUpsert(link.taskId)  // the watcher queues what still differs
+                }
+
                 // 3. WIPE Phase: clear ink + metadata of every involved slot
                 val strokeIdsToDeleteByPage = mutableMapOf<String, MutableList<String>>()
                 for (taskId in slotsToWipeIds) {
@@ -5412,6 +5481,18 @@ class TaskRepository(internal val context: Context) {
                     // orphan it if the parent wasn't part of this batch (its old slot is wiped)
                     val newParentId = source.parentTaskId?.let { sourceToTargetMap[it] }
                     taskDao.setParentTask(op.targetTaskId, newParentId)
+                }
+
+                // Task sync: each link back on its task's new row. A link on a row that only
+                // received another task (an orphan) means that task is gone: its copy is deleted.
+                val now = System.currentTimeMillis()
+                for (link in syncLinks) {
+                    val newTaskId = sourceToTargetMap[link.taskId]
+                    if (newTaskId != null) {
+                        taskSyncDao.insertLink(link.copy(taskId = newTaskId))
+                    } else {
+                        taskSyncDao.queueDelete(link, now)
+                    }
                 }
             }
 
