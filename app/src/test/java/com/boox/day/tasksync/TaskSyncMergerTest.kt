@@ -3,8 +3,12 @@ package com.boox.day.tasksync
 import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.boox.day.APP_SETTINGS_KEY
+import com.boox.day.data.datastore.AppSettings
+import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.db.APP_DATABASE_FILE_NAME
 import com.boox.day.data.db.AppDatabase
+import com.boox.day.data.db.KvProxy
 import com.boox.day.data.db.TaskDao
 import com.boox.day.data.db.TaskRepository
 import com.boox.day.data.db.TaskSyncDao
@@ -13,7 +17,10 @@ import com.boox.day.data.db.TaskSyncOp
 import com.boox.day.data.db.TaskSyncOutboxEntry
 import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.data.getDbDir
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -52,13 +59,17 @@ class TaskSyncMergerTest {
         tasks = db.taskDao()
         sync = db.taskSyncDao()
         merger = TaskSyncMerger(
-            db, RepositoryTabletTasks(context, repo) { canvasHeight }, TaskSyncProvider.GOOGLE_TASKS, EMAIL,
+            db, RepositoryTabletTasks(context, repo, canvasHeight = { canvasHeight }, penOn = { false }), TaskSyncProvider.GOOGLE_TASKS, EMAIL,
             clock = { now }, today = { DAY }
         )
     }
 
     @After
     fun tearDown() {
+        GlobalAppSettings.update(AppSettings(version = 1))
+        GlobalAppSettings.setTasksCanvasHeight(0f)
+        GlobalAppSettings.setTasksTopOffsetPx(0f)
+        context.getSharedPreferences(TaskSync.PREFS_NAME, Context.MODE_PRIVATE).edit().clear().commit()
         repo.invalidateTaskCache()
         AppDatabase.closeDatabase()
         deleteDatabaseFiles()
@@ -312,9 +323,96 @@ class TaskSyncMergerTest {
     }
 
     @Test
-    fun aNewTaskFromThePhoneWaitsForPlacing() = runBlocking {
-        assertEquals(TaskSyncMerger.Result.WAITS, merger.merge(remote("r-new", "Buy bread")))
-        assertNull(sync.getLinkByRemote(TaskSyncProvider.GOOGLE_TASKS, EMAIL, "", LIST, "r-new"))
+    fun aNewTaskFromThePhoneLandsOnItsDaysFirstFreeRow() = runBlocking {
+        synced(row = 0, text = "Call mom", remoteId = "r-1")
+
+        assertEquals(TaskSyncMerger.Result.APPLIED, merger.merge(remote("r-new", "Water plants", dueDay = DAY)))
+        assertEquals(TaskSyncMerger.Result.APPLIED, merger.merge(remote("r-next", "Buy bread", dueDay = NEXT_DAY)))
+
+        val placed = tasks.getTasksForDay(DAY).single { it.typedText == "Water plants" }
+        assertEquals("the first free row", 1, placed.rowIndex)
+        assertFalse(placed.isCompleted)
+        assertNull("no BooxDay due day or reminder (owner decision 28)", placed.dueDay)
+        assertEquals("r-new", sync.getLink(placed.id)?.remoteId)
+        val next = tasks.getTasksForDay(NEXT_DAY).single { it.typedText == "Buy bread" }
+        assertEquals(0, next.rowIndex)
+        assertEquals("r-next", sync.getLink(next.id)?.remoteId)
+        assertNothingWaits()
+    }
+
+    @Test
+    fun anUndatedNewTaskLandsOnTodayAndStaysUndatedThere() = runBlocking {
+        merger.merge(remote("r-new", "Someday", dueDay = null))
+
+        val placed = tasks.getTasksForDay(DAY).single { it.typedText == "Someday" }
+        assertTrue(sync.getLink(placed.id)!!.remoteUndated)
+        assertNothingWaits()
+    }
+
+    @Test
+    fun aNewTaskAlreadyTickedOnThePhoneStaysThere() = runBlocking {
+        // Owner decision 27: unticked ones only
+        assertEquals(TaskSyncMerger.Result.UNCHANGED, merger.merge(remote("r-done", "Bought bread", completed = true)))
+
+        assertTrue(tasks.getTasksForDay(DAY).none { it.typedText == "Bought bread" })
+        assertNull(sync.getLinkByRemote(TaskSyncProvider.GOOGLE_TASKS, EMAIL, "", LIST, "r-done"))
+    }
+
+    @Test
+    fun aNewTaskWaitsWhileThePenWritesOnItsPage() = runBlocking {
+        val writing = TaskSyncMerger(
+            db, RepositoryTabletTasks(context, repo, canvasHeight = { CANVAS_HEIGHT }, penOn = { true }),
+            TaskSyncProvider.GOOGLE_TASKS, EMAIL, clock = { now }, today = { DAY }
+        )
+
+        assertEquals(TaskSyncMerger.Result.WAITS, writing.merge(remote("r-new", "Buy bread")))
+
+        assertTrue(tasks.getTasksForDay(DAY).none { it.typedText == "Buy bread" })
+    }
+
+    @Test
+    fun aNewTaskWaitsWhileItsDayIsFullAndComesWhenARowIsFree() = runBlocking {
+        for (page in 0 until 10) {
+            repo.getOrCreateTasksForPage(NEXT_DAY, page).first.forEach { tasks.setTypedText(it.id, "Task") }
+            repo.invalidateTaskCache()
+        }
+
+        assertEquals(TaskSyncMerger.Result.WAITS, merger.merge(remote("r-new", "Buy bread", dueDay = NEXT_DAY)))
+        assertEquals("the Task Sync card says so", setOf(NEXT_DAY), TaskSync.fullDays(context))
+
+        val freed = tasks.getTasksForDay(NEXT_DAY).first { it.taskPageIndex == 3 && it.rowIndex == 4 }
+        tasks.setTypedText(freed.id, null)
+        repo.invalidateTaskCache()
+        assertEquals(TaskSyncMerger.Result.APPLIED, merger.merge(remote("r-new", "Buy bread", dueDay = NEXT_DAY)))
+
+        assertEquals("Buy bread", tasks.getById(freed.id)!!.typedText)
+        assertTrue(TaskSync.fullDays(context).isEmpty())
+    }
+
+    @Test
+    fun theScreenHearsWhichDaysSyncChanged() = runBlocking {
+        val id = synced(row = 2, text = "Send mockups", remoteId = "r-2")
+        val heard = mutableListOf<String>()
+        val listening = launch(start = CoroutineStart.UNDISPATCHED) { TaskRepository.dayChangedBySync.collect { heard += it } }
+
+        merger.merge(remote("r-2", "Send mockups", dueDay = NEXT_DAY))
+        merger.merge(remote("r-new", "Buy bread", dueDay = DAY))
+        repeat(3) { yield() }
+        listening.cancel()
+
+        assertNull(tasks.getById(id)!!.typedText)
+        assertEquals(setOf(DAY, NEXT_DAY), heard.toSet())
+    }
+
+    @Test
+    fun withBooxDayClosedTheSavedRowSizeIsUsed() {
+        // No Tasks screen this session: what TasksInkLayout saved last time
+        assertEquals("nothing saved yet: writes wait", 0f, syncCanvasHeight(context))
+
+        KvProxy(context).setKv(APP_SETTINGS_KEY, AppSettings(version = 1, tasksInkCanvasHeight = 1386f, tasksInkTopOffset = 3f), AppSettings.serializer())
+
+        assertEquals(1386f, syncCanvasHeight(context))
+        assertEquals("BooxDay's row code reads the top offset from the session", 3f, GlobalAppSettings.tasksTopOffsetPx)
     }
 
     // ── Helpers ──

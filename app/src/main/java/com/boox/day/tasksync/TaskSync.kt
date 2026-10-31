@@ -19,6 +19,7 @@ object TaskSync {
     /** Also named in res/xml/backup_rules.xml and data_extraction_rules.xml. */
     const val PREFS_NAME = "task_sync"
     private const val KEY_ON = "on"
+    private const val KEY_FULL_DAYS = "full_days"
 
     @Volatile
     private var watcher: TaskSyncWatcher? = null
@@ -29,6 +30,19 @@ object TaskSync {
     /** For the Preferences card (Google Tasks stage). */
     fun setOn(context: Context, on: Boolean) {
         prefs(context).edit().putBoolean(KEY_ON, on).apply()
+    }
+
+    /**
+     * Days a new task from the service couldn't be placed on: all 10 pages full (plan step 2.4).
+     * The Task Sync card says so; the task comes once a row is free.
+     */
+    fun fullDays(context: Context): Set<String> =
+        prefs(context).getStringSet(KEY_FULL_DAYS, emptySet()).orEmpty().toSortedSet()
+
+    internal fun setDayFull(context: Context, day: String, full: Boolean) {
+        val days = fullDays(context)
+        if ((day in days) == full) return
+        prefs(context).edit().putStringSet(KEY_FULL_DAYS, if (full) days + day else days - day).apply()
     }
 
     /** Starts watching for changes when task sync is on; does nothing otherwise. */

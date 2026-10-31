@@ -36,6 +36,7 @@ class TaskSyncPullerTest {
     private lateinit var sync: TaskSyncDao
     private val service = FakeService()
     private var now = 1_800_000_000_000L
+    private var canvasHeight = CANVAS_HEIGHT
     private lateinit var puller: TaskSyncPuller
 
     @Before
@@ -51,7 +52,7 @@ class TaskSyncPullerTest {
                 "VALUES ('${TaskSyncProvider.GOOGLE_TASKS}', '$EMAIL', '', '$LIST', 'BooxDay test', 1)"
         )
         val merger = TaskSyncMerger(
-            db, RepositoryTabletTasks(context, repo) { CANVAS_HEIGHT }, TaskSyncProvider.GOOGLE_TASKS, EMAIL,
+            db, RepositoryTabletTasks(context, repo, canvasHeight = { canvasHeight }, penOn = { false }), TaskSyncProvider.GOOGLE_TASKS, EMAIL,
             clock = { now }, today = { DAY }
         )
         puller = TaskSyncPuller(db, service, merger, EMAIL, clock = { now })
@@ -79,7 +80,8 @@ class TaskSyncPullerTest {
 
     @Test
     fun aChangeThatWaitsKeepsTheCursor() = runBlocking {
-        // A new task from the phone waits for placing (step 2.4)
+        // A new task from the phone, while the Tasks rows' size isn't known yet
+        canvasHeight = 0f
         service.changes = RemoteChanges(listOf(remote("r-new", "Buy bread")), "c1")
 
         assertEquals(1, puller.pull().waiting)

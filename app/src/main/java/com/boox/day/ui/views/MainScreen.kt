@@ -1650,6 +1650,17 @@ fun MainScreen(
                 }
             }
         }
+        // Task sync (Oct 2026): the task service changed a day's tasks; the page on screen shows it,
+        // once the pen rests. A day on full screen pages is shown again when full screen ends.
+        launch {
+            TaskRepository.dayChangedBySync.collect { day ->
+                while (DrawCanvas.isStylusActiveWithin(5_000L)) delay(1_000L)
+                if (day == selectedDateState.value && !com.boox.day.tasks.TaskPagination.isReflowed(day)) {
+                    loadTasksPage(day, currentTaskPageIndex)
+                    TasksCanvasRefresh.request()
+                }
+            }
+        }
         TaskRepository.taskChanged.collect { changedDate ->
             // Only update if the changed date is in the current viewing month
             if (changedDate.startsWith(currentYearMonthState.value)) {

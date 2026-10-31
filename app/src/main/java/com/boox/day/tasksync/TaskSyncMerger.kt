@@ -25,7 +25,8 @@ import java.time.LocalDate
  *   (keptOnTablet) and is never sent again. A whole list deleted: each of its tasks the same way
  *   (decision 23).
  * - **New in the service:** linked to an unlinked tablet task with the same words and due day if
- *   there is one (a reply lost on the way, a restore), else added to the tablet (step 2.4).
+ *   there is one (a reply lost on the way, a restore), else added to the tablet on its due day
+ *   (step 2.4): unticked ones only (decision 27), typed, with no BooxDay due day (decision 28).
  *
  * A change that can't be made now ([Result.WAITS]: a full-screen day, no row size yet) leaves
  * everything as it was; the pull keeps its cursor, so it comes again at the next sync.
@@ -187,9 +188,12 @@ internal class TaskSyncMerger(
             }
             return Result.APPLIED
         }
+        // Unticked ones only (owner decision 27): also keeps old finished tasks, left in the service
+        // at turn-on, off the tablet when they are touched there
+        if (remote.completed || remote.title.isBlank()) return Result.UNCHANGED
         // On its due day; undated, on the day it first comes (owner decision 1)
         val day = remote.dueDay ?: today()
-        val added = tablet.add(day, remote.title, remote.completed) { row -> sync.insertLink(linkFor(row, remote)) }
+        val added = tablet.add(day, remote.title) { row -> sync.insertLink(linkFor(row, remote)) }
         return if (added) Result.APPLIED else Result.WAITS
     }
 

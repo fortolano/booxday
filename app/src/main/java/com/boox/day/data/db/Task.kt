@@ -917,6 +917,15 @@ class TaskRepository(internal val context: Context) {
             _dayCleared.tryEmit(date)
         }
 
+        // Task sync (Oct 2026, plan step 2.4): the task service changed a day's tasks (a new task, a
+        // move, a clear, words or a tick). MainScreen reloads that day's page if it is on screen.
+        private val _dayChangedBySync = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 16)
+        val dayChangedBySync = _dayChangedBySync.asSharedFlow()
+
+        fun notifyDayChangedBySync(date: String) {
+            _dayChangedBySync.tryEmit(date)
+        }
+
         // PERFORMANCE: Cache for task page queries (saves ~25-260ms per cached hit).
         // One cache for the whole process (plan §13.2-6, Oct 2026): the app creates several
         // TaskRepository instances, and per-instance caches missed each other's invalidations.
@@ -2167,22 +2176,45 @@ class TaskRepository(internal val context: Context) {
         taskDao.setTypedText(taskId, typedText)
 
         // Fetch full task info for cache invalidation and indexing
-        val task = taskDao.getById(taskId)
-        task?.let {
-            invalidateTaskCache(it.dayDate)
-            // Signal for real-time badge updates
-            _taskChanged.tryEmit(it.dayDate)
-            invalidateIntelligenceCache()
+        taskDao.getById(taskId)?.let(::typedTextChanged)
+    }
 
-            // Trigger typed text indexing (debounced, semantic extraction)
-            // Only if TaskTextIndexer is already initialized (lazy startup)
-            TaskTextIndexer.getInstanceOrNull()?.onTypedTextChanged(
-                taskId = taskId,
-                dayDate = it.dayDate,
-                taskPageIndex = it.taskPageIndex,
-                pageId = it.pageId
-            )
-        }
+    private fun typedTextChanged(task: Task) {
+        invalidateTaskCache(task.dayDate)
+        // Signal for real-time badge updates
+        _taskChanged.tryEmit(task.dayDate)
+        invalidateIntelligenceCache()
+
+        // Trigger typed text indexing (debounced, semantic extraction)
+        // Only if TaskTextIndexer is already initialized (lazy startup)
+        TaskTextIndexer.getInstanceOrNull()?.onTypedTextChanged(
+            taskId = task.id,
+            dayDate = task.dayDate,
+            taskPageIndex = task.taskPageIndex,
+            pageId = task.pageId
+        )
+    }
+
+    /**
+     * Task sync (Oct 2026, plan step 2.4): a task from the task service, typed, onto the free row
+     * [rowId] that SlotAllocator found. In one transaction the row is checked again and written
+     * with its [link], so the change watcher never sees the task without it (it would send it back
+     * as new). Unticked, no due day of its own (owner decisions 27, 28). Rows are never inserted:
+     * every page has its rows, and an insert would replace one.
+     * @return false when the row was taken meanwhile (the next sync tries again)
+     */
+    fun writeSyncedTask(rowId: String, words: String, link: (Task) -> Unit): Boolean = inTransaction {
+        val row = taskDao.getById(rowId) ?: return@inTransaction false
+        val free = row.typedText.isNullOrBlank() && row.convertedText.isNullOrBlank() &&
+            row.recognizedText.isNullOrBlank() && !row.isCompleted && row.priority.isBlank() &&
+            row.parentTaskId == null && taskSyncDao.getLink(rowId) == null
+        if (!free) return@inTransaction false
+        taskDao.setTypedText(rowId, words)
+        if (row.dueDay != null) taskDao.setDueDay(rowId, null)  // left over on an empty row (SlotAllocator ignores it)
+        val written = taskDao.getById(rowId) ?: return@inTransaction false
+        link(written)
+        afterCommit { typedTextChanged(written) }
+        true
     }
 
     /**
