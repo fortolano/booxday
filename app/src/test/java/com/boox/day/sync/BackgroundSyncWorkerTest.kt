@@ -78,6 +78,20 @@ class BackgroundSyncWorkerTest {
     }
 
     @Test
+    fun `app start keeps the schedule that is there`() {
+        BackgroundSyncWorker.applySchedule(context, 8L)
+        val first = work().single()
+
+        BackgroundSyncWorker.applySchedule(context, 8L, replace = false)  // the next app start
+        BackgroundSyncWorker.applySchedule(context, 24L, replace = false)  // an account added
+
+        val kept = work().single()
+        assertEquals(first.id, kept.id)
+        assertEquals("only a settings change takes a new interval", TimeUnit.HOURS.toMillis(8), kept.periodicityInfo?.repeatIntervalMillis)
+        assertEquals(WorkInfo.State.ENQUEUED, kept.state)
+    }
+
+    @Test
     fun `a run in Private Mode syncs nothing`() = runBlocking {
         GlobalAppSettings.update(AppSettings(version = 1, syncMode = AppSettings.SyncMode.STANDALONE))
         GlobalAppSettings.loaded = true

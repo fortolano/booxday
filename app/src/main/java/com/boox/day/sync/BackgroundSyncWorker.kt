@@ -68,11 +68,17 @@ class BackgroundSyncWorker(
         private const val TAG = "BackgroundSyncWorker"
         const val WORK_NAME = "background_sync"
 
-        /** Brings the periodic work in line with the settings: enqueued, updated or cancelled. */
-        suspend fun schedule(context: Context) {
+        /**
+         * Brings the periodic work in line with the settings: enqueued, kept or cancelled.
+         * [settingsChanged] (the auto-sync switch or the frequency): the work is replaced, so a new
+         * interval takes effect. Otherwise (app start, an account added or removed) existing work
+         * is left as it is: replacing it re-registered the system job at every start (seen on the
+         * Go 10.3, 30 Oct 2026).
+         */
+        suspend fun schedule(context: Context, settingsChanged: Boolean = false) {
             val auth = GoogleAuthManager(context.applicationContext)
             val hasAccounts = AppDatabase.getDatabase(context).connectedAccountDao().countActiveAccounts() > 0
-            applySchedule(context, intervalHours(auth.isSyncEnabled(), hasAccounts, auth.getSyncFrequency()))
+            applySchedule(context, intervalHours(auth.isSyncEnabled(), hasAccounts, auth.getSyncFrequency()), replace = settingsChanged)
         }
 
         /** Hours between runs, or null when there is nothing to sync in the background. */
@@ -87,7 +93,7 @@ class BackgroundSyncWorker(
             }
         }
 
-        internal fun applySchedule(context: Context, intervalHours: Long?) {
+        internal fun applySchedule(context: Context, intervalHours: Long?, replace: Boolean = true) {
             val workManager = WorkManager.getInstance(context)
             if (intervalHours == null) {
                 workManager.cancelUniqueWork(WORK_NAME)
@@ -102,9 +108,10 @@ class BackgroundSyncWorker(
                         .build()
                 )
                 .build()
-            // UPDATE keeps the current schedule when nothing changed and takes a new interval when it did
-            workManager.enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
-            Log.i(TAG, "Background sync every $intervalHours h")
+            // UPDATE takes a new interval (same work, its timing kept); KEEP leaves existing work alone
+            val policy = if (replace) ExistingPeriodicWorkPolicy.UPDATE else ExistingPeriodicWorkPolicy.KEEP
+            workManager.enqueueUniquePeriodicWork(WORK_NAME, policy, request)
+            Log.i(TAG, "Background sync every $intervalHours h (${policy.name})")
         }
     }
 }

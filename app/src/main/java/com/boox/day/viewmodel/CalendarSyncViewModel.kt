@@ -554,7 +554,7 @@ class CalendarSyncViewModel(application: Application) : AndroidViewModel(applica
     private fun rescheduleBackgroundSync() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                com.boox.day.sync.BackgroundSyncWorker.schedule(getApplication())
+                com.boox.day.sync.BackgroundSyncWorker.schedule(getApplication(), settingsChanged = true)
             } catch (e: Exception) {
                 Log.w(TAG, "Background sync not rescheduled: ${e.message}")
             }
