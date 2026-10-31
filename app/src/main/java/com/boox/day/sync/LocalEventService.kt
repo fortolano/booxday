@@ -459,16 +459,14 @@ class LocalEventService(
         val errors = mutableListOf<String>()
 
         for (event in pendingEvents) {
-            val providerId = resolveProviderId(event)
-            val hasAccount = !event.accountId.isNullOrBlank()
-            val useProviderRouting = providerId != null && hasAccount
+            val target = pendingPushTarget(event)
 
             when (event.syncStatus) {
                 SyncStatus.PENDING_CREATE -> {
-                    val result = when {
-                        useProviderRouting -> pushCreateToProvider(event, providerId!!, event.accountId!!)
-                        providerId == null || providerId == ProviderId.GOOGLE -> pushCreateToGoogle(event)
-                        else -> LocalEventResult.Error("Missing account for ${providerId.displayName}")
+                    val result = when (target) {
+                        is PendingPushTarget.Provider -> pushCreateToProvider(event, target.providerId, target.accountId)
+                        PendingPushTarget.LegacyGoogle -> pushCreateToGoogle(event)
+                        is PendingPushTarget.Nowhere -> LocalEventResult.Error(target.reason)
                     }
                     if (result is LocalEventResult.Success) created++
                     else if (result is LocalEventResult.Error) errors.add("Create ${event.title}: ${result.message}")
@@ -485,20 +483,20 @@ class LocalEventService(
                         Log.i(TAG, "SYNC_PENDING: ${event.id} was flagged by its own sync confirmation; marked SYNCED")
                         continue
                     }
-                    val result = when {
-                        useProviderRouting -> pushUpdateToProvider(event, providerId!!, event.accountId!!)
-                        providerId == null || providerId == ProviderId.GOOGLE -> pushUpdateToGoogle(event)
-                        else -> LocalEventResult.Error("Missing account for ${providerId.displayName}")
+                    val result = when (target) {
+                        is PendingPushTarget.Provider -> pushUpdateToProvider(event, target.providerId, target.accountId)
+                        PendingPushTarget.LegacyGoogle -> pushUpdateToGoogle(event)
+                        is PendingPushTarget.Nowhere -> LocalEventResult.Error(target.reason)
                     }
                     if (result is LocalEventResult.Success) updated++
                     else if (result is LocalEventResult.Error) errors.add("Update ${event.title}: ${result.message}")
                 }
 
                 SyncStatus.PENDING_DELETE -> {
-                    val result = when {
-                        useProviderRouting -> pushDeleteToProvider(event, providerId!!, event.accountId!!)
-                        providerId == null || providerId == ProviderId.GOOGLE -> pushDeleteToGoogle(event)
-                        else -> LocalEventResult.Error("Missing account for ${providerId.displayName}")
+                    val result = when (target) {
+                        is PendingPushTarget.Provider -> pushDeleteToProvider(event, target.providerId, target.accountId)
+                        PendingPushTarget.LegacyGoogle -> pushDeleteToGoogle(event)
+                        is PendingPushTarget.Nowhere -> LocalEventResult.Error(target.reason)
                     }
                     if (result is LocalEventResult.Success) deleted++
                     else if (result is LocalEventResult.Error) errors.add("Delete ${event.title}: ${result.message}")
@@ -512,11 +510,6 @@ class LocalEventService(
         SyncPendingResult(created, updated, deleted, errors)
     }
 
-    private fun resolveProviderId(event: LocalEvent): ProviderId? = when (event.providerId) {
-        ProviderId.GOOGLE.key -> ProviderId.GOOGLE
-        ProviderId.OUTLOOK.key -> ProviderId.OUTLOOK
-        else -> null
-    }
 
     /**
      * Push a PENDING_CREATE event to its provider (Google or Outlook).
@@ -972,5 +965,31 @@ data class SyncPendingResult(
             hasErrors -> "Synced $totalSynced, ${errors.size} errors"
             else -> "Synced: $created created, $updated updated, $deleted deleted"
         }
+    }
+}
+
+/** Where a pending tablet change of a synced event goes (sync/LocalEventService.syncPendingChanges). */
+internal sealed class PendingPushTarget {
+    data class Provider(val providerId: ProviderId, val accountId: String) : PendingPushTarget()
+    /** Made by the old Google-only path: no provider recorded ("LOCAL" or blank) but syncing. */
+    object LegacyGoogle : PendingPushTarget()
+    /** Not sent anywhere; it stays pending. */
+    data class Nowhere(val reason: String) : PendingPushTarget()
+}
+
+/**
+ * Oct 2026: an event of a provider this version doesn't know (CalDAV before it is built, or any
+ * other key) used to be pushed to Google, the fallback meant only for events of the old Google-only
+ * path. Now only those go to Google; an unknown provider's change waits.
+ */
+internal fun pendingPushTarget(event: LocalEvent): PendingPushTarget {
+    val key = event.providerId
+    val providerId = ProviderId.fromKeyOrNull(key)
+    val accountId = event.accountId?.takeIf { it.isNotBlank() }
+    return when {
+        providerId != null && accountId != null -> PendingPushTarget.Provider(providerId, accountId)
+        providerId == ProviderId.GOOGLE || key.isBlank() || key == "LOCAL" -> PendingPushTarget.LegacyGoogle
+        providerId != null -> PendingPushTarget.Nowhere("Missing account for ${providerId.displayName}")
+        else -> PendingPushTarget.Nowhere("Its calendar's provider ($key) isn't known to this version")
     }
 }
