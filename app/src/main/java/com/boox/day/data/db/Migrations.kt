@@ -805,3 +805,13 @@ val MIGRATION_30_31 = object : Migration(30, 31) {
         TaskSyncSchema.createTriggers(db)
     }
 }
+
+/** v32 (Oct 2026, CalDAV calendars, plan step 3.2): accounts' server details, calendars' change markers, event files. */
+val MIGRATION_31_32 = object : Migration(31, 32) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `caldav_account` (`accountId` TEXT NOT NULL, `principalUrl` TEXT NOT NULL, `calendarHomeUrl` TEXT NOT NULL, `username` TEXT NOT NULL, `pinnedCertSha256` TEXT, PRIMARY KEY(`accountId`), FOREIGN KEY(`accountId`) REFERENCES `connected_accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `caldav_calendar` (`accountId` TEXT NOT NULL, `href` TEXT NOT NULL, `ctag` TEXT, `syncToken` TEXT, PRIMARY KEY(`accountId`, `href`), FOREIGN KEY(`accountId`) REFERENCES `connected_accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `caldav_resource` (`accountId` TEXT NOT NULL, `href` TEXT NOT NULL, `calendarHref` TEXT NOT NULL, `etag` TEXT, `ics` TEXT NOT NULL, `uid` TEXT, `syncedAt` INTEGER NOT NULL, PRIMARY KEY(`accountId`, `href`), FOREIGN KEY(`accountId`) REFERENCES `connected_accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_caldav_resource_accountId_calendarHref` ON `caldav_resource` (`accountId`, `calendarHref`)")
+    }
+}

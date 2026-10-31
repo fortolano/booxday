@@ -17,6 +17,7 @@ import com.boox.day.data.db.MIGRATION_27_28
 import com.boox.day.data.db.MIGRATION_28_29
 import com.boox.day.data.db.MIGRATION_29_30
 import com.boox.day.data.db.MIGRATION_30_31
+import com.boox.day.data.db.MIGRATION_31_32
 import com.boox.day.data.db.TaskSyncSchema
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -374,6 +375,27 @@ class MigrationTest {
             assertEquals("r-p", c.getString(0))
             assertEquals(0, c.getInt(1))
         }
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate31To32_addsCalDavTables() {
+        val dbName = "migration-test-31-32"
+        helper.createDatabase(dbName, 31).apply {
+            execSQL(
+                "INSERT INTO connected_accounts (id, providerId, accountType, email, displayName, isActive, createdAt, lastSyncAt, serverUrl) " +
+                    "VALUES ('acc-1', 'GOOGLE', 'GOOGLE_PERSONAL', 'me@gmail.com', NULL, 1, 1, NULL, '')"
+            )
+            close()
+        }
+
+        val migratedDb = helper.runMigrationsAndValidate(dbName, 32, true, MIGRATION_31_32)
+
+        migratedDb.query("SELECT email FROM connected_accounts WHERE id = 'acc-1'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("me@gmail.com", c.getString(0))
+        }
+        migratedDb.query("SELECT COUNT(*) FROM caldav_resource").use { c -> assertTrue(c.moveToFirst()) }
     }
 
     @Test
