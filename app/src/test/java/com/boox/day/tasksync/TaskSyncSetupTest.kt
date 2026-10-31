@@ -3,7 +3,10 @@ package com.boox.day.tasksync
 import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.boox.day.APP_SETTINGS_KEY
+import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.db.APP_DATABASE_FILE_NAME
+import com.boox.day.data.db.KvProxy
 import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.TaskRepository
 import com.boox.day.data.db.TaskSyncDao
@@ -148,6 +151,16 @@ class TaskSyncSetupTest {
 
         assertEquals(TaskSyncRun.Result.OFF, TaskSyncRun.run(context))
         assertEquals("not counted as a run", 0L, TaskSync.lastRunAt(context))
+    }
+
+    @Test
+    fun anAccountRemovedInCalendarAccountsStopsSync() = runBlocking {
+        // Plan 2.1: Android may still hold the account, so Google would answer; sync stops instead
+        KvProxy(context).setKv(APP_SETTINGS_KEY, AppSettings(version = 1, syncMode = AppSettings.SyncMode.HYBRID), AppSettings.serializer())
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY)  // no connected_accounts row for EMAIL
+
+        assertEquals(TaskSyncRun.Result.NEEDS_RECONNECT, TaskSyncRun.run(context))
+        assertEquals("Task Sync needs you to sign in again", TaskSync.attentionReason(context))
     }
 
     private class FakeService : TaskSyncService {

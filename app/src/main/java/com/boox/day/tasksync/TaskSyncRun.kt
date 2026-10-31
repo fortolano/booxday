@@ -5,6 +5,7 @@ import android.util.Log
 import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.TaskSyncProvider
+import com.boox.day.data.model.ProviderId
 import com.boox.day.sync.SingleFlight
 import com.boox.day.sync.workerAppSettings
 import com.boox.day.tasksync.google.GoogleTasksProvider
@@ -40,6 +41,11 @@ internal object TaskSyncRun {
         if (workerAppSettings(app).syncMode != AppSettings.SyncMode.HYBRID) return Result.OFF
         val email = TaskSync.account(app) ?: return Result.OFF
         val db = AppDatabase.getDatabase(app)
+        // The account was removed in Calendar Accounts: sync stops and asks for the user (plan 2.1).
+        // Android may still hold the account, so Google would go on answering without this check.
+        if (db.connectedAccountDao().getByEmail(ProviderId.GOOGLE.key, "", email) == null) {
+            return TaskSync.recordRun(app, Result.NEEDS_RECONNECT)
+        }
         val provider = TaskSyncProvider.GOOGLE_TASKS
         if (db.taskSyncDao().getListsFor(provider, email, "").isEmpty()) return TaskSync.recordRun(app, Result.NO_LIST)
 
