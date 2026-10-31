@@ -291,6 +291,13 @@ interface TaskSyncDao {
     )
     fun dropDeletesOfOtherAccounts(provider: String, accountEmail: String, serverUrl: String)
 
+    /** A delete of this copy waits to be sent: the task was cleared here since the last sync. */
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM task_sync_outbox WHERE op = 'DELETE' AND provider = :provider " +
+            "AND accountEmail = :accountEmail AND serverUrl = :serverUrl AND listId = :listId AND remoteId = :remoteId)"
+    )
+    fun hasQueuedDelete(provider: String, accountEmail: String, serverUrl: String, listId: String, remoteId: String): Boolean
+
     /** When the task's waiting change was first noticed, if one waits. */
     @Query("SELECT MIN(createdAt) FROM task_sync_outbox WHERE op = 'UPSERT' AND taskId = :taskId")
     fun queuedUpsertAt(taskId: String): Long?

@@ -356,6 +356,18 @@ class TaskSyncMergerTest {
     }
 
     @Test
+    fun aTaskClearedHereDoesNotComeBackBeforeItsDeleteIsSent() = runBlocking {
+        // Seen on the Go 10.3 (31 Oct 2026): the pull runs before the send and added it back
+        val id = synced(row = 0, text = "Call Silvia", remoteId = "r-1")
+        repo.clearTaskSlot(tasks.getById(id)!!, CANVAS_HEIGHT)
+
+        assertEquals(TaskSyncMerger.Result.UNCHANGED, merger.merge(remote("r-1", "Call Silvia")))
+
+        assertTrue(tasks.getTasksForDay(DAY).none { it.typedText == "Call Silvia" })
+        assertEquals("the delete still goes", listOf(TaskSyncOp.DELETE), sync.getOutbox().map { it.op })
+    }
+
+    @Test
     fun anUndatedNewTaskLandsOnTodayAndStaysUndatedThere() = runBlocking {
         merger.merge(remote("r-new", "Someday", dueDay = null))
 

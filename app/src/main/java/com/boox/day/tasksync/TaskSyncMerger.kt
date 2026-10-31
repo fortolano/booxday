@@ -189,6 +189,8 @@ internal class TaskSyncMerger(
 
     private suspend fun incoming(remote: RemoteTaskState): Result {
         if (remote.deleted) return Result.UNCHANGED
+        // Cleared here and its delete not sent yet (the pull runs first): not a new task
+        if (sync.hasQueuedDelete(provider, accountEmail, serverUrl, remote.listId, remote.remoteId)) return Result.UNCHANGED
         findMatch(remote)?.let { match ->
             tablet.inTransaction {
                 sync.insertLink(linkFor(match, remote))
