@@ -29,13 +29,15 @@ internal object TaskSyncRun {
     /**
      * [changedAt]: when the change that asked for this run was made. A run that started before then
      * isn't joined (it may be past its look for tablet changes): this one waits for it and runs again.
+     * [handwritingNow]: the user tapped Sync, so every handwritten task whose words are read goes
+     * now (owner, 31 Oct 2026); one read later follows through the change watcher.
      */
-    suspend fun run(context: Context, changedAt: Long = 0L): Result {
+    suspend fun run(context: Context, changedAt: Long = 0L, handwritingNow: Boolean = false): Result {
         val app = context.applicationContext
-        return flight.run("task-sync", startedSince = changedAt) { withContext(Dispatchers.IO) { runNow(app) } }
+        return flight.run("task-sync", startedSince = changedAt) { withContext(Dispatchers.IO) { runNow(app, handwritingNow) } }
     }
 
-    private suspend fun runNow(app: Context): Result {
+    private suspend fun runNow(app: Context, handwritingNow: Boolean): Result {
         if (!TaskSync.isOn(app)) return Result.OFF
         // Cloud Sync only (plan step 2.6): Private Mode keeps everything on the tablet
         if (workerAppSettings(app).syncMode != AppSettings.SyncMode.HYBRID) return Result.OFF
@@ -49,7 +51,7 @@ internal object TaskSyncRun {
         val provider = TaskSyncProvider.GOOGLE_TASKS
         if (db.taskSyncDao().getListsFor(provider, email, "").isEmpty()) return TaskSync.recordRun(app, Result.NO_LIST)
 
-        TaskSync.scanner(app).scan(System.currentTimeMillis(), LocalDate.now().toString())
+        TaskSync.scanner(app).scan(System.currentTimeMillis(), LocalDate.now().toString(), wordsSettled = handwritingNow)
         val service = GoogleTasksProvider.create(app, email)
         val merger = TaskSyncMerger(db, RepositoryTabletTasks(app), provider, email)
         val result = try {

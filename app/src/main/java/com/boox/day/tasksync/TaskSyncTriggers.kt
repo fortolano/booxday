@@ -12,8 +12,8 @@ import kotlin.coroutines.coroutineContext
 
 /**
  * When task sync runs by itself while BooxDay is open (plan step 2.7, owner decisions 11 and 34):
- * - about 30 s after an edit: the change watcher's scan (5 s after the edit) queued something, then
- *   [AFTER_EDIT_MS]; more edits in that time push it back, so a burst of writing is one run;
+ * - about 10 s after an edit: the change watcher's scan (10 s after the last change, owner 31 Oct
+ *   2026) queued something, then [AFTER_EDIT_MS]; more edits in that time push it back;
  * - when BooxDay comes to the front (its first start too), at most every [RETURN_GAP_MS] since the
  *   last run of any kind: each run costs about one Google call per ticked list, from a limit all
  *   BooxDay users share;
@@ -27,7 +27,7 @@ import kotlin.coroutines.coroutineContext
  * screen that asked closes.
  */
 internal object TaskSyncTriggers {
-    const val AFTER_EDIT_MS = 25_000L
+    const val AFTER_EDIT_MS = 1_000L
     const val RETURN_GAP_MS = 10 * 60_000L
     val RETRY_WAITS_MS = listOf(1L, 2L, 4L, 8L, 15L).map { it * 60_000L }
 
@@ -44,7 +44,7 @@ internal object TaskSyncTriggers {
                 isOn = { TaskSync.isOn(app) },
                 lastRunAt = { TaskSync.lastRunAt(app) },
                 nextWaitingAt = { AppDatabase.getDatabase(app).taskSyncDao().nextOutboxAttemptAt() },
-                run = { changedAt -> TaskSyncRun.run(app, changedAt) }
+                run = { changedAt, handwritingNow -> TaskSyncRun.run(app, changedAt, handwritingNow) }
             ).also { shared = it }
         }
     }
@@ -73,7 +73,7 @@ internal object TaskSyncTriggers {
         private val isOn: () -> Boolean,
         private val lastRunAt: () -> Long,
         private val nextWaitingAt: () -> Long?,
-        private val run: suspend (changedAt: Long) -> TaskSyncRun.Result,
+        private val run: suspend (changedAt: Long, handwritingNow: Boolean) -> TaskSyncRun.Result,
         private val clock: () -> Long = System::currentTimeMillis,
         private val afterEditMs: Long = AFTER_EDIT_MS,
         private val returnGapMs: Long = RETURN_GAP_MS,
@@ -111,7 +111,7 @@ internal object TaskSyncTriggers {
         fun syncNow() {
             if (!isOn()) return
             val changedAt = clock()
-            scope.launch { runAndRetry(changedAt, fresh = true) }
+            scope.launch { runAndRetry(changedAt, fresh = true, handwritingNow = true) }
         }
 
         fun cancel() {
@@ -124,10 +124,13 @@ internal object TaskSyncTriggers {
             }
         }
 
-        /** [fresh]: an edit, a return or Sync, which starts the retry waits from the first again. */
-        private suspend fun runAndRetry(changedAt: Long, fresh: Boolean) {
+        /**
+         * [fresh]: an edit, a return or Sync, which starts the retry waits from the first again.
+         * [handwritingNow]: Sync was tapped (handwriting without its minute's wait).
+         */
+        private suspend fun runAndRetry(changedAt: Long, fresh: Boolean, handwritingNow: Boolean = false) {
             if (fresh) synchronized(lock) { retriesDone = 0 }
-            val result = run(changedAt)
+            val result = run(changedAt, handwritingNow)
             val waitingAt = withContext(Dispatchers.IO) { nextWaitingAt() }
             val unfinished = when (result) {
                 TaskSyncRun.Result.OFFLINE, TaskSyncRun.Result.BUSY, TaskSyncRun.Result.FAILED -> true

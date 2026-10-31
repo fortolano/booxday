@@ -31,7 +31,7 @@ class TaskSyncTriggersTest {
         isOn = { on },
         lastRunAt = { lastRun },
         nextWaitingAt = { waitingAt },
-        run = { changedAt ->
+        run = { changedAt, _ ->
             runs += changedAt
             hold?.await()
             finished += changedAt

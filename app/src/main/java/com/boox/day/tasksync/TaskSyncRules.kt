@@ -9,11 +9,11 @@ import java.security.MessageDigest
  * C:\Users\fort\.claude\plans\reactive-wiggling-micali.md, step 1.8.
  */
 internal object TaskSyncRules {
-    /** Handwriting is sent once its recognized words stay the same this long. */
-    const val HANDWRITING_STABLE_MS = 60_000L
+    /** Handwriting is sent once its recognized words stay the same this long (owner, 31 Oct 2026). */
+    const val HANDWRITING_STABLE_MS = 10_000L
 
     /** After ink changes, nothing is looked at for this long (writing is still going on). */
-    const val INK_QUIET_MS = 60_000L
+    const val INK_QUIET_MS = 10_000L
 
     /** A synced task whose row stays empty (no ink, no words) this long is deleted (owner decision 21). */
     const val EMPTY_ROW_DELETE_MS = 120_000L

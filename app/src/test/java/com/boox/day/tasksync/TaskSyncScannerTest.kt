@@ -66,13 +66,24 @@ class TaskSyncScannerTest {
         assertTrue(outbox().isEmpty())
         assertEquals(NOW + TaskSyncRules.HANDWRITING_STABLE_MS, first.rescanAt)
 
-        // Recognition read the row again and the words changed: the minute starts again
+        // Recognition read the row again and the words changed: the wait starts again
+        val wait = TaskSyncRules.HANDWRITING_STABLE_MS
         db.taskDao().setRecognizedTextById("t-ink", "Buy bread")
-        scanner.scan(NOW + 30_000, TODAY)
-        scanner.scan(NOW + 70_000, TODAY)
-        assertTrue("only 40 s with these words", outbox().isEmpty())
+        scanner.scan(NOW + wait / 2, TODAY)
+        scanner.scan(NOW + wait, TODAY)
+        assertTrue("only half the wait with these words", outbox().isEmpty())
 
-        scanner.scan(NOW + 90_001, TODAY)
+        scanner.scan(NOW + wait / 2 + wait, TODAY)
+        assertEquals(listOf(TaskSyncOp.UPSERT to "t-ink"), outbox())
+    }
+
+    @Test
+    fun theSyncButtonSendsHandwritingWithoutTheMinutesWait() {
+        // Owner, 31 Oct 2026
+        insert("t-ink", TODAY, row = 0, recognized = "Buy bread")
+
+        scanner.scan(NOW, TODAY, wordsSettled = true)
+
         assertEquals(listOf(TaskSyncOp.UPSERT to "t-ink"), outbox())
     }
 

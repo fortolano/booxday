@@ -15,6 +15,8 @@ import com.boox.day.data.db.Task
  * Clears, moves and row deletes are handled where they happen (TaskDao, the v30 trigger).
  *
  * [inkReader] gives a fresh "has this row ink?" check per scan (true, false, or null = can't tell).
+ * [wordsSettled]: nothing changed for a while (the change watcher's quiet), or the user tapped Sync:
+ * handwriting whose words are read goes without [TaskSyncRules.HANDWRITING_STABLE_MS] (owner, 31 Oct 2026).
  * The timers live in memory: after a restart they start again, which only delays.
  */
 internal class TaskSyncScanner(
@@ -27,7 +29,7 @@ internal class TaskSyncScanner(
     private val emptySince = HashMap<String, Long>()
 
     @Synchronized
-    fun scan(now: Long, today: String): Result = db.runInTransaction<Result> {
+    fun scan(now: Long, today: String, wordsSettled: Boolean = false): Result = db.runInTransaction<Result> {
         val sync = db.taskSyncDao()
         val tasks = db.taskDao()
         val links = sync.getAllLinks().associateBy { it.taskId }
@@ -76,7 +78,7 @@ internal class TaskSyncScanner(
             if (TaskSyncRules.isHandwrittenOnly(row)) {
                 val seen = handwritingSince[row.id]?.takeIf { it.first == text }
                     ?: (text to now).also { handwritingSince[row.id] = it }
-                if (now - seen.second < TaskSyncRules.HANDWRITING_STABLE_MS) {
+                if (!wordsSettled && now - seen.second < TaskSyncRules.HANDWRITING_STABLE_MS) {
                     rescanBy(seen.second + TaskSyncRules.HANDWRITING_STABLE_MS)
                     continue
                 }

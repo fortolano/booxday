@@ -41,7 +41,10 @@ class TaskSyncWatcherTest {
             .allowMainThreadQueries()  // as the app's database
             .build()
         db.pageDao().create(Page(id = "page-1"))
-        db.taskDao().insertAll(listOf(Task(id = "t-1", dayDate = TODAY, taskPageIndex = 0, rowIndex = 0, pageId = "page-1")))
+        db.taskDao().insertAll(listOf(
+            Task(id = "t-1", dayDate = TODAY, taskPageIndex = 0, rowIndex = 0, pageId = "page-1"),
+            Task(id = "t-2", dayDate = TODAY, taskPageIndex = 0, rowIndex = 1, pageId = "page-1")
+        ))
         watcher = TaskSyncWatcher(
             db, scope, TaskSyncScanner(db) { { true } },
             today = { TODAY }, debounceMs = 50L, inkQuietMs = 0L, penActive = { penDown }
@@ -60,9 +63,12 @@ class TaskSyncWatcherTest {
         watcher.start()
 
         db.taskDao().setTypedText("t-1", "Call mom")  // straight to the database, like recognition does
+        db.taskDao().setRecognizedTextById("t-2", "Buy bread")
 
-        assertTrue("queued within 5 s", waitFor { db.taskSyncDao().getOutbox().isNotEmpty() })
-        assertEquals(listOf(TaskSyncOp.UPSERT to "t-1"), db.taskSyncDao().getOutbox().map { it.op to it.taskId })
+        // Handwriting too, once things are quiet: no extra wait for its words (owner, 31 Oct 2026)
+        assertTrue("queued within 5 s", waitFor { db.taskSyncDao().getOutbox().size == 2 })
+        assertEquals(setOf(TaskSyncOp.UPSERT to "t-1", TaskSyncOp.UPSERT to "t-2"),
+            db.taskSyncDao().getOutbox().map { it.op to it.taskId }.toSet())
     }
 
     @Test

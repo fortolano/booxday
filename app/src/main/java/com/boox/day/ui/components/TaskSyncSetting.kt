@@ -71,7 +71,7 @@ fun TaskSyncSetting(modifier: Modifier = Modifier) {
         scope.launch {
             working = "Syncing…"
             message = null
-            withContext(Dispatchers.IO) { TaskSyncRun.run(context, changedAt = System.currentTimeMillis()) }
+            withContext(Dispatchers.IO) { TaskSyncRun.run(context, changedAt = System.currentTimeMillis(), handwritingNow = true) }
             working = null
             reloads++
         }
