@@ -246,28 +246,27 @@ private fun TaskControlRow(
             // Chevron button (right) - E-Ink optimized (no ripple)
             // Tap: opens type dialog if empty, task card if has content
             // Long-press: opens edit dialog directly (skips move popup)
-            // The gesture block only restarts when isCompleted changes, so it must call the
-            // latest callbacks — otherwise a row typed into after the first composition still
-            // hands over its old (empty) task and the tap opens an empty type dialog
+            // The gesture block never restarts, so it must call the latest callbacks — otherwise
+            // a row typed into after the first composition still hands over its old (empty) task
+            // and the tap opens an empty type dialog. A ticked task opens its card too (owner,
+            // 31 Oct 2026; ticked tasks were locked since the first release)
             val currentOnChevronTap by rememberUpdatedState(onChevronTap)
             val currentOnChevronLongPress by rememberUpdatedState(onChevronLongPress)
             Box(
                 modifier = Modifier
                     .size(EInkTheme.TasksTab.chevronTouchCompact)
-                    .pointerInput(isCompleted) {
-                        if (!isCompleted) {
-                            detectTapGestures(
-                                onTap = { currentOnChevronTap() },
-                                onLongPress = { currentOnChevronLongPress() }
-                            )
-                        }
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { currentOnChevronTap() },
+                            onLongPress = { currentOnChevronLongPress() }
+                        )
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = if (hasContent) "Move task" else "Type task",
-                    tint = if (isCompleted) EInkTheme.Disabled.foreground else EInkTheme.Colors.primary,
+                    tint = EInkTheme.Colors.primary,
                     modifier = Modifier.size(EInkTheme.TasksTab.chevronIconCompact)
                 )
             }
@@ -512,7 +511,6 @@ private fun EInkPriorityButton(
                                 .fillMaxWidth()
                                 .height(EInkTheme.MenuItem.height)
                                 .clickable(
-                                    enabled = !isCompleted,
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) {
@@ -528,7 +526,7 @@ private fun EInkPriorityButton(
                                          else R.drawable.ic_calendar_due
                                 ),
                                 contentDescription = if (dueDay != null) "Change due date" else "Set due date",
-                                tint = if (isCompleted) EInkTheme.Disabled.foreground else EInkTheme.Colors.primary,
+                                tint = EInkTheme.Colors.primary,
                                 modifier = Modifier.size(EInkTheme.TasksTab.calendarIconCompact)
                             )
                         }
@@ -562,8 +560,8 @@ private fun EInkDueDateButton(
     Box(
         modifier = modifier
             .size(touchSize)
+            // A ticked task's due date opens too (owner, 31 Oct 2026)
             .clickable(
-                enabled = !isCompleted,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) { onClick() },
@@ -580,7 +578,6 @@ private fun EInkDueDateButton(
                 else -> "Set due date"
             },
             tint = when {
-                isCompleted -> EInkTheme.Disabled.foreground
                 isOverdue -> EInkTheme.Colors.primary
                 hasDueDate -> EInkTheme.Colors.primary
                 else -> EInkTheme.TasksTab.dueDateIconColorEmpty
