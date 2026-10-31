@@ -11,6 +11,7 @@ import com.boox.day.ocr.model.SemanticBundle
 import com.boox.day.ocr.semantic.SemanticGeniusService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -70,12 +71,12 @@ class TaskSemanticBridge private constructor(
      *
      * @param pageId Task page UUID
      * @param results List of slot results from DigitalInkService
+     * @return the work, for a caller that waits for the words to be stored (task sync's Sync button)
      */
-    fun processResults(pageId: String, results: List<DigitalInkService.SlotResult>) {
+    fun processResults(pageId: String, results: List<DigitalInkService.SlotResult>): Job =
         scope.launch(Dispatchers.IO) {
             processResultsInternal(pageId, results)
         }
-    }
 
     private suspend fun processResultsInternal(
         pageId: String,

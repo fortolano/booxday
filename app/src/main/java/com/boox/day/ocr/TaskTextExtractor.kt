@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -140,6 +141,18 @@ class TaskTextExtractor private constructor(
             }
         }
     }
+
+    /**
+     * Task sync's Sync button right after writing (owner, 31 Oct 2026): reads [pageId] now, without
+     * the page save's 2 s wait and the 0.5 s debounce, and returns once its words are stored (false:
+     * not a task page, not read, or [timeoutMs] passed).
+     */
+    suspend fun extractAndWait(pageId: String, density: Float, timeoutMs: Long): Boolean =
+        withTimeoutOrNull(timeoutMs) {
+            withContext(Dispatchers.IO) {
+                taskDao.isTaskPage(pageId) > 0 && processPage(pageId, density, awaitWords = true)
+            }
+        } ?: false
 
     /**
      * Called when Digital Ink model download completes.
@@ -292,14 +305,14 @@ class TaskTextExtractor private constructor(
      * Process a page from the debounce flow or extractNow.
      * Queues page if model not ready (instead of silently skipping).
      */
-    private suspend fun processPage(pageId: String, density: Float) {
+    private suspend fun processPage(pageId: String, density: Float, awaitWords: Boolean = false): Boolean {
         if (!digitalInkService.isReady()) {
             // Queue for later instead of silently skipping
             Log.d(TAG, "Model not ready, queueing page for later: $pageId")
             synchronized(pendingModelReadyLock) {
                 pendingModelReady.add(pageId to density)
             }
-            return
+            return false
         }
 
         // Check if this is a new page (for quota tracking)
@@ -310,7 +323,7 @@ class TaskTextExtractor private constructor(
         } else {
             true // Can't find dayDate - treat as new (conservative for quota)
         }
-        processPageInternal(pageId, density, isNewPage)
+        return processPageInternal(pageId, density, isNewPage, awaitWords)
     }
 
     /** The measured Tasks canvas height, waiting up to 30 s for MainScreen to report it. */
@@ -328,9 +341,10 @@ class TaskTextExtractor private constructor(
      * @param pageId Page UUID
      * @param density Screen density
      * @param isNewPage True if this page has never been indexed (consumes quota)
+     * @param awaitWords return only once the recognized words are stored
      * @return false when the page was skipped for now (canvas not measured, day on full screen pages)
      */
-    private suspend fun processPageInternal(pageId: String, density: Float, isNewPage: Boolean): Boolean {
+    private suspend fun processPageInternal(pageId: String, density: Float, isNewPage: Boolean, awaitWords: Boolean = false): Boolean {
         Log.i(TAG, "Processing task page: $pageId (isNew=$isNewPage)")
         val startTime = System.currentTimeMillis()
 
@@ -360,7 +374,8 @@ class TaskTextExtractor private constructor(
         val nonEmptyResults = results.filter { !it.isEmpty }
         if (nonEmptyResults.isNotEmpty()) {
             Log.i(TAG, "Extracted ${nonEmptyResults.size} slots with text, bridging to semantic pipeline")
-            taskSemanticBridge.processResults(pageId, results)
+            val bridged = taskSemanticBridge.processResults(pageId, results)
+            if (awaitWords) bridged.join()
 
             // Track quota for new pages
             if (isNewPage) {

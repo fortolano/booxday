@@ -6,6 +6,8 @@ import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.data.model.ProviderId
+import com.boox.day.editor.DrawCanvas
+import com.boox.day.ocr.TaskTextExtractor
 import com.boox.day.sync.SingleFlight
 import com.boox.day.sync.workerAppSettings
 import com.boox.day.tasksync.google.GoogleTasksProvider
@@ -21,6 +23,10 @@ import java.time.LocalDate
  */
 internal object TaskSyncRun {
     private const val TAG = "TaskSyncRun"
+    /** Ink this recent may not be read yet: its page is saved 2 s after the pen rests. */
+    private const val FRESH_INK_MS = 5_000L
+    /** The longest a Sync tap waits for that page's words. */
+    private const val WORDS_WAIT_MS = 2_000L
 
     enum class Result { DONE, OFF, NO_LIST, OFFLINE, BUSY, NEEDS_RECONNECT, PAUSED_FOR_DELETES, FAILED }
 
@@ -34,7 +40,19 @@ internal object TaskSyncRun {
      */
     suspend fun run(context: Context, changedAt: Long = 0L, handwritingNow: Boolean = false): Result {
         val app = context.applicationContext
+        if (handwritingNow) readFreshHandwriting(app)
         return flight.run("task-sync", startedSince = changedAt) { withContext(Dispatchers.IO) { runNow(app, handwritingNow) } }
+    }
+
+    /**
+     * Sync tapped right after writing: the page is read now instead of after its save (2 s) and
+     * recognition (about 0.7 s), so the new task goes in this run (owner, 31 Oct 2026).
+     */
+    private suspend fun readFreshHandwriting(app: Context) {
+        if (!DrawCanvas.isStylusActiveWithin(FRESH_INK_MS)) return  // later: saved and read already
+        val pageId = DrawCanvas.activeCanvasPageId.value ?: return
+        val extractor = TaskTextExtractor.getInstanceOrNull() ?: return
+        extractor.extractAndWait(pageId, app.resources.displayMetrics.density, WORDS_WAIT_MS)
     }
 
     private suspend fun runNow(app: Context, handwritingNow: Boolean): Result {
