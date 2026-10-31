@@ -37,6 +37,12 @@ Nothing shares calendars, changes sharing settings, or creates or deletes whole 
 
 > BooxDay lists the user's Google calendars (names and colours) so the user can choose which calendars appear on the tablet, and which calendar a new event is saved to. Read-only access to the calendar list is the narrowest permission that provides this. BooxDay never adds, removes or changes calendars. The demo video shows the calendar list after sign-in.
 
+### `https://www.googleapis.com/auth/tasks` (Task Sync, Oct 2026)
+
+What BooxDay calls (all in `tasksync/google/GoogleTasksProvider.kt`): `tasklists.list` and `tasklists.get("@default")` (the lists to pick from, and the main list), `tasks.list` (changes in the ticked lists, and a daily check of which tasks still exist), `tasks.get` (before a change, to see whether the phone changed it first), `tasks.insert`, `tasks.patch` (only the fields that changed), `tasks.move` (subtasks), `tasks.delete`. `tasks.readonly` can't do the writes. There is no narrower Tasks permission.
+
+> BooxDay is a daily planner for Onyx BOOX e-ink tablets, where users write their tasks by hand or type them. Task Sync, which the user turns on in BooxDay's Preferences, keeps those tasks in step with the user's Google Tasks, so the same list is on their phone. With this permission BooxDay lists the user's task lists so they can choose which to sync, reads the tasks in the chosen lists to show them on the tablet, and saves the user's changes made on the tablet: a new task, its words, its done mark, its due date, subtasks, and deleting it. A read-only permission (tasks.readonly) isn't enough, because adding, ticking and deleting tasks on the tablet is the point of the feature, and the Tasks API has no narrower permission. BooxDay never uses or changes task notes. BooxDay keeps task data only on the user's tablet; BooxDay has no server, and the developer never receives it. The permission is asked for only when the user turns Task Sync on, separately from the calendar sign-in. The demo video shows the lists, a task written on the tablet appearing in Google Tasks, a task ticked in Google Tasks appearing ticked on the tablet, and a delete.
+
 ## Non-sensitive permissions (only if asked)
 
 ### `https://www.googleapis.com/auth/drive.file`

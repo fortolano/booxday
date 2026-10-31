@@ -111,7 +111,9 @@ fun SwitchToStandalonePopup(
 
                 // Explanation
                 Text(
-                    text = "Switching to Private Mode will disconnect these cloud accounts:",
+                    text = "Switching to Private Mode will disconnect these cloud accounts:" +
+                        // Task sync is Cloud Sync only (TaskSyncRun)
+                        if (com.boox.day.tasksync.TaskSync.isOn(androidx.compose.ui.platform.LocalContext.current)) " Task Sync stops too." else "",
                     fontSize = EInkTheme.Typography.bodyMedium,
                     color = EInkTheme.Colors.darkGray
                 )

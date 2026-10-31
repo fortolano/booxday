@@ -35,9 +35,23 @@ Target length: 3 to 4 minutes. No music needed. Narration is optional; on-screen
 | 13 | Settings gear → **Calendar Accounts** → remove the Google account. | "The user can disconnect at any time. BooxDay deletes the events it downloaded for that account and, for the last Google account, withdraws its access." |
 | 14 | End card: homepage address and privacy policy address. | |
 
+## Task Sync (Google Tasks permission, Oct 2026)
+
+For the Tasks request, record these after shot 7 (or as their own short video, with shots 1 to 4 first). Before recording: in Google Tasks on the computer (https://tasks.google.com, or Tasks in Google Calendar), make a list named **BooxDay test** with one unfinished task, "Buy stamps", due today. Use a debug build with Task Sync (release builds hide it until Google approves).
+
+| # | Show | Caption / narration |
+|---|---|---|
+| T1 | Settings gear → **Preferences** → the **Task Sync** card. Turn on **Sync with Google Tasks**. | "Task Sync is off until the user turns it on." |
+| T2 | **Google's permission screen** for Google Tasks. Hold still for 5 seconds on the app name, the account and the Tasks permission. Tap **Allow** / **Continue**. | "BooxDay asks for Google Tasks separately, only when Task Sync is turned on." |
+| T3 | The card: **Lists to sync**. Tick **BooxDay test**, untick the main list, and pick **BooxDay test** under **New tasks go to**. | "Listing task lists: the user picks which lists to sync." |
+| T4 | Today's Tasks: "Buy stamps" is on a row. | "Reading tasks: tasks from Google Tasks appear on their day." |
+| T5 | Write or type a new task, "Verification demo task". Tap the cloud icon (or wait about 30 seconds). Refresh Google Tasks on the computer: it's in BooxDay test. | "Creating tasks: tasks written in BooxDay are saved to Google Tasks." |
+| T6 | Tick "Buy stamps" in Google Tasks on the computer. In BooxDay tap the cloud icon: the row gets its line through it. Then tick "Verification demo task" in BooxDay, sync, and show it ticked in Google Tasks. | "Changes go both ways." |
+| T7 | In BooxDay, long-press the "Verification demo task" row to clear it, sync, refresh Google Tasks: it's gone. | "Deleting tasks. This is why BooxDay needs write access, not read-only." |
+
 ## Check before uploading
 
 - The permission screen is readable and in English, with the app name visible.
-- Every permission you request is shown being used: calendar (read, create, edit, delete) and Drive backup.
+- Every permission you request is shown being used: calendar (read, create, edit, delete), Drive backup, and for the Tasks request Google Tasks (lists, read, create, tick, delete).
 - No personal emails, names or notifications other than the test account.
 - The app name in the video matches the Cloud console and the homepage.

@@ -594,7 +594,8 @@ private fun DisconnectAccountConfirmation(
 
             // Explanation
             Text(
-                text = "This account will be disconnected, but synced events will remain in your calendar (read-only). Events are preserved because they may be linked to your Boox Notes and Tasks.",
+                text = "This account will be disconnected, but synced events will remain in your calendar (read-only). Events are preserved because they may be linked to your Boox Notes and Tasks." +
+                    if (com.boox.day.BuildConfig.TASK_SYNC_ENABLED) " If Task Sync uses this account, it stops." else "",
                 fontSize = EInkTheme.Typography.bodySmall,
                 color = EInkTheme.Colors.darkGray,
                 lineHeight = 18.sp

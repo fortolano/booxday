@@ -544,7 +544,22 @@ private fun TaskManagementContent() {
 
     SectionSubheader("Start Your Day")
     BodyText("The first time you open today's tasks, BooxDay lists the tasks from earlier days that aren't done. Move each to today, tomorrow or another day, mark it done or delete it, or move them all to today at once. Decide Later leaves them on their day; the task actions menu opens the list again (Start-the-day review).")
+
+    // Task sync (Oct 2026): only in builds that have it (owner decision 36)
+    if (TASK_SYNC_AVAILABLE) {
+        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+        SectionSubheader("Task Sync (Settings → Preferences)")
+        BodyText("Keeps your tasks in step with Google Tasks on your phone. It's off until you turn it on, and it needs Cloud Sync and a Google account.")
+        BulletPoint("Goes to Google: a task's words (typed, or your handwriting as read), its done mark, its day or due date, and subtasks. Ink, priority, reminders and time estimates stay on the tablet.")
+        BulletPoint("Tasks from your phone come to their due day; tasks with no date come to today.")
+        BulletPoint("It syncs when you open BooxDay, about 30 seconds after you write, with the cloud button, and in the background on Sync frequency.")
+        BulletPoint("Clearing or deleting a synced task deletes it in Google too; more than 20 at once waits for your OK. Ticked tasks deleted on your phone stay on the tablet.")
+    }
 }
+
+/** Task sync's texts show only in builds that have it (owner decision 36: release builds until Google approves). */
+private val TASK_SYNC_AVAILABLE: Boolean get() = com.boox.day.BuildConfig.TASK_SYNC_ENABLED
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SECTION 5: CALENDAR & SYNC
@@ -570,17 +585,30 @@ private fun CalendarSyncContent() {
     BulletPoint("Disconnect removes an account from BooxDay.")
     BulletPoint("A new event goes to a Cloud Calendar when an account is connected. Under Save to, pick This device only to keep it on the tablet: it never syncs.")
     BulletPoint("Events sync from two months back to three months ahead.")
-    BulletPoint("BooxDay asks Google for little access to your calendar: only your events and your list of calendars.")
+    BulletPoint(
+        "BooxDay asks Google for little access to your calendar: only your events and your list of calendars." +
+            if (TASK_SYNC_AVAILABLE) " Task Sync asks Google separately for Google Tasks, only when you turn it on." else ""
+    )
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Sync Status")
-    BodyText("The cloud icon in the calendar header turns while syncing and shows a number when changes wait to be sent. Tap it to sync now. Next to it: Syncing..., Sync failed, or the time of the last sync.")
+    BodyText(
+        "The cloud icon in the calendar header turns while syncing and shows a number when changes wait to be sent. " +
+            (if (TASK_SYNC_AVAILABLE) "Tap it to sync now (calendars, and tasks when Task Sync is on). " else "Tap it to sync now. ") +
+            "Next to it: Syncing..., Sync failed, or the time of the last sync."
+    )
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Privacy")
-    BodyText("Calendar sync sends and receives events only. Memos and tasks are never synced; Drive backup, if you turn it on, copies them to your own Google Drive.")
+    BodyText(
+        if (TASK_SYNC_AVAILABLE) {
+            "Calendar sync sends and receives events. With Task Sync on (Preferences), your tasks' words, done marks and dates also sync with Google Tasks; handwriting ink stays on the tablet. Memos are never synced. Drive backup, if you turn it on, copies memos and tasks to your own Google Drive."
+        } else {
+            "Calendar sync sends and receives events only. Memos and tasks are never synced; Drive backup, if you turn it on, copies them to your own Google Drive."
+        }
+    )
     BodyText("The marks on the calendar are in Key Legends.")
 }
 

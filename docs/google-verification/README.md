@@ -40,11 +40,22 @@ Google Cloud console (https://console.cloud.google.com), the project that holds 
    - App home page: the homepage address. Privacy policy link: the `/privacy/` address.
    - Authorized domains: your domain.
    - Developer contact email.
-5. **Data Access:** list exactly the scopes the released app asks for: `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile` (basic sign-in), `https://www.googleapis.com/auth/calendar.events`, `https://www.googleapis.com/auth/calendar.calendarlist.readonly`, `https://www.googleapis.com/auth/drive.file`. Remove anything else listed (including the old full `.../auth/calendar`).
+5. **Data Access:** list exactly the scopes the released app asks for: `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile` (basic sign-in), `https://www.googleapis.com/auth/calendar.events`, `https://www.googleapis.com/auth/calendar.calendarlist.readonly`, `https://www.googleapis.com/auth/drive.file`, and for Task Sync `https://www.googleapis.com/auth/tasks` (see "Adding Google Tasks"). Remove anything else listed (including the old full `.../auth/calendar`).
 6. **Record the video** (`demo-video-script.md`), upload it to YouTube as Unlisted.
 7. **Audience:** if the status is "Testing", tap **Publish app** (In production). Until verification passes, users see the warning and the 100-user cap counts.
 8. **Verification Center:** submit. Paste the reasons from `permission-reasons.md` and the video link. In the notes field, say it's an Android app (package `com.boox.day`) that signs in through Google Play services, so there's no browser address bar to show.
 9. **Answer Google's email.** Google says sensitive-scope review typically takes 3 to 5 business days, and the Trust & Safety team may email questions first. Reply to that email thread; the review pauses until you answer.
+
+## Adding Google Tasks (Task Sync, Oct 2026)
+
+The calendar review passed on 28 Oct 2026. Task Sync asks for one more permission, `https://www.googleapis.com/auth/tasks`, separately from the calendar sign-in and only when the user turns Task Sync on (`sync/GoogleTasksAuth.kt`). Release builds hide Task Sync until Google approves it (`BuildConfig.TASK_SYNC_ENABLED`). Until then a debug build shows Google's "unverified app" screen for it, which is fine for testing.
+
+1. **Cloud console → APIs & Services → Library:** check that the **Google Tasks API** is enabled for the project.
+2. **Google Auth Platform → Data Access:** add `https://www.googleapis.com/auth/tasks` to the scopes. The page shows whether Google counts it as sensitive: if it does, the form asks for the reason in `permission-reasons.md`.
+3. **Publish the updated pages** (`site/privacy/index.html`, `site/index.html`) on `gh-pages` and booxday.com, right before submitting: Google reads the live policy. (Ask the owner first.)
+4. **Record the Task Sync part of the video** (`demo-video-script.md`, shots T1 to T7). Use a "BooxDay test" list.
+5. **Verification Center:** submit the new permission with its reason and the video link.
+6. After approval: a small release turns Task Sync on in release builds (`TASK_SYNC_ENABLED` true for release).
 
 ## After it passes
 

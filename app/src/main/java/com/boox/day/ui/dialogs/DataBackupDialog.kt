@@ -1099,7 +1099,9 @@ private fun WipeAllDataConfirmationDialog(
 
                 // Oct 2026: say what stays, so nobody believes it is gone
                 Text(
-                    text = "Not erased: your Google or Outlook calendars online, Google Drive backups and " +
+                    text = "Not erased: your Google or Outlook calendars online, " +
+                            (if (com.boox.day.BuildConfig.TASK_SYNC_ENABLED) "your tasks in Google Tasks, " else "") +
+                            "Google Drive backups and " +
                             "Android's own backup, files saved to Documents or Downloads (exports, backups, " +
                             "daily notes), and your OpenRouter key in your OpenRouter account " +
                             "(delete it at openrouter.ai/settings/keys).\n\nBooxDay closes when it's done.",

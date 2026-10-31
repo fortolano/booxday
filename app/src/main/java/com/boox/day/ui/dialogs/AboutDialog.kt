@@ -214,7 +214,8 @@ fun AboutDialog(
                         ) {
                             SectionTitle(stringResource(R.string.about_privacy_title))
                             SectionCard {
-                                SectionBodyText(stringResource(R.string.about_privacy_content))
+                                // Task sync's wording only in builds that have it (owner decision 36)
+                                SectionBodyText(stringResource(if (BuildConfig.TASK_SYNC_ENABLED) R.string.about_privacy_content_task_sync else R.string.about_privacy_content))
                             }
                         }
 
@@ -261,7 +262,7 @@ fun AboutDialog(
                                 background = EInkTheme.Colors.offWhite
                             ) {
                                 SectionBodyText(
-                                    text = stringResource(R.string.about_legal_content),
+                                    text = stringResource(if (BuildConfig.TASK_SYNC_ENABLED) R.string.about_legal_content_task_sync else R.string.about_legal_content),
                                     fontSize = EInkTheme.Typography.bodySmall
                                 )
                             }
