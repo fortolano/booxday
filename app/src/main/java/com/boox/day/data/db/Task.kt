@@ -1024,8 +1024,10 @@ class TaskRepository(internal val context: Context) {
         taskDao.updateRolloverTracking(targetTaskId, source.migrationCount, source.originalDate, source.lastMigratedAt)
         taskDao.setTemplateId(targetTaskId, if (keepTemplateLink) source.templateId else null)
         taskDao.setReminderMinuteOfDay(targetTaskId, source.reminderMinuteOfDay)
-        // Due date moves with the task, also to another day (T11), and its reminder follows (T12)
-        writeDueDay(targetTaskId, source.dueDay)
+        // Due date moves with the task, also to another day (T11), and its reminder follows (T12).
+        // A task due on its own day stays due on its day (owner, 31 Oct 2026; task sync sends it)
+        val targetDay = if (source.dueDay != null && source.dueDay == source.dayDate) taskDao.getDayDateById(targetTaskId) else null
+        writeDueDay(targetTaskId, targetDay ?: source.dueDay)
     }
 
     // Effects queued by the multi-step operation running in this thread's transaction.

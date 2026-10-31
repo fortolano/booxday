@@ -72,13 +72,19 @@ class TaskMoveSafetyTest {
     fun moveToAnotherDayMovesTheTaskAndFreesItsRow() {
         val (source, _) = repo.getOrCreateTasksForPage(SOURCE, 0)
         repo.setTypedText(source[2].id, "Send mockups")
+        repo.setDueDay(source[2].id, SOURCE, CANVAS_HEIGHT)
+        repo.setTypedText(source[3].id, "Tax return")
+        repo.setDueDay(source[3].id, "2026-11-10", CANVAS_HEIGHT)
 
         val result = repo.moveTaskWithStrokes(tasks.getById(source[2].id)!!, TARGET, 0, CANVAS_HEIGHT, context)
+        val other = repo.moveTaskWithStrokes(tasks.getById(source[3].id)!!, TARGET, 0, CANVAS_HEIGHT, context)
 
         assertTrue(result.success)
         val moved = tasks.getById(assertNotNull(result.movedTaskId).let { result.movedTaskId!! })
         assertEquals("Send mockups", moved?.typedText)
         assertEquals(TARGET, moved?.dayDate)
+        assertEquals("due on its own day: the due date moves too (owner, 31 Oct 2026)", TARGET, moved?.dueDay)
+        assertEquals("a due date of its own stays", "2026-11-10", tasks.getById(other.movedTaskId!!)?.dueDay)
         assertEquals(null, tasks.getById(source[2].id)?.typedText)
     }
 
