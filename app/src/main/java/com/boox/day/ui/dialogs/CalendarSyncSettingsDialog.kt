@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.painterResource
@@ -64,6 +65,29 @@ import com.boox.day.ui.theme.EInkTheme
 private enum class SyncSettingsTab(val label: String) {
     GOOGLE("Google"),
     OUTLOOK("Outlook")
+}
+
+/** What the banner says when a sync finishes ([syncFinishedBanner]). */
+internal data class SyncFinishedBanner(val failed: Boolean, val title: String, val subtext: String)
+
+/**
+ * The banner after Sync All Now. Any account that didn't sync makes it "Sync didn't finish" with that
+ * account's own message (owner's choice, 31 Oct 2026). Until then it always said a fun "all caught up"
+ * line, so a Google sign-in Google had refused looked like a successful sync ("Events up to date").
+ */
+internal fun syncFinishedBanner(results: Collection<SyncResult>, funMessage: String): SyncFinishedBanner {
+    val problem = results.firstOrNull { it !is SyncResult.Success }
+    if (problem != null) return SyncFinishedBanner(failed = true, title = "Sync didn't finish", subtext = problem.getDisplayMessage())
+    val successResults = results.filterIsInstance<SyncResult.Success>()
+    val totalNew = successResults.sumOf { it.newEvents }
+    val totalUpdated = successResults.sumOf { it.updatedEvents }
+    val subtext = when {
+        totalNew > 0 && totalUpdated > 0 -> "$totalNew new, $totalUpdated updated"
+        totalNew > 0 -> "$totalNew new events"
+        totalUpdated > 0 -> "$totalUpdated events updated"
+        else -> "Events up to date"
+    }
+    return SyncFinishedBanner(failed = false, title = funMessage, subtext = subtext)
 }
 
 /**
@@ -132,25 +156,17 @@ fun CalendarSyncSettingsDialog(
     var wasSyncing by remember { mutableStateOf(false) }
     var successBannerSubtext by remember { mutableStateOf("") }
     var successMessage by remember { mutableStateOf(AiFeedbackMessages.getRandomSyncCompleteMessage()) }
+    var syncFailed by remember { mutableStateOf(false) }
 
     // Detect sync completion (was syncing → not syncing)
     LaunchedEffect(uiState.isSyncing) {
         if (wasSyncing && !uiState.isSyncing) {
-            // Calculate meaningful counts from sync results
-            val successResults = uiState.syncResults.values.filterIsInstance<SyncResult.Success>()
-            val totalNew = successResults.sumOf { it.newEvents }
-            val totalUpdated = successResults.sumOf { it.updatedEvents }
-
-            successBannerSubtext = when {
-                totalNew > 0 && totalUpdated > 0 -> "$totalNew new, $totalUpdated updated"
-                totalNew > 0 -> "$totalNew new events"
-                totalUpdated > 0 -> "$totalUpdated events updated"
-                else -> "Events up to date"
-            }
-
-            successMessage = AiFeedbackMessages.getRandomSyncCompleteMessage()
+            val banner = syncFinishedBanner(uiState.syncResults.values, AiFeedbackMessages.getRandomSyncCompleteMessage())
+            successMessage = banner.title
+            successBannerSubtext = banner.subtext
+            syncFailed = banner.failed
             showSuccessBanner = true
-            Log.i("CalendarSyncSettings", "Sync completed - showing success banner ($totalNew new, $totalUpdated updated)")
+            Log.i("CalendarSyncSettings", "Sync completed - showing banner (failed=${banner.failed})")
 
             // Auto-hide banner after 20 seconds
             delay(20000)
@@ -285,7 +301,7 @@ fun CalendarSyncSettingsDialog(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.CheckCircle,
+                                    imageVector = if (syncFailed) Icons.Default.Warning else Icons.Default.CheckCircle,
                                     contentDescription = null,
                                     tint = EInkTheme.Colors.primary,
                                     modifier = Modifier.size(20.dp)
