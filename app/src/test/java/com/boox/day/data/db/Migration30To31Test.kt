@@ -81,6 +81,33 @@ class Migration30To31Test {
         assertEquals("nothing is kept on the tablet after the migration", 0, sync.countKeptOnTablet())
     }
 
+    @Test
+    fun theRowDeletedTriggerLeavesOutTasksKeptOnTheTablet() {
+        createV30 { db ->
+            db.execSQL(
+                "INSERT INTO Page (id, scroll, notebookId, background, backgroundType, parentFolderId, linkedEventId, createdAt, updatedAt) " +
+                    "VALUES ('page-1', 0, NULL, 'blank', 'native', NULL, NULL, 1, 1)"
+            )
+            for ((id, row) in listOf("t-1" to 0, "t-2" to 1)) {
+                db.execSQL(
+                    "INSERT INTO task (id, dayDate, taskPageIndex, rowIndex, pageId, isCompleted, priority, typedText, " +
+                        "migrationCount, createdAt, updatedAt) VALUES ('$id', '2026-10-30', 0, $row, 'page-1', 0, '', 'x', 0, 1, 1)"
+                )
+                db.execSQL(
+                    "INSERT INTO task_sync_link (taskId, provider, accountEmail, serverUrl, listId, remoteId, syncedCompleted, " +
+                        "remoteUndated, syncedAt) VALUES ('$id', 'GOOGLE_TASKS', 'me@gmail.com', '', 'l-1', 'r-$id', 0, 0, 1)"
+                )
+            }
+        }
+        val room = openMigrated()
+        val sql = room.openHelper.writableDatabase
+        room.taskSyncDao().markKeptOnTablet("t-2")
+
+        sql.execSQL("DELETE FROM task")
+
+        assertEquals("only the synced task's copy is deleted", listOf("r-t-1"), room.taskSyncDao().getOutbox().map { it.remoteId })
+    }
+
     // ---------- helpers (as Migration29To30Test) ----------
 
     private fun createV30(seed: (SupportSQLiteDatabase) -> Unit) {
@@ -89,7 +116,7 @@ class Migration30To31Test {
             .callback(object : SupportSQLiteOpenHelper.Callback(30) {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     schemaStatements(30).forEach(db::execSQL)
-                    TaskSyncSchema.createTriggers(db)
+                    TaskSyncSchema.createTriggersV30(db)
                 }
 
                 override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit

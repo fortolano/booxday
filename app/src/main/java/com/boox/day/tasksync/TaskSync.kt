@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.boox.day.BuildConfig
 import com.boox.day.data.db.AppDatabase
+import com.boox.day.data.db.TaskSyncLink
 import com.boox.day.share.HandwrittenRows
 import kotlinx.coroutines.CoroutineScope
 
@@ -43,6 +44,37 @@ object TaskSync {
         val days = fullDays(context)
         if ((day in days) == full) return
         prefs(context).edit().putStringSet(KEY_FULL_DAYS, if (full) days + day else days - day).apply()
+    }
+
+    /**
+     * Turning task sync on for an account (owner decision 9, plan step 2.5), before the first sync:
+     * tasks dated today or later that are already ticked stay on the tablet. Each gets a tablet-only
+     * link ([TaskSyncRules.TICKED_AT_TURN_ON]), which moves with it and is never sent; unticked
+     * later, it syncs like any unfinished task. Unfinished tasks dated today or later then go to
+     * "New tasks go to" (the change watcher), and the service's unfinished ones come with the first
+     * pull, which runs before the first send so the same task on both sides is linked, not doubled.
+     * Older tasks are never looked at. Ticked after turn-on, a new task still goes (decision 29).
+     * @return how many ticked tasks stay on the tablet
+     */
+    internal fun keepTickedTasksOnTablet(
+        db: AppDatabase,
+        provider: String,
+        accountEmail: String,
+        serverUrl: String = "",
+        today: String,
+        now: Long = System.currentTimeMillis()
+    ): Int = db.runInTransaction<Int> {
+        val sync = db.taskSyncDao()
+        val ticked = sync.getUnlinkedTickedTasksFrom(today)
+        for (task in ticked) {
+            sync.insertLink(
+                TaskSyncLink(
+                    taskId = task.id, provider = provider, accountEmail = accountEmail, serverUrl = serverUrl,
+                    listId = "", remoteId = TaskSyncRules.TICKED_AT_TURN_ON + task.id, syncedAt = now, keptOnTablet = true
+                )
+            )
+        }
+        ticked.size
     }
 
     /** Starts watching for changes when task sync is on; does nothing otherwise. */

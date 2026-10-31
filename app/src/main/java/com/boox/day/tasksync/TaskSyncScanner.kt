@@ -41,8 +41,14 @@ internal class TaskSyncScanner(
 
         val rows = sync.getRowsToScan(today)
         for (row in rows) {
-            val link = links[row.id]
-            if (link?.keptOnTablet == true) continue  // deleted in the service while changed here: tablet only
+            var link = links[row.id]
+            if (link?.keptOnTablet == true) {
+                // Ticked at turn-on and unticked since: an unfinished task like any other, if it isn't
+                // an older day's by now (owner decision 9)
+                if (!TaskSyncRules.isTickedAtTurnOn(link) || row.isCompleted || row.dayDate < today) continue  // tablet only
+                tasks.dropSyncLink(row.id)
+                link = null
+            }
             val text = TaskSyncRules.textToSend(row)
 
             if (text == null) {

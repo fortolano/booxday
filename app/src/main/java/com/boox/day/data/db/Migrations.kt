@@ -782,7 +782,7 @@ val MIGRATION_29_30 = object : Migration(29, 30) {
                 "`isDefaultForNew` INTEGER NOT NULL, `pullCursor` TEXT, `lastFullCheckAt` INTEGER, " +
                 "PRIMARY KEY(`provider`, `accountEmail`, `serverUrl`, `listId`))"
         )
-        TaskSyncSchema.createTriggers(db)
+        TaskSyncSchema.createTriggersV30(db)
     }
 }
 
@@ -791,13 +791,16 @@ val MIGRATION_29_30 = object : Migration(29, 30) {
  * - task_sync_link.remoteParentId: the parent the service's copy has now. Each side keeps its own
  *   subtasks (owner decision 24), so it can differ from syncedParentRemoteId (the tablet's grouping
  *   as last sent); until now they were the same, so it starts as a copy.
- * - task_sync_link.keptOnTablet: deleted in the service while changed on the tablet, so the task
- *   stays on the tablet only and is never sent again.
+ * - task_sync_link.keptOnTablet: the task stays on the tablet only and is never sent (deleted in the
+ *   service while changed or ticked here; ticked when task sync was turned on).
+ * - The row-deleted trigger leaves out such a task: it has no copy to delete.
  */
 val MIGRATION_30_31 = object : Migration(30, 31) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `task_sync_link` ADD COLUMN `remoteParentId` TEXT")
         db.execSQL("UPDATE `task_sync_link` SET `remoteParentId` = `syncedParentRemoteId`")
         db.execSQL("ALTER TABLE `task_sync_link` ADD COLUMN `keptOnTablet` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("DROP TRIGGER IF EXISTS `${TaskSyncSchema.ROW_DELETED_TRIGGER}`")
+        TaskSyncSchema.createTriggers(db)
     }
 }

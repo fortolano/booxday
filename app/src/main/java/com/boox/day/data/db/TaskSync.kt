@@ -134,6 +134,14 @@ interface TaskSyncDao {
     )
     fun getRowsToScan(today: String): List<Task>
 
+    /** Unlinked rows dated [today] or later that are ticked and have words: they stay on the tablet at turn-on. */
+    @Query(
+        "SELECT * FROM task WHERE id NOT IN (SELECT taskId FROM task_sync_link) AND dayDate >= :today AND isCompleted = 1 AND (" +
+            "(typedText IS NOT NULL AND trim(typedText) != '') OR (convertedText IS NOT NULL AND trim(convertedText) != '') " +
+            "OR (recognizedText IS NOT NULL AND trim(recognizedText) != ''))"
+    )
+    fun getUnlinkedTickedTasksFrom(today: String): List<Task>
+
     /** One open UPSERT per task: a second change before it is sent sends the latest state anyway. */
     @Query(
         "INSERT INTO task_sync_outbox (op, taskId, createdAt, attempts, nextAttemptAt) SELECT 'UPSERT', :taskId, :now, 0, 0 " +
@@ -330,7 +338,13 @@ interface TaskSyncDao {
 object TaskSyncSchema {
     const val ROW_DELETED_TRIGGER = "task_sync_row_deleted"
 
-    fun createTriggers(db: SupportSQLiteDatabase) {
+    /** The current trigger (v31): a task kept on the tablet only has no copy to delete. */
+    fun createTriggers(db: SupportSQLiteDatabase) = createRowDeletedTrigger(db, onlySynced = "AND `keptOnTablet` = 0")
+
+    /** The trigger as v30 had it (no keptOnTablet column yet): MIGRATION_29_30 only. */
+    internal fun createTriggersV30(db: SupportSQLiteDatabase) = createRowDeletedTrigger(db, onlySynced = "")
+
+    private fun createRowDeletedTrigger(db: SupportSQLiteDatabase, onlySynced: String) {
         db.execSQL(
             """
             CREATE TRIGGER IF NOT EXISTS `$ROW_DELETED_TRIGGER`
@@ -340,7 +354,7 @@ object TaskSyncSchema {
                 INSERT INTO `task_sync_outbox` (`op`, `taskId`, `provider`, `accountEmail`, `serverUrl`, `listId`, `remoteId`, `createdAt`, `attempts`, `nextAttemptAt`)
                     SELECT '${TaskSyncOp.DELETE}', `taskId`, `provider`, `accountEmail`, `serverUrl`, `listId`, `remoteId`,
                         CAST(strftime('%s', 'now') AS INTEGER) * 1000, 0, 0
-                    FROM `task_sync_link` WHERE `taskId` = old.`id`;
+                    FROM `task_sync_link` WHERE `taskId` = old.`id` $onlySynced;
                 DELETE FROM `task_sync_outbox` WHERE `op` = '${TaskSyncOp.UPSERT}' AND `taskId` = old.`id`;
                 DELETE FROM `task_sync_link` WHERE `taskId` = old.`id`;
             END

@@ -1,6 +1,7 @@
 package com.boox.day.tasksync
 
 import com.boox.day.data.db.Task
+import com.boox.day.data.db.TaskSyncLink
 import java.security.MessageDigest
 
 /**
@@ -16,6 +17,14 @@ internal object TaskSyncRules {
 
     /** A synced task whose row stays empty (no ink, no words) this long is deleted (owner decision 21). */
     const val EMPTY_ROW_DELETE_MS = 120_000L
+
+    /**
+     * The remote id of a tablet-only link: a task already ticked when task sync was turned on stays
+     * on the tablet (owner decision 9). A link, so the mark moves with the task (moves, sorts).
+     */
+    const val TICKED_AT_TURN_ON = "ticked-at-turn-on:"
+
+    fun isTickedAtTurnOn(link: TaskSyncLink): Boolean = link.remoteId.startsWith(TICKED_AT_TURN_ON)
 
     /**
      * The words to send: typed, else converted, else recognized handwriting (the canvas shows
