@@ -66,7 +66,7 @@ object TipsRepository {
         ),
         Tip(
             id = "memos_full_screen",
-            message = "Need more room? The full screen switch (by ≡, or in ≡ on small tablets) hides the calendar.",
+            message = "Need more room? The full screen switch, just before ≡ or inside it, hides the calendar.",
             contexts = setOf(TipContext.MEMOS)
         ),
         Tip(
