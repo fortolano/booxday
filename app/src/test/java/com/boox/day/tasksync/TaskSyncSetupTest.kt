@@ -61,7 +61,7 @@ class TaskSyncSetupTest {
 
     @Test
     fun turningOnTicksGooglesMainListForNewTasks() = runBlocking {
-        TaskSync.turnOn(context, EMAIL, service, today = TODAY)
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY, testList = null)
 
         val lists = sync.getListsFor(provider, EMAIL, "")
         assertEquals(listOf("main"), lists.map { it.listId })
@@ -71,14 +71,32 @@ class TaskSyncSetupTest {
     }
 
     @Test
+    fun aDebugBuildStartsWithTheTestListOnly() = runBlocking {
+        // Owner decision 42: the owner's own tablet test never fills their real lists
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY, testList = "Work")
+
+        val lists = sync.getListsFor(provider, EMAIL, "")
+        assertEquals(listOf("work"), lists.map { it.listId })
+        assertTrue(lists.single().isDefaultForNew)
+    }
+
+    @Test
+    fun aDebugBuildWithoutTheTestListTicksNothing() = runBlocking {
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY)  // debug build: "BooxDay test", not in Google here
+
+        assertTrue("never falls back to the main list", sync.getListsFor(provider, EMAIL, "").isEmpty())
+        assertTrue(TaskSync.isOn(context))
+    }
+
+    @Test
     fun turningOnAgainKeepsTheListsYouChose() = runBlocking {
-        TaskSync.turnOn(context, EMAIL, service, today = TODAY)
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY, testList = null)
         TaskSync.tickList(context, provider, EMAIL, "work", "Work", ticked = true)
         TaskSync.newTasksTo(context, provider, EMAIL, "work")
         TaskSync.tickList(context, provider, EMAIL, "main", "My Tasks", ticked = false)
         TaskSync.turnOff(context)
 
-        TaskSync.turnOn(context, EMAIL, service, today = TODAY)
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY, testList = null)
 
         assertEquals(listOf("work"), sync.getListsFor(provider, EMAIL, "").map { it.listId })
         assertEquals("work", sync.getDefaultList(provider, EMAIL, "")?.listId)
@@ -107,7 +125,7 @@ class TaskSyncSetupTest {
                 serverUrl = "", listId = "l", remoteId = "r-x", createdAt = 1)
         )
 
-        TaskSync.turnOn(context, EMAIL, service, today = TODAY)
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY, testList = null)
 
         assertNull(sync.getLink(id))
         assertTrue(sync.getListsFor(provider, "old@gmail.com", "").isEmpty())
@@ -122,14 +140,14 @@ class TaskSyncSetupTest {
         repo.setTypedText(id, "Pay rent")
         repo.setCompleted(id, true)
 
-        TaskSync.turnOn(context, EMAIL, service, today = TODAY)
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY, testList = null)
 
         assertEquals(TaskSyncKept.TICKED_AT_TURN_ON, sync.getLink(id)?.keptReason)
     }
 
     @Test
     fun theSettingsDotSaysWhenTaskSyncNeedsYou() = runBlocking {
-        TaskSync.turnOn(context, EMAIL, service, today = TODAY)
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY, testList = null)
         assertNull(TaskSync.attentionReason(context))
 
         TaskSync.recordRun(context, TaskSyncRun.Result.NEEDS_RECONNECT)
@@ -147,7 +165,7 @@ class TaskSyncSetupTest {
     @Test
     fun privateModeRunsNothing() = runBlocking {
         // Cloud Sync only: the saved settings here are the defaults (Private Mode)
-        TaskSync.turnOn(context, EMAIL, service, today = TODAY)
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY, testList = null)
 
         assertEquals(TaskSyncRun.Result.OFF, TaskSyncRun.run(context))
         assertEquals("not counted as a run", 0L, TaskSync.lastRunAt(context))
@@ -157,10 +175,10 @@ class TaskSyncSetupTest {
     fun anAccountRemovedInCalendarAccountsStopsSync() = runBlocking {
         // Plan 2.1: Android may still hold the account, so Google would answer; sync stops instead
         KvProxy(context).setKv(APP_SETTINGS_KEY, AppSettings(version = 1, syncMode = AppSettings.SyncMode.HYBRID), AppSettings.serializer())
-        TaskSync.turnOn(context, EMAIL, service, today = TODAY)  // no connected_accounts row for EMAIL
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY, testList = null)  // no connected_accounts row for EMAIL
 
         assertEquals(TaskSyncRun.Result.NEEDS_RECONNECT, TaskSyncRun.run(context))
-        assertEquals("Task Sync needs you to sign in again", TaskSync.attentionReason(context))
+        assertEquals("Task Sync's Google account isn't connected", TaskSync.attentionReason(context))
     }
 
     private class FakeService : TaskSyncService {

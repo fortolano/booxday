@@ -27,6 +27,9 @@ object TaskSync {
     private const val KEY_ACCOUNT = "account"
     private const val KEY_LAST_RUN = "last_run"
     private const val KEY_LAST_RUN_AT = "last_run_at"
+    private const val KEY_ACCOUNT_GONE = "account_gone"
+    /** Debug builds start with this list instead of the main one (owner decision 42). */
+    internal const val DEBUG_TEST_LIST = "BooxDay test"
     private const val KEY_LAST_SYNCED_AT = "last_synced_at"
     private const val KEY_NEEDS_RECONNECT = "needs_reconnect"
 
@@ -96,14 +99,26 @@ object TaskSync {
      * links and lists go, so its tasks count as never synced (owner decision 32); with no list yet,
      * Google's main list is ticked and gets new tasks (decision 30); ticked tasks from today on stay
      * on the tablet (decision 9). The first sync is the caller's to start ([TaskSyncRun]).
+     * [testList]: debug builds tick only the list with this name instead (owner decision 42, so the
+     * owner's own tablet test never fills their real lists), or none when it doesn't exist.
      * Throws what the service throws (offline, sign-in): then nothing changed.
      */
-    internal suspend fun turnOn(context: Context, email: String, service: TaskSyncService, today: String = LocalDate.now().toString()) {
+    internal suspend fun turnOn(
+        context: Context,
+        email: String,
+        service: TaskSyncService,
+        today: String = LocalDate.now().toString(),
+        testList: String? = if (BuildConfig.DEBUG) DEBUG_TEST_LIST else null
+    ) {
         val app = context.applicationContext
         val db = AppDatabase.getDatabase(app)
         val sync = db.taskSyncDao()
         val provider = service.provider
-        val main = if (sync.getListsFor(provider, email, "").isEmpty()) service.mainList() else null
+        val main = when {
+            sync.getListsFor(provider, email, "").isNotEmpty() -> null
+            testList != null -> service.lists().firstOrNull { it.title == testList }
+            else -> service.mainList()
+        }
         db.runInTransaction<Unit> {
             sync.dropLinksOfOtherAccounts(provider, email, "")
             sync.dropListsOfOtherAccounts(provider, email, "")
@@ -183,10 +198,16 @@ object TaskSync {
         if (!isOn(context)) return null
         val status = status(context)
         return when {
+            status.needsReconnect && prefs(context).getBoolean(KEY_ACCOUNT_GONE, false) -> "Task Sync's Google account isn't connected"
             status.needsReconnect -> "Task Sync needs you to sign in again"
             status.deletesWaiting > 0 -> "Task Sync is waiting for your OK to delete tasks"
             else -> null
         }
+    }
+
+    /** The account was removed in Calendar Accounts (TaskSyncRun checks at every run; owner decision 41). */
+    internal fun recordAccountGone(context: Context, gone: Boolean) {
+        prefs(context).edit().putBoolean(KEY_ACCOUNT_GONE, gone).apply()
     }
 
     /** When the last run finished, whatever its result (0 = never); [TaskSyncTriggers] spaces runs by it. */

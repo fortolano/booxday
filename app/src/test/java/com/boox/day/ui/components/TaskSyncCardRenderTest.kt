@@ -105,6 +105,12 @@ class TaskSyncCardRenderTest {
                     fullDays = listOf("Mon 3 Nov"), keptChangedHere = 2
                 )
             ))
+            render(device, "4b-on-account-removed", card(
+                TaskSyncCardState(
+                    on = true, account = "ortolano@gmail.com", lists = lists, newTasksListId = "l-8",
+                    status = "Waiting for you", needsReconnect = true, accountGone = true
+                )
+            ))
             render(device, "5-twelve-lists", card(
                 TaskSyncCardState(
                     on = true, account = "ortolano@gmail.com", lists = manyLists, newTasksListId = "m-9",

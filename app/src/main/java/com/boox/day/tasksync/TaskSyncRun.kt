@@ -43,9 +43,9 @@ internal object TaskSyncRun {
         val db = AppDatabase.getDatabase(app)
         // The account was removed in Calendar Accounts: sync stops and asks for the user (plan 2.1).
         // Android may still hold the account, so Google would go on answering without this check.
-        if (db.connectedAccountDao().getByEmail(ProviderId.GOOGLE.key, "", email) == null) {
-            return TaskSync.recordRun(app, Result.NEEDS_RECONNECT)
-        }
+        val accountGone = db.connectedAccountDao().getByEmail(ProviderId.GOOGLE.key, "", email) == null
+        TaskSync.recordAccountGone(app, accountGone)
+        if (accountGone) return TaskSync.recordRun(app, Result.NEEDS_RECONNECT)
         val provider = TaskSyncProvider.GOOGLE_TASKS
         if (db.taskSyncDao().getListsFor(provider, email, "").isEmpty()) return TaskSync.recordRun(app, Result.NO_LIST)
 

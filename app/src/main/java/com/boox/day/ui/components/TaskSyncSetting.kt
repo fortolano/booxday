@@ -219,6 +219,8 @@ internal suspend fun loadTaskSyncCard(context: Context, googleLists: List<Remote
         newTasksListId = rows.firstOrNull { it.isDefaultForNew }?.listId,
         status = override ?: if (on) statusLine(status, use24Hour) else null,
         needsReconnect = status.needsReconnect,
+        // Removed in Calendar Accounts while on (owner decision 41)
+        accountGone = on && account != null && account !in accounts,
         deletesWaiting = status.deletesWaiting,
         fullDays = if (on) TaskSync.fullDays(app).map(::dayLabel) else emptyList(),
         keptChangedHere = if (on) sync.countKeptChangedHere() else 0

@@ -53,6 +53,8 @@ internal data class TaskSyncCardState(
     /** "Last synced today at 10:42", "Syncing…", "Waiting for a connection". */
     val status: String? = null,
     val needsReconnect: Boolean = false,
+    /** The account was removed in Calendar Accounts: Reconnect can't help (owner decision 41). */
+    val accountGone: Boolean = false,
     /** Deletes waiting for the user's OK (more than 20 at once). */
     val deletesWaiting: Int = 0,
     /** Days a new task from Google waits on (all 10 pages full), as shown ("Mon 3 Nov"). */
@@ -114,11 +116,16 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
 
         // Each part in its own section, what needs the user first
         val noList = state.lists.isNotEmpty() && state.lists.none { it.ticked }
-        val needsYou = state.needsReconnect || state.deletesWaiting > 0 || state.fullDays.isNotEmpty() || noList
+        val needsYou = state.needsReconnect || state.accountGone || state.deletesWaiting > 0 || state.fullDays.isNotEmpty() || noList
         if (needsYou) {
             Section("Needs your attention") {
                 if (noList) Attention("Tick at least one list below: until then nothing syncs.") {}
-                if (state.needsReconnect) {
+                if (state.accountGone) {
+                    Attention(
+                        "The Google account Task Sync uses (${state.account.orEmpty()}) isn't connected any more. " +
+                            "Connect it again in Calendar Accounts, or turn Task Sync off to choose another."
+                    ) {}
+                } else if (state.needsReconnect) {
                     Attention("Google needs you to sign in again before tasks can sync.") {
                         ActionButton(text = "Reconnect", onClick = actions.reconnect)
                     }
