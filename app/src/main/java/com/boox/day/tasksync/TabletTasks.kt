@@ -39,11 +39,11 @@ internal interface TabletTasks {
     fun clear(task: Task): Boolean
 
     /**
-     * A new typed task, unticked and with no due day of its own (owner decisions 27, 28), on
-     * [day]'s first free row; [link] writes its link in the same transaction, so the change watcher
-     * never sends it back as new. False: not now.
+     * A new typed task, unticked (owner decision 27), on [day]'s first free row, due [dueDay] (the
+     * service's due date, with its reminder; null when undated, decision 43); [link] writes its link
+     * in the same transaction, so the change watcher never sends it back as new. False: not now.
      */
-    suspend fun add(day: String, words: String, link: (Task) -> Unit): Boolean
+    suspend fun add(day: String, words: String, dueDay: String?, link: (Task) -> Unit): Boolean
 }
 
 /**
@@ -135,7 +135,7 @@ internal class RepositoryTabletTasks(
         return true
     }
 
-    override suspend fun add(day: String, words: String, link: (Task) -> Unit): Boolean {
+    override suspend fun add(day: String, words: String, dueDay: String?, link: (Task) -> Unit): Boolean {
         val height = canvasHeight()
         if (height <= 0f || TaskPagination.isReflowed(day)) return false
         val slot = SlotAllocator.allocateSingle(day, height, repo)
@@ -145,7 +145,7 @@ internal class RepositoryTabletTasks(
         }
         // Never onto the page being written on; nor a row taken since it was found
         if (penOn(listOf(slot.task.pageId)) || !SlotAllocator.validateBeforeWrite(slot.task, height, repo)) return false
-        if (!repo.writeSyncedTask(slot.task.id, words, link)) return false
+        if (!repo.writeSyncedTask(slot.task.id, words, dueDay, link)) return false
         TaskSync.setDayFull(context, day, false)
         TaskRepository.notifyDayChangedBySync(day)
         return true

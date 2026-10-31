@@ -27,7 +27,8 @@ import java.time.LocalDate
  *   (decision 23).
  * - **New in the service:** linked to an unlinked tablet task with the same words and due day if
  *   there is one (a reply lost on the way, a restore), else added to the tablet on its due day
- *   (step 2.4): unticked ones only (decision 27), typed, with no BooxDay due day (decision 28).
+ *   (step 2.4): unticked ones only (decision 27), typed, due on the service's due date with its
+ *   reminder (decision 43, replaced 28's "no due day"; undated ones have none).
  *
  * A change that can't be made now ([Result.WAITS]: a full-screen day, no row size yet) leaves
  * everything as it was; the pull keeps its cursor, so it comes again at the next sync.
@@ -143,7 +144,10 @@ internal class TaskSyncMerger(
         return if (takeWords || takeDone || takeDue) Result.APPLIED else Result.UNCHANGED
     }
 
-    /** The service's new due day on the tablet (owner decisions 1, 10, 25); returns the row holding the task. */
+    /**
+     * The service's new due day on the tablet (owner decisions 1, 10, 25, 43); returns the row holding
+     * the task. A date set in the service becomes the task's due day, with its reminder.
+     */
     private fun applyDue(task: Task, dueDay: String?): Task {
         if (dueDay == null) {
             // Undated in the service: the task stays on its day
@@ -156,14 +160,17 @@ internal class TaskSyncMerger(
             tablet.setDueDay(task.id, dueDay)  // refused for a subtask: the tablet's goes back
             return task
         }
-        if (dueDay == task.dayDate) return task
+        if (dueDay == task.dayDate) {
+            if (task.dueDay == null) tablet.setDueDay(task.id, dueDay)  // dated on its own day
+            return task
+        }
         val link = sync.getLink(task.id) ?: return task
         if (!tablet.moveToDay(task, dueDay)) throw NotNow()
         // The link moved with the task to its new row
         val moved = sync.getLinkByRemote(provider, accountEmail, serverUrl, link.listId, link.remoteId)
             ?.let { tasks.getById(it.taskId) } ?: throw IllegalStateException("Moved task lost its link")
-        // Its own due day (the same as its day) follows it
-        if (moved.dueDay != null && moved.dueDay != dueDay) tablet.setDueDay(moved.id, dueDay)
+        // The new day is its due day (owner decision 43)
+        if (moved.dueDay != dueDay) tablet.setDueDay(moved.id, dueDay)
         return tasks.getById(moved.id) ?: moved
     }
 
@@ -194,7 +201,7 @@ internal class TaskSyncMerger(
         if (remote.completed || remote.title.isBlank()) return Result.UNCHANGED
         // On its due day; undated, on the day it first comes (owner decision 1)
         val day = remote.dueDay ?: today()
-        val added = tablet.add(day, remote.title) { row -> sync.insertLink(linkFor(row, remote)) }
+        val added = tablet.add(day, remote.title, remote.dueDay) { row -> sync.insertLink(linkFor(row, remote)) }
         return if (added) Result.APPLIED else Result.WAITS
     }
 

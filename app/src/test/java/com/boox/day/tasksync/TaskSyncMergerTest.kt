@@ -146,7 +146,7 @@ class TaskSyncMergerTest {
         assertEquals("Call mom", tasks.getById(id)!!.typedText)
     }
 
-    // ── Due days (owner decisions 1, 10, 25) ──
+    // ── Due days (owner decisions 1, 10, 25, 43) ──
 
     @Test
     fun aNewDueDayMovesTheTaskToThatDayWithItsLink() = runBlocking {
@@ -159,7 +159,7 @@ class TaskSyncMergerTest {
         val link = sync.getLink(moved.id)!!
         assertEquals("r-2", link.remoteId)
         assertEquals(NEXT_DAY, link.syncedDueDay)
-        assertNull(moved.dueDay)
+        assertEquals("the phone's date is its due day (owner decision 43)", NEXT_DAY, moved.dueDay)
         assertNothingWaits()
     }
 
@@ -189,6 +189,20 @@ class TaskSyncMergerTest {
         merger.merge(remote("r-c", "Hotel", dueDay = "2026-11-09", parent = "r-p", version = "v3"))
         assertEquals("BooxDay refuses a subtask due after its parent", "2026-11-04", tasks.getById(child)!!.dueDay)
         assertEquals("the tablet's due day goes back", listOf(TaskSyncOp.UPSERT to child), sync.getOutbox().map { it.op to it.taskId })
+    }
+
+    @Test
+    fun anUndatedTaskDatedOnThePhoneForItsOwnDayGetsThatDueDay() = runBlocking {
+        merger.merge(remote("r-new", "Someday", dueDay = null))
+        val id = tasks.getTasksForDay(DAY).single { it.typedText == "Someday" }.id
+
+        assertEquals(TaskSyncMerger.Result.APPLIED, merger.merge(remote("r-new", "Someday", dueDay = DAY, version = "v3")))
+
+        val task = tasks.getById(id)!!
+        assertEquals("stays on its row", DAY, task.dayDate)
+        assertEquals(DAY, task.dueDay)
+        assertFalse(sync.getLink(id)!!.remoteUndated)
+        assertNothingWaits()
     }
 
     @Test
@@ -332,10 +346,11 @@ class TaskSyncMergerTest {
         val placed = tasks.getTasksForDay(DAY).single { it.typedText == "Water plants" }
         assertEquals("the first free row", 1, placed.rowIndex)
         assertFalse(placed.isCompleted)
-        assertNull("no BooxDay due day or reminder (owner decision 28)", placed.dueDay)
+        assertEquals("due on Google's date (owner decision 43)", DAY, placed.dueDay)
         assertEquals("r-new", sync.getLink(placed.id)?.remoteId)
         val next = tasks.getTasksForDay(NEXT_DAY).single { it.typedText == "Buy bread" }
         assertEquals(0, next.rowIndex)
+        assertEquals(NEXT_DAY, next.dueDay)
         assertEquals("r-next", sync.getLink(next.id)?.remoteId)
         assertNothingWaits()
     }
@@ -346,6 +361,7 @@ class TaskSyncMergerTest {
 
         val placed = tasks.getTasksForDay(DAY).single { it.typedText == "Someday" }
         assertTrue(sync.getLink(placed.id)!!.remoteUndated)
+        assertNull("undated: no due day", placed.dueDay)
         assertNothingWaits()
     }
 

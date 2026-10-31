@@ -2199,18 +2199,20 @@ class TaskRepository(internal val context: Context) {
      * Task sync (Oct 2026, plan step 2.4): a task from the task service, typed, onto the free row
      * [rowId] that SlotAllocator found. In one transaction the row is checked again and written
      * with its [link], so the change watcher never sees the task without it (it would send it back
-     * as new). Unticked, no due day of its own (owner decisions 27, 28). Rows are never inserted:
-     * every page has its rows, and an insert would replace one.
+     * as new). Unticked (owner decision 27), due [dueDay] with its reminder like any due task (the
+     * service's due date; null when undated, decision 43). Rows are never inserted: every page has
+     * its rows, and an insert would replace one.
      * @return false when the row was taken meanwhile (the next sync tries again)
      */
-    fun writeSyncedTask(rowId: String, words: String, link: (Task) -> Unit): Boolean = inTransaction {
+    fun writeSyncedTask(rowId: String, words: String, dueDay: String?, link: (Task) -> Unit): Boolean = inTransaction {
         val row = taskDao.getById(rowId) ?: return@inTransaction false
         val free = row.typedText.isNullOrBlank() && row.convertedText.isNullOrBlank() &&
             row.recognizedText.isNullOrBlank() && !row.isCompleted && row.priority.isBlank() &&
             row.parentTaskId == null && taskSyncDao.getLink(rowId) == null
         if (!free) return@inTransaction false
         taskDao.setTypedText(rowId, words)
-        if (row.dueDay != null) taskDao.setDueDay(rowId, null)  // left over on an empty row (SlotAllocator ignores it)
+        // A due day left over on the empty row (SlotAllocator ignores it) is replaced too
+        if (dueDay != null || row.dueDay != null) writeDueDay(rowId, dueDay)
         val written = taskDao.getById(rowId) ?: return@inTransaction false
         link(written)
         afterCommit { typedTextChanged(written) }

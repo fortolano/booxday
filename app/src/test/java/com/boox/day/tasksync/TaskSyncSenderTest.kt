@@ -388,7 +388,7 @@ class TaskSyncSenderTest {
             cleared += task.id
             return true
         }
-        override suspend fun add(day: String, words: String, link: (Task) -> Unit) = false
+        override suspend fun add(day: String, words: String, dueDay: String?, link: (Task) -> Unit) = false
     }
 
     private fun insert(id: String, row: Int, typed: String? = null, recognized: String? = null, parent: String? = null) {
