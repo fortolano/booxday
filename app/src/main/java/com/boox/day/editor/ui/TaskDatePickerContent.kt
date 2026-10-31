@@ -96,9 +96,9 @@ fun TaskDatePickerContent(
                 )
             }
 
+            // The 1st: on the 31st, "November" from today's date rolls over to December
             val displayCalendar = Calendar.getInstance().apply {
-                set(Calendar.YEAR, displayedYear)
-                set(Calendar.MONTH, displayedMonth)
+                set(displayedYear, displayedMonth, 1)
             }
             Text(
                 text = monthYearFormat.format(displayCalendar.time),
