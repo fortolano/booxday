@@ -26,6 +26,7 @@ object TaskSync {
     private const val KEY_FULL_DAYS = "full_days"
     private const val KEY_ACCOUNT = "account"
     private const val KEY_LAST_RUN = "last_run"
+    private const val KEY_LAST_RUN_AT = "last_run_at"
     private const val KEY_LAST_SYNCED_AT = "last_synced_at"
     private const val KEY_NEEDS_RECONNECT = "needs_reconnect"
 
@@ -122,6 +123,7 @@ object TaskSync {
             watcher?.stop()
             watcher = null
         }
+        TaskSyncTriggers.cancel()
     }
 
     /** Only while off (owner decision 32). */
@@ -187,8 +189,12 @@ object TaskSync {
         }
     }
 
+    /** When the last run finished, whatever its result (0 = never); [TaskSyncTriggers] spaces runs by it. */
+    internal fun lastRunAt(context: Context): Long = prefs(context).getLong(KEY_LAST_RUN_AT, 0L)
+
     internal fun recordRun(context: Context, result: TaskSyncRun.Result): TaskSyncRun.Result {
         val edit = prefs(context).edit().putString(KEY_LAST_RUN, result.name)
+            .putLong(KEY_LAST_RUN_AT, System.currentTimeMillis())
             .putBoolean(KEY_NEEDS_RECONNECT, result == TaskSyncRun.Result.NEEDS_RECONNECT)
         if (result == TaskSyncRun.Result.DONE) edit.putLong(KEY_LAST_SYNCED_AT, System.currentTimeMillis())
         edit.apply()
@@ -220,13 +226,16 @@ object TaskSync {
         val scope = appScope ?: return
         synchronized(this) {
             if (watcher != null) return
-            watcher = TaskSyncWatcher(AppDatabase.getDatabase(app), scope, scanner(app)).also { it.start() }
+            watcher = TaskSyncWatcher(AppDatabase.getDatabase(app), scope, scanner(app), onQueued = { TaskSyncTriggers.afterEdit(app) })
+                .also { it.start() }
         }
         Log.i(TAG, "Task sync watching for changes")
     }
 
+    /** The app's own scope (BooxDayApp), for runs that must outlive the screen that asked; null in tests. */
     @Volatile
-    private var appScope: CoroutineScope? = null
+    internal var appScope: CoroutineScope? = null
+        private set
 
     @Volatile
     private var sharedScanner: TaskSyncScanner? = null

@@ -71,7 +71,7 @@ fun TaskSyncSetting(modifier: Modifier = Modifier) {
         scope.launch {
             working = "Syncing…"
             message = null
-            withContext(Dispatchers.IO) { TaskSyncRun.run(context) }
+            withContext(Dispatchers.IO) { TaskSyncRun.run(context, changedAt = System.currentTimeMillis()) }
             working = null
             reloads++
         }
@@ -83,7 +83,7 @@ fun TaskSyncSetting(modifier: Modifier = Modifier) {
             withContext(Dispatchers.IO) { TaskSync.turnOn(context, email, GoogleTasksProvider.create(context, email)) }
             googleLists = null
             working = "Syncing…"
-            withContext(Dispatchers.IO) { TaskSyncRun.run(context) }
+            withContext(Dispatchers.IO) { TaskSyncRun.run(context, changedAt = System.currentTimeMillis()) }
             null
         } catch (e: TaskSyncServiceException.Offline) {
             "No connection to Google. Try again when the tablet is online."
@@ -163,7 +163,7 @@ fun TaskSyncSetting(modifier: Modifier = Modifier) {
         syncNow = { syncNow() },
         reconnect = {
             val email = state?.account
-            if (email != null) withPermission(email) { working = "Syncing…"; withContext(Dispatchers.IO) { TaskSyncRun.run(context) }; working = null; reloads++ }
+            if (email != null) withPermission(email) { working = "Syncing…"; withContext(Dispatchers.IO) { TaskSyncRun.run(context, changedAt = System.currentTimeMillis()) }; working = null; reloads++ }
         },
         keepInGoogle = {
             scope.launch {

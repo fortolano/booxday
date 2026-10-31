@@ -2,9 +2,11 @@ package com.boox.day.tasksync
 
 import android.content.Context
 import android.util.Log
+import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.sync.SingleFlight
+import com.boox.day.sync.workerAppSettings
 import com.boox.day.tasksync.google.GoogleTasksProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,13 +25,19 @@ internal object TaskSyncRun {
 
     private val flight = SingleFlight<String, Result>()
 
-    suspend fun run(context: Context): Result {
+    /**
+     * [changedAt]: when the change that asked for this run was made. A run that started before then
+     * isn't joined (it may be past its look for tablet changes): this one waits for it and runs again.
+     */
+    suspend fun run(context: Context, changedAt: Long = 0L): Result {
         val app = context.applicationContext
-        return flight.run("task-sync") { withContext(Dispatchers.IO) { runNow(app) } }
+        return flight.run("task-sync", startedSince = changedAt) { withContext(Dispatchers.IO) { runNow(app) } }
     }
 
     private suspend fun runNow(app: Context): Result {
         if (!TaskSync.isOn(app)) return Result.OFF
+        // Cloud Sync only (plan step 2.6): Private Mode keeps everything on the tablet
+        if (workerAppSettings(app).syncMode != AppSettings.SyncMode.HYBRID) return Result.OFF
         val email = TaskSync.account(app) ?: return Result.OFF
         val db = AppDatabase.getDatabase(app)
         val provider = TaskSyncProvider.GOOGLE_TASKS

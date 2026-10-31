@@ -1796,6 +1796,8 @@ fun MainScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                // Tasks, when task sync is on: at most every 10 minutes (tasksync/TaskSyncTriggers)
+                com.boox.day.tasksync.TaskSyncTriggers.onReturn(context)
             }
             if (event == Lifecycle.Event.ON_RESUME && hasFilePermission(context) && !GlobalAppSettings.isBooxNotesScanning) {
                 scope.launch {
@@ -2251,6 +2253,7 @@ fun MainScreen(
                             // Trigger sync via multi-account system (handles both Google and Outlook)
                             // Legacy Google sign-ins are auto-migrated to database on loadAccounts()
                             multiAccountSyncViewModel.syncAllAccounts()
+                            com.boox.day.tasksync.TaskSyncTriggers.syncNow(context)  // tasks too, when on
                         } else {
                             showCalendarSettingsDialog = true
                         }

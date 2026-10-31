@@ -141,6 +141,15 @@ class TaskSyncSetupTest {
         assertNull("off: nothing needs you", TaskSync.attentionReason(context))
     }
 
+    @Test
+    fun privateModeRunsNothing() = runBlocking {
+        // Cloud Sync only: the saved settings here are the defaults (Private Mode)
+        TaskSync.turnOn(context, EMAIL, service, today = TODAY)
+
+        assertEquals(TaskSyncRun.Result.OFF, TaskSyncRun.run(context))
+        assertEquals("not counted as a run", 0L, TaskSync.lastRunAt(context))
+    }
+
     private class FakeService : TaskSyncService {
         override val provider = TaskSyncProvider.GOOGLE_TASKS
         override suspend fun lists() = listOf(RemoteList("main", "My Tasks"), RemoteList("work", "Work"))

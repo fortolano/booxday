@@ -34,7 +34,7 @@ internal fun workerAppSettings(context: Context): AppSettings =
  * on the "Sync frequency" setting (4 h / 8 h / Daily) while "Background auto-sync" is on.
  * Until now nothing ran it: SyncScheduler.schedulePeriodicSync had no callers, so calendars synced
  * only while BooxDay was open (owner decision 12). Same dates as the calendar screen (2 months
- * back, 3 ahead). Task sync joins it in a later stage.
+ * back, 3 ahead). Then tasks, when task sync is on: the same switch and frequency (owner decision 33).
  *
  * Kept scheduled only while an account is connected ([schedule] runs at app start, when the
  * auto-sync switch or the frequency changes, and when an account is added or removed); each run
@@ -60,6 +60,10 @@ class BackgroundSyncWorker(
             today.plusMonths(SyncScheduler.DEFAULT_MONTHS_AFTER.toLong())
         )
         Log.i(TAG, "Background sync: " + results.values.groupingBy { it::class.simpleName }.eachCount())
+        // Tasks too, when task sync is on (plan step 2.7); it looks at Google before sending
+        if (com.boox.day.tasksync.TaskSync.isOn(applicationContext)) {
+            Log.i(TAG, "Task sync: " + com.boox.day.tasksync.TaskSyncRun.run(applicationContext))
+        }
         // Offline or a failed account: the next period tries again (no retry backoff on top)
         return Result.success()
     }

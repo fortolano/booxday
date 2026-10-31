@@ -45,6 +45,25 @@ class SingleFlightTest {
     }
 
     @Test
+    fun `a job started before the caller's change is not joined`() = runBlocking {
+        var now = 1_000L
+        val flight = SingleFlight<String, Int>(clock = { now })
+        val release = CompletableDeferred<Unit>()
+        var runs = 0
+
+        val first = async(start = CoroutineStart.UNDISPATCHED) { flight.run("sync") { runs++; release.await(); 1 } }
+        now = 2_000L  // a task changed while the first run was going
+        val second = async(start = CoroutineStart.UNDISPATCHED) { flight.run("sync", startedSince = now) { runs++; 2 } }
+        val third = async(start = CoroutineStart.UNDISPATCHED) { flight.run("sync", startedSince = 500L) { runs++; 3 } }
+        release.complete(Unit)
+
+        assertEquals(1, first.await())
+        assertEquals("ran again after the first", 2, second.await())
+        assertEquals("no change since the first started: joined it", 1, third.await())
+        assertEquals(2, runs)
+    }
+
+    @Test
     fun `a caller that joined a cancelled job runs its own`() = runBlocking {
         val flight = SingleFlight<String, Int>()
         val never = CompletableDeferred<Unit>()

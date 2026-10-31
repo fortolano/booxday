@@ -14,17 +14,23 @@ import kotlinx.coroutines.sync.withLock
  * its own instead. Used by [MultiAccountSyncManager.syncAllAccounts], which can start from the
  * calendar's navigation, the cloud button, app start and the background worker at the same time.
  */
-internal class SingleFlight<K, V> {
+internal class SingleFlight<K, V>(private val clock: () -> Long = System::currentTimeMillis) {
     private val lock = Mutex()
 
-    @Volatile
-    private var running: Pair<K, CompletableDeferred<V>>? = null
+    private class Running<K, V>(val key: K, val startedAt: Long, val result: CompletableDeferred<V>)
 
-    suspend fun run(key: K, block: suspend () -> V): V {
+    @Volatile
+    private var running: Running<K, V>? = null
+
+    /**
+     * [startedSince] (task sync, Oct 2026): a running job that started before then isn't joined,
+     * because it may have missed a change made since; this waits for it, then runs its own.
+     */
+    suspend fun run(key: K, startedSince: Long = Long.MIN_VALUE, block: suspend () -> V): V {
         val current = running
-        if (current != null && current.first == key) {
+        if (current != null && current.key == key && current.startedAt >= startedSince) {
             try {
-                return current.second.await()
+                return current.result.await()
             } catch (e: CancellationException) {
                 currentCoroutineContext().ensureActive()  // we were cancelled: give up too
                 // the running job was cancelled, not us: run our own below
@@ -32,7 +38,7 @@ internal class SingleFlight<K, V> {
         }
         return lock.withLock {
             val result = CompletableDeferred<V>()
-            running = key to result
+            running = Running(key, clock(), result)
             try {
                 block().also { result.complete(it) }
             } catch (e: Throwable) {
