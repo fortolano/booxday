@@ -67,9 +67,21 @@ data class TaskSyncLink(
      * made on the phone stays a normal row on the tablet. Used before deleting a parent.
      */
     val remoteParentId: String? = null,
-    /** Deleted in the service while changed on the tablet: stays on the tablet only, never sent again (v31). */
-    @ColumnInfo(defaultValue = "0") val keptOnTablet: Boolean = false
+    /** Stays on the tablet only, never sent again (v31); why: [keptReason]. */
+    @ColumnInfo(defaultValue = "0") val keptOnTablet: Boolean = false,
+    /** [TaskSyncKept]: why the task is kept on the tablet only (the Task Sync card counts CHANGED_HERE). */
+    val keptReason: String? = null
 )
+
+/** Why a task stays on the tablet only (task_sync_link.keptReason). */
+object TaskSyncKept {
+    /** Deleted in the service while changed on the tablet since the last sync. */
+    const val CHANGED_HERE = "CHANGED_HERE"
+    /** Ticked, then deleted in the service ("Delete all completed tasks", owner decision 26). */
+    const val TICKED = "TICKED"
+    /** Already ticked when task sync was turned on (owner decision 9). */
+    const val TICKED_AT_TURN_ON = "TICKED_AT_TURN_ON"
+}
 
 /** Changes waiting to be sent. Device-only (not backed up). */
 @Entity(
@@ -239,11 +251,41 @@ interface TaskSyncDao {
         remoteUndated: Boolean, remoteParentId: String?, contentHash: String, now: Long
     )
 
-    @Query("UPDATE task_sync_link SET keptOnTablet = 1 WHERE taskId = :taskId")
-    fun markKeptOnTablet(taskId: String)
+    /** [reason]: [TaskSyncKept]. */
+    @Query("UPDATE task_sync_link SET keptOnTablet = 1, keptReason = :reason WHERE taskId = :taskId")
+    fun markKeptOnTablet(taskId: String, reason: String)
 
     @Query("SELECT COUNT(*) FROM task_sync_link WHERE keptOnTablet = 1")
     fun countKeptOnTablet(): Int
+
+    /** Deleted in the service while changed here: the Task Sync card says how many. */
+    @Query("SELECT COUNT(*) FROM task_sync_link WHERE keptOnTablet = 1 AND keptReason = 'CHANGED_HERE'")
+    fun countKeptChangedHere(): Int
+
+    // ── The Task Sync card (lists, account) ──
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun insertList(list: TaskSyncList)
+
+    /** "New tasks go to": [listId] only. */
+    @Query(
+        "UPDATE task_sync_list SET isDefaultForNew = (listId = :listId) WHERE provider = :provider " +
+            "AND accountEmail = :accountEmail AND serverUrl = :serverUrl"
+    )
+    fun setDefaultList(provider: String, accountEmail: String, serverUrl: String, listId: String)
+
+    /** Another account's sync is over (owner decision 32): its links, lists and waiting deletes go. */
+    @Query("DELETE FROM task_sync_link WHERE NOT (provider = :provider AND accountEmail = :accountEmail AND serverUrl = :serverUrl)")
+    fun dropLinksOfOtherAccounts(provider: String, accountEmail: String, serverUrl: String)
+
+    @Query("DELETE FROM task_sync_list WHERE NOT (provider = :provider AND accountEmail = :accountEmail AND serverUrl = :serverUrl)")
+    fun dropListsOfOtherAccounts(provider: String, accountEmail: String, serverUrl: String)
+
+    @Query(
+        "DELETE FROM task_sync_outbox WHERE op = 'DELETE' AND NOT (provider = :provider AND accountEmail = :accountEmail " +
+            "AND serverUrl = :serverUrl)"
+    )
+    fun dropDeletesOfOtherAccounts(provider: String, accountEmail: String, serverUrl: String)
 
     /** When the task's waiting change was first noticed, if one waits. */
     @Query("SELECT MIN(createdAt) FROM task_sync_outbox WHERE op = 'UPSERT' AND taskId = :taskId")

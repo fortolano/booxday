@@ -3,6 +3,7 @@ package com.boox.day.tasksync
 import android.util.Log
 import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.Task
+import com.boox.day.data.db.TaskSyncKept
 import com.boox.day.data.db.TaskSyncLink
 import java.time.LocalDate
 
@@ -82,7 +83,7 @@ internal class TaskSyncMerger(
                 tasks.dropQueuedSyncUpsert(task.id)
                 if (changedHere || ticked) {
                     if (!changedHere && !task.isCompleted) tablet.setCompleted(task.id, true)
-                    sync.markKeptOnTablet(task.id)
+                    sync.markKeptOnTablet(task.id, if (changedHere) TaskSyncKept.CHANGED_HERE else TaskSyncKept.TICKED)
                     Log.i(TAG, "Deleted in the service, kept on the tablet only (${if (changedHere) "changed here" else "ticked"})")
                 } else {
                     tasks.dropSyncLink(task.id)  // first: clearing a linked row would delete the copy again

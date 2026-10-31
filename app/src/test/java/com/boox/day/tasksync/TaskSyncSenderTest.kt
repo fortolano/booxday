@@ -43,11 +43,28 @@ class TaskSyncSenderTest {
             .build()
         prefs.edit().clear().commit()
         db.pageDao().create(Page(id = "page-1"))
-        db.openHelper.writableDatabase.execSQL(
-            "INSERT INTO task_sync_list (provider, accountEmail, serverUrl, listId, title, isDefaultForNew) " +
-                "VALUES ('${TaskSyncProvider.GOOGLE_TASKS}', '$EMAIL', '', 'list-new', 'BooxDay test', 1)"
-        )
+        for ((list, default) in listOf("list-new" to 1, "list-1" to 0, "list-shop" to 0)) {
+            db.openHelper.writableDatabase.execSQL(
+                "INSERT INTO task_sync_list (provider, accountEmail, serverUrl, listId, title, isDefaultForNew) " +
+                    "VALUES ('${TaskSyncProvider.GOOGLE_TASKS}', '$EMAIL', '', '$list', '$list', $default)"
+            )
+        }
         sender = newSender()
+    }
+
+    @Test
+    fun aTaskInAListNoLongerTickedStaysHereAndIsNotSent() = runBlocking {
+        // Owner decision 31: unticking a list stops its tasks syncing; Google keeps its copies
+        insert("t-1", row = 0, typed = "Call mom today")
+        link("t-1", "r-1", listId = "list-unticked")
+        db.taskSyncDao().queueUpsert("t-1", now)
+        db.taskSyncDao().insertOutboxEntry(delete("r-gone").copy(listId = "list-unticked"))
+
+        sender.sendDue()
+
+        assertTrue("nothing sent", service.calls.isEmpty())
+        assertTrue(db.taskSyncDao().getOutbox().isEmpty())
+        assertEquals("Call mom today", db.taskDao().getById("t-1")!!.typedText)
     }
 
     @After

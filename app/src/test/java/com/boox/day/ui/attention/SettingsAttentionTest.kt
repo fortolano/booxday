@@ -25,6 +25,12 @@ class SettingsAttentionTest {
     }
 
     @Test
+    fun taskSyncNeedingTheUserPointsToPreferences() {
+        val items = SettingsAttentionRules.items(allFine.copy(taskSyncNeeds = "Task Sync needs you to sign in again"))
+        assertEquals(listOf(AttentionItem(SettingsPlace.PREFERENCES, "Task Sync needs you to sign in again")), items)
+    }
+
+    @Test
     fun remindersCountOnlyWhenTheyAreOnAndBlocked() {
         assertEquals(listOf(SettingsPlace.PREFERENCES), places(allFine.copy(notificationsAllowed = false)))
         assertEquals(listOf(SettingsPlace.PREFERENCES), places(allFine.copy(reminderChannelsOn = false)))

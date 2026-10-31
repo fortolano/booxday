@@ -21,6 +21,9 @@ internal interface TaskSyncService {
     /** The account's task lists, for the Preferences card. */
     suspend fun lists(): List<RemoteList> = emptyList()
 
+    /** The service's main list: ticked and used for new tasks at first turn-on (owner decision 30). */
+    suspend fun mainList(): RemoteList? = lists().firstOrNull()
+
     /**
      * What changed in [listId] since [cursor] (null: everything), deleted ones included, and the
      * cursor to ask from next time. Asking again from an older cursor is harmless.

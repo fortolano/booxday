@@ -101,7 +101,7 @@ class Migration30To31Test {
         }
         val room = openMigrated()
         val sql = room.openHelper.writableDatabase
-        room.taskSyncDao().markKeptOnTablet("t-2")
+        room.taskSyncDao().markKeptOnTablet("t-2", TaskSyncKept.CHANGED_HERE)
 
         sql.execSQL("DELETE FROM task")
 

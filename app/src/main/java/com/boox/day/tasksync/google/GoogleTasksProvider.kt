@@ -67,6 +67,11 @@ internal class GoogleTasksProvider(
         lists
     }
 
+    /** Google's own default list ("My Tasks"), by the API's "@default" name. */
+    override suspend fun mainList(): RemoteList? = call {
+        tasks.tasklists().get(DEFAULT_LIST).execute().let { RemoteList(it.id, it.title.orEmpty()) }
+    }
+
     override suspend fun changes(listId: String, cursor: String?): RemoteChanges = call {
         val since = cursor?.let(::instantOf)
         val found = mutableListOf<RemoteTaskState>()
@@ -263,6 +268,7 @@ internal class GoogleTasksProvider(
         /** Google keeps at most 1,024 characters of a title. */
         const val TITLE_MAX = 1024
 
+        private const val DEFAULT_LIST = "@default"
         private const val CURSOR_MARGIN_MS = 5 * 60_000L
         private const val MAX_RETRY_AFTER_MS = 24 * 60 * 60_000L
         private val DAY = Regex("""\d{4}-\d{2}-\d{2}""")

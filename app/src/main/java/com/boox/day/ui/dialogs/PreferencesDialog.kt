@@ -174,10 +174,13 @@ fun PreferencesDialog(
 
     // Oct 2026 (plan B3): opened from the Settings dot, Preferences shows the reminders at once
     val remindersInView = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    val taskSyncInView = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
     LaunchedEffect(Unit) {
         if (com.boox.day.ui.attention.SettingsJump.consume(com.boox.day.ui.attention.SettingsPlace.PREFERENCES)) {
             delay(150)  // laid out first
-            remindersInView.bringIntoView()
+            // Task sync (Oct 2026): its card, when it is what needs the user
+            if (com.boox.day.tasksync.TaskSync.attentionReason(context) != null) taskSyncInView.bringIntoView()
+            else remindersInView.bringIntoView()
         }
     }
 
@@ -340,6 +343,11 @@ fun PreferencesDialog(
 
                         // A Markdown note for each day (Oct 2026, export/DailyNotes)
                         com.boox.day.export.DailyNotesSetting()
+
+                        // Tasks kept in step with Google Tasks (Oct 2026, tasksync/; builds with task sync only)
+                        com.boox.day.ui.components.TaskSyncSetting(
+                            Modifier.bringIntoViewRequester(taskSyncInView)
+                        )
 
                         // Show Tips Setting
                         SettingCard(

@@ -94,9 +94,14 @@ internal class TaskSyncSender(
         sync.dropDeletesAfter(prefs.getLong(KEY_DELETES_APPROVED_UP_TO, 0L))
     }
 
+    /** The lists the user ticked; tasks in other lists stay on the tablet, unsent (owner decision 31). */
+    private fun tickedLists(): Set<String> =
+        sync.getListsFor(service.provider, accountEmail, serverUrl).mapTo(HashSet()) { it.listId }
+
     private suspend fun sendDelete(entry: TaskSyncOutboxEntry): Boolean {
         val listId = entry.listId ?: return false
         val remoteId = entry.remoteId ?: return false
+        if (listId !in tickedLists()) return false  // an unticked list: Google keeps its copy
         // A cleared parent's subtasks stay on the tablet (TaskRepository.clearTaskSlot), but Google
         // may delete them with their parent (its docs don't say): they move out first, also the
         // ones made subtasks on the phone (owner decision 24). If one can't be sent, the delete waits.
@@ -124,10 +129,12 @@ internal class TaskSyncSender(
             }
         }
         val current = link
+        val ticked = tickedLists()
+        if (current != null && current.listId !in ticked) return false  // an unticked list: stays here (decision 31)
         val parentLink = task.parentTaskId?.let { sync.getLink(it) }
         // A new subtask goes to its parent's list: a service keeps a subtask in its parent's list
         val listId = current?.listId
-            ?: parentLink?.listId
+            ?: parentLink?.listId?.takeIf { it in ticked }
             ?: sync.getDefaultList(service.provider, accountEmail, serverUrl)?.listId
             ?: throw NoListYet()
         // The hash uses the parent's copy as the scanner does; one in another list isn't sent as parent
@@ -187,7 +194,7 @@ internal class TaskSyncSender(
     companion object {
         private const val TAG = "TaskSyncSender"
         const val MASS_DELETE_LIMIT = 20
-        private const val KEY_DELETES_APPROVED_UP_TO = "deletes_approved_up_to"
+        internal const val KEY_DELETES_APPROVED_UP_TO = "deletes_approved_up_to"
         private const val FIRST_WAIT_MS = 60_000L
         private const val MAX_WAIT_MS = 6 * 60 * 60_000L
         private const val DEFAULT_BUSY_WAIT_MS = 60_000L

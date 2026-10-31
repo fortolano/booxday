@@ -185,7 +185,8 @@ data class BackupTaskSyncLink(
     val syncedAt: Long,
     // DB v31 additions: missing from backups made with v30 (then the parent is syncedParentRemoteId's)
     val remoteParentId: String? = null,
-    val keptOnTablet: Boolean = false
+    val keptOnTablet: Boolean = false,
+    val keptReason: String? = null
 )
 
 // ========== Recurring Tasks (v3) ==========

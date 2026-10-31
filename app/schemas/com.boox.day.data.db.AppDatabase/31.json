@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 31,
-    "identityHash": "bb1c7e2263d145e9fdedd7dfa5293bb8",
+    "identityHash": "ef5d32e6d420eefc7bdbcd3a05d32a96",
     "entities": [
       {
         "tableName": "Folder",
@@ -2908,7 +2908,7 @@
       },
       {
         "tableName": "task_sync_link",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`taskId` TEXT NOT NULL, `provider` TEXT NOT NULL, `accountEmail` TEXT NOT NULL, `serverUrl` TEXT NOT NULL DEFAULT '', `listId` TEXT NOT NULL, `remoteId` TEXT NOT NULL, `remoteVersion` TEXT, `syncedTitle` TEXT, `syncedCompleted` INTEGER NOT NULL, `syncedDueDay` TEXT, `syncedParentRemoteId` TEXT, `contentHash` TEXT, `remoteUndated` INTEGER NOT NULL, `orphanedAt` INTEGER, `syncedAt` INTEGER NOT NULL, `remoteParentId` TEXT, `keptOnTablet` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`taskId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`taskId` TEXT NOT NULL, `provider` TEXT NOT NULL, `accountEmail` TEXT NOT NULL, `serverUrl` TEXT NOT NULL DEFAULT '', `listId` TEXT NOT NULL, `remoteId` TEXT NOT NULL, `remoteVersion` TEXT, `syncedTitle` TEXT, `syncedCompleted` INTEGER NOT NULL, `syncedDueDay` TEXT, `syncedParentRemoteId` TEXT, `contentHash` TEXT, `remoteUndated` INTEGER NOT NULL, `orphanedAt` INTEGER, `syncedAt` INTEGER NOT NULL, `remoteParentId` TEXT, `keptOnTablet` INTEGER NOT NULL DEFAULT 0, `keptReason` TEXT, PRIMARY KEY(`taskId`))",
         "fields": [
           {
             "fieldPath": "taskId",
@@ -3006,6 +3006,11 @@
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "0"
+          },
+          {
+            "fieldPath": "keptReason",
+            "columnName": "keptReason",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -3193,7 +3198,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'bb1c7e2263d145e9fdedd7dfa5293bb8')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ef5d32e6d420eefc7bdbcd3a05d32a96')"
     ]
   }
 }

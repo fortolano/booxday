@@ -746,7 +746,8 @@ private fun BackupTaskSyncLink.toEntity() = TaskSyncLink(
     syncedAt = syncedAt,
     // A v30 backup has no remoteParentId: the two were the same then (MIGRATION_30_31)
     remoteParentId = remoteParentId ?: syncedParentRemoteId,
-    keptOnTablet = keptOnTablet
+    keptOnTablet = keptOnTablet,
+    keptReason = keptReason
 )
 
 private fun BackupStroke.toEntity() = Stroke(

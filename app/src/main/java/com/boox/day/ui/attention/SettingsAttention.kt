@@ -65,7 +65,9 @@ data class AttentionInputs(
     /** File access was allowed once (the Boox Notes dialog marks it) and Boox Notes is on. */
     val booxNotesUsed: Boolean,
     val booxNotesAccess: Boolean,
-    val accountsToReconnect: Int
+    val accountsToReconnect: Int,
+    /** Task sync needs the user (sign in again, deletes to approve): why; null when it doesn't. */
+    val taskSyncNeeds: String? = null
 )
 
 object SettingsAttentionRules {
@@ -79,6 +81,7 @@ object SettingsAttentionRules {
                     !batteryOk -> add(AttentionItem(SettingsPlace.PREFERENCES, "Reminders may be late (battery saving)"))
                 }
             }
+            taskSyncNeeds?.let { add(AttentionItem(SettingsPlace.PREFERENCES, it)) }
             if (accountsToReconnect > 0) {
                 add(AttentionItem(SettingsPlace.CALENDAR_ACCOUNTS, if (accountsToReconnect == 1) "An account needs to reconnect" else "$accountsToReconnect accounts need to reconnect"))
             }
@@ -136,6 +139,7 @@ private fun inputsFor(context: Context, accountsToReconnect: Int, hasKey: Boolea
             NotificationPermissionHelper.isBatteryOptimizationExempt(context),
         booxNotesUsed = settings.booxNotesEnabled && settings.setupChecklist.booxNotesConfigured,
         booxNotesAccess = !settings.booxNotesEnabled || BooxNotesAccess.has(context),
-        accountsToReconnect = accountsToReconnect
+        accountsToReconnect = accountsToReconnect,
+        taskSyncNeeds = com.boox.day.tasksync.TaskSync.attentionReason(context)
     )
 }
