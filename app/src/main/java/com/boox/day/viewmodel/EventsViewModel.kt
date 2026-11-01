@@ -1167,15 +1167,11 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
         onResult: (EventOperationResult<Unit>) -> Unit
     ) {
         try {
-            // Outlook events, and Google events that know their account (Oct 2026), are deleted
+            // Outlook and CalDAV events, and Google events that know their account (Oct 2026), are deleted
             // through the account's own credential. The Google branch further down uses the last
             // Google sign-in, which can be empty while the account syncs fine: it then skipped
             // Google, deleted only the tablet copy, and the next sync brought the event back.
-            val deleteProvider = when (event.providerId) {
-                ProviderId.OUTLOOK.key -> ProviderId.OUTLOOK
-                ProviderId.GOOGLE.key -> ProviderId.GOOGLE
-                else -> null
-            }?.takeIf {
+            val deleteProvider = ProviderId.fromKeyOrNull(event.providerId)?.takeIf {
                 event.syncEnabled &&
                     !event.accountId.isNullOrBlank() &&
                     !event.providerEventId.isNullOrBlank() &&

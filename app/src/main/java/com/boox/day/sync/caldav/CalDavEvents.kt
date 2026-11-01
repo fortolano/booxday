@@ -236,7 +236,7 @@ internal object CalDavEvents {
 
     private fun Calendar.events(): List<VEvent> = getComponents<VEvent>(Component.VEVENT)
 
-    private fun parse(ics: String): Calendar? = try {
+    internal fun parse(ics: String): Calendar? = try {
         CalendarBuilder().build(StringReader(ics))
     } catch (e: Exception) {
         Log.w(TAG, "Unreadable event file (${ics.length} chars): ${e.javaClass.simpleName}")

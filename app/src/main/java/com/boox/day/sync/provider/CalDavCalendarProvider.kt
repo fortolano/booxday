@@ -19,11 +19,14 @@ import com.boox.day.sync.NewEventData
 import com.boox.day.sync.SyncResult
 import com.boox.day.sync.UpdateEventData
 import com.boox.day.sync.caldav.CalDavConnection
+import com.boox.day.sync.caldav.CalDavEditor
 import com.boox.day.sync.caldav.CalDavReader
+import com.boox.day.sync.caldav.CalDavWriter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 
 /**
@@ -39,7 +42,8 @@ import java.time.ZoneId
  * - A calendar's id is its URL path (caldav_calendar.href).
  * - Reading: [CalDavReader]. The sync manager deletes window events a provider didn't return, so a
  *   calendar that failed makes the fetch a [CalendarProviderException.PartialSyncException].
- * - Writing comes with step 3.5; until then create, update and delete fail.
+ * - Writing: [CalDavWriter] (step 3.5): only BooxDay's fields change in the file, each write guarded
+ *   by its change tag; one day of a series changes or goes alone.
  */
 class CalDavCalendarProvider internal constructor(
     private val db: AppDatabase,
@@ -63,6 +67,7 @@ class CalDavCalendarProvider internal constructor(
     private val selectionDao = db.calendarSelectionDao()
     private val calDavDao = db.calDavDao()
     private val reader = CalDavReader(db, now)
+    private val writer = CalDavWriter(db, now)
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Account Management
@@ -222,23 +227,71 @@ class CalDavCalendarProvider internal constructor(
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // CRUD Operations (step 3.5)
+    // CRUD Operations (step 3.5: CalDavWriter, guarded by each file's change tag)
     // ═══════════════════════════════════════════════════════════════════════════
 
     override suspend fun createEvent(accountId: String, calendarId: String, event: NewEventData): Result<ProviderEvent> =
-        Result.failure(notYet())
+        write(accountId, calendarId) { connection, account ->
+            writer.create(connection, accountId, account.calendarHomeUrl, calendarId, fieldsOf(
+                event.title, event.date, event.startTimeHour, event.startTimeMinute, event.endTimeHour, event.endTimeMinute,
+                event.isAllDay, event.location, event.description
+            ), zone())
+        }
 
     override suspend fun updateEvent(
         accountId: String,
         calendarId: String,
         eventId: String,
         event: UpdateEventData
-    ): Result<ProviderEvent> = Result.failure(notYet())
+    ): Result<ProviderEvent> =
+        write(accountId, calendarId) { connection, account ->
+            writer.update(connection, accountId, account.calendarHomeUrl, calendarId, eventId, fieldsOf(
+                event.title, event.date, event.startTimeHour, event.startTimeMinute, event.endTimeHour, event.endTimeMinute,
+                event.isAllDay, event.location, event.description
+            ), zone())
+        }
 
     override suspend fun deleteEvent(accountId: String, calendarId: String, eventId: String): Result<Unit> =
-        Result.failure(notYet())
+        withContext(Dispatchers.IO) {
+            try {
+                val (connection, account) = connect(accountId)
+                writer.delete(connection, accountId, account.calendarHomeUrl, calendarId, eventId)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Log.w(TAG, "CalDAV delete failed: ${e.javaClass.simpleName}")
+                Result.failure(providerFailure(e))
+            }
+        }
 
-    private fun notYet() = CalendarProviderException.ProviderException("Changing CalDAV events isn't built yet")
+    /** A write that returns the event's row, in its calendar's colour. */
+    private suspend fun write(
+        accountId: String,
+        calendarId: String,
+        block: suspend (CalDavConnection, CalDavAccount) -> ProviderEvent
+    ): Result<ProviderEvent> = withContext(Dispatchers.IO) {
+        try {
+            val (connection, account) = connect(accountId)
+            val row = block(connection, account)
+            val colour = selectionDao.getByAccountAndCalendarId(accountId, calendarId)?.calendarColor
+            Result.success(row.copy(colorHex = colour))
+        } catch (e: Exception) {
+            Log.w(TAG, "CalDAV write failed: ${e.javaClass.simpleName}")
+            Result.failure(providerFailure(e))
+        }
+    }
+
+    private fun fieldsOf(
+        title: String, date: String, startHour: Int, startMinute: Int, endHour: Int?, endMinute: Int?,
+        allDay: Boolean, location: String?, description: String?
+    ) = CalDavEditor.Fields(
+        title = title,
+        date = LocalDate.parse(date),
+        startTime = LocalTime.of(startHour, startMinute),
+        endTime = if (endHour != null && endMinute != null) LocalTime.of(endHour, endMinute) else null,
+        isAllDay = allDay,
+        location = location,
+        description = description
+    )
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Token Management
@@ -301,8 +354,11 @@ class CalDavCalendarProvider internal constructor(
         // A certificate that changed (a home server's new one) is trusted again by signing in again
         is CalDavConnection.Failure.UntrustedCertificate -> CalendarProviderException.AuthenticationException("The server's certificate changed", e)
         is CalDavConnection.Failure.Offline -> CalendarProviderException.NetworkException("No connection", e)
+        is CalDavWriter.EventGone -> CalendarProviderException.NotFoundException("The event is no longer on the server", e)
         is CalDavConnection.Failure.Server -> when (e.code) {
             403 -> CalendarProviderException.PermissionException("The server refused access", e)
+            // Changed on the server twice while saving (CalDavWriter reads it again once)
+            412 -> CalendarProviderException.ProviderException("It was changed elsewhere at the same time. Try again.", "412", e)
             404, 410 -> CalendarProviderException.NotFoundException("Not found on the server", e)
             429, 503 -> CalendarProviderException.RateLimitException("The server is busy", cause = e)
             else -> CalendarProviderException.ProviderException("The server answered ${e.code}", e.code.toString(), e)

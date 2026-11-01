@@ -21,6 +21,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.OkHttpClient
 import java.io.IOException
 import java.security.KeyStore
@@ -139,6 +141,30 @@ internal class CalDavConnection(
         found
     }
 
+    /**
+     * Saves an event file (step 3.5). [ifMatch] is the stored change tag: the server refuses with
+     * [Failure.Server] 412 when the file changed there since (null: the server never gave one, no
+     * guard). [create]: a new file, saved only if none is there yet (If-None-Match). Returns the new
+     * change tag, or null when the server gives none (RFC 4791 5.3.4: then it changed the text, so
+     * read it again).
+     */
+    suspend fun putEvent(fileUrl: String, ics: String, ifMatch: String?, create: Boolean): String? = call {
+        var etag: String? = null
+        DavResource(client, httpsUrl(fileUrl)).put(
+            ics.toRequestBody(ICALENDAR), if (create) null else ifMatch, null, create
+        ) { response -> etag = GetETag.fromResponse(response)?.eTag }
+        etag
+    }
+
+    /** Deletes an event file if it is unchanged ([ifMatch], 412 otherwise); one already gone counts as deleted. */
+    suspend fun deleteEvent(fileUrl: String, ifMatch: String?) = call {
+        try {
+            DavResource(client, httpsUrl(fileUrl)).delete(ifMatch, null) { }
+        } catch (e: HttpException) {
+            if (e.code != 404 && e.code != 410) throw e
+        }
+    }
+
     /** The files at [hrefs] (paths in the calendar), [MULTIGET_BATCH] per request; files gone meanwhile are left out. */
     suspend fun downloadEvents(calendarUrl: String, hrefs: List<String>): List<RemoteEventFile> = call {
         val url = httpsUrl(calendarUrl)
@@ -235,6 +261,8 @@ internal class CalDavConnection(
     companion object {
         /** Files per multiget request: small enough for any server's request limits. */
         const val MULTIGET_BATCH = 50
+
+        private val ICALENDAR = "text/calendar; charset=utf-8".toMediaType()
 
         /** "AB:CD:…", as browsers show a certificate's SHA-256 fingerprint. */
         fun sha256(cert: X509Certificate): String =

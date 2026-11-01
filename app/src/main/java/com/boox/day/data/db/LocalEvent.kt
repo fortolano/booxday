@@ -133,7 +133,7 @@ data class LocalEvent(
     /**
      * Check if event is synced to any cloud provider.
      */
-    fun isSyncedToCloud(): Boolean = providerId in listOf("GOOGLE", "OUTLOOK") &&
+    fun isSyncedToCloud(): Boolean = providerId in listOf("GOOGLE", "OUTLOOK", "CALDAV") &&
         (providerEventId != null || googleEventId != null)
 
     /**
