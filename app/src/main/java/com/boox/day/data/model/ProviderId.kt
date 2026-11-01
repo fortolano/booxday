@@ -19,7 +19,13 @@ enum class ProviderId(
     /**
      * Microsoft Outlook provider (Outlook.com, Office365)
      */
-    OUTLOOK("Outlook Calendar", "OUTLOOK");
+    OUTLOOK("Outlook Calendar", "OUTLOOK"),
+
+    /**
+     * A CalDAV server: iCloud, Fastmail, Nextcloud or any other (plan stage 3, Oct 2026). Signs in
+     * with a name and an (app) password; the account row's serverUrl says which server.
+     */
+    CALDAV("CalDAV Calendar", "CALDAV");
 
     companion object {
         /**
@@ -36,6 +42,7 @@ enum class ProviderId(
         fun fromKeyOrNull(key: String): ProviderId? = when (key.uppercase()) {
             GOOGLE.key -> GOOGLE
             OUTLOOK.key -> OUTLOOK
+            CALDAV.key -> CALDAV
             else -> null
         }
     }

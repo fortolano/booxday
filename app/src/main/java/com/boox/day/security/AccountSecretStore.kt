@@ -62,6 +62,9 @@ class AccountSecretStore internal constructor(
         }
     }
 
+    /** Whether a secret is saved for [accountId] (it may still fail to decrypt: see [read]). */
+    fun has(accountId: String): Boolean = prefs.contains(entry(accountId))
+
     fun delete(accountId: String) {
         prefs.edit().remove(entry(accountId)).commit()
     }

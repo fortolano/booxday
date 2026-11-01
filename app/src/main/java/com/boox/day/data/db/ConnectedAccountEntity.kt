@@ -32,7 +32,7 @@ import kotlinx.coroutines.flow.Flow
 data class ConnectedAccountEntity(
     @PrimaryKey
     val id: String,
-    val providerId: String,         // "GOOGLE" or "OUTLOOK"
+    val providerId: String,         // "GOOGLE", "OUTLOOK" or "CALDAV"
     val accountType: String,        // "GOOGLE_PERSONAL", etc.
     val email: String,
     val displayName: String?,
@@ -54,7 +54,8 @@ data class ConnectedAccountEntity(
         displayName = displayName,
         isActive = isActive,
         createdAt = createdAt,
-        lastSyncAt = lastSyncAt
+        lastSyncAt = lastSyncAt,
+        serverUrl = serverUrl
     )
 
     /** Null for a row of a provider or account type this version doesn't know (never read as Google). */
@@ -69,7 +70,8 @@ data class ConnectedAccountEntity(
             displayName = displayName,
             isActive = isActive,
             createdAt = createdAt,
-            lastSyncAt = lastSyncAt
+            lastSyncAt = lastSyncAt,
+            serverUrl = serverUrl
         )
     }
 
@@ -86,7 +88,8 @@ data class ConnectedAccountEntity(
                 displayName = account.displayName,
                 isActive = account.isActive,
                 createdAt = account.createdAt,
-                lastSyncAt = account.lastSyncAt
+                lastSyncAt = account.lastSyncAt,
+                serverUrl = account.serverUrl
             )
     }
 }

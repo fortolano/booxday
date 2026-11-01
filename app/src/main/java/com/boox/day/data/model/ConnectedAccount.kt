@@ -13,6 +13,7 @@ package com.boox.day.data.model
  * @property isActive Whether this account is active (false = soft deleted)
  * @property createdAt Timestamp when account was connected
  * @property lastSyncAt Timestamp of last successful sync (null if never synced)
+ * @property serverUrl The CalDAV server address the user signed in with; "" for Google and Outlook
  */
 data class ConnectedAccount(
     val id: String,
@@ -22,7 +23,8 @@ data class ConnectedAccount(
     val displayName: String? = null,
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
-    val lastSyncAt: Long? = null
+    val lastSyncAt: Long? = null,
+    val serverUrl: String = ""
 ) {
     /**
      * Get a display-friendly label for this account.
@@ -55,6 +57,9 @@ data class ConnectedAccount(
     val isOutlookAccount: Boolean
         get() = providerId == ProviderId.OUTLOOK
 
+    val isCalDavAccount: Boolean
+        get() = providerId == ProviderId.CALDAV
+
     companion object {
         /**
          * Create a new ConnectedAccount with a generated ID.
@@ -63,7 +68,8 @@ data class ConnectedAccount(
             providerId: ProviderId,
             accountType: AccountType,
             email: String,
-            displayName: String? = null
+            displayName: String? = null,
+            serverUrl: String = ""
         ): ConnectedAccount = ConnectedAccount(
             id = generateId(),
             providerId = providerId,
@@ -72,7 +78,8 @@ data class ConnectedAccount(
             displayName = displayName,
             isActive = true,
             createdAt = System.currentTimeMillis(),
-            lastSyncAt = null
+            lastSyncAt = null,
+            serverUrl = serverUrl
         )
 
         /**

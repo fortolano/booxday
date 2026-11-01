@@ -72,18 +72,23 @@ internal fun deriveSmartLinkPreflightStatus(
     outlookTimedEventCount: Long,
     localOnlyTimedEventCount: Long,
     localVisibleTimedEventCount: Long,
-    sourceVisibility: SmartLinkSourceVisibility
+    sourceVisibility: SmartLinkSourceVisibility,
+    // CalDAV calendars (plan stage 3): always visible until the source filter has a CalDAV switch
+    calDavEventCount: Long = 0L,
+    calDavTimedEventCount: Long = 0L
 ): SmartLinkPreflightStatus {
-    val cloudEventCount = googleEventCount + outlookEventCount
-    val cloudTimedEventCount = googleTimedEventCount + outlookTimedEventCount
+    val cloudEventCount = googleEventCount + outlookEventCount + calDavEventCount
+    val cloudTimedEventCount = googleTimedEventCount + outlookTimedEventCount + calDavTimedEventCount
     val visibleEventCount =
         (if (sourceVisibility.showLocal) localVisibleEventCount else 0L) +
             (if (sourceVisibility.showGoogle) googleEventCount else 0L) +
-            (if (sourceVisibility.showOutlook) outlookEventCount else 0L)
+            (if (sourceVisibility.showOutlook) outlookEventCount else 0L) +
+            calDavEventCount
     val visibleTimedEventCount =
         (if (sourceVisibility.showLocal) localVisibleTimedEventCount else 0L) +
             (if (sourceVisibility.showGoogle) googleTimedEventCount else 0L) +
-            (if (sourceVisibility.showOutlook) outlookTimedEventCount else 0L)
+            (if (sourceVisibility.showOutlook) outlookTimedEventCount else 0L) +
+            calDavTimedEventCount
     val totalEventCount = cloudEventCount + localVisibleEventCount
     val totalTimedEventCount = cloudTimedEventCount + localVisibleTimedEventCount
     val isDeterministicOnly = smartLinkEnabled && ocrEnabled && !semanticExtractionEnabled
@@ -172,7 +177,11 @@ class SmartLinkEventRepository(
 
     suspend fun getOutlookTimedEventCount(): Long = calendarEventRepository.getTimedEventCountByProvider("OUTLOOK")
 
-    suspend fun getCloudEventCount(): Long = getGoogleEventCount() + getOutlookEventCount()
+    suspend fun getCalDavEventCount(): Long = calendarEventRepository.getEventCountByProvider("CALDAV")
+
+    suspend fun getCalDavTimedEventCount(): Long = calendarEventRepository.getTimedEventCountByProvider("CALDAV")
+
+    suspend fun getCloudEventCount(): Long = getGoogleEventCount() + getOutlookEventCount() + getCalDavEventCount()
 
     suspend fun getLocalOnlyEventCount(): Long = localEventRepository.getLocalOnlyEventCount().toLong()
 
@@ -221,7 +230,9 @@ class SmartLinkEventRepository(
             outlookTimedEventCount = outlookTimedEventCount,
             localOnlyTimedEventCount = localOnlyTimedEventCount,
             localVisibleTimedEventCount = localVisibleTimedEventCount,
-            sourceVisibility = sourceVisibility
+            sourceVisibility = sourceVisibility,
+            calDavEventCount = getCalDavEventCount(),
+            calDavTimedEventCount = getCalDavTimedEventCount()
         )
     }
 }

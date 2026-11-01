@@ -130,10 +130,11 @@ class ConnectedAccountSelectionSurvivalTest {
 
     @Test
     fun anAccountOfAnUnknownProviderIsNeverReadAsGoogle() = runBlocking {
-        val newer = account("acc-c", "me@icloud.com", providerId = "CALDAV", accountType = "CALDAV_ICLOUD")
+        // A provider a newer version might add (CALDAV was the example until this version knew it)
+        val newer = account("acc-c", "me@example.com", providerId = "EXCHANGE", accountType = "EXCHANGE_WORK")
 
         assertEquals(null, newer.toDomainModelOrNull())
-        assertEquals(null, com.boox.day.data.model.ProviderId.fromKeyOrNull("CALDAV"))
+        assertEquals(null, com.boox.day.data.model.ProviderId.fromKeyOrNull("EXCHANGE"))
         assertEquals(
             "events keep the display fallback",
             com.boox.day.data.model.ProviderId.GOOGLE,

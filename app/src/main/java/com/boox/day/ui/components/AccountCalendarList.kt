@@ -285,6 +285,8 @@ private fun AccountHeader(
                             when (account.providerId) {
                                 ProviderId.GOOGLE -> R.drawable.ic_google_calendar
                                 ProviderId.OUTLOOK -> R.drawable.ic_outlook
+                                // Stand-in until the CalDAV screens (plan step 3.6) choose its icon
+                                ProviderId.CALDAV -> R.drawable.calendar_today_40px
                             }
                         ),
                         contentDescription = "${account.providerId.displayName} account",

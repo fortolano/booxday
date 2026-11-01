@@ -146,24 +146,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
         return combine(cloudEvents, localEvents, _sourceFilter) { cloud, local, filter ->
             val filtered = mutableListOf<CalendarEvent>()
 
-            // Filter cloud events by provider (Google/Outlook)
-            // When BOTH filters are ON (default), include ALL cloud events to ensure none are missed
-            // Only apply selective filtering when user explicitly toggles one OFF
-            when {
-                filter.showGoogle && filter.showOutlook -> {
-                    // Default: show ALL cloud events (no provider filtering)
-                    filtered.addAll(cloud)
-                }
-                filter.showGoogle -> {
-                    // User disabled Outlook, show only Google
-                    filtered.addAll(cloud.filter { it.isGoogleEvent })
-                }
-                filter.showOutlook -> {
-                    // User disabled Google, show only Outlook
-                    filtered.addAll(cloud.filter { it.isOutlookEvent })
-                }
-                // else: both disabled, no cloud events shown
-            }
+            filtered.addAll(cloudShown(cloud, filter))
 
             // Filter local events (avoiding duplicates with cloud-synced events)
             if (filter.showLocal) {
@@ -179,6 +162,15 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
             )
         }
     }
+
+    /**
+     * The synced events the source filter shows: a switched-off source hides only its own events,
+     * so CalDAV events (no filter switch of their own yet, plan step 3.6) stay visible when Google
+     * or Outlook is switched off. Before CalDAV, "Google only" showed only Google events.
+     */
+    private fun cloudShown(cloud: List<CalendarEvent>, filter: CalendarSourceFilter): List<CalendarEvent> =
+        if (filter.showGoogle && filter.showOutlook) cloud
+        else cloud.filter { (filter.showGoogle || !it.isGoogleEvent) && (filter.showOutlook || !it.isOutlookEvent) }
 
     /**
      * Get a SHARED StateFlow for events on a specific date.
@@ -215,12 +207,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
         return combine(cloudEvents, localEvents, _sourceFilter) { cloud, local, filter ->
             val filtered = mutableListOf<CalendarEvent>()
 
-            // Filter cloud events by provider (Google/Outlook)
-            when {
-                filter.showGoogle && filter.showOutlook -> filtered.addAll(cloud)
-                filter.showGoogle -> filtered.addAll(cloud.filter { it.isGoogleEvent })
-                filter.showOutlook -> filtered.addAll(cloud.filter { it.isOutlookEvent })
-            }
+            filtered.addAll(cloudShown(cloud, filter))
 
             // Filter local events (avoiding duplicates with cloud-synced events)
             if (filter.showLocal) {
@@ -765,6 +752,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                         val providerName = when (cloudEvent.providerId) {
                             ProviderId.GOOGLE.key -> ProviderId.GOOGLE.displayName
                             ProviderId.OUTLOOK.key -> ProviderId.OUTLOOK.displayName
+                            ProviderId.CALDAV.key -> ProviderId.CALDAV.displayName
                             else -> "cloud"
                         }
                         val message = when (e) {
@@ -1125,6 +1113,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                         val providerName = when (cloudEvent.providerId) {
                             ProviderId.GOOGLE.key -> ProviderId.GOOGLE.displayName
                             ProviderId.OUTLOOK.key -> ProviderId.OUTLOOK.displayName
+                            ProviderId.CALDAV.key -> ProviderId.CALDAV.displayName
                             else -> "cloud"
                         }
                         val message = when (e) {

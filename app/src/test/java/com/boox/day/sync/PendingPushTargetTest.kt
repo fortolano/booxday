@@ -14,8 +14,8 @@ class PendingPushTargetTest {
 
     @Test
     fun anUnknownProvidersChangeIsNeverSentToGoogle() {
-        // A CalDAV event before this version knows CalDAV (or any unknown key) used to go to Google
-        assertTrue(pendingPushTarget(event("CALDAV", "acc-1")) is PendingPushTarget.Nowhere)
+        // An event of a provider this version doesn't know used to go to Google (CalDAV until it was known)
+        assertTrue(pendingPushTarget(event("EXCHANGE", "acc-1")) is PendingPushTarget.Nowhere)
     }
 
     @Test
@@ -23,6 +23,7 @@ class PendingPushTargetTest {
         assertEquals(PendingPushTarget.LegacyGoogle, pendingPushTarget(event("LOCAL")))
         assertEquals(PendingPushTarget.LegacyGoogle, pendingPushTarget(event("GOOGLE")))
         assertEquals(PendingPushTarget.Provider(ProviderId.OUTLOOK, "acc-2"), pendingPushTarget(event("OUTLOOK", "acc-2")))
+        assertEquals(PendingPushTarget.Provider(ProviderId.CALDAV, "acc-3"), pendingPushTarget(event("CALDAV", "acc-3")))
         assertTrue("Outlook without its account waits", pendingPushTarget(event("OUTLOOK")) is PendingPushTarget.Nowhere)
     }
 }

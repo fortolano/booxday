@@ -100,6 +100,9 @@ interface CalDavDao {
     @Query("SELECT * FROM caldav_calendar WHERE accountId = :accountId AND href = :href")
     fun getCalendar(accountId: String, href: String): CalDavCalendar?
 
+    @Query("SELECT * FROM caldav_calendar WHERE accountId = :accountId")
+    fun getCalendars(accountId: String): List<CalDavCalendar>
+
     @Query("DELETE FROM caldav_calendar WHERE accountId = :accountId AND href = :href")
     fun deleteCalendar(accountId: String, href: String)
 

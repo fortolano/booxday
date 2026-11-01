@@ -23,6 +23,7 @@ import com.boox.day.ocr.OcrQuotaManager
 import com.boox.day.ocr.model.OcrSource
 import com.boox.day.ocr.semantic.EventSemanticIndexingWorker
 import com.boox.day.ocr.semantic.SemanticGeniusService
+import com.boox.day.sync.provider.CalDavCalendarProvider
 import com.boox.day.sync.provider.CalendarProvider
 import com.boox.day.sync.provider.CalendarProviderException
 import com.boox.day.sync.provider.GoogleCalendarProvider
@@ -73,6 +74,7 @@ import java.time.LocalDate
  * @param accountDao DAO for connected accounts
  * @param selectionDao DAO for calendar selections
  * @param eventRepository Repository for cached calendar events
+ * @param calDavProvider CalDAV calendars (plan stage 3); every caller uses the app's own
  */
 class MultiAccountSyncManager(
     private val context: Context,
@@ -80,7 +82,8 @@ class MultiAccountSyncManager(
     private val outlookProvider: OutlookCalendarProvider,
     private val accountDao: ConnectedAccountDao,
     private val selectionDao: CalendarSelectionDao,
-    private val eventRepository: CalendarEventRepository
+    private val eventRepository: CalendarEventRepository,
+    private val calDavProvider: CalDavCalendarProvider = CalDavCalendarProvider.create(context)
 ) {
     companion object {
         private const val TAG = "MultiAccountSyncManager"
@@ -184,6 +187,7 @@ class MultiAccountSyncManager(
         return when (providerId) {
             ProviderId.GOOGLE -> googleProvider
             ProviderId.OUTLOOK -> outlookProvider
+            ProviderId.CALDAV -> calDavProvider
         }
     }
 
@@ -300,6 +304,24 @@ class MultiAccountSyncManager(
         } catch (e: Exception) {
             Log.e(TAG, "Error adding account", e)
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Add (or sign in again to) a CalDAV account from the sign-in form (plan stage 3), then fetch
+     * its calendars like a new Google or Outlook account. Fails with the connection's reason
+     * (wrong password, untrusted certificate, no calendars…) for the form to show.
+     */
+    internal suspend fun addCalDavAccount(
+        accountType: AccountType,
+        address: String,
+        username: String,
+        password: String,
+        trustedCertSha256: String? = null
+    ): Result<ConnectedAccount> = withContext(Dispatchers.IO) {
+        calDavProvider.signIn(accountType, address, username, password, trustedCertSha256).onSuccess { account ->
+            refreshCalendarsForAccount(account.id)
+            rescheduleBackgroundSync()
         }
     }
 

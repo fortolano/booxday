@@ -36,7 +36,7 @@ data class CalendarEvent(
     val id: String,                          // Provider event ID (NOT local UUID)
 
     // Provider/Account identification (added in v18)
-    val providerId: String = "GOOGLE",       // "GOOGLE" or "OUTLOOK"
+    val providerId: String = "GOOGLE",       // "GOOGLE", "OUTLOOK" or "CALDAV"
     val accountId: String = "",              // FK to connected_accounts (empty = legacy)
     val accountEmail: String = "",           // For display (denormalized)
 
@@ -66,6 +66,10 @@ data class CalendarEvent(
      */
     val isOutlookEvent: Boolean
         get() = providerId == "OUTLOOK"
+
+    /** From a CalDAV server (iCloud, Fastmail, Nextcloud, others). */
+    val isCalDavEvent: Boolean
+        get() = providerId == "CALDAV"
 
     /**
      * Check if this event has been tagged with account info (post-migration).
