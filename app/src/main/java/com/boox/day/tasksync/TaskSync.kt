@@ -10,6 +10,9 @@ import com.boox.day.data.db.TaskSyncList
 import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.share.HandwrittenRows
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import java.time.LocalDate
 
 /**
@@ -41,6 +44,17 @@ object TaskSync {
 
     @Volatile
     private var watcher: TaskSyncWatcher? = null
+
+    private val changes = MutableStateFlow(0L)
+
+    /**
+     * Changes whenever what [attentionReason] reads may have changed (a run's result, turning it on
+     * or off, deletes approved or kept), so the Settings menu updates at once (Nov 2026; before, it
+     * waited for BooxDay to come back to the front).
+     */
+    val statusChanges: StateFlow<Long> = changes
+
+    private fun statusChanged() = changes.update { it + 1 }
 
     fun isOn(context: Context): Boolean =
         BuildConfig.TASK_SYNC_ENABLED && prefs(context).getBoolean(KEY_ON, false)
@@ -182,6 +196,7 @@ object TaskSync {
         }
         keepTickedTasksOnTablet(db, provider, email, serverUrl = server, today = today)
         save(prefs(app).edit(), target).putBoolean(KEY_ON, true).putBoolean(KEY_NEEDS_RECONNECT, false).apply()
+        statusChanged()
         start(app)
         Log.i(TAG, "Task sync turned on")
     }
@@ -194,6 +209,7 @@ object TaskSync {
             watcher = null
         }
         TaskSyncTriggers.cancel()
+        statusChanged()
     }
 
     /** Only while off (owner decision 32): Google Tasks or a CalDAV account. */
@@ -268,6 +284,7 @@ object TaskSync {
     /** The account was removed in Calendar Accounts (TaskSyncRun checks at every run; owner decision 41). */
     internal fun recordAccountGone(context: Context, gone: Boolean) {
         prefs(context).edit().putBoolean(KEY_ACCOUNT_GONE, gone).apply()
+        statusChanged()
     }
 
     /** When the last run finished, whatever its result (0 = never); [TaskSyncTriggers] spaces runs by it. */
@@ -279,6 +296,7 @@ object TaskSync {
             .putBoolean(KEY_NEEDS_RECONNECT, result == TaskSyncRun.Result.NEEDS_RECONNECT)
         if (result == TaskSyncRun.Result.DONE) edit.putLong(KEY_LAST_SYNCED_AT, System.currentTimeMillis())
         edit.apply()
+        statusChanged()
         return result
     }
 
@@ -286,12 +304,14 @@ object TaskSync {
     fun approveWaitingDeletes(context: Context) {
         val db = AppDatabase.getDatabase(context.applicationContext)
         prefs(context).edit().putLong(TaskSyncSender.KEY_DELETES_APPROVED_UP_TO, db.taskSyncDao().lastDeleteId()).apply()
+        statusChanged()
     }
 
     /** "Keep in Google": the waiting deletes are dropped; the copies stay in Google. */
     fun keepWaitingDeletesInService(context: Context) {
         val db = AppDatabase.getDatabase(context.applicationContext)
         db.taskSyncDao().dropDeletesAfter(prefs(context).getLong(TaskSyncSender.KEY_DELETES_APPROVED_UP_TO, 0L))
+        statusChanged()
     }
 
     // ── Running ──

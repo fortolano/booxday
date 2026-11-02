@@ -3,6 +3,7 @@ package com.boox.day.ui.attention
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -115,7 +116,9 @@ fun rememberSettingsAttention(accountsToReconnect: Int): SettingsAttention {
     val settings = GlobalAppSettings.current
     val hasKey = UserOpenRouterKey.hasKey
     val failingPicks = AiPickStatus.failures.size
-    return remember(settings, hasKey, failingPicks, accountsToReconnect, resumes) {
+    // Task Sync's needs change with its runs, also while BooxDay stays in front
+    val taskSyncStatus by com.boox.day.tasksync.TaskSync.statusChanges.collectAsState()
+    return remember(settings, hasKey, failingPicks, accountsToReconnect, resumes, taskSyncStatus) {
         SettingsAttention(SettingsAttentionRules.items(inputsFor(context, accountsToReconnect, hasKey, failingPicks)))
     }
 }

@@ -57,13 +57,16 @@ fun TaskSyncSetting(modifier: Modifier = Modifier) {
     var reloads by remember { mutableIntStateOf(0) }
     var loaded by remember { mutableStateOf<TaskSyncCardModel?>(null) }
     var afterConsent by remember { mutableStateOf<(suspend () -> Unit)?>(null) }
+    // Asked again when the lists couldn't be read (no connection, access withdrawn) and that may
+    // have changed: after Reconnect, after a sync
+    var listsAttempt by remember { mutableIntStateOf(0) }
     val state = loaded?.state
 
     LaunchedEffect(reloads, serviceLists, working, message) {
         loaded = withContext(Dispatchers.IO) { loadTaskSyncCard(context, serviceLists, working ?: message) }
     }
     // The account's lists, to tick (only while on: turning on is when Google's permission is given)
-    LaunchedEffect(state?.on, state?.chosen) {
+    LaunchedEffect(state?.on, state?.chosen, listsAttempt) {
         val target = loaded?.chosenTarget
         if (state?.on == true && target != null && serviceLists == null) {
             serviceLists = withContext(Dispatchers.IO) { runCatching { target.service(context).lists() }.getOrNull() }
@@ -76,6 +79,7 @@ fun TaskSyncSetting(modifier: Modifier = Modifier) {
             message = null
             withContext(Dispatchers.IO) { TaskSyncRun.run(context, changedAt = System.currentTimeMillis(), handwritingNow = true) }
             working = null
+            if (serviceLists == null) listsAttempt++
             reloads++
         }
     }
@@ -181,7 +185,14 @@ fun TaskSyncSetting(modifier: Modifier = Modifier) {
         // Google only: a CalDAV password is signed in again in Calendar Accounts (owner decision 68)
         reconnect = {
             val email = loaded?.chosenTarget?.takeIf { it.isGoogle }?.accountEmail
-            if (email != null) withPermission(email) { working = "Syncing…"; withContext(Dispatchers.IO) { TaskSyncRun.run(context, changedAt = System.currentTimeMillis()) }; working = null; reloads++ }
+            if (email != null) withPermission(email) {
+                working = "Syncing…"
+                withContext(Dispatchers.IO) { TaskSyncRun.run(context, changedAt = System.currentTimeMillis()) }
+                working = null
+                serviceLists = null  // read while the access was gone: only the ticked lists
+                listsAttempt++
+                reloads++
+            }
         },
         keepInService = {
             scope.launch {

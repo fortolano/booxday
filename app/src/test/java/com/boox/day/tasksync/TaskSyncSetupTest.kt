@@ -179,6 +179,10 @@ class TaskSyncSetupTest {
 
         assertEquals(TaskSyncRun.Result.NEEDS_RECONNECT, TaskSyncRun.run(context))
         assertEquals("Task Sync's Google account isn't connected", TaskSync.attentionReason(context))
+        // The Settings menu hears of it at once, and again when a run clears it (owner decision 72)
+        val before = TaskSync.statusChanges.value
+        TaskSync.recordRun(context, TaskSyncRun.Result.DONE)
+        assertTrue(TaskSync.statusChanges.value > before)
     }
 
     @Test
