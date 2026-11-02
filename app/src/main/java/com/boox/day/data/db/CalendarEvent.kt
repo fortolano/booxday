@@ -104,6 +104,8 @@ data class CalendarEvent(
 /**
  * Simplified calendar info for display purposes
  */
+data class ProviderEventCount(val providerId: String, val count: Int)
+
 data class CachedCalendarInfo(
     val calendarId: String,
     val calendarName: String,
@@ -299,6 +301,16 @@ interface CalendarEventDao {
     """)
     fun observeEventCountForDateFiltered(dayId: String): Flow<Int>
 
+    /** [observeEventCountForDateFiltered] per provider, for the events filter (Nov 2026). */
+    @Query("""
+        SELECT ce.providerId AS providerId, COUNT(*) AS count FROM calendar_events ce
+        INNER JOIN calendar_selections cs
+            ON ce.accountId = cs.accountId AND ce.calendarId = cs.calendarId
+        WHERE ce.dayId <= :dayId AND ce.endDayId >= :dayId AND cs.isFetchEnabled = 1
+        GROUP BY ce.providerId
+    """)
+    fun observeCountsByProviderForDate(dayId: String): Flow<List<ProviderEventCount>>
+
     /**
      * Delete events for a specific calendar within an account.
      * Used when user deselects a calendar to immediately remove its events.
@@ -420,9 +432,46 @@ class CalendarEventRepository(context: Context) {
     private val dao = AppDatabase.getDatabase(context).calendarEventDao()
     private val booxNoteRepository by lazy { BooxNoteRepository(appContext) }
     private val smartLinkRefreshCoordinator by lazy { SmartLinkRefreshCoordinator(appContext, eventRepository = this) }
+    private val localEventDao = AppDatabase.getDatabase(context).localEventDao()
+    private val localEvents by lazy { LocalEventRepository(appContext) }
 
     companion object {
         private const val TAG = "CalendarEventRepo"
+    }
+
+    /**
+     * Synced events that left the calendar (deleted on the server, calendar unticked, cache
+     * cleared) take the tablet's copy with them: the events list shows a copy whose synced event
+     * is gone as a "This device" event, so an event deleted on the phone came back (Nov 2026). A
+     * change still waiting to be sent stays: sending it finds the event gone and drops it.
+     */
+    private suspend fun dropSyncedCopies(ids: Collection<String>) {
+        for (chunk in ids.toList().chunked(500)) {
+            localEventDao.getCopiesOf(chunk)
+                .filter { it.syncStatus == SyncStatus.SYNCED }
+                .forEach { localEvents.permanentlyDelete(it.id) }
+        }
+    }
+
+    /**
+     * A removed account: its synced events' copies and changes waiting to be sent go; an event made
+     * on the tablet and never sent stays on the tablet as a This device event, so nothing typed is lost.
+     */
+    private suspend fun forgetAccountCopies(accountId: String) {
+        for (event in localEventDao.getForAccount(accountId)) {
+            val wasSent = !event.providerEventId.isNullOrBlank() || !event.googleEventId.isNullOrBlank()
+            if (wasSent) {
+                localEvents.permanentlyDelete(event.id)
+            } else {
+                localEventDao.update(
+                    event.copy(
+                        syncEnabled = false, syncStatus = SyncStatus.LOCAL_ONLY, providerId = "LOCAL",
+                        accountId = null, accountEmail = null, providerCalendarId = null, providerCalendarName = null,
+                        googleCalendarId = null, googleCalendarName = null, updatedAt = System.currentTimeMillis()
+                    )
+                )
+            }
+        }
     }
 
     // PERFORMANCE: LRU cache for events by date (saves DB queries on day switching)
@@ -558,6 +607,7 @@ class CalendarEventRepository(context: Context) {
         val deletedEvents = dao.getByIds(ids)
         booxNoteRepository.handleDeletedEvents(ids)
         dao.deleteByIds(ids)
+        dropSyncedCopies(ids)
 
         if (deletedEvents.isNotEmpty()) {
             invalidateEventsCacheForDays(collectCoveredDayIds(deletedEvents))
@@ -575,6 +625,7 @@ class CalendarEventRepository(context: Context) {
         val deletedEvents = dao.getByAccountAndCalendarId(accountId, calendarId)
         booxNoteRepository.handleDeletedEvents(deletedEvents.map { it.id })
         dao.deleteByAccountAndCalendarId(accountId, calendarId)
+        dropSyncedCopies(deletedEvents.map { it.id })
         invalidateEventsCacheForDays(collectCoveredDayIds(deletedEvents))
         refreshSmartLinksForEvents(deletedEvents, "cloud calendar deselected")
     }
@@ -586,6 +637,7 @@ class CalendarEventRepository(context: Context) {
         val deletedEvents = dao.getByCalendarId(calendarId)
         booxNoteRepository.handleDeletedEvents(deletedEvents.map { it.id })
         dao.deleteByCalendarId(calendarId)
+        dropSyncedCopies(deletedEvents.map { it.id })
         invalidateEventsCacheForDays(collectCoveredDayIds(deletedEvents))
         refreshSmartLinksForEvents(deletedEvents, "cloud calendar removed")
     }
@@ -594,6 +646,7 @@ class CalendarEventRepository(context: Context) {
         val deletedEvents = dao.getByAccountId(accountId)
         booxNoteRepository.handleDeletedEvents(deletedEvents.map { it.id })
         dao.deleteByAccountId(accountId)
+        forgetAccountCopies(accountId)
         invalidateEventsCacheForDays(collectCoveredDayIds(deletedEvents))
         refreshSmartLinksForEvents(deletedEvents, "cloud account removed")
     }
@@ -605,6 +658,7 @@ class CalendarEventRepository(context: Context) {
         val deletedEvents = dao.getAll()
         booxNoteRepository.handleDeletedEvents(deletedEvents.map { it.id })
         dao.deleteAll()
+        dropSyncedCopies(deletedEvents.map { it.id })
         invalidateEventsCacheForDays(collectCoveredDayIds(deletedEvents))
         refreshSmartLinksForEvents(deletedEvents, "cloud cache cleared")
     }
@@ -640,6 +694,9 @@ class CalendarEventRepository(context: Context) {
      * Returns Flow<Int> for lightweight updates without full list collection
      */
     fun observeEventCountForDate(dayId: String): Flow<Int> = dao.observeEventCountForDateFiltered(dayId)
+
+    /** The day's synced events per provider ("GOOGLE" → 3), enabled calendars only. */
+    fun observeCountsByProviderForDate(dayId: String): Flow<List<ProviderEventCount>> = dao.observeCountsByProviderForDate(dayId)
 
     /**
      * Check if there are any cached events

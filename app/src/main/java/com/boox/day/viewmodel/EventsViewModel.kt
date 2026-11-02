@@ -83,6 +83,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
     private val googleProvider = GoogleCalendarProvider(application, authManager, syncManager, accountDao, eventRepository)
     private val outlookProvider = OutlookCalendarProvider(application, outlookAuthManager, outlookCalendarService, accountDao)
     private val multiAccountSyncManager = MultiAccountSyncManager(application, googleProvider, outlookProvider, accountDao, selectionDao, eventRepository)
+    private val offlineChanges = com.boox.day.sync.OfflineEventChanges(localEventRepository, localEventDao, eventRepository)
 
     // Operation state
     private val _operationInProgress = MutableStateFlow(false)
@@ -244,28 +245,10 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
      * - Ideal for badge display where only the count is needed
      */
     fun getEventCountForDate(dayId: String): Flow<Int> {
-        val cloudCount = eventRepository.observeEventCountForDate(dayId)
-        val localCount = localEventRepository.observeEventCountForDate(dayId)
-
-        return combine(cloudCount, localCount, _sourceFilter) { cloud, local, filter ->
-            var count = 0
-
-            // Count cloud events based on filter
-            // When the Google, Outlook and CalDAV filters are all ON, include all cloud events
-            if (filter.showGoogle && filter.showOutlook && filter.showCalDav) {
-                count += cloud
-            } else if (filter.showGoogle || filter.showOutlook || filter.showCalDav) {
-                // For single-source filtering, we use the full count (can't distinguish providers in COUNT query)
-                // This is an acceptable simplification since most users won't toggle filters constantly
-                count += cloud
-            }
-
-            // Count local events
-            if (filter.showLocal) {
-                count += local
-            }
-
-            count
+        val cloudCounts = eventRepository.observeCountsByProviderForDate(dayId)
+        val localCount = localEventRepository.observeShownEventCountForDate(dayId)
+        return combine(cloudCounts, localCount, _sourceFilter) { cloud, local, filter ->
+            shownEventCount(cloud.associate { it.providerId to it.count }, local, filter)
         }
     }
 
@@ -682,6 +665,21 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
             }
 
             if (cloudEvent != null && cloudEvent.accountId.isNotEmpty()) {
+                // Offline: the edit shows now and is sent when back online (Nov 2026)
+                val keepOffline: suspend () -> Unit = {
+                    val edited = editedCopy(cloudEvent, title, date, startMillis, endMillis, isAllDay, location, description, attendees)
+                    withContext(Dispatchers.IO) { offlineChanges.keepEdit(cloudEvent, edited) }
+                    syncScheduler.requestPendingPush()
+                    _lastOperationMessage.value = "Event updated (will sync when online)"
+                    _lastOperationSuccess.value = true
+                    _selectedEvent.value = edited
+                    _operationInProgress.value = false
+                    onResult(EventOperationResult.Success(edited))
+                }
+                if (!isOnline()) {
+                    keepOffline()
+                    return@launch
+                }
                 val data = UpdateEventData(
                     eventId = eventId,
                     calendarId = cloudEvent.calendarId,
@@ -748,14 +746,16 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                         onResult(EventOperationResult.Success(updatedEvent))
                     },
                     onFailure = { e ->
+                        if (e is CalendarProviderException.NetworkException) {
+                            keepOffline()
+                            return@launch
+                        }
                         val providerName = AccountServiceNames.of(ProviderId.fromKeyOrNull(cloudEvent.providerId), cloudEvent.accountId)
                         val message = when (e) {
                             is CalendarProviderException.AuthenticationException ->
                                 "Please sign in to $providerName again"
                             is CalendarProviderException.PermissionException ->
                                 "No permission for this $providerName calendar"
-                            is CalendarProviderException.NetworkException ->
-                                "No internet connection"
                             else -> "Update failed: ${e.message}"
                         }
                         _lastOperationMessage.value = message
@@ -1080,6 +1080,20 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
             }
 
             if (cloudEvent != null && cloudEvent.accountId.isNotEmpty()) {
+                // Offline: the event goes now and is deleted on its service when back online (Nov 2026)
+                val keepOffline: suspend () -> Unit = {
+                    withContext(Dispatchers.IO) { offlineChanges.keepDelete(cloudEvent) }
+                    syncScheduler.requestPendingPush()
+                    _lastOperationMessage.value = "Event will be deleted when online"
+                    _lastOperationSuccess.value = true
+                    _selectedEvent.value = null
+                    _operationInProgress.value = false
+                    onResult(EventOperationResult.Success(Unit))
+                }
+                if (!isOnline()) {
+                    keepOffline()
+                    return@launch
+                }
                 val result = multiAccountSyncManager.deleteEvent(
                     accountId = cloudEvent.accountId,
                     calendarId = cloudEvent.calendarId,
@@ -1104,14 +1118,16 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                         onResult(EventOperationResult.Success(Unit))
                     },
                     onFailure = { e ->
+                        if (e is CalendarProviderException.NetworkException) {
+                            keepOffline()
+                            return@launch
+                        }
                         val providerName = AccountServiceNames.of(ProviderId.fromKeyOrNull(cloudEvent.providerId), cloudEvent.accountId)
                         val message = when (e) {
                             is CalendarProviderException.AuthenticationException ->
                                 "Please sign in to $providerName again"
                             is CalendarProviderException.PermissionException ->
                                 "No permission for this $providerName calendar"
-                            is CalendarProviderException.NetworkException ->
-                                "No internet connection"
                             else -> "Delete failed: ${e.message}"
                         }
                         _lastOperationMessage.value = message
@@ -1605,3 +1621,44 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
     fun getDueTaskCount(dayId: String): Flow<Int> =
         getDueTasksForDate(dayId).map { it.totalCount }
 }
+
+/**
+ * A synced event with the user's edit, as the tablet shows it until the change is sent: an all-day
+ * event keeps its number of days (the dialog has no end date), a timed one ends on its end's day.
+ */
+internal fun editedCopy(
+    cloud: CalendarEvent, title: String, date: String, startMillis: Long, endMillis: Long?, isAllDay: Boolean,
+    location: String?, description: String?, attendees: String?
+): CalendarEvent {
+    val start = LocalDate.parse(date)
+    val endDay = when {
+        isAllDay -> {
+            val days = runCatching { java.time.temporal.ChronoUnit.DAYS.between(LocalDate.parse(cloud.dayId), LocalDate.parse(cloud.endDayId)) }
+                .getOrNull()?.takeIf { cloud.isAllDay && it > 0 } ?: 0L
+            start.plusDays(days)
+        }
+        endMillis != null -> com.boox.day.data.model.timedEventLastDay(startMillis, endMillis).let { if (it.isBefore(start)) start else it }
+        else -> start
+    }
+    return cloud.copy(
+        title = title, dayId = date, endDayId = endDay.toString(), startTime = startMillis, endTime = endMillis,
+        isAllDay = isAllDay, location = location?.takeIf { it.isNotBlank() }, description = description?.takeIf { it.isNotBlank() },
+        attendees = attendees?.takeIf { it.isNotBlank() }
+    )
+}
+
+/**
+ * The number the Events tab shows, as the list shows them (Nov 2026): each source the filter shows,
+ * and the tablet's events counted once. It used to count every synced event whatever the filter,
+ * and an event made on the tablet twice (its tablet copy and its synced copy).
+ */
+internal fun shownEventCount(cloudByProvider: Map<String, Int>, local: Int, filter: CalendarSourceFilter): Int =
+    cloudByProvider.entries.sumOf { (provider, count) ->
+        val shown = when (provider) {
+            ProviderId.GOOGLE.key -> filter.showGoogle
+            ProviderId.OUTLOOK.key -> filter.showOutlook
+            ProviderId.CALDAV.key -> filter.showCalDav
+            else -> true
+        }
+        if (shown) count else 0
+    } + if (filter.showLocal) local else 0

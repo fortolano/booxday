@@ -271,6 +271,9 @@ class LocalEventRepository(context: Context) {
      */
     suspend fun hasAnyEvents(): Boolean = dao.hasAnyEvents()
 
+    /** The tablet's events the events list shows beside the synced ones for [dayId] (no copy twice). */
+    fun observeShownEventCountForDate(dayId: String): Flow<Int> = dao.observeShownEventCountForDate(dayId)
+
     // ========== UPDATE ==========
 
     /**

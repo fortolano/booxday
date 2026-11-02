@@ -115,6 +115,14 @@ class MultiAccountSyncManager(
         SmartLinkRefreshCoordinator(context.applicationContext, eventRepository = eventRepository)
     }
 
+    private val offlineChanges by lazy {
+        OfflineEventChanges(
+            com.boox.day.data.db.LocalEventRepository(context),
+            com.boox.day.data.db.AppDatabase.getDatabase(context).localEventDao(),
+            eventRepository
+        )
+    }
+
     private val _allWritableCalendars = MutableStateFlow<List<WritableCalendar>>(emptyList())
     val allWritableCalendars: StateFlow<List<WritableCalendar>> = _allWritableCalendars.asStateFlow()
 
@@ -731,9 +739,16 @@ class MultiAccountSyncManager(
                 eventsResult.getOrThrow()
             }
 
-            // Convert to CalendarEvent and store
+            // Get existing events for comparison
+            val existingEvents = eventRepository.getEventsInRange(
+                startDate.toString(),
+                endDate.toString()
+            ).filter { it.accountId == accountId }
+
+            // Convert to CalendarEvent and store; changes made offline and not sent yet stay as the
+            // tablet shows them (Nov 2026)
             val calendarSelections = selectionDao.getByAccountId(accountId).associateBy { it.calendarId }
-            val calendarEvents = providerEvents.map { event ->
+            val fetchedEvents = providerEvents.map { event ->
                 val selection = calendarSelections[event.calendarId]
                 event.toCalendarEvent(
                     providerId = account.providerId,
@@ -742,12 +757,7 @@ class MultiAccountSyncManager(
                     calendarName = selection?.calendarName ?: event.calendarId
                 )
             }
-
-            // Get existing events for comparison
-            val existingEvents = eventRepository.getEventsInRange(
-                startDate.toString(),
-                endDate.toString()
-            ).filter { it.accountId == accountId }
+            val calendarEvents = offlineChanges.withWaitingChanges(accountId, fetchedEvents, existingEvents)
             val existingIds = existingEvents.map { it.id }.toSet()
             val fetchedEventIds = calendarEvents.map { it.id }.toSet()
             val missingEvents = if (partialSyncResult == null) {

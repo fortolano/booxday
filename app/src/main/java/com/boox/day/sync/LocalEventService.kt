@@ -618,6 +618,12 @@ class LocalEventService(
         )
 
         if (result.isFailure) {
+            // Deleted on its service meanwhile: the delete wins, the waiting edit goes (Nov 2026)
+            if (isGoneOnService(result.exceptionOrNull())) {
+                localEventRepository.permanentlyDelete(event.id)
+                Log.i(TAG, "SYNC_PENDING: ${event.id} was deleted on its service; the waiting edit is dropped")
+                return LocalEventResult.Success(event)
+            }
             return LocalEventResult.Error(result.exceptionOrNull()?.message ?: "Update failed")
         }
 
@@ -664,7 +670,7 @@ class LocalEventService(
             eventId = eventId
         )
 
-        return if (result.isSuccess) {
+        return if (result.isSuccess || isGoneOnService(result.exceptionOrNull())) {
             localEventRepository.permanentlyDelete(event.id)
             LocalEventResult.Success(Unit)
         } else {
@@ -996,4 +1002,18 @@ internal fun pendingPushTarget(event: LocalEvent): PendingPushTarget {
         providerId != null -> PendingPushTarget.Nowhere("Missing account for ${providerId.displayName}")
         else -> PendingPushTarget.Nowhere("Its calendar's provider ($key) isn't known to this version")
     }
+}
+
+/**
+ * The service says the event isn't there (deleted elsewhere): BooxDay's not-found, or Google's
+ * 404 / 410 inside a provider error.
+ */
+internal fun isGoneOnService(error: Throwable?): Boolean {
+    var cause = error
+    while (cause != null) {
+        if (cause is com.boox.day.sync.provider.CalendarProviderException.NotFoundException) return true
+        if (cause is com.google.api.client.http.HttpResponseException && (cause.statusCode == 404 || cause.statusCode == 410)) return true
+        cause = cause.cause.takeIf { it !== cause }
+    }
+    return false
 }

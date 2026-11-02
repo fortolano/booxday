@@ -210,6 +210,22 @@ interface LocalEventDao {
     @Query("SELECT * FROM local_events WHERE providerEventId = :providerEventId")
     suspend fun getByProviderEventId(providerEventId: String): LocalEvent?
 
+    /** The tablet's copies of synced events [ids] (events made or changed on the tablet), any status. */
+    @Query("SELECT * FROM local_events WHERE providerEventId IN (:ids) OR googleEventId IN (:ids)")
+    suspend fun getCopiesOf(ids: List<String>): List<LocalEvent>
+
+    /** The tablet's copies of an account's synced events, and its events waiting to be sent. */
+    @Query("SELECT * FROM local_events WHERE accountId = :accountId")
+    suspend fun getForAccount(accountId: String): List<LocalEvent>
+
+    /** Changes to an account's synced events waiting to be sent (an edit or a delete made offline). */
+    @Query("""
+        SELECT * FROM local_events
+        WHERE accountId = :accountId AND syncStatus IN ('PENDING_UPDATE', 'PENDING_DELETE')
+        AND (providerEventId IS NOT NULL OR googleEventId IS NOT NULL)
+    """)
+    suspend fun getWaitingChangesForAccount(accountId: String): List<LocalEvent>
+
     @Query("""
         SELECT * FROM local_events
         WHERE syncStatus != 'PENDING_DELETE'
@@ -453,6 +469,22 @@ interface LocalEventDao {
         AND syncStatus != 'PENDING_DELETE'
     """)
     fun observeEventCountForDate(dayId: String): Flow<Int>
+
+    /**
+     * The tablet's events a day shows beside the synced ones, as the events list counts them: a copy
+     * of a synced event shown from the synced calendar (same id, enabled calendar) isn't counted twice.
+     */
+    @Query("""
+        SELECT COUNT(*) FROM local_events le
+        WHERE le.dayId <= :dayId AND le.endDayId >= :dayId AND le.syncStatus != 'PENDING_DELETE'
+        AND NOT EXISTS (
+            SELECT 1 FROM calendar_events ce
+            INNER JOIN calendar_selections cs ON ce.accountId = cs.accountId AND ce.calendarId = cs.calendarId
+            WHERE cs.isFetchEnabled = 1 AND ce.dayId <= :dayId AND ce.endDayId >= :dayId
+            AND ce.id = COALESCE(le.providerEventId, le.googleEventId, le.id)
+        )
+    """)
+    fun observeShownEventCountForDate(dayId: String): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM local_events WHERE syncEnabled = 1")
     suspend fun getSyncedEventCount(): Int
