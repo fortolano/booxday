@@ -32,5 +32,9 @@ class EventSaveTargetsTest {
         assertEquals("n2", chosenCalendar(calendars, work.providerId, work.accountId, personal)?.accountId)
         // Google keeps choosing by service, as before
         assertEquals("g1", chosenCalendar(calendars, ProviderId.GOOGLE, null, "primary")?.accountId)
+
+        // A new event starts in the account's "Default calendar for new events", not its main one
+        val googleWork = WritableCalendar("work", "Work", "g1", "me@gmail.com", ProviderId.GOOGLE, isPrimary = false, isDefault = true)
+        assertEquals("work", calendarForNewEvent(listOf(calendars.first(), googleWork))?.id)
     }
 }

@@ -271,9 +271,7 @@ fun AddEditEventDialog(
         }
         android.util.Log.d("AddEditEventDialog", "Current selectedCalendarId: $selectedCalendarId")
         if (currentProviderCalendars.none { it.id == selectedCalendarId }) {
-            val newCalendarId = currentProviderCalendars.find { it.isPrimary }?.id
-                ?: currentProviderCalendars.firstOrNull()?.id
-                ?: ""
+            val newCalendarId = calendarForNewEvent(currentProviderCalendars)?.id ?: ""
             android.util.Log.d("AddEditEventDialog", "Updating selectedCalendarId from '$selectedCalendarId' to '$newCalendarId'")
             selectedCalendarId = newCalendarId
         }
@@ -1243,7 +1241,7 @@ fun AddEditEventDialog(
                                                         .firstOrNull { it.id == selectedCalendarId }
                                                     val selectedCalendarName = when {
                                                         selectedCalendar == null -> "Select calendar"
-                                                        selectedCalendar.isPrimary -> "${selectedCalendar.name} (Primary)"
+                                                        selectedCalendar.isPrimary && selectedCalendar.providerId != ProviderId.CALDAV -> "${selectedCalendar.name} (Primary)"
                                                         else -> selectedCalendar.name
                                                     }
 
@@ -1281,7 +1279,8 @@ fun AddEditEventDialog(
                                                             onDismissRequest = { showCalendarDropdown = false }
                                                         ) {
                                                             calendarsForSelectedProvider.forEach { calendar ->
-                                                                val displayName = if (calendar.isPrimary) {
+                                                                // CalDAV has no main calendar: BooxDay's pick isn't one
+                                                                val displayName = if (calendar.isPrimary && calendar.providerId != ProviderId.CALDAV) {
                                                                     "${calendar.name} (Primary)"
                                                                 } else {
                                                                     calendar.name
@@ -1975,3 +1974,10 @@ internal fun eventSaveTargets(calendars: List<WritableCalendar>, hasGoogle: Bool
  */
 internal fun chosenCalendar(calendars: List<WritableCalendar>, providerId: ProviderId?, accountId: String?, calendarId: String): WritableCalendar? =
     calendars.firstOrNull { providerId != null && it.providerId == providerId && it.id == calendarId && (accountId == null || it.accountId == accountId) }
+
+/**
+ * The calendar a new event starts in: the account's "Default calendar for new events" (set in
+ * Calendar Accounts; Add Event ignored it before Nov 2026), else the main calendar, else the first.
+ */
+internal fun calendarForNewEvent(calendars: List<WritableCalendar>): WritableCalendar? =
+    calendars.firstOrNull { it.isDefault } ?: calendars.firstOrNull { it.isPrimary } ?: calendars.firstOrNull()

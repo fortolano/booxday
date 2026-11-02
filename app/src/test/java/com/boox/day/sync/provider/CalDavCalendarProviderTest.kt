@@ -52,6 +52,9 @@ class CalDavCalendarProviderTest {
     private var serverPassword = "app-password"
     private val calendars = linkedMapOf("/calendars/me/work/" to "Work", "/calendars/me/home/" to "Home")
     private var homeBroken = false
+    /** Work is shared (an iCloud Family calendar); the server names a default calendar for new events. */
+    private var workShared = false
+    private var serverDefault: String? = null
 
     @Before
     fun setUp() {
@@ -68,15 +71,19 @@ class CalDavCalendarProviderTest {
                 val body = request.body.readUtf8()
                 return when (request.path) {
                     "/.well-known/caldav" -> multistatus(response("/.well-known/caldav", "<d:current-user-principal><d:href>/principals/me/</d:href></d:current-user-principal>"))
-                    "/principals/me/" -> multistatus(response("/principals/me/", "<c:calendar-home-set><d:href>/calendars/me/</d:href></c:calendar-home-set>"))
+                    // Like iCloud: the principal names no inbox, the calendar home holds one, and the
+                    // default calendar's address comes as plain text
+                    "/principals/me/" -> if ("schedule-inbox-URL" in body) multistatus(response("/principals/me/", ""))
+                        else multistatus(response("/principals/me/", "<c:calendar-home-set><d:href>/calendars/me/</d:href></c:calendar-home-set>"))
+                    "/calendars/me/inbox/" -> multistatus(response("/calendars/me/inbox/", "<c:schedule-default-calendar-URL>$serverDefault</c:schedule-default-calendar-URL>"))
                     "/calendars/me/" -> multistatus(calendars.entries.joinToString("") { (href, name) ->
                         response(
                             href,
-                            "<d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>$name</d:displayname>" +
+                            "<d:resourcetype><d:collection/><c:calendar/>${if (workShared && name == "Work") "<cs:shared-owner/>" else ""}</d:resourcetype><d:displayname>$name</d:displayname>" +
                                 "<ic:calendar-color>#3366CCFF</ic:calendar-color>" +
                                 "<d:current-user-privilege-set><d:privilege><d:read/></d:privilege><d:privilege><d:write/></d:privilege></d:current-user-privilege-set>"
                         )
-                    })
+                    } + if (serverDefault != null) response("/calendars/me/inbox/", "<d:resourcetype><d:collection/><c:schedule-inbox/></d:resourcetype>") else "")
                     "/calendars/me/home/" -> if (homeBroken) MockResponse().setResponseCode(500) else multistatus("")
                     "/calendars/me/work/" -> multistatus(
                         response("/calendars/me/work/a.ics", "<d:getetag>\"1\"</d:getetag>" +
@@ -139,6 +146,17 @@ class CalDavCalendarProviderTest {
         assertTrue(provider.fetchEvents(id, both, FROM, TO).exceptionOrNull() is CalendarProviderException.AuthenticationException)
     }
 
+    @Test
+    fun newEventsGoToTheServersDefaultElseTheFirstCalendarThatIsntShared(): Unit = runBlocking<Unit> {
+        val id = signIn().getOrThrow().id
+        // Work comes first but is shared with the family: Home
+        workShared = true
+        assertEquals(listOf("/calendars/me/home/"), provider.fetchCalendars(id).getOrThrow().filter { it.isPrimary }.map { it.id })
+        // The server names Work as its default calendar (iCloud's way): Work
+        serverDefault = "/calendars/me/work/"
+        assertEquals(listOf("/calendars/me/work/"), provider.fetchCalendars(id).getOrThrow().filter { it.isPrimary }.map { it.id })
+    }
+
     // ── Helpers ──
 
     private suspend fun signIn(password: String = "app-password", address: String = address()) =
@@ -158,7 +176,7 @@ class CalDavCalendarProviderTest {
         .addHeader("Content-Type", "application/xml; charset=utf-8")
         .setBody(
             """<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" """ +
-                """xmlns:ic="http://apple.com/ns/ical/">$responses</d:multistatus>"""
+                """xmlns:ic="http://apple.com/ns/ical/" xmlns:cs="http://calendarserver.org/ns/">$responses</d:multistatus>"""
         )
 
     private companion object {

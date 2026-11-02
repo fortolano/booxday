@@ -446,7 +446,6 @@ class MultiAccountSyncManager(
             }
 
             val providerCalendars = calendarsResult.getOrThrow()
-            updateWritableCalendarsForAccount(account, providerCalendars)
             val providerCalendarIds = providerCalendars.map { it.id }.toSet()
             val existingSelections = selectionDao.getByAccountId(accountId)
             val existingByCalendarId = existingSelections.associateBy { it.calendarId }
@@ -515,6 +514,8 @@ class MultiAccountSyncManager(
 
             // Save updated selections
             selectionDao.upsertAll(updatedSelections)
+            // Add Event's list, with the default now chosen
+            updateWritableCalendarsForAccount(account, providerCalendars)
 
             Log.d(TAG, "Refreshed ${updatedSelections.size} calendars for account $accountId" +
                     if (deletedCalendarIds.isNotEmpty()) " (${deletedCalendarIds.size} deleted)" else "")
@@ -556,6 +557,11 @@ class MultiAccountSyncManager(
      */
     suspend fun setDefaultCalendar(accountId: String, selectionId: String) = withContext(Dispatchers.IO) {
         selectionDao.setAsDefault(accountId, selectionId)
+        // Add Event picks it first from now on
+        val defaultId = selectionDao.getDefaultCalendar(accountId)?.calendarId
+        _allWritableCalendars.value = _allWritableCalendars.value.map {
+            if (it.accountId == accountId) it.copy(isDefault = it.id == defaultId) else it
+        }
         Log.d(TAG, "Set default calendar: $selectionId for account $accountId")
     }
 
@@ -1145,10 +1151,11 @@ class MultiAccountSyncManager(
     /**
      * Update writable calendars for a specific account.
      */
-    private fun updateWritableCalendarsForAccount(
+    private suspend fun updateWritableCalendarsForAccount(
         account: ConnectedAccountEntity,
         calendars: List<ProviderCalendar>
     ): List<WritableCalendar> {
+        val defaultId = selectionDao.getDefaultCalendar(account.id)?.calendarId
         val writableCalendars = calendars.filter { it.isWritable }.map { calendar ->
             WritableCalendar(
                 id = calendar.id,
@@ -1159,7 +1166,8 @@ class MultiAccountSyncManager(
                 isPrimary = calendar.isPrimary,
                 colorHex = calendar.color,
                 accountType = AccountType.fromKeyOrNull(account.accountType),
-                serverUrl = account.serverUrl
+                serverUrl = account.serverUrl,
+                isDefault = calendar.id == defaultId
             )
         }
         val remaining = _allWritableCalendars.value.filterNot { it.accountId == account.id }

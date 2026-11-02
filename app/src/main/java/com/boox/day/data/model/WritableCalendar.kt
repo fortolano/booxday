@@ -13,5 +13,7 @@ data class WritableCalendar(
     val colorHex: String? = null,
     // Naming the account in Add Event's list (CalDAV, plan step 3.6): "iCloud", a Nextcloud's server
     val accountType: AccountType? = null,
-    val serverUrl: String = ""
+    val serverUrl: String = "",
+    /** The account's "Default calendar for new events": what Add Event picks first (Nov 2026). */
+    val isDefault: Boolean = false
 )

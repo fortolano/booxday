@@ -5,6 +5,7 @@ import at.bitfire.dav4jvm.DavCalendar
 import at.bitfire.dav4jvm.DavResource
 import at.bitfire.dav4jvm.Property
 import at.bitfire.dav4jvm.Response
+import at.bitfire.dav4jvm.XmlUtils
 import at.bitfire.dav4jvm.exception.HttpException
 import at.bitfire.dav4jvm.property.CalendarColor
 import at.bitfire.dav4jvm.property.CalendarData
@@ -72,7 +73,9 @@ internal class CalDavConnection(
         val colorHex: String?,
         val readOnly: Boolean,
         val ctag: String?,
-        val syncToken: String?
+        val syncToken: String?,
+        /** Shared with others or by someone (CalendarServer's shared / shared-owner): an iCloud Family calendar. */
+        val shared: Boolean = false
     )
 
     /** The certificate of the last failed handshake, for [Failure.UntrustedCertificate]. */
@@ -117,6 +120,29 @@ internal class CalDavConnection(
         val calendars = listCalendarsAt(home)
         if (calendars.isEmpty()) throw Failure.NoCalendars()
         Discovery(principal.toString(), home.toString(), calendars)
+    }
+
+    /**
+     * The calendar the server uses for new events (RFC 6638 schedule-default-calendar-URL, on the
+     * user's scheduling inbox), as a path; null when the server names none or can't say. The inbox is
+     * the one the principal names, else the inbox collection in the calendar home (iCloud names none).
+     */
+    suspend fun defaultCalendarHref(principalUrl: String, calendarHomeUrl: String): String? = call {
+        CalDavSchedulingProperties.register()
+        try {
+            val inbox = propfind(httpsUrl(principalUrl), 0, ScheduleInboxUrl.NAME).firstNotNullOfOrNull { response ->
+                response[ScheduleInboxUrl::class.java]?.href?.let { response.href.resolve(it) }
+            } ?: propfind(httpsUrl(calendarHomeUrl), 1, ResourceType.NAME).firstOrNull { response ->
+                response[ResourceType::class.java]?.types.orEmpty().any { it.namespace == XmlUtils.NS_CALDAV && it.name == "schedule-inbox" }
+            }?.href
+            inbox?.let {
+                propfind(it, 0, ScheduleDefaultCalendarUrl.NAME).firstNotNullOfOrNull { response ->
+                    response[ScheduleDefaultCalendarUrl::class.java]?.url?.let { url -> response.href.resolve(url)?.encodedPath }
+                }
+            }
+        } catch (e: HttpException) {
+            null  // no scheduling on this server: the first calendar that isn't shared
+        }
     }
 
     /** The calendars in the account's calendar home now (names, colours and change markers move). */
@@ -218,7 +244,8 @@ internal class CalDavConnection(
                 colorHex = response[CalendarColor::class.java]?.color?.let { "#%06X".format(it and 0xFFFFFF) },
                 readOnly = privileges != null && !privileges.mayWriteContent,
                 ctag = response[GetCTag::class.java]?.cTag,
-                syncToken = response[SyncToken::class.java]?.token
+                syncToken = response[SyncToken::class.java]?.token,
+                shared = types.any { it.namespace == XmlUtils.NS_CALENDARSERVER && (it.name == "shared" || it.name == "shared-owner") }
             )
         }
 

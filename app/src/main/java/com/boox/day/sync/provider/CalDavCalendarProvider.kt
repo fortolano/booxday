@@ -19,6 +19,7 @@ import com.boox.day.sync.NewEventData
 import com.boox.day.sync.SyncResult
 import com.boox.day.sync.UpdateEventData
 import com.boox.day.sync.caldav.CalDavConnection
+import com.boox.day.sync.caldav.chooseDefaultCalendar
 import com.boox.day.sync.caldav.CalDavEditor
 import com.boox.day.sync.caldav.CalDavReader
 import com.boox.day.sync.caldav.CalDavWriter
@@ -169,7 +170,13 @@ class CalDavCalendarProvider internal constructor(
         try {
             val (connection, account) = connect(accountId)
             val calendars = listCalendars(connection, account)
-            Result.success(calendars.map { it.toProviderCalendar() })
+            // The one new events go to on a new account (owner's choice, 2 Nov 2026): the server's own
+            // default, else the first that isn't shared (not iCloud's Family calendar)
+            val serverDefault = connection.defaultCalendarHref(account.principalUrl, account.calendarHomeUrl)
+            val main = chooseDefaultCalendar(calendars, serverDefault)
+            Log.d(TAG, "CalDAV calendars: ${calendars.size}, shared ${calendars.count { it.shared }}, " +
+                "server default ${serverDefault != null}, new events to #${calendars.indexOfFirst { it.href == main } + 1}")
+            Result.success(calendars.map { it.toProviderCalendar(isPrimary = it.href == main) })
         } catch (e: Exception) {
             Result.failure(providerFailure(e))
         }
@@ -349,11 +356,11 @@ class CalDavCalendarProvider internal constructor(
         return calendars
     }
 
-    private fun CalDavConnection.RemoteCalendar.toProviderCalendar() = ProviderCalendar(
+    private fun CalDavConnection.RemoteCalendar.toProviderCalendar(isPrimary: Boolean = false) = ProviderCalendar(
         id = href,
         name = name,
         color = colorHex,
-        isPrimary = false,  // CalDAV has no main calendar: the sync manager makes the first the default
+        isPrimary = isPrimary,  // the sync manager makes it a new account's default calendar
         isWritable = !readOnly,
         accessRole = if (readOnly) "reader" else "writer"
     )
