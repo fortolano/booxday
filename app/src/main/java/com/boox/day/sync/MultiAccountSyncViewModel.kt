@@ -242,6 +242,7 @@ class MultiAccountSyncViewModel(
                     AccountWithCalendars(account = account, calendars = syncManager.getCalendarsForAccount(account.id))
                 }
 
+                com.boox.day.data.model.AccountServiceNames.update(googleAccounts + outlookAccounts + calDavAccounts)
                 _uiState.update {
                     it.copy(
                         googleAccounts = keepSyncStatus(googleWithCalendars, it.googleAccounts),

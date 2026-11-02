@@ -620,7 +620,7 @@ fun EventDetailsDialog(
                                     Column {
                                         Text(
                                             text = when {
-                                                syncStatus == SyncStatus.SYNCED -> "Synced with ${ProviderId.fromKey(event.providerId).displayName}"
+                                                syncStatus == SyncStatus.SYNCED -> "Synced with ${com.boox.day.data.model.AccountServiceNames.of(event.providerId, event.accountId)}"
                                                 syncStatus == SyncStatus.PENDING_CREATE -> "Pending upload"
                                                 syncStatus == SyncStatus.PENDING_UPDATE -> "Changes pending"
                                                 syncStatus == SyncStatus.CONFLICT -> "Sync conflict"
@@ -864,7 +864,7 @@ fun EventDetailsDialog(
                     Spacer(modifier = Modifier.height(EInkTheme.PopupOverlay.titlePaddingBottom))
                     Text(
                         text = if (isSyncedEvent) {
-                            "Are you sure you want to delete \"${event.title}\"?\n\nThis event will also be deleted from ${ProviderId.fromKey(event.providerId).displayName}."
+                            "Are you sure you want to delete \"${event.title}\"?\n\nThis event will also be deleted from ${com.boox.day.data.model.AccountServiceNames.of(event.providerId, event.accountId)}."
                         } else {
                             "Are you sure you want to delete \"${event.title}\"? This cannot be undone."
                         },

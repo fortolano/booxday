@@ -37,3 +37,27 @@ val ConnectedAccount.typeLabel: String
 /** The account in Add Event's list, after the service's name: the address, and the server for Nextcloud. */
 fun accountDetail(accountType: AccountType?, email: String, serverUrl: String): String =
     if (accountType == AccountType.CALDAV_NEXTCLOUD) "$email · ${serverHost(serverUrl)}" else email
+
+/**
+ * Each connected account's service name, for the screens that name an event's service (owner's
+ * choice, 2 Nov 2026: "Synced to iCloud", never "CalDAV Calendar"). Kept up to date by the account
+ * list behind Calendar Accounts (MultiAccountSyncViewModel.loadAccounts), which loads at start.
+ */
+object AccountServiceNames {
+    @Volatile
+    private var names: Map<String, String> = emptyMap()
+
+    fun update(accounts: List<ConnectedAccount>) {
+        names = accounts.associate { it.id to it.serviceName }
+    }
+
+    /** "Google Calendar" and "Outlook Calendar" as before; a CalDAV account's service or server. */
+    fun of(providerId: ProviderId?, accountId: String?): String = when (providerId) {
+        null -> "cloud"
+        ProviderId.CALDAV -> accountId?.let { names[it] } ?: providerId.displayName
+        else -> providerId.displayName
+    }
+
+    /** By the event's provider key; an unknown key reads as Google, like ProviderId.fromKey. */
+    fun of(providerKey: String, accountId: String?): String = of(ProviderId.fromKey(providerKey), accountId)
+}

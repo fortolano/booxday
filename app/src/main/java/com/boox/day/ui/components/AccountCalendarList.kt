@@ -532,6 +532,7 @@ private fun AccountHeader(
     if (showDisconnectConfirmation) {
         DisconnectAccountConfirmation(
             email = account.email,
+            mayRunTaskSync = account.providerId == ProviderId.GOOGLE,
             onConfirm = {
                 showDisconnectConfirmation = false
                 onDisconnectAccount()
@@ -542,12 +543,13 @@ private fun AccountHeader(
 }
 
 /**
- * Confirmation dialog for disconnecting an account.
- * Explains that events will remain due to potential links with Boox Notes and Tasks.
+ * Confirmation dialog for disconnecting an account: its events leave BooxDay, the calendars online
+ * stay as they are. [mayRunTaskSync]: a Google account, which Task Sync may use.
  */
 @Composable
 private fun DisconnectAccountConfirmation(
     email: String,
+    mayRunTaskSync: Boolean,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -592,21 +594,15 @@ private fun DisconnectAccountConfirmation(
 
             // Explanation
             Text(
-                text = "This account will be disconnected, but synced events will remain in your calendar (read-only). Events are preserved because they may be linked to your Boox Notes and Tasks." +
-                    if (com.boox.day.BuildConfig.TASK_SYNC_ENABLED) " If Task Sync uses this account, it stops." else "",
+                // What really happens (owner, 2 Nov 2026): it said the events stay, but removing an
+                // account deletes them (MultiAccountSyncManager.removeAccount)
+                text = "Its events are removed from BooxDay. Your calendars online don't change." +
+                    if (com.boox.day.BuildConfig.TASK_SYNC_ENABLED && mayRunTaskSync) " If Task Sync uses this account, it stops." else "",
                 fontSize = EInkTheme.Typography.bodySmall,
                 color = EInkTheme.Colors.darkGray,
                 lineHeight = 18.sp
             )
 
-            Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
-
-            Text(
-                text = "To also clear synced events, go to Settings → Data & Backup → Maintenance.",
-                fontSize = EInkTheme.Typography.bodySmall,
-                color = EInkTheme.Colors.gray,
-                lineHeight = 18.sp
-            )
 
             Spacer(modifier = Modifier.height(EInkTheme.Global.spacing))
 

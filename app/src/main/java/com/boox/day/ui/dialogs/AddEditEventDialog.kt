@@ -49,6 +49,7 @@ import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.db.LocalCalendar
 import com.boox.day.data.model.ProviderId
 import com.boox.day.data.model.WritableCalendar
+import com.boox.day.data.model.AccountServiceNames
 import com.boox.day.data.model.accountDetail
 import com.boox.day.data.model.serviceName
 import com.boox.day.ui.components.EInkToggle
@@ -950,7 +951,7 @@ fun AddEditEventDialog(
                                         )
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = "Synced to ${existingProviderId.displayName}",
+                                                text = "Synced to ${AccountServiceNames.of(existingProviderId, existingEvent?.accountId)}",
                                                 fontSize = EInkTheme.Typography.bodyLarge,
                                                 fontWeight = FontWeight.Medium,
                                                 color = EInkTheme.Colors.primary
@@ -993,7 +994,7 @@ fun AddEditEventDialog(
                                                     color = EInkTheme.Colors.primary
                                                 )
                                                 Text(
-                                                    text = "Remove from ${existingProviderId.displayName}, keep only here",
+                                                    text = "Remove from ${AccountServiceNames.of(existingProviderId, existingEvent?.accountId)}, keep only here",
                                                     fontSize = EInkTheme.Typography.bodySmall,
                                                     color = EInkTheme.Colors.secondary
                                                 )
@@ -1311,7 +1312,7 @@ fun AddEditEventDialog(
 
                         if (showMoveToLocalConfirm && existingEvent != null && existingProviderId != null) {
                             MoveToLocalConfirmDialog(
-                                providerName = existingProviderId.displayName,
+                                providerName = AccountServiceNames.of(existingProviderId, existingEvent.accountId),
                                 eventTitle = title,
                                 onConfirm = {
                                     showMoveToLocalConfirm = false

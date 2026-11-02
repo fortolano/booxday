@@ -17,6 +17,7 @@ import com.boox.day.data.model.ProviderId
 import com.boox.day.ocr.model.OcrSource
 import com.boox.day.ocr.semantic.SemanticGeniusService
 import com.boox.day.ui.state.CalendarSource
+import com.boox.day.data.model.AccountServiceNames
 import com.boox.day.ui.state.CalendarSourceFilter
 import java.time.format.DateTimeFormatter
 import com.boox.day.data.db.AppDatabase
@@ -538,9 +539,9 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                     _operationInProgress.value = false
                     val message = when (e) {
                         is CalendarProviderException.AuthenticationException ->
-                            "Please sign in to ${syncProviderId.displayName} again"
+                            "Please sign in to ${AccountServiceNames.of(syncProviderId, syncAccountId)} again"
                         is CalendarProviderException.PermissionException ->
-                            "No permission for this ${syncProviderId.displayName} calendar"
+                            "No permission for this ${AccountServiceNames.of(syncProviderId, syncAccountId)} calendar"
                         is CalendarProviderException.NetworkException ->
                             "No internet connection"
                         else -> "Create failed: ${e.message}"
@@ -747,12 +748,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                         onResult(EventOperationResult.Success(updatedEvent))
                     },
                     onFailure = { e ->
-                        val providerName = when (cloudEvent.providerId) {
-                            ProviderId.GOOGLE.key -> ProviderId.GOOGLE.displayName
-                            ProviderId.OUTLOOK.key -> ProviderId.OUTLOOK.displayName
-                            ProviderId.CALDAV.key -> ProviderId.CALDAV.displayName
-                            else -> "cloud"
-                        }
+                        val providerName = AccountServiceNames.of(ProviderId.fromKeyOrNull(cloudEvent.providerId), cloudEvent.accountId)
                         val message = when (e) {
                             is CalendarProviderException.AuthenticationException ->
                                 "Please sign in to $providerName again"
@@ -942,7 +938,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
         onResult: (EventOperationResult<CalendarEvent>) -> Unit
     ) {
         try {
-            _lastOperationMessage.value = "Syncing to ${providerId.displayName}..."
+            _lastOperationMessage.value = "Syncing to ${AccountServiceNames.of(providerId, accountId)}..."
 
             // Create the event data
             val createData = NewEventData(
@@ -1025,7 +1021,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
 
-                    _lastOperationMessage.value = "Event synced to ${providerId.displayName}"
+                    _lastOperationMessage.value = "Event synced to ${AccountServiceNames.of(providerId, accountId)}"
                     _lastOperationSuccess.value = true
                     _selectedEvent.value = cloudEvent
                     _operationInProgress.value = false
@@ -1035,9 +1031,9 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                     Log.e(TAG, "Failed to create event on ${providerId.displayName}", e)
                     _lastOperationMessage.value = when (e) {
                         is CalendarProviderException.AuthenticationException ->
-                            "Please sign in to ${providerId.displayName} again"
+                            "Please sign in to ${AccountServiceNames.of(providerId, accountId)} again"
                         is CalendarProviderException.PermissionException ->
-                            "No permission for this ${providerId.displayName} calendar"
+                            "No permission for this ${AccountServiceNames.of(providerId, accountId)} calendar"
                         is CalendarProviderException.NetworkException ->
                             "No internet connection"
                         else -> "Sync failed: ${e.message}"
@@ -1108,12 +1104,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                         onResult(EventOperationResult.Success(Unit))
                     },
                     onFailure = { e ->
-                        val providerName = when (cloudEvent.providerId) {
-                            ProviderId.GOOGLE.key -> ProviderId.GOOGLE.displayName
-                            ProviderId.OUTLOOK.key -> ProviderId.OUTLOOK.displayName
-                            ProviderId.CALDAV.key -> ProviderId.CALDAV.displayName
-                            else -> "cloud"
-                        }
+                        val providerName = AccountServiceNames.of(ProviderId.fromKeyOrNull(cloudEvent.providerId), cloudEvent.accountId)
                         val message = when (e) {
                             is CalendarProviderException.AuthenticationException ->
                                 "Please sign in to $providerName again"
