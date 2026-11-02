@@ -63,10 +63,12 @@ fun CalendarSourceFilterIcons(
     large: Boolean = false
 ) {
     // Sizing for filter icons
-    val containerSize = if (large) 44.dp else 30.dp
+    // 28 dp boxes 3 dp apart (Nov 2026, were 30 and 5): the four sources fit beside "Events (99)" and
+    // "Due (99)" on the Go 10.3 (EventsHeaderFitRenderTest); the icons keep their size
+    val containerSize = if (large) 44.dp else 28.dp
     val localIconSize = if (large) 30.dp else 23.dp      // Slightly smaller than toolbar (24dp)
     val providerIconSize = if (large) 32.dp else 25.5.dp // Slightly larger for Google/Outlook logos
-    val spacing = if (large) 10.dp else 5.0.dp           // Increased from 4.5dp for better touch separation
+    val spacing = if (large) 10.dp else 3.0.dp
     val cornerRadius = EInkTheme.Global.cornerRadius
 
     Row(

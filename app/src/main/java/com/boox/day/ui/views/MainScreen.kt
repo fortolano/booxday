@@ -9227,7 +9227,7 @@ private fun DueTaskRow(
  * recomposing this component if its parameters haven't changed.
  */
 @Composable
-private fun EventsPanelTabs(
+internal fun EventsPanelTabs(
     selectedTab: String,           // "events" or "due"
     onTabSelected: (String) -> Unit,
     eventsCount: Int = 0,          // Optional: show count badge on Events tab
