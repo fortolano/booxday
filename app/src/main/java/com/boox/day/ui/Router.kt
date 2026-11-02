@@ -62,6 +62,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 private val logRouter = TaggedLog("Router")
 private const val STARTUP_CANVAS_HANDOFF_TIMEOUT_MS = 1800L
+/** The longest the splash waits for the canvas's first picture (Nov 2026). */
+private const val STARTUP_CANVAS_DRAWN_TIMEOUT_MS = 1000L
 
 /**
  * Main Router for BooxDay
@@ -200,6 +202,14 @@ fun Router() {
 
         logRouter.i("PERF: Splash pre-loading COMPLETE (${System.currentTimeMillis() - startTime}ms)")
         if (shouldWaitForCanvasHandoff) {
+            // A drawing surface shows black until its first picture: the splash stays until the
+            // canvas has drawn once (the black Memos flash at launch, Nov 2026). The main screen's
+            // first frames come first, behind the splash (on a cold start they take ~2 s), then at
+            // most a second more
+            withFrameNanos { }
+            withFrameNanos { }
+            val drawn = DrawCanvas.awaitStartupCanvasDrawn(STARTUP_CANVAS_DRAWN_TIMEOUT_MS)
+            logRouter.i("STARTUP_FRAME: canvas drawn before the splash left: $drawn")
             // Native drawing can freeze normal UI posting on some BOOX firmware.
             // Remove the cover and let the app submit its UI before permitting raw drawing;
             // otherwise a white cover can remain visible even while the pen works (#1).

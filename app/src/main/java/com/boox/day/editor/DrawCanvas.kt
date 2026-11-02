@@ -303,11 +303,24 @@ class DrawCanvas(
         @Volatile private var welcomeDismissedAtMs: Long = 0L
         @Volatile private var ignoreWelcomePopupUntilStartupCanvasReady: Boolean = false
         private val startupCanvasReady = MutableStateFlow(false)
+        // Nov 2026: a drawing surface shows black until its first picture, so the splash leaves only
+        // once the active canvas has drawn (the black Memos flash at launch, 1.0.48 to 1.0.53: the
+        // main screen waits for the settings since then, and the splash could leave first)
+        private val startupCanvasDrawn = MutableStateFlow(false)
 
         fun prepareStartupSplash(ignoreWelcomePopupUntilCanvasReady: Boolean = false) {
             splashDismissedAtMs = 0L
             ignoreWelcomePopupUntilStartupCanvasReady = ignoreWelcomePopupUntilCanvasReady
             startupCanvasReady.value = false
+            startupCanvasDrawn.value = false
+        }
+
+        /** True once the active canvas has put a picture on its surface since the splash went up; false after [timeoutMs]. */
+        suspend fun awaitStartupCanvasDrawn(timeoutMs: Long): Boolean {
+            if (startupCanvasDrawn.value) return true
+            return withTimeoutOrNull(timeoutMs) {
+                startupCanvasDrawn.filter { it }.first()
+            } != null
         }
 
         fun notifySplashDismissed() {
@@ -2337,6 +2350,7 @@ class DrawCanvas(
             if (forcePost) EpdController.enablePost(this, 1)
             unlockAttempted = true
             surfaceHolder.unlockCanvasAndPost(canvas)
+            if (!startupCanvasDrawn.value && memoModeChanged.value == isMemosCanvas) startupCanvasDrawn.value = true
             if (zoneToRedraw.width() >= surfaceWidth && zoneToRedraw.height() >= surfaceHeight &&
                 staleGeneration == surfaceStaleGeneration) {
                 surfaceStale = false
