@@ -30,7 +30,7 @@ internal fun workerAppSettings(context: Context): AppSettings =
     }
 
 /**
- * Background sync (task sync Groundwork, Oct 2026): every connected Google and Outlook account,
+ * Background sync (task sync Groundwork, Oct 2026): every connected Google, Outlook and CalDAV account,
  * on the "Sync frequency" setting (4 h / 8 h / Daily) while "Background auto-sync" is on.
  * Until now nothing ran it: SyncScheduler.schedulePeriodicSync had no callers, so calendars synced
  * only while BooxDay was open (owner decision 12). Same dates as the calendar screen (2 months

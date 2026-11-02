@@ -28,6 +28,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.util.UUID
 
 /**
  * CalDAV calendars (iCloud, Fastmail, Nextcloud, any https server) as a [CalendarProvider] (plan
@@ -245,7 +246,7 @@ class CalDavCalendarProvider internal constructor(
             writer.create(connection, accountId, account.calendarHomeUrl, calendarId, fieldsOf(
                 event.title, event.date, event.startTimeHour, event.startTimeMinute, event.endTimeHour, event.endTimeMinute,
                 event.isAllDay, event.location, event.description
-            ), zone())
+            ), zone(), uid = event.clientId ?: UUID.randomUUID().toString())
         }
 
     override suspend fun updateEvent(
@@ -363,7 +364,8 @@ class CalDavCalendarProvider internal constructor(
         is CalDavConnection.Failure.WrongPassword -> CalendarProviderException.AuthenticationException("The server refused the password", e)
         // A certificate that changed (a home server's new one) is trusted again by signing in again
         is CalDavConnection.Failure.UntrustedCertificate -> CalendarProviderException.AuthenticationException("The server's certificate changed", e)
-        is CalDavConnection.Failure.Offline -> CalendarProviderException.NetworkException("No connection", e)
+        // The words the offline-change push retries on (SyncWorker.isNetworkRelatedSyncError), as Google's
+        is CalDavConnection.Failure.Offline -> CalendarProviderException.NetworkException("No network connection", e)
         is CalDavWriter.EventGone -> CalendarProviderException.NotFoundException("The event is no longer on the server", e)
         is CalDavConnection.Failure.Server -> when (e.code) {
             403 -> CalendarProviderException.PermissionException("The server refused access", e)

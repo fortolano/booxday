@@ -47,10 +47,12 @@ class LocalEventService(
     // ========== Mode Detection ==========
 
     /**
-     * Get current sync mode from settings.
+     * Get current sync mode from settings: the saved ones when no screen has loaded them. The
+     * offline-change push runs from SyncWorker, often with BooxDay closed; with the in-memory
+     * defaults (Private Mode) it skipped every change until BooxDay was opened (plan step 3.7).
      */
     private fun getSyncMode(): AppSettings.SyncMode {
-        return GlobalAppSettings.current.syncMode
+        return workerAppSettings(context).syncMode
     }
 
     /**
@@ -537,7 +539,9 @@ class LocalEventService(
             location = event.location,
             description = event.description,
             attendees = event.attendees,
-            syncEnabled = true
+            syncEnabled = true,
+            // The same for every try, so a try whose answer was lost isn't made twice (CalDAV)
+            clientId = event.id
         )
 
         val result = multiAccountSyncManager.createEvent(

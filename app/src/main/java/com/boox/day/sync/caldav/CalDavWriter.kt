@@ -34,20 +34,30 @@ internal class CalDavWriter(
 
     private val dao = db.calDavDao()
 
-    /** A new event in [calendarHref]; returns its row. */
+    /**
+     * A new event in [calendarHref]; returns its row. Its file is named after [uid]: when a try sent
+     * later (the same uid) finds its file already there, the answer to an earlier try was lost on
+     * the way back, and that file is the event (no second copy).
+     */
     suspend fun create(
         connection: CalDavConnection,
         accountId: String,
         calendarHomeUrl: String,
         calendarHref: String,
         fields: CalDavEditor.Fields,
-        zone: ZoneId
+        zone: ZoneId,
+        uid: String = UUID.randomUUID().toString()
     ): ProviderEvent {
-        val uid = UUID.randomUUID().toString()
         val href = calendarHref.trimEnd('/') + "/$uid.ics"
         val ics = CalDavEditor.newEvent(uid, fields, zone, now())
-        val etag = connection.putEvent(url(calendarHomeUrl, href), ics, ifMatch = null, create = true)
-        val saved = store(connection, calendarHomeUrl, CalDavResource(accountId, href, calendarHref, etag, ics, uid, now()), etag)
+        val resource = CalDavResource(accountId, href, calendarHref, null, ics, uid, now())
+        val saved = try {
+            val etag = connection.putEvent(url(calendarHomeUrl, href), ics, ifMatch = null, create = true)
+            store(connection, calendarHomeUrl, resource.copy(etag = etag), etag)
+        } catch (e: CalDavConnection.Failure.Server) {
+            if (e.code != 412) throw e
+            download(connection, calendarHomeUrl, resource) ?: throw e
+        }
         return rowOf(saved, occurrence = null, fields, zone)
     }
 
