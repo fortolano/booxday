@@ -45,6 +45,7 @@ import com.boox.day.R
 import com.boox.day.data.model.CalendarSelection
 import com.boox.day.data.model.ConnectedAccount
 import com.boox.day.data.model.ProviderId
+import com.boox.day.data.model.typeLabel
 import com.boox.day.ui.messages.AiFeedbackMessages
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
@@ -278,16 +279,11 @@ private fun AccountHeader(
                 horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Provider icon (Google Calendar or Outlook) with optional warning overlay
+                // Provider icon (Google Calendar, Outlook or the CalDAV mark) with optional warning overlay
                 Box(contentAlignment = Alignment.BottomEnd) {
-                    Icon(
+                    if (account.providerId == ProviderId.CALDAV) CalDavMark(24.dp) else Icon(
                         painter = painterResource(
-                            when (account.providerId) {
-                                ProviderId.GOOGLE -> R.drawable.ic_google_calendar
-                                ProviderId.OUTLOOK -> R.drawable.ic_outlook
-                                // Stand-in until the CalDAV screens (plan step 3.6) choose its icon
-                                ProviderId.CALDAV -> R.drawable.calendar_today_40px
-                            }
+                            if (account.providerId == ProviderId.GOOGLE) R.drawable.ic_google_calendar else R.drawable.ic_outlook
                         ),
                         contentDescription = "${account.providerId.displayName} account",
                         modifier = Modifier.size(24.dp),
@@ -318,7 +314,7 @@ private fun AccountHeader(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = account.accountType.displayName,
+                            text = account.typeLabel,
                             fontSize = EInkTheme.Typography.bodySmall,
                             color = EInkTheme.Colors.darkGray
                         )

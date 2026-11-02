@@ -93,10 +93,7 @@ class CalDavCalendarProvider internal constructor(
             require(accountType.providerId == ProviderId.CALDAV) { "Not a CalDAV account type: ${accountType.key}" }
             val name = username.trim()
             val found = CalDavConnection(name, password, trustedCertSha256).discover(address)
-            // One spelling per server ("Example.com" = "https://example.com/"), so typing it
-            // differently signs in to the same account instead of adding a second one
-            val server = address.trim().let { if ("://" in it) it else "https://$it" }.toHttpUrlOrNull()?.toString() ?: address.trim()
-
+            val server = serverKey(address)
             val existing = accountDao.getByEmail(ProviderId.CALDAV.key, server, name)
             val account = existing?.toDomainModel()?.copy(accountType = accountType, isActive = true)
                 ?: ConnectedAccount.create(ProviderId.CALDAV, accountType, name, serverUrl = server)
@@ -124,6 +121,19 @@ class CalDavCalendarProvider internal constructor(
             Result.failure(e)
         }
     }
+
+    /** The certificate the user trusted for this server and name ("Trust This Server"), if any. */
+    internal suspend fun trustedCertificate(address: String, username: String): String? = withContext(Dispatchers.IO) {
+        val account = accountDao.getByEmail(ProviderId.CALDAV.key, serverKey(address), username.trim()) ?: return@withContext null
+        calDavDao.getAccount(account.id)?.pinnedCertSha256
+    }
+
+    /**
+     * One spelling per server ("Example.com" = "https://example.com/"), so typing it differently
+     * signs in to the same account instead of adding a second one.
+     */
+    private fun serverKey(address: String): String =
+        address.trim().let { if ("://" in it) it else "https://$it" }.toHttpUrlOrNull()?.toString() ?: address.trim()
 
     override suspend fun getSignedInAccounts(): List<ConnectedAccount> = withContext(Dispatchers.IO) {
         accountDao.getAccountsByProvider(ProviderId.CALDAV.key)

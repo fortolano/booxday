@@ -32,7 +32,7 @@ import com.boox.day.ui.theme.EInkTheme
 
 /**
  * Calendar source filter icons component.
- * Displays toggleable filter icons for Local, Google, and Outlook calendars.
+ * Displays toggleable filter icons for Local, Google, Outlook and CalDAV calendars.
  *
  * - Only shows icons for available sources (Local is always available, Google/Outlook only when connected)
  * - Selected icons have full color, white background, black border
@@ -44,6 +44,7 @@ import com.boox.day.ui.theme.EInkTheme
  * @param onToggleSource Callback when a source is toggled (returns false if last source)
  * @param hasGoogleAccount Whether Google Calendar is connected
  * @param hasOutlookAccount Whether Outlook Calendar is connected
+ * @param hasCalDavAccount Whether an iCloud or other CalDAV account is connected (one switch for all)
  * @param selectedDayOfMonth The day number to display inside the local calendar icon (1-31)
  * @param isCompact Unused - kept for API compatibility (collapsed/expanded use same sizing)
  * @param modifier Modifier for the row
@@ -54,6 +55,7 @@ fun CalendarSourceFilterIcons(
     onToggleSource: (CalendarSource) -> Boolean,
     hasGoogleAccount: Boolean,
     hasOutlookAccount: Boolean,
+    hasCalDavAccount: Boolean = false,
     selectedDayOfMonth: Int,  // Day number to show inside local calendar icon
     isCompact: Boolean = false,  // Unused - unified sizing for both modes
     modifier: Modifier = Modifier,
@@ -110,6 +112,21 @@ fun CalendarSourceFilterIcons(
                 tintColor = null // Colored icon - no tint when selected
             )
         }
+
+        // CalDAV calendars filter (iCloud & more; only when an account is connected)
+        if (hasCalDavAccount) {
+            FilterIconButton(
+                iconRes = null,
+                contentDesc = "iCloud and other calendars",
+                isSelected = filter.showCalDav,
+                onClick = { onToggleSource(CalendarSource.CALDAV) },
+                containerSize = containerSize,
+                iconSize = providerIconSize,
+                cornerRadius = cornerRadius,
+                tintColor = null,
+                mark = { size, tint, background -> CalDavMark(size, tint, background) }
+            )
+        }
     }
 }
 
@@ -119,14 +136,16 @@ fun CalendarSourceFilterIcons(
  */
 @Composable
 private fun FilterIconButton(
-    iconRes: Int,
+    iconRes: Int?,
     contentDesc: String,
     isSelected: Boolean,
     onClick: () -> Unit,
     containerSize: Dp,
     iconSize: Dp,
     cornerRadius: Dp,
-    tintColor: Color? // null = use original icon colors
+    tintColor: Color?, // null = use original icon colors
+    // Drawn instead of iconRes (the CalDAV mark): size, tint, the box's colour
+    mark: (@Composable (Dp, Color, Color) -> Unit)? = null
 ) {
     val shape = RoundedCornerShape(cornerRadius)
 
@@ -153,7 +172,11 @@ private fun FilterIconButton(
             },
         contentAlignment = Alignment.Center
     ) {
-        Icon(
+        if (mark != null) {
+            Box(Modifier.alpha(iconAlpha)) {
+                mark(iconSize, if (isSelected) EInkTheme.Colors.primary else EInkTheme.Colors.gray, backgroundColor)
+            }
+        } else if (iconRes != null) Icon(
             painter = painterResource(id = iconRes),
             contentDescription = null, // Handled by parent semantics
             modifier = Modifier

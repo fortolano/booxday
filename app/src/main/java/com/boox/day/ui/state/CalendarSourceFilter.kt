@@ -9,13 +9,15 @@ package com.boox.day.ui.state
 data class CalendarSourceFilter(
     val showLocal: Boolean = true,
     val showGoogle: Boolean = true,
-    val showOutlook: Boolean = true
+    val showOutlook: Boolean = true,
+    /** iCloud, Fastmail, Nextcloud and other CalDAV calendars (plan step 3.6): one switch for all of them */
+    val showCalDav: Boolean = true
 ) {
     /**
      * Count of currently active (enabled) sources.
      * Used to prevent deselecting the last source.
      */
-    val activeCount: Int get() = listOf(showLocal, showGoogle, showOutlook).count { it }
+    val activeCount: Int get() = listOf(showLocal, showGoogle, showOutlook, showCalDav).count { it }
 
     /**
      * Check if a source can be deselected.
@@ -31,6 +33,7 @@ data class CalendarSourceFilter(
         CalendarSource.LOCAL -> copy(showLocal = !showLocal)
         CalendarSource.GOOGLE -> copy(showGoogle = !showGoogle)
         CalendarSource.OUTLOOK -> copy(showOutlook = !showOutlook)
+        CalendarSource.CALDAV -> copy(showCalDav = !showCalDav)
     }
 
     /**
@@ -40,6 +43,7 @@ data class CalendarSourceFilter(
         CalendarSource.LOCAL -> showLocal
         CalendarSource.GOOGLE -> showGoogle
         CalendarSource.OUTLOOK -> showOutlook
+        CalendarSource.CALDAV -> showCalDav
     }
 }
 
@@ -54,5 +58,8 @@ enum class CalendarSource {
     GOOGLE,
 
     /** Events from Microsoft Outlook Calendar */
-    OUTLOOK
+    OUTLOOK,
+
+    /** Events from CalDAV calendars (iCloud, Fastmail, Nextcloud, other servers) */
+    CALDAV
 }

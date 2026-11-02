@@ -8,6 +8,8 @@ import com.boox.day.data.model.AccountType
 import com.boox.day.data.model.CalendarSelection
 import com.boox.day.data.model.ConnectedAccount
 import com.boox.day.data.model.ProviderId
+import com.boox.day.sync.caldav.CalDavSignInOutcome
+import com.boox.day.sync.caldav.calDavSignInOutcome
 import com.boox.day.sync.outlook.OutlookAuthManager
 import com.boox.day.sync.provider.CalendarProviderException
 import android.util.Log
@@ -102,6 +104,8 @@ class MultiAccountSyncViewModel(
     data class UiState(
         val googleAccounts: List<AccountWithCalendars> = emptyList(),
         val outlookAccounts: List<AccountWithCalendars> = emptyList(),
+        /** iCloud, Fastmail, Nextcloud and other CalDAV servers (plan stage 3, the "iCloud & more" tab). */
+        val calDavAccounts: List<AccountWithCalendars> = emptyList(),
         val isLoading: Boolean = false,
         val isSyncing: Boolean = false,
         /** Aggregate sync progress across all accounts (driven by the most active account) */
@@ -120,13 +124,20 @@ class MultiAccountSyncViewModel(
          * All accounts combined.
          */
         val allAccounts: List<AccountWithCalendars>
-            get() = googleAccounts + outlookAccounts
+            get() = googleAccounts + outlookAccounts + calDavAccounts
 
         /**
          * Total number of accounts.
          */
         val accountCount: Int
-            get() = googleAccounts.size + outlookAccounts.size
+            get() = googleAccounts.size + outlookAccounts.size + calDavAccounts.size
+
+        /** Every account changed by [transform] (all three lists). */
+        fun mapAccounts(transform: (AccountWithCalendars) -> AccountWithCalendars): UiState = copy(
+            googleAccounts = googleAccounts.map(transform),
+            outlookAccounts = outlookAccounts.map(transform),
+            calDavAccounts = calDavAccounts.map(transform)
+        )
 
         /**
          * Check if any account is currently syncing.
@@ -208,6 +219,7 @@ class MultiAccountSyncViewModel(
 
                 val googleAccounts = syncManager.getAccountsByProvider(ProviderId.GOOGLE)
                 val outlookAccounts = syncManager.getAccountsByProvider(ProviderId.OUTLOOK)
+                val calDavAccounts = syncManager.getAccountsByProvider(ProviderId.CALDAV)
 
                 // Load calendars for each account
                 val googleWithCalendars = googleAccounts.map { account ->
@@ -226,15 +238,20 @@ class MultiAccountSyncViewModel(
                     )
                 }
 
+                val calDavWithCalendars = calDavAccounts.map { account ->
+                    AccountWithCalendars(account = account, calendars = syncManager.getCalendarsForAccount(account.id))
+                }
+
                 _uiState.update {
                     it.copy(
                         googleAccounts = keepSyncStatus(googleWithCalendars, it.googleAccounts),
                         outlookAccounts = keepSyncStatus(outlookWithCalendars, it.outlookAccounts),
+                        calDavAccounts = keepSyncStatus(calDavWithCalendars, it.calDavAccounts),
                         isLoading = false
                     )
                 }
 
-                Log.d(TAG, "Loaded ${googleWithCalendars.size} Google, ${outlookWithCalendars.size} Outlook accounts")
+                Log.d(TAG, "Loaded ${googleWithCalendars.size} Google, ${outlookWithCalendars.size} Outlook, ${calDavWithCalendars.size} CalDAV accounts")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading accounts", e)
@@ -427,6 +444,29 @@ class MultiAccountSyncViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Sign in to a CalDAV account from the "iCloud & more" form (plan step 3.6), or again to one whose
+     * password the server refused (same server and name: same account, its choices kept). [trust] is
+     * a certificate the user has just trusted; otherwise the one trusted before is used. A new
+     * account is synced at once, like a new Google or Outlook account.
+     */
+    internal suspend fun signInCalDav(
+        type: AccountType,
+        address: String,
+        name: String,
+        password: String,
+        trust: String? = null
+    ): CalDavSignInOutcome {
+        val before = syncManager.trustedCalDavCertificate(address, name)
+        val outcome = calDavSignInOutcome(syncManager.addCalDavAccount(type, address, name, password, trust ?: before), type, before)
+        if (outcome is CalDavSignInOutcome.Connected) {
+            Log.i(TAG, "CalDAV sign-in successful (${type.key})")
+            loadAccounts().join()
+            syncAccount(outcome.account.id)
+        }
+        return outcome
     }
 
     /**
@@ -631,12 +671,10 @@ class MultiAccountSyncViewModel(
         viewModelScope.launch {
             try {
                 _uiState.update { state ->
-                    state.copy(
+                    state.mapAccounts { it.copy(isSyncing = true, syncProgress = null, error = null) }.copy(
                         isSyncing = true,
                         syncProgress = SyncProgress(SyncPhase.FETCHING),
-                        error = null,
-                        googleAccounts = state.googleAccounts.map { it.copy(isSyncing = true, syncProgress = null, error = null) },
-                        outlookAccounts = state.outlookAccounts.map { it.copy(isSyncing = true, syncProgress = null, error = null) }
+                        error = null
                     )
                 }
 
@@ -653,34 +691,21 @@ class MultiAccountSyncViewModel(
 
                 // Update state with results, detecting auth errors and feature gating
                 _uiState.update { state ->
-                    state.copy(
+                    state.mapAccounts { acc ->
+                        val result = results[acc.account.id]
+                        val needsReauth = result is SyncResult.NotSignedIn ||
+                                (result is SyncResult.Error && result.errorType == SyncErrorType.AUTHENTICATION)
+                        acc.copy(
+                            isSyncing = false,
+                            syncProgress = null,
+                            lastSyncMessage = result?.getDisplayMessage(),
+                            needsReauth = needsReauth,
+                            error = if (result?.isError() == true && !needsReauth) result.getDisplayMessage() else null
+                        )
+                    }.copy(
                         isSyncing = false,
                         syncProgress = null,
-                        syncResults = results,
-                        googleAccounts = state.googleAccounts.map { acc ->
-                            val result = results[acc.account.id]
-                            val needsReauth = result is SyncResult.NotSignedIn ||
-                                    (result is SyncResult.Error && result.errorType == SyncErrorType.AUTHENTICATION)
-                            acc.copy(
-                                isSyncing = false,
-                                syncProgress = null,
-                                lastSyncMessage = result?.getDisplayMessage(),
-                                needsReauth = needsReauth,
-                                error = if (result?.isError() == true && !needsReauth) result.getDisplayMessage() else null
-                            )
-                        },
-                        outlookAccounts = state.outlookAccounts.map { acc ->
-                            val result = results[acc.account.id]
-                            val needsReauth = result is SyncResult.NotSignedIn ||
-                                    (result is SyncResult.Error && result.errorType == SyncErrorType.AUTHENTICATION)
-                            acc.copy(
-                                isSyncing = false,
-                                syncProgress = null,
-                                lastSyncMessage = result?.getDisplayMessage(),
-                                needsReauth = needsReauth,
-                                error = if (result?.isError() == true && !needsReauth) result.getDisplayMessage() else null
-                            )
-                        }
+                        syncResults = results
                     )
                 }
 
@@ -689,12 +714,10 @@ class MultiAccountSyncViewModel(
             } catch (e: Exception) {
                 Log.e(TAG, "Error syncing all accounts", e)
                 _uiState.update { state ->
-                    state.copy(
+                    state.mapAccounts { it.copy(isSyncing = false, syncProgress = null) }.copy(
                         isSyncing = false,
                         syncProgress = null,
-                        error = "Sync failed: ${e.message}",
-                        googleAccounts = state.googleAccounts.map { it.copy(isSyncing = false, syncProgress = null) },
-                        outlookAccounts = state.outlookAccounts.map { it.copy(isSyncing = false, syncProgress = null) }
+                        error = "Sync failed: ${e.message}"
                     )
                 }
             }
@@ -794,9 +817,7 @@ class MultiAccountSyncViewModel(
      * Find an account in the current state.
      */
     private fun findAccount(accountId: String): AccountWithCalendars? {
-        val state = _uiState.value
-        return state.googleAccounts.find { it.account.id == accountId }
-            ?: state.outlookAccounts.find { it.account.id == accountId }
+        return _uiState.value.allAccounts.find { it.account.id == accountId }
     }
 
     /**
@@ -807,14 +828,7 @@ class MultiAccountSyncViewModel(
         transform: (AccountWithCalendars) -> AccountWithCalendars
     ) {
         _uiState.update { state ->
-            state.copy(
-                googleAccounts = state.googleAccounts.map { acc ->
-                    if (acc.account.id == accountId) transform(acc) else acc
-                },
-                outlookAccounts = state.outlookAccounts.map { acc ->
-                    if (acc.account.id == accountId) transform(acc) else acc
-                }
-            )
+            state.mapAccounts { acc -> if (acc.account.id == accountId) transform(acc) else acc }
         }
     }
 }

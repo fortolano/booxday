@@ -266,6 +266,7 @@ import com.boox.day.ui.fullScreenExtraProbe
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.components.CalendarSourceFilterIcons
 import com.boox.day.ui.state.CalendarSource
+import com.boox.day.data.model.serviceName
 import com.boox.day.ui.state.CalendarSourceFilter
 import com.boox.day.ui.theme.EInkTheme
 import com.boox.day.ui.theme.InkaTheme
@@ -380,15 +381,12 @@ fun MainScreen(
     // Derived connected account flags
     val hasGoogleAccount = multiAccountUiState.googleAccounts.isNotEmpty()
     val hasOutlookAccount = multiAccountUiState.outlookAccounts.isNotEmpty()
-    val hasAnyExternalAccount = hasGoogleAccount || hasOutlookAccount
+    val hasCalDavAccount = multiAccountUiState.calDavAccounts.isNotEmpty()
+    val hasAnyExternalAccount = hasGoogleAccount || hasOutlookAccount || hasCalDavAccount
 
-    LaunchedEffect(hasGoogleAccount, hasOutlookAccount) {
-        if (hasGoogleAccount) {
-            multiAccountSyncManager.getWritableCalendars(ProviderId.GOOGLE)
-        }
-        if (hasOutlookAccount) {
-            multiAccountSyncManager.getWritableCalendars(ProviderId.OUTLOOK)
-        }
+    // Add Event's calendars, for every connected account
+    LaunchedEffect(multiAccountUiState.accountCount) {
+        multiAccountSyncManager.loadAllWritableCalendars()
     }
 
     // Dialog states
@@ -2327,7 +2325,7 @@ fun MainScreen(
                     isStandaloneMode = syncModeSetting == AppSettings.SyncMode.STANDALONE,
                     // What needs the user's action in Settings: the gear's number and the menu dots
                     attention = com.boox.day.ui.attention.rememberSettingsAttention(
-                        accountsToReconnect = (multiAccountUiState.googleAccounts + multiAccountUiState.outlookAccounts).count { it.needsReauth }
+                        accountsToReconnect = multiAccountUiState.allAccounts.count { it.needsReauth }
                     ),
                     compact = isCompactLayout,
                     onMonthTitleClick = { showCompactMonthPopup = true },
@@ -2475,7 +2473,7 @@ fun MainScreen(
                                     dueCount = eventsPanelDueCount
                                 )
                                 // Right side: Filter icons (when connected accounts AND Events tab) OR Date label
-                                val showFilterIconsCollapsed = (hasGoogleAccount || hasOutlookAccount) && selectedEventsTab == "events"
+                                val showFilterIconsCollapsed = hasAnyExternalAccount && selectedEventsTab == "events"
                                 if (LayoutProfiles.isNarrowScreen && !showFilterIconsCollapsed) {
                                     // Narrow screens (Go 6): no date label, the day header beside this panel
                                     // shows the selected date (Oct 2026)
@@ -2492,6 +2490,7 @@ fun MainScreen(
                                         },
                                         hasGoogleAccount = hasGoogleAccount,
                                         hasOutlookAccount = hasOutlookAccount,
+                                        hasCalDavAccount = hasCalDavAccount,
                                         selectedDayOfMonth = selectedDate.split("-").getOrNull(2)?.toIntOrNull() ?: 1,
                                         isCompact = true,
                                     )
@@ -3402,6 +3401,7 @@ fun MainScreen(
                         },
                         hasGoogleAccount = hasGoogleAccount,
                         hasOutlookAccount = hasOutlookAccount,
+                        hasCalDavAccount = hasCalDavAccount,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -3494,6 +3494,7 @@ fun MainScreen(
                     },
                     hasGoogleAccount = hasGoogleAccount,
                     hasOutlookAccount = hasOutlookAccount,
+                    hasCalDavAccount = hasCalDavAccount,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -3560,16 +3561,15 @@ fun MainScreen(
             // Get connected account emails for mode switch warnings
             val multiAccountUiState by multiAccountSyncViewModel.uiState.collectAsState()
             val connectedEmails = remember(multiAccountUiState) {
-                (multiAccountUiState.googleAccounts + multiAccountUiState.outlookAccounts)
-                    .map { it.account.email }
+                multiAccountUiState.allAccounts.map { it.account.email }
             }
 
             // Build connected accounts summary from multi-account state
             val cloudAccountSummaries = remember(multiAccountUiState) {
-                (multiAccountUiState.googleAccounts + multiAccountUiState.outlookAccounts).map { acctWithCal ->
+                multiAccountUiState.allAccounts.map { acctWithCal ->
                     CloudAccountSummary(
                         email = acctWithCal.account.email,
-                        provider = if (acctWithCal.account.providerId == com.boox.day.data.model.ProviderId.GOOGLE) "Google" else "Outlook",
+                        provider = acctWithCal.account.serviceName,
                         lastSyncTimeMillis = acctWithCal.account.lastSyncAt
                     )
                 }
@@ -5678,7 +5678,8 @@ fun MainScreen(
             val primaryOutlookAccountId = multiAccountUiState.outlookAccounts.firstOrNull()?.account?.id
             val writableCalendarsForDialog = writableCalendars.filter { calendar ->
                 (calendar.providerId == ProviderId.GOOGLE && calendar.accountId == primaryGoogleAccountId) ||
-                    (calendar.providerId == ProviderId.OUTLOOK && calendar.accountId == primaryOutlookAccountId)
+                    (calendar.providerId == ProviderId.OUTLOOK && calendar.accountId == primaryOutlookAccountId) ||
+                    calendar.providerId == ProviderId.CALDAV  // each CalDAV account is its own line
             }
 
             // For local events, look up the original LocalEvent to get local calendar ID
@@ -5698,7 +5699,7 @@ fun MainScreen(
                     editingEvent = null
                     parsedEventData = null  // Clear parsed data on dismiss
                 },
-                onSave = { calendarId, title, date, startHour, startMin, endHour, endMin, isAllDay, location, description, attendees, syncEnabled, localCalendarId, syncProviderId ->
+                onSave = { calendarId, title, date, startHour, startMin, endHour, endMin, isAllDay, location, description, attendees, syncEnabled, localCalendarId, syncProviderId, chosenAccountId ->
                     android.util.Log.d("MainScreen", "=== onSave CALLED ===")
                     android.util.Log.d("MainScreen", "calendarId: $calendarId")
                     android.util.Log.d("MainScreen", "syncProviderId: $syncProviderId")
@@ -5708,9 +5709,7 @@ fun MainScreen(
                     writableCalendarsForDialog.forEach { cal ->
                         android.util.Log.d("MainScreen", "  Available calendar: ${cal.name} (id=${cal.id}, provider=${cal.providerId})")
                     }
-                    val selectedCalendar = writableCalendarsForDialog.firstOrNull {
-                        syncProviderId != null && it.providerId == syncProviderId && it.id == calendarId
-                    }
+                    val selectedCalendar = com.boox.day.ui.dialogs.chosenCalendar(writableCalendarsForDialog, syncProviderId, chosenAccountId, calendarId)
                     android.util.Log.d("MainScreen", "selectedCalendar: ${selectedCalendar?.name ?: "NULL"}")
                     val syncAccountId = when {
                         editingEvent?.accountId?.isNotBlank() == true -> editingEvent!!.accountId
@@ -5878,6 +5877,7 @@ fun MainScreen(
                 // Connected cloud accounts
                 hasGoogleAccount = hasGoogleAccount,
                 hasOutlookAccount = hasOutlookAccount,
+                hasCalDavAccount = hasCalDavAccount,
                 existingProviderId = existingEventProviderId
             )
         }
@@ -8460,6 +8460,7 @@ private fun ExpandedEventsList(
     onToggleSource: (CalendarSource) -> Boolean = { true },
     hasGoogleAccount: Boolean = false,
     hasOutlookAccount: Boolean = false,
+    hasCalDavAccount: Boolean = false,
     // Compact popup (plan Phase 1.5): pinning has no meaning there
     showPinButton: Boolean = true,
     modifier: Modifier = Modifier
@@ -8575,7 +8576,7 @@ private fun ExpandedEventsList(
                     large = fingerSizeHeader
                 )
                 // Right side: Filter icons (when connected accounts) OR Date label (standalone mode)
-                val showFilterIcons = (hasGoogleAccount || hasOutlookAccount) && selectedEventsTab == "events"
+                val showFilterIcons = (hasGoogleAccount || hasOutlookAccount || hasCalDavAccount) && selectedEventsTab == "events"
                 if (showFilterIcons) {
                     // Source filter icons
                     CalendarSourceFilterIcons(
@@ -8583,6 +8584,7 @@ private fun ExpandedEventsList(
                         onToggleSource = onToggleSource,
                         hasGoogleAccount = hasGoogleAccount,
                         hasOutlookAccount = hasOutlookAccount,
+                        hasCalDavAccount = hasCalDavAccount,
                         selectedDayOfMonth = selectedDate.split("-").getOrNull(2)?.toIntOrNull() ?: 1,
                         isCompact = false,
                         large = fingerSizeHeader
@@ -9053,8 +9055,10 @@ private fun EventItem(
                     )
                 }
 
-                // Provider source icon (Google Calendar or Outlook)
-                if (showProviderBadge && event.hasAccountInfo) {
+                // Provider source icon (Google Calendar, Outlook or the CalDAV mark)
+                if (showProviderBadge && event.hasAccountInfo && event.isCalDavEvent) {
+                    com.boox.day.ui.components.CalDavMark(16.dp)
+                } else if (showProviderBadge && event.hasAccountInfo) {
                     Icon(
                         painter = androidx.compose.ui.res.painterResource(
                             if (event.isGoogleEvent) R.drawable.ic_google_calendar

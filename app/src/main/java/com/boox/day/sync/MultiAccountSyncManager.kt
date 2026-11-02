@@ -325,6 +325,10 @@ class MultiAccountSyncManager(
         }
     }
 
+    /** The certificate the user trusted for this server and name, if any ("Trust This Server"). */
+    internal suspend fun trustedCalDavCertificate(address: String, username: String): String? =
+        calDavProvider.trustedCertificate(address, username)
+
     /**
      * Remove an account and clean up associated data.
      *
@@ -354,8 +358,10 @@ class MultiAccountSyncManager(
             // Delete the record (Oct 2026; it was only deactivated, which kept the email, name and
             // calendar choices on the tablet). Calendar selections go with it via CASCADE.
             accountDao.deleteById(accountId)
+            // Add Event lists accounts one by one (CalDAV, plan step 3.6): never offer a removed one
+            _allWritableCalendars.value = _allWritableCalendars.value.filterNot { it.accountId == accountId }
 
-            Log.i(TAG, "Account removed successfully: ${account.email}")
+            Log.i(TAG, "Account removed successfully")
             rescheduleBackgroundSync()
             Result.success(Unit)
 
@@ -387,25 +393,17 @@ class MultiAccountSyncManager(
         accounts.forEach { account ->
             val calendarsResult = provider.fetchCalendars(account.id)
             if (calendarsResult.isFailure) return@forEach
-            val providerCalendars = calendarsResult.getOrThrow()
-            updateWritableCalendarsForAccount(account.id, providerId, account.email, providerCalendars)
-            val accountCalendars = providerCalendars
-                .filter { it.isWritable }
-                .map { calendar ->
-                    WritableCalendar(
-                        id = calendar.id,
-                        name = calendar.name,
-                        accountId = account.id,
-                        accountEmail = account.email,
-                        providerId = providerId,
-                        isPrimary = calendar.isPrimary,
-                        colorHex = calendar.color
-                    )
-                }
-            writableCalendars.addAll(accountCalendars)
+            writableCalendars.addAll(updateWritableCalendarsForAccount(account, calendarsResult.getOrThrow()))
         }
 
         writableCalendars
+    }
+
+    /** Every connected account's writable calendars, for Add Event (loaded when the accounts change). */
+    suspend fun loadAllWritableCalendars() = withContext(Dispatchers.IO) {
+        for (providerId in ProviderId.entries) {
+            if (accountDao.getAccountsByProvider(providerId.key).isNotEmpty()) getWritableCalendars(providerId)
+        }
     }
 
     /**
@@ -418,23 +416,7 @@ class MultiAccountSyncManager(
         val calendarsResult = provider.fetchCalendars(accountId)
         if (calendarsResult.isFailure) return@withContext emptyList()
 
-        val providerCalendars = calendarsResult.getOrThrow()
-        val writableCalendars = providerCalendars
-            .filter { it.isWritable }
-            .map { calendar ->
-                WritableCalendar(
-                    id = calendar.id,
-                    name = calendar.name,
-                    accountId = accountId,
-                    accountEmail = account.email,
-                    providerId = providerId,
-                    isPrimary = calendar.isPrimary,
-                    colorHex = calendar.color
-                )
-            }
-
-        updateWritableCalendarsForAccount(accountId, providerId, account.email, providerCalendars)
-        writableCalendars
+        updateWritableCalendarsForAccount(account, calendarsResult.getOrThrow())
     }
 
     /**
@@ -464,7 +446,7 @@ class MultiAccountSyncManager(
             }
 
             val providerCalendars = calendarsResult.getOrThrow()
-            updateWritableCalendarsForAccount(accountId, providerIdOf(account), account.email, providerCalendars)
+            updateWritableCalendarsForAccount(account, providerCalendars)
             val providerCalendarIds = providerCalendars.map { it.id }.toSet()
             val existingSelections = selectionDao.getByAccountId(accountId)
             val existingByCalendarId = existingSelections.associateBy { it.calendarId }
@@ -1164,24 +1146,25 @@ class MultiAccountSyncManager(
      * Update writable calendars for a specific account.
      */
     private fun updateWritableCalendarsForAccount(
-        accountId: String,
-        providerId: ProviderId,
-        accountEmail: String,
+        account: ConnectedAccountEntity,
         calendars: List<ProviderCalendar>
-    ) {
+    ): List<WritableCalendar> {
         val writableCalendars = calendars.filter { it.isWritable }.map { calendar ->
             WritableCalendar(
                 id = calendar.id,
                 name = calendar.name,
-                accountId = accountId,
-                accountEmail = accountEmail,
-                providerId = providerId,
+                accountId = account.id,
+                accountEmail = account.email,
+                providerId = providerIdOf(account),
                 isPrimary = calendar.isPrimary,
-                colorHex = calendar.color
+                colorHex = calendar.color,
+                accountType = AccountType.fromKeyOrNull(account.accountType),
+                serverUrl = account.serverUrl
             )
         }
-        val remaining = _allWritableCalendars.value.filterNot { it.accountId == accountId }
+        val remaining = _allWritableCalendars.value.filterNot { it.accountId == account.id }
         _allWritableCalendars.value = remaining + writableCalendars
+        return writableCalendars
     }
 
     /**

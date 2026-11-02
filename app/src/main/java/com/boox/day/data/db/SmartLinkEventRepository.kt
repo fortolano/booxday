@@ -37,7 +37,8 @@ enum class SmartLinkPreflightState {
 data class SmartLinkSourceVisibility(
     val showLocal: Boolean = true,
     val showGoogle: Boolean = true,
-    val showOutlook: Boolean = true
+    val showOutlook: Boolean = true,
+    val showCalDav: Boolean = true
 )
 
 data class SmartLinkPreflightStatus(
@@ -73,7 +74,7 @@ internal fun deriveSmartLinkPreflightStatus(
     localOnlyTimedEventCount: Long,
     localVisibleTimedEventCount: Long,
     sourceVisibility: SmartLinkSourceVisibility,
-    // CalDAV calendars (plan stage 3): always visible until the source filter has a CalDAV switch
+    // CalDAV calendars (plan stage 3), shown by the source filter's CalDAV switch
     calDavEventCount: Long = 0L,
     calDavTimedEventCount: Long = 0L
 ): SmartLinkPreflightStatus {
@@ -83,12 +84,12 @@ internal fun deriveSmartLinkPreflightStatus(
         (if (sourceVisibility.showLocal) localVisibleEventCount else 0L) +
             (if (sourceVisibility.showGoogle) googleEventCount else 0L) +
             (if (sourceVisibility.showOutlook) outlookEventCount else 0L) +
-            calDavEventCount
+            (if (sourceVisibility.showCalDav) calDavEventCount else 0L)
     val visibleTimedEventCount =
         (if (sourceVisibility.showLocal) localVisibleTimedEventCount else 0L) +
             (if (sourceVisibility.showGoogle) googleTimedEventCount else 0L) +
             (if (sourceVisibility.showOutlook) outlookTimedEventCount else 0L) +
-            calDavTimedEventCount
+            (if (sourceVisibility.showCalDav) calDavTimedEventCount else 0L)
     val totalEventCount = cloudEventCount + localVisibleEventCount
     val totalTimedEventCount = cloudTimedEventCount + localVisibleTimedEventCount
     val isDeterministicOnly = smartLinkEnabled && ocrEnabled && !semanticExtractionEnabled

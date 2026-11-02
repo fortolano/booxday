@@ -56,6 +56,11 @@ import com.boox.day.sync.MultiAccountSyncViewModel
 import com.boox.day.ui.messages.AiFeedbackMessages
 import android.util.Log
 import com.boox.day.ui.components.AccountCalendarList
+import com.boox.day.ui.components.CALDAV_TAB_LABEL
+import com.boox.day.ui.components.CalDavAddButtons
+import com.boox.day.ui.components.CalDavEmptyMessage
+import com.boox.day.ui.components.CalDavSignInState
+import com.boox.day.ui.components.CalDavTabLabel
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 
@@ -64,7 +69,9 @@ import com.boox.day.ui.theme.EInkTheme
  */
 private enum class SyncSettingsTab(val label: String) {
     GOOGLE("Google"),
-    OUTLOOK("Outlook")
+    OUTLOOK("Outlook"),
+    // iCloud, Fastmail, Nextcloud and other CalDAV servers (plan stage 3, owner decision 58)
+    CALDAV(CALDAV_TAB_LABEL)
 }
 
 /** What the banner says when a sync finishes ([syncFinishedBanner]). */
@@ -130,17 +137,21 @@ fun CalendarSyncSettingsDialog(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Smart tab default: if Google has no accounts but Outlook does, start on Outlook tab.
+    // Smart tab default: the first tab with accounts (Google, then Outlook, then iCloud & more).
     // Only computed once on dialog open — doesn't reset when user manually switches tabs.
     var selectedTab by remember {
-        val default = if (viewModel.uiState.value.googleAccounts.isEmpty() &&
-            viewModel.uiState.value.outlookAccounts.isNotEmpty()) {
-            SyncSettingsTab.OUTLOOK
-        } else {
-            SyncSettingsTab.GOOGLE
+        val state = viewModel.uiState.value
+        val default = when {
+            state.googleAccounts.isNotEmpty() -> SyncSettingsTab.GOOGLE
+            state.outlookAccounts.isNotEmpty() -> SyncSettingsTab.OUTLOOK
+            state.calDavAccounts.isNotEmpty() -> SyncSettingsTab.CALDAV
+            else -> SyncSettingsTab.GOOGLE
         }
         mutableStateOf(default)
     }
+
+    // The CalDAV sign-in form, when open (a new account, or signing in again)
+    var calDavForm by remember { mutableStateOf<CalDavSignInState?>(null) }
 
     // Track previous account count to detect when all accounts are removed
     var previousAccountCount by remember { mutableStateOf<Int?>(null) }
@@ -233,6 +244,15 @@ fun CalendarSyncSettingsDialog(
         onDismissRequest = onDismiss,
         properties = PopupProperties(focusable = true)
     ) {
+        calDavForm?.let { form ->
+            androidx.compose.runtime.key(form) {
+                CalDavSignInPopup(
+                    initial = form,
+                    signIn = { f, address, trust -> viewModel.signInCalDav(f.type, address, f.name, f.password, trust) },
+                    onDismiss = { calDavForm = null }
+                )
+            }
+        }
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
@@ -398,6 +418,27 @@ fun CalendarSyncSettingsDialog(
                                     account?.let { onOutlookSignIn(it.account.accountType) }
                                 }
                             )
+                            SyncSettingsTab.CALDAV -> CalDavTabContent(
+                                accounts = uiState.calDavAccounts,
+                                isLoading = uiState.isLoading,
+                                error = uiState.error,
+                                syncResults = uiState.syncResults,
+                                onAdd = { type -> calDavForm = CalDavSignInState(type) },
+                                onRemoveAccount = { viewModel.removeAccount(it) },
+                                onToggleCalendar = { accountId, calendarId ->
+                                    viewModel.toggleCalendarEnabled(accountId, calendarId)
+                                },
+                                onSetDefaultCalendar = { accountId, calendarId ->
+                                    viewModel.setDefaultCalendar(accountId, calendarId)
+                                },
+                                onRefreshCalendars = { viewModel.refreshCalendars(it) },
+                                onToggleExpanded = { viewModel.toggleAccountExpanded(it) },
+                                // Re-auth: the password again (the server refused the saved one)
+                                onReauth = { accountId ->
+                                    uiState.calDavAccounts.find { it.account.id == accountId }
+                                        ?.let { calDavForm = CalDavSignInState.again(it.account) }
+                                }
+                            )
                         }
                     }
                 }
@@ -529,13 +570,10 @@ private fun TabSelector(
                 contentAlignment = Alignment.Center
             ) {
                 // Provider wordmark logo - height constrained, width scales with aspect ratio
-                // E-ink: black when unselected, white when selected (inverted)
-                Icon(
+                // E-ink: black when unselected, white when selected (inverted). CalDAV: words.
+                if (tab == SyncSettingsTab.CALDAV) CalDavTabLabel(selected = isSelected) else Icon(
                     painter = painterResource(
-                        when (tab) {
-                            SyncSettingsTab.GOOGLE -> R.drawable.ic_google_provider
-                            SyncSettingsTab.OUTLOOK -> R.drawable.ic_outlook_provider
-                        }
+                        if (tab == SyncSettingsTab.GOOGLE) R.drawable.ic_google_provider else R.drawable.ic_outlook_provider
                     ),
                     contentDescription = tab.label,
                     modifier = Modifier.height(20.dp),
@@ -799,6 +837,66 @@ private fun OutlookTabContent(
         personalConnected = hasPersonalAccount,
         workspaceConnected = hasWorkspaceAccount
     )
+}
+
+/**
+ * "iCloud & more" tab content (plan step 3.6): CalDAV accounts, then the four add buttons. Any number
+ * of accounts; signing in happens in [CalDavSignInPopup].
+ */
+@Composable
+private fun CalDavTabContent(
+    accounts: List<MultiAccountSyncViewModel.AccountWithCalendars>,
+    isLoading: Boolean,
+    error: String?,
+    syncResults: Map<String, com.boox.day.sync.SyncResult>,
+    onAdd: (AccountType) -> Unit,
+    onRemoveAccount: (accountId: String) -> Unit,
+    onToggleCalendar: (accountId: String, calendarId: String) -> Unit,
+    onSetDefaultCalendar: (accountId: String, calendarId: String) -> Unit,
+    onRefreshCalendars: (accountId: String) -> Unit,
+    onToggleExpanded: (accountId: String) -> Unit,
+    onReauth: (accountId: String) -> Unit
+) {
+    if (isLoading && accounts.isEmpty()) {
+        ConnectingMessage(message = "Loading accounts...")
+        return
+    }
+    error?.let { errorMsg ->
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(EInkTheme.Colors.offWhite)
+                .padding(EInkTheme.Global.paddingMedium)
+        ) {
+            Text(text = errorMsg, fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.primary)
+        }
+    }
+    if (accounts.isEmpty()) {
+        CalDavEmptyMessage()
+    } else {
+        accounts.forEach { accountWithCalendars ->
+            val accountId = accountWithCalendars.account.id
+            AccountCalendarList(
+                account = accountWithCalendars.account,
+                calendars = accountWithCalendars.calendars,
+                onDisconnectAccount = { onRemoveAccount(accountId) },
+                onToggleCalendar = { calendarId -> onToggleCalendar(accountId, calendarId) },
+                onSetDefaultCalendar = { calendarId -> onSetDefaultCalendar(accountId, calendarId) },
+                onRefreshCalendars = { onRefreshCalendars(accountId) },
+                isExpanded = accountWithCalendars.isExpanded,
+                onToggleExpanded = { onToggleExpanded(accountId) },
+                isLoadingCalendars = accountWithCalendars.isLoadingCalendars,
+                isSyncing = accountWithCalendars.isSyncing,
+                syncProgress = accountWithCalendars.syncProgress,
+                needsReauth = accountWithCalendars.needsReauth,
+                error = accountWithCalendars.error,
+                lastSyncMessage = syncResults[accountId]?.getDisplayMessage(),
+                onReauth = { onReauth(accountId) }
+            )
+        }
+    }
+    Spacer(modifier = Modifier.height(EInkTheme.Global.spacing))
+    CalDavAddButtons(onAdd = onAdd)
 }
 
 /**

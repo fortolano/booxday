@@ -163,14 +163,12 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    /**
-     * The synced events the source filter shows: a switched-off source hides only its own events,
-     * so CalDAV events (no filter switch of their own yet, plan step 3.6) stay visible when Google
-     * or Outlook is switched off. Before CalDAV, "Google only" showed only Google events.
-     */
+    /** The synced events the source filter shows: a switched-off source hides only its own events. */
     private fun cloudShown(cloud: List<CalendarEvent>, filter: CalendarSourceFilter): List<CalendarEvent> =
-        if (filter.showGoogle && filter.showOutlook) cloud
-        else cloud.filter { (filter.showGoogle || !it.isGoogleEvent) && (filter.showOutlook || !it.isOutlookEvent) }
+        if (filter.showGoogle && filter.showOutlook && filter.showCalDav) cloud
+        else cloud.filter {
+            (filter.showGoogle || !it.isGoogleEvent) && (filter.showOutlook || !it.isOutlookEvent) && (filter.showCalDav || !it.isCalDavEvent)
+        }
 
     /**
      * Get a SHARED StateFlow for events on a specific date.
@@ -252,10 +250,10 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
             var count = 0
 
             // Count cloud events based on filter
-            // When both Google and Outlook filters are ON, include all cloud events
-            if (filter.showGoogle && filter.showOutlook) {
+            // When the Google, Outlook and CalDAV filters are all ON, include all cloud events
+            if (filter.showGoogle && filter.showOutlook && filter.showCalDav) {
                 count += cloud
-            } else if (filter.showGoogle || filter.showOutlook) {
+            } else if (filter.showGoogle || filter.showOutlook || filter.showCalDav) {
                 // For single-source filtering, we use the full count (can't distinguish providers in COUNT query)
                 // This is an acceptable simplification since most users won't toggle filters constantly
                 count += cloud
@@ -1498,7 +1496,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun setSourceFilter(filter: CalendarSourceFilter) {
         _sourceFilter.value = filter
-        Log.d(TAG, "Source filter updated: local=${filter.showLocal}, google=${filter.showGoogle}, outlook=${filter.showOutlook}")
+        Log.d(TAG, "Source filter updated: local=${filter.showLocal}, google=${filter.showGoogle}, outlook=${filter.showOutlook}, caldav=${filter.showCalDav}")
     }
 
     /**

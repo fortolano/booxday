@@ -407,7 +407,8 @@ fun BooxNotesDialog(
                     SmartLinkSourceVisibility(
                         showLocal = sourceFilter.showLocal,
                         showGoogle = sourceFilter.showGoogle,
-                        showOutlook = sourceFilter.showOutlook
+                        showOutlook = sourceFilter.showOutlook,
+                        showCalDav = sourceFilter.showCalDav
                     )
                 )
             }

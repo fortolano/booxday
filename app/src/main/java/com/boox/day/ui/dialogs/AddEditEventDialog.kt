@@ -49,6 +49,8 @@ import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.db.LocalCalendar
 import com.boox.day.data.model.ProviderId
 import com.boox.day.data.model.WritableCalendar
+import com.boox.day.data.model.accountDetail
+import com.boox.day.data.model.serviceName
 import com.boox.day.ui.components.EInkToggle
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.components.LocalCalendarDropdown
@@ -90,7 +92,8 @@ fun AddEditEventDialog(
         attendees: String?,       // Comma-separated emails (for cloud sync)
         syncEnabled: Boolean,     // Whether to sync to cloud
         localCalendarId: String?, // Local calendar ID (when sync OFF)
-        syncProviderId: ProviderId? // Which cloud provider to sync to (when sync ON)
+        syncProviderId: ProviderId?, // Which cloud provider to sync to (when sync ON)
+        syncAccountId: String?    // Which account, when the choice was one account (CalDAV); null = the service's
     ) -> Unit,
     onDelete: (() -> Unit)? = null,  // Only for edit mode
     onMoveToLocal: ((CalendarEvent) -> Unit)? = null,
@@ -122,6 +125,7 @@ fun AddEditEventDialog(
     // Connected cloud accounts
     hasGoogleAccount: Boolean = false,          // Is there a connected Google account?
     hasOutlookAccount: Boolean = false,         // Is there a connected Outlook account?
+    hasCalDavAccount: Boolean = false,          // Is there a connected iCloud or other CalDAV account?
     existingProviderId: ProviderId? = null      // Provider of existing synced event (read-only in edit mode)
 ) {
     val isEditMode = existingEvent != null
@@ -204,10 +208,12 @@ fun AddEditEventDialog(
     // Check if editing an existing synced event (provider cannot be changed)
     val isEditingSyncedEvent = isEditMode && existingProviderId != null
 
-    // How many cloud providers are connected?
-    val connectedProviderCount = listOf(hasGoogleAccount, hasOutlookAccount).count { it }
-    val hasMultipleProviders = connectedProviderCount >= 2
-    val hasAnyCloudAccount = connectedProviderCount > 0
+    // Where a synced event can go: Google and Outlook by service, each CalDAV account on its own line
+    val saveTargets = remember(writableCalendars, hasGoogleAccount, hasOutlookAccount) {
+        eventSaveTargets(writableCalendars, hasGoogleAccount, hasOutlookAccount)
+    }
+    val hasMultipleProviders = saveTargets.size >= 2
+    val hasAnyCloudAccount = hasGoogleAccount || hasOutlookAccount || hasCalDavAccount
 
     // Whether sync toggle will be shown (affects dialog height)
     // Don't show for editing synced events - they stay synced to their provider
@@ -228,36 +234,34 @@ fun AddEditEventDialog(
         )
     }
 
-    // Selected cloud provider for sync (when syncEnabled = true)
-    // Default: Google if available, else Outlook
-    // For existing synced events: use the existing provider (read-only)
-    var selectedProviderId by remember {
-        mutableStateOf(
-            existingProviderId ?: when {
-                hasGoogleAccount -> ProviderId.GOOGLE
-                hasOutlookAccount -> ProviderId.OUTLOOK
-                else -> null
-            }
-        )
+    // Selected account line for sync (when syncEnabled = true): Google if available, else Outlook,
+    // else the first CalDAV account. For existing synced events: theirs (read-only)
+    var selectedTargetKey by remember {
+        mutableStateOf(existingProviderId?.let { eventSaveTargetKey(it, existingEvent?.accountId) } ?: saveTargets.firstOrNull()?.key)
     }
+    // CalDAV accounts appear once their calendars have loaded
+    LaunchedEffect(saveTargets) {
+        if (!isEditingSyncedEvent && saveTargets.none { it.key == selectedTargetKey }) {
+            selectedTargetKey = saveTargets.firstOrNull()?.key
+        }
+    }
+    val selectedTarget = saveTargets.firstOrNull { it.key == selectedTargetKey }
+    val selectedProviderId = selectedTarget?.providerId ?: existingProviderId
+    val selectedAccountId = selectedTarget?.accountId ?: existingEvent?.accountId?.takeIf { existingProviderId == ProviderId.CALDAV }
 
-    val calendarsForSelectedProvider = remember(writableCalendars, selectedProviderId) {
+    val calendarsForSelectedProvider = remember(writableCalendars, selectedProviderId, selectedAccountId) {
         selectedProviderId?.let { provider ->
-            writableCalendars.filter { it.providerId == provider }
+            writableCalendars.filter { it.providerId == provider && (selectedAccountId == null || it.accountId == selectedAccountId) }
         } ?: emptyList()
     }
 
-    LaunchedEffect(selectedProviderId, writableCalendars, isEditingSyncedEvent) {
+    LaunchedEffect(selectedProviderId, selectedAccountId, writableCalendars, isEditingSyncedEvent) {
         if (isEditingSyncedEvent) return@LaunchedEffect
         if (selectedProviderId == null) {
             selectedCalendarId = ""
             return@LaunchedEffect
         }
-        // Re-compute calendars within effect to ensure fresh data
-        // This guards against closure capturing stale values
-        val currentProviderCalendars = selectedProviderId.let { provider ->
-            writableCalendars.filter { it.providerId == provider }
-        }
+        val currentProviderCalendars = calendarsForSelectedProvider
         android.util.Log.d("AddEditEventDialog", "Provider changed to: $selectedProviderId")
         android.util.Log.d("AddEditEventDialog", "Total writableCalendars: ${writableCalendars.size}")
         android.util.Log.d("AddEditEventDialog", "Calendars for provider $selectedProviderId: ${currentProviderCalendars.size}")
@@ -1165,13 +1169,8 @@ fun AddEditEventDialog(
                                                 modifier = Modifier.padding(12.dp),
                                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                // Provider selection (if multiple providers)
+                                                // Account selection (if more than one)
                                                 if (hasMultipleProviders) {
-                                                    val googleAccountEmail = writableCalendars
-                                                        .firstOrNull { it.providerId == ProviderId.GOOGLE }?.accountEmail
-                                                    val outlookAccountEmail = writableCalendars
-                                                        .firstOrNull { it.providerId == ProviderId.OUTLOOK }?.accountEmail
-
                                                     Text(
                                                         text = "Account:",
                                                         fontSize = EInkTheme.TextField.labelFontSize,
@@ -1179,67 +1178,37 @@ fun AddEditEventDialog(
                                                         color = EInkTheme.TextField.labelColor
                                                     )
 
-                                                    // Google option
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .noRippleClickable { selectedProviderId = ProviderId.GOOGLE },
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                    ) {
-                                                        RadioButton(
-                                                            selected = selectedProviderId == ProviderId.GOOGLE,
-                                                            onClick = { selectedProviderId = ProviderId.GOOGLE },
-                                                            colors = RadioButtonDefaults.colors(
-                                                                selectedColor = EInkTheme.Colors.primary,
-                                                                unselectedColor = EInkTheme.Colors.secondary
-                                                            ),
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                        Text(
-                                                            text = "Google",
-                                                            fontSize = EInkTheme.Typography.bodyMedium,
-                                                            fontWeight = FontWeight.Medium,
-                                                            color = EInkTheme.Colors.primary
-                                                        )
-                                                        if (googleAccountEmail != null) {
-                                                            Text(
-                                                                text = googleAccountEmail,
-                                                                fontSize = EInkTheme.Typography.bodySmall,
-                                                                color = EInkTheme.Colors.secondary
+                                                    saveTargets.forEach { target ->
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .noRippleClickable { selectedTargetKey = target.key },
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                        ) {
+                                                            RadioButton(
+                                                                selected = selectedTargetKey == target.key,
+                                                                onClick = { selectedTargetKey = target.key },
+                                                                colors = RadioButtonDefaults.colors(
+                                                                    selectedColor = EInkTheme.Colors.primary,
+                                                                    unselectedColor = EInkTheme.Colors.secondary
+                                                                ),
+                                                                modifier = Modifier.size(20.dp)
                                                             )
-                                                        }
-                                                    }
-
-                                                    // Outlook option
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .noRippleClickable { selectedProviderId = ProviderId.OUTLOOK },
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                    ) {
-                                                        RadioButton(
-                                                            selected = selectedProviderId == ProviderId.OUTLOOK,
-                                                            onClick = { selectedProviderId = ProviderId.OUTLOOK },
-                                                            colors = RadioButtonDefaults.colors(
-                                                                selectedColor = EInkTheme.Colors.primary,
-                                                                unselectedColor = EInkTheme.Colors.secondary
-                                                            ),
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                        Text(
-                                                            text = "Outlook",
-                                                            fontSize = EInkTheme.Typography.bodyMedium,
-                                                            fontWeight = FontWeight.Medium,
-                                                            color = EInkTheme.Colors.primary
-                                                        )
-                                                        if (outlookAccountEmail != null) {
                                                             Text(
-                                                                text = outlookAccountEmail,
-                                                                fontSize = EInkTheme.Typography.bodySmall,
-                                                                color = EInkTheme.Colors.secondary
+                                                                text = target.name,
+                                                                fontSize = EInkTheme.Typography.bodyMedium,
+                                                                fontWeight = FontWeight.Medium,
+                                                                color = EInkTheme.Colors.primary
                                                             )
+                                                            if (target.detail != null) {
+                                                                Text(
+                                                                    text = target.detail,
+                                                                    fontSize = EInkTheme.Typography.bodySmall,
+                                                                    color = EInkTheme.Colors.secondary,
+                                                                    maxLines = 1
+                                                                )
+                                                            }
                                                         }
                                                     }
 
@@ -1247,13 +1216,14 @@ fun AddEditEventDialog(
                                                 }
                                                 // Single provider - show which one
                                                 else if (selectedProviderId != null) {
-                                                    val accountEmail = writableCalendars
+                                                    val accountEmail = selectedTarget?.detail ?: writableCalendars
                                                         .firstOrNull { it.providerId == selectedProviderId }?.accountEmail
+                                                    val serviceName = selectedTarget?.name ?: selectedProviderId.displayName
                                                     Text(
                                                         text = if (accountEmail != null)
-                                                            "Syncs to ${selectedProviderId!!.displayName} · $accountEmail"
+                                                            "Syncs to $serviceName · $accountEmail"
                                                         else
-                                                            "Syncs to ${selectedProviderId!!.displayName}",
+                                                            "Syncs to $serviceName",
                                                         fontSize = EInkTheme.Typography.bodySmall,
                                                         color = EInkTheme.Colors.secondary
                                                     )
@@ -1433,7 +1403,8 @@ fun AddEditEventDialog(
                                         attendees.trim().ifBlank { null },
                                         syncEnabled,
                                         selectedLocalCalendarId,
-                                        providerId
+                                        providerId,
+                                        if (syncEnabled) selectedAccountId else null
                                     )
                                 }
                             )
@@ -1473,7 +1444,8 @@ fun AddEditEventDialog(
                                         attendees.trim().ifBlank { null },
                                         syncEnabled,
                                         selectedLocalCalendarId,
-                                        if (syncEnabled) selectedProviderId else null
+                                        if (syncEnabled) selectedProviderId else null,
+                                        if (syncEnabled) selectedAccountId else null
                                     )
                                 }
                             )
@@ -1968,3 +1940,37 @@ private fun formatDateCompact(date: String): String {
         date
     }
 }
+
+/**
+ * One line in Add Event's account list (plan step 3.6): Google and Outlook by service (as before:
+ * their calendars from the connected account), each CalDAV account on its own, since two of them
+ * can't be told apart by service and may even have calendars with the same address.
+ */
+internal data class EventSaveTarget(val key: String, val providerId: ProviderId, val accountId: String?, val name: String, val detail: String?)
+
+internal fun eventSaveTargetKey(providerId: ProviderId, accountId: String?): String =
+    if (providerId == ProviderId.CALDAV) accountId.orEmpty() else providerId.key
+
+internal fun eventSaveTargets(calendars: List<WritableCalendar>, hasGoogle: Boolean, hasOutlook: Boolean): List<EventSaveTarget> {
+    fun service(providerId: ProviderId, name: String) =
+        EventSaveTarget(providerId.key, providerId, null, name, calendars.firstOrNull { it.providerId == providerId }?.accountEmail)
+    return listOfNotNull(
+        service(ProviderId.GOOGLE, "Google").takeIf { hasGoogle },
+        service(ProviderId.OUTLOOK, "Outlook").takeIf { hasOutlook }
+    ) + calendars.filter { it.providerId == ProviderId.CALDAV }.distinctBy { it.accountId }.map {
+        EventSaveTarget(
+            key = eventSaveTargetKey(ProviderId.CALDAV, it.accountId),
+            providerId = ProviderId.CALDAV,
+            accountId = it.accountId,
+            name = serviceName(ProviderId.CALDAV, it.accountType, it.serverUrl),
+            detail = accountDetail(it.accountType, it.accountEmail, it.serverUrl)
+        )
+    }
+}
+
+/**
+ * The calendar Add Event saved to: [calendarId] of the chosen service, and of the chosen account
+ * when the choice was one account (two CalDAV accounts can have calendars with the same address).
+ */
+internal fun chosenCalendar(calendars: List<WritableCalendar>, providerId: ProviderId?, accountId: String?, calendarId: String): WritableCalendar? =
+    calendars.firstOrNull { providerId != null && it.providerId == providerId && it.id == calendarId && (accountId == null || it.accountId == accountId) }
