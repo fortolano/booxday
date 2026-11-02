@@ -86,6 +86,36 @@ data class CalDavResource(
     val syncedAt: Long
 )
 
+/**
+ * One task file (VTODO) of a CalDAV task list (v33, plan step 4.2), kept whole like [CalDavResource]
+ * so a change made on the tablet touches only BooxDay's fields. Its own table: a collection can hold
+ * events and tasks, and the calendar reader forgets every file its event query didn't list.
+ */
+@Entity(
+    tableName = "caldav_task_file",
+    primaryKeys = ["accountId", "href"],
+    foreignKeys = [ForeignKey(
+        entity = ConnectedAccountEntity::class,
+        parentColumns = ["id"],
+        childColumns = ["accountId"],
+        onDelete = ForeignKey.CASCADE
+    )],
+    indices = [Index(value = ["accountId", "listHref"])]
+)
+data class CalDavTaskFile(
+    val accountId: String,
+    /** The file's URL path: the task's remote id in task_sync_link. */
+    val href: String,
+    /** The task list's URL path: the listId in task_sync_link and task_sync_list. */
+    val listHref: String,
+    val etag: String?,
+    /** The iCalendar text as last read from (or written to) the server. */
+    val ics: String,
+    /** The task's UID, which subtasks name in RELATED-TO. */
+    val uid: String?,
+    val syncedAt: Long
+)
+
 @Dao
 interface CalDavDao {
     @Upsert
@@ -120,4 +150,24 @@ interface CalDavDao {
 
     @Query("DELETE FROM caldav_resource WHERE accountId = :accountId AND calendarHref = :calendarHref")
     fun deleteResourcesOf(accountId: String, calendarHref: String)
+
+    // ── Task files (v33) ──
+
+    @Upsert
+    fun upsertTaskFile(file: CalDavTaskFile)
+
+    @Query("SELECT * FROM caldav_task_file WHERE accountId = :accountId AND href = :href")
+    fun getTaskFile(accountId: String, href: String): CalDavTaskFile?
+
+    @Query("SELECT * FROM caldav_task_file WHERE accountId = :accountId AND listHref = :listHref")
+    fun getTaskFiles(accountId: String, listHref: String): List<CalDavTaskFile>
+
+    @Query("SELECT * FROM caldav_task_file WHERE accountId = :accountId AND listHref = :listHref AND uid = :uid LIMIT 1")
+    fun getTaskFileByUid(accountId: String, listHref: String, uid: String): CalDavTaskFile?
+
+    @Query("DELETE FROM caldav_task_file WHERE accountId = :accountId AND href = :href")
+    fun deleteTaskFile(accountId: String, href: String)
+
+    @Query("DELETE FROM caldav_task_file WHERE accountId = :accountId AND listHref = :listHref")
+    fun deleteTaskFilesOf(accountId: String, listHref: String)
 }

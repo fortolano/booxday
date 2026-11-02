@@ -815,3 +815,18 @@ val MIGRATION_31_32 = object : Migration(31, 32) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_caldav_resource_accountId_calendarHref` ON `caldav_resource` (`accountId`, `calendarHref`)")
     }
 }
+
+/**
+ * v33 (Nov 2026, CalDAV task lists, plan stage 4, step 4.2): each task file whole with its etag
+ * (caldav_task_file, its own table: the calendar reader forgets files it didn't list, and it lists
+ * only events), and the priority and reminder last synced (task_sync_link: CalDAV carries them,
+ * Google Tasks doesn't, owner decision 67).
+ */
+val MIGRATION_32_33 = object : Migration(32, 33) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `caldav_task_file` (`accountId` TEXT NOT NULL, `href` TEXT NOT NULL, `listHref` TEXT NOT NULL, `etag` TEXT, `ics` TEXT NOT NULL, `uid` TEXT, `syncedAt` INTEGER NOT NULL, PRIMARY KEY(`accountId`, `href`), FOREIGN KEY(`accountId`) REFERENCES `connected_accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_caldav_task_file_accountId_listHref` ON `caldav_task_file` (`accountId`, `listHref`)")
+        db.execSQL("ALTER TABLE `task_sync_link` ADD COLUMN `syncedPriority` TEXT DEFAULT NULL")
+        db.execSQL("ALTER TABLE `task_sync_link` ADD COLUMN `syncedReminder` INTEGER DEFAULT NULL")
+    }
+}

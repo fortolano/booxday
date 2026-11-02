@@ -7,6 +7,7 @@ import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.TaskSyncKept
 import com.boox.day.data.db.TaskSyncLink
 import com.boox.day.data.db.TaskSyncList
+import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.share.HandwrittenRows
 import kotlinx.coroutines.CoroutineScope
 import java.time.LocalDate
@@ -32,6 +33,11 @@ object TaskSync {
     internal const val DEBUG_TEST_LIST = "BooxDay test"
     private const val KEY_LAST_SYNCED_AT = "last_synced_at"
     private const val KEY_NEEDS_RECONNECT = "needs_reconnect"
+    // The service (plan step 4.0): "google" (also when missing: set before CalDAV tasks) or "caldav"
+    private const val KEY_SERVICE = "service"
+    private const val KEY_SERVER_URL = "server_url"
+    private const val KEY_ACCOUNT_ID = "account_id"
+    private const val KEY_SERVICE_NAME = "service_name"
 
     @Volatile
     private var watcher: TaskSyncWatcher? = null
@@ -50,9 +56,9 @@ object TaskSync {
      */
     internal fun cardList(context: Context, task: com.boox.day.data.db.Task): com.boox.day.editor.ui.TaskCardList? {
         if (!BuildConfig.TASK_SYNC_ENABLED || !isOn(context)) return null
-        val email = account(context) ?: return null
+        val target = target(context) ?: return null
         val sync = AppDatabase.getDatabase(context.applicationContext).taskSyncDao()
-        val lists = sync.getListsFor(com.boox.day.data.db.TaskSyncProvider.GOOGLE_TASKS, email, "")
+        val lists = sync.getListsFor(target.provider, target.accountEmail, target.serverUrl)
         if (lists.size < 2) return null
         val link = sync.getLink(task.id)
         if (link?.keptOnTablet == true) return null
@@ -62,7 +68,8 @@ object TaskSync {
         return com.boox.day.editor.ui.TaskCardList(
             lists = lists.map { it.listId to it.title },
             currentId = current,
-            fixedReason = if (subtask) "with its main task" else null
+            fixedReason = if (subtask) "with its main task" else null,
+            serviceName = target.serviceName
         )
     }
 
@@ -113,21 +120,45 @@ object TaskSync {
 
     // ── The Task Sync card (plan step 2.6) ──────────────────────────────────────────────────
 
-    /** The Google account task sync uses; changed only while it is off (owner decision 32). */
-    fun account(context: Context): String? = prefs(context).getString(KEY_ACCOUNT, null)
+    /** The account task sync uses (its Google address or CalDAV sign-in name). */
+    fun account(context: Context): String? = target(context)?.accountEmail
+
+    /** The service and account task sync uses; changed only while it is off (owner decision 32). */
+    internal fun target(context: Context): TaskSyncTarget? {
+        val prefs = prefs(context)
+        val email = prefs.getString(KEY_ACCOUNT, null) ?: return null
+        if (prefs.getString(KEY_SERVICE, SERVICE_GOOGLE) != SERVICE_CALDAV) return TaskSyncTarget.google(email)
+        return TaskSyncTarget(
+            provider = TaskSyncProvider.CALDAV,
+            accountEmail = email,
+            serverUrl = prefs.getString(KEY_SERVER_URL, null).orEmpty(),
+            accountId = prefs.getString(KEY_ACCOUNT_ID, null) ?: return null,
+            serviceName = prefs.getString(KEY_SERVICE_NAME, null) ?: "CalDAV"
+        )
+    }
+
+    private const val SERVICE_GOOGLE = "google"
+    private const val SERVICE_CALDAV = "caldav"
+
+    private fun save(edit: android.content.SharedPreferences.Editor, target: TaskSyncTarget) = edit
+        .putString(KEY_SERVICE, if (target.isGoogle) SERVICE_GOOGLE else SERVICE_CALDAV)
+        .putString(KEY_ACCOUNT, target.accountEmail)
+        .putString(KEY_SERVER_URL, target.serverUrl)
+        .putString(KEY_ACCOUNT_ID, target.accountId)
+        .putString(KEY_SERVICE_NAME, target.serviceName)
 
     /**
-     * Turns task sync on for [email] (the Tasks permission is already given): another account's
-     * links and lists go, so its tasks count as never synced (owner decision 32); with no list yet,
-     * Google's main list is ticked and gets new tasks (decision 30); ticked tasks from today on stay
-     * on the tablet (decision 9). The first sync is the caller's to start ([TaskSyncRun]).
+     * Turns task sync on for [target] (Google's Tasks permission is already given): another account's
+     * or service's links and lists go, so its tasks count as never synced (owner decision 32); with no
+     * list yet, the service's main list is ticked and gets new tasks (decision 30); ticked tasks from
+     * today on stay on the tablet (decision 9). The first sync is the caller's to start ([TaskSyncRun]).
      * [testList]: debug builds tick only the list with this name instead (owner decision 42, so the
      * owner's own tablet test never fills their real lists), or none when it doesn't exist.
      * Throws what the service throws (offline, sign-in): then nothing changed.
      */
     internal suspend fun turnOn(
         context: Context,
-        email: String,
+        target: TaskSyncTarget,
         service: TaskSyncService,
         today: String = LocalDate.now().toString(),
         testList: String? = if (BuildConfig.DEBUG) DEBUG_TEST_LIST else null
@@ -136,19 +167,21 @@ object TaskSync {
         val db = AppDatabase.getDatabase(app)
         val sync = db.taskSyncDao()
         val provider = service.provider
+        val email = target.accountEmail
+        val server = target.serverUrl
         val main = when {
-            sync.getListsFor(provider, email, "").isNotEmpty() -> null
+            sync.getListsFor(provider, email, server).isNotEmpty() -> null
             testList != null -> service.lists().firstOrNull { it.title == testList }
             else -> service.mainList()
         }
         db.runInTransaction<Unit> {
-            sync.dropLinksOfOtherAccounts(provider, email, "")
-            sync.dropListsOfOtherAccounts(provider, email, "")
-            sync.dropDeletesOfOtherAccounts(provider, email, "")
-            if (main != null) sync.insertList(TaskSyncList(provider, email, "", main.listId, main.title, isDefaultForNew = true))
+            sync.dropLinksOfOtherAccounts(provider, email, server)
+            sync.dropListsOfOtherAccounts(provider, email, server)
+            sync.dropDeletesOfOtherAccounts(provider, email, server)
+            if (main != null) sync.insertList(TaskSyncList(provider, email, server, main.listId, main.title, isDefaultForNew = true))
         }
-        keepTickedTasksOnTablet(db, provider, email, today = today)
-        prefs(app).edit().putString(KEY_ACCOUNT, email).putBoolean(KEY_ON, true).putBoolean(KEY_NEEDS_RECONNECT, false).apply()
+        keepTickedTasksOnTablet(db, provider, email, serverUrl = server, today = today)
+        save(prefs(app).edit(), target).putBoolean(KEY_ON, true).putBoolean(KEY_NEEDS_RECONNECT, false).apply()
         start(app)
         Log.i(TAG, "Task sync turned on")
     }
@@ -163,9 +196,9 @@ object TaskSync {
         TaskSyncTriggers.cancel()
     }
 
-    /** Only while off (owner decision 32). */
-    fun chooseAccount(context: Context, email: String) {
-        if (!isOn(context)) prefs(context).edit().putString(KEY_ACCOUNT, email).apply()
+    /** Only while off (owner decision 32): Google Tasks or a CalDAV account. */
+    internal fun choose(context: Context, target: TaskSyncTarget) {
+        if (!isOn(context)) save(prefs(context).edit(), target).apply()
     }
 
     /**
@@ -173,23 +206,27 @@ object TaskSync {
      * to" list passes that on to another ticked one. An unticked list's tasks stay on the tablet and
      * stop syncing (owner decision 31: TaskSyncSender leaves them out); ticked again, they resume.
      */
-    internal fun tickList(context: Context, provider: String, email: String, listId: String, title: String, ticked: Boolean) {
+    internal fun tickList(
+        context: Context, provider: String, email: String, listId: String, title: String, ticked: Boolean, serverUrl: String = ""
+    ) {
         val db = AppDatabase.getDatabase(context.applicationContext)
         val sync = db.taskSyncDao()
         db.runInTransaction<Unit> {
             if (ticked) {
-                sync.insertList(TaskSyncList(provider, email, "", listId, title, isDefaultForNew = sync.getDefaultList(provider, email, "") == null))
+                sync.insertList(
+                    TaskSyncList(provider, email, serverUrl, listId, title, isDefaultForNew = sync.getDefaultList(provider, email, serverUrl) == null)
+                )
             } else {
-                sync.deleteList(provider, email, "", listId)
-                if (sync.getDefaultList(provider, email, "") == null) {
-                    sync.getListsFor(provider, email, "").firstOrNull()?.let { sync.setDefaultList(provider, email, "", it.listId) }
+                sync.deleteList(provider, email, serverUrl, listId)
+                if (sync.getDefaultList(provider, email, serverUrl) == null) {
+                    sync.getListsFor(provider, email, serverUrl).firstOrNull()?.let { sync.setDefaultList(provider, email, serverUrl, it.listId) }
                 }
             }
         }
     }
 
-    internal fun newTasksTo(context: Context, provider: String, email: String, listId: String) {
-        AppDatabase.getDatabase(context.applicationContext).taskSyncDao().setDefaultList(provider, email, "", listId)
+    internal fun newTasksTo(context: Context, provider: String, email: String, listId: String, serverUrl: String = "") {
+        AppDatabase.getDatabase(context.applicationContext).taskSyncDao().setDefaultList(provider, email, serverUrl, listId)
     }
 
     // ── What happened, and what needs the user ──
@@ -220,7 +257,8 @@ object TaskSync {
         if (!isOn(context)) return null
         val status = status(context)
         return when {
-            status.needsReconnect && prefs(context).getBoolean(KEY_ACCOUNT_GONE, false) -> "Task Sync's Google account isn't connected"
+            status.needsReconnect && prefs(context).getBoolean(KEY_ACCOUNT_GONE, false) ->
+                "Task Sync's ${target(context)?.shortName ?: "Google"} account isn't connected"
             status.needsReconnect -> "Task Sync needs you to sign in again"
             status.deletesWaiting > 0 -> "Task Sync is waiting for your OK to delete tasks"
             else -> null
@@ -288,7 +326,8 @@ object TaskSync {
         sharedScanner ?: run {
             val app = context.applicationContext
             val db = AppDatabase.getDatabase(app)
-            TaskSyncScanner(db, inkReader(app, db)).also { sharedScanner = it }
+            // Priority and reminder count as changes where the service carries them (a CalDAV list)
+            TaskSyncScanner(db, extras = { target(app)?.isGoogle == false }, inkReader = inkReader(app, db)).also { sharedScanner = it }
         }
     }
 

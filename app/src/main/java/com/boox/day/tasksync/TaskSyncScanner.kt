@@ -21,6 +21,8 @@ import com.boox.day.data.db.Task
  */
 internal class TaskSyncScanner(
     private val db: AppDatabase,
+    /** The service in use carries priority and reminder ([TaskSyncService.carriesExtras]). */
+    private val extras: () -> Boolean = { false },
     private val inkReader: () -> (Task) -> Boolean?
 ) {
     data class Result(val queued: Int, val deleted: Int, val rescanAt: Long?)
@@ -42,6 +44,7 @@ internal class TaskSyncScanner(
         }
 
         val rows = sync.getRowsToScan(today)
+        val withExtras = extras()
         for (row in rows) {
             var link = links[row.id]
             if (link?.keptOnTablet == true) {
@@ -87,7 +90,7 @@ internal class TaskSyncScanner(
             }
 
             val parentRemoteId = row.parentTaskId?.let { links[it]?.remoteId }
-            if (link == null || TaskSyncRules.contentHash(row, parentRemoteId) != link.contentHash) {
+            if (link == null || TaskSyncRules.contentHash(row, parentRemoteId, withExtras) != link.contentHash) {
                 sync.queueUpsert(row.id, now)
                 queued++
             }

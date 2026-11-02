@@ -186,7 +186,10 @@ data class BackupTaskSyncLink(
     // DB v31 additions: missing from backups made with v30 (then the parent is syncedParentRemoteId's)
     val remoteParentId: String? = null,
     val keptOnTablet: Boolean = false,
-    val keptReason: String? = null
+    val keptReason: String? = null,
+    // DB v33 additions (CalDAV task lists): missing from older backups, where nothing carried them
+    val syncedPriority: String? = null,
+    val syncedReminder: Int? = null
 )
 
 // ========== Recurring Tasks (v3) ==========

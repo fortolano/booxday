@@ -10,6 +10,9 @@ internal interface TaskSyncService {
     /** [com.boox.day.data.db.TaskSyncProvider] */
     val provider: String
 
+    /** Priority and reminder time sync too ([TaskExtras]): CalDAV yes, Google Tasks no (owner decision 67). */
+    val carriesExtras: Boolean get() = false
+
     /** Creates the task ([link] null) or updates the copy [link] points to; returns what it holds now. */
     suspend fun upsert(task: OutgoingTask, link: TaskSyncLink?): RemoteTask
 
@@ -68,8 +71,17 @@ internal data class RemoteTaskState(
     /** Google `updated` (RFC 3339), CalDAV etag: compared with the link's remoteVersion. */
     val version: String?,
     /** When it last changed in the service (epoch ms), for "the later change wins"; null if unknown. */
-    val modifiedAt: Long? = null
+    val modifiedAt: Long? = null,
+    /** Priority and reminder as the service has them; null when it doesn't carry them. */
+    val extras: TaskExtras? = null
 )
+
+/**
+ * A task's priority ("", "A", "B", "C") and its own reminder time (minutes after midnight on its due
+ * day; null = the usual time from settings, never sent: owner decision 69). Only for services that
+ * carry them ([TaskSyncService.carriesExtras]).
+ */
+internal data class TaskExtras(val priority: String, val reminderMinute: Int?)
 
 /** What BooxDay sends for one task. [dueDay] null: the copy stays undated (owner decision 1). */
 internal data class OutgoingTask(
@@ -78,7 +90,9 @@ internal data class OutgoingTask(
     val title: String,
     val completed: Boolean,
     val dueDay: String?,
-    val parentRemoteId: String?
+    val parentRemoteId: String?,
+    /** Null for a service that doesn't carry them. */
+    val extras: TaskExtras? = null
 )
 
 internal data class RemoteTask(

@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import com.boox.day.BuildConfig
 import com.boox.day.R
 import com.boox.day.data.db.AppDatabase
-import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.editor.ui.toolbar.ToolbarMenuTool
 import com.boox.day.tasksync.TaskSync
 import com.boox.day.ui.noRippleClickable
@@ -39,9 +38,9 @@ import com.boox.day.ui.theme.EInkTheme
  */
 internal fun newTasksMenuTool(context: Context): ToolbarMenuTool? {
     if (!BuildConfig.TASK_SYNC_ENABLED || !TaskSync.isOn(context)) return null
-    val email = TaskSync.account(context) ?: return null
-    val provider = TaskSyncProvider.GOOGLE_TASKS
-    val lists = AppDatabase.getDatabase(context.applicationContext).taskSyncDao().getListsFor(provider, email, "")
+    val target = TaskSync.target(context) ?: return null
+    val lists = AppDatabase.getDatabase(context.applicationContext).taskSyncDao()
+        .getListsFor(target.provider, target.accountEmail, target.serverUrl)
     if (lists.size < 2) return null
     val chosen = lists.firstOrNull { it.isDefaultForNew }
     return ToolbarMenuTool(
@@ -52,7 +51,9 @@ internal fun newTasksMenuTool(context: Context): ToolbarMenuTool? {
         page = { closeMenu ->
             for (list in lists) {
                 NewTasksListRow(list.title, selected = list.listId == chosen?.listId) {
-                    if (list.listId != chosen?.listId) TaskSync.newTasksTo(context, provider, email, list.listId)
+                    if (list.listId != chosen?.listId) {
+                        TaskSync.newTasksTo(context, target.provider, target.accountEmail, list.listId, target.serverUrl)
+                    }
                     closeMenu()
                 }
             }

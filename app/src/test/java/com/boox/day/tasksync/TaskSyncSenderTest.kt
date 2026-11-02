@@ -382,13 +382,15 @@ class TaskSyncSenderTest {
             db.taskDao().setDueDay(taskId, dueDay)
             return true
         }
+        override fun setPriority(taskId: String, priority: String) = db.taskDao().setPriority(taskId, priority)
+        override fun setReminder(taskId: String, minuteOfDay: Int?) = db.taskDao().setReminderMinuteOfDay(taskId, minuteOfDay)
         override fun moveToDay(task: Task, day: String) = false
         override fun clear(task: Task): Boolean {
             db.taskDao().clearTaskMetadata(task.id)
             cleared += task.id
             return true
         }
-        override suspend fun add(day: String, words: String, dueDay: String?, link: (Task) -> Unit) = false
+        override suspend fun add(day: String, words: String, dueDay: String?, extras: TaskExtras?, link: (Task) -> Unit) = false
     }
 
     private fun insert(id: String, row: Int, typed: String? = null, recognized: String? = null, parent: String? = null) {

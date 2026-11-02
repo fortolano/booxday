@@ -443,6 +443,36 @@ class TaskSyncMergerTest {
         assertEquals("BooxDay's row code reads the top offset from the session", 3f, GlobalAppSettings.tasksTopOffsetPx)
     }
 
+    // ── Priority and reminder (a CalDAV list carries them; owner decisions 67, 69) ──
+
+    @Test
+    fun priorityAndReminderSyncOnlyWhereTheServiceCarriesThem() = runBlocking {
+        val calDav = TaskSyncMerger(
+            db, RepositoryTabletTasks(context, repo, canvasHeight = { canvasHeight }, penOn = { false }), TaskSyncProvider.GOOGLE_TASKS, EMAIL,
+            clock = { now }, today = { DAY }, extras = true
+        )
+        // Linked before priority synced (a v32 link): in step with the tablet
+        val id = synced(row = 0, text = "Call mom", remoteId = "r-1")
+
+        // On the phone: priority A, a reminder at 15:00
+        assertEquals(TaskSyncMerger.Result.APPLIED, calDav.merge(remote("r-1", "Call mom").copy(extras = TaskExtras("A", 15 * 60))))
+        assertEquals("A" to 15 * 60, tasks.getById(id)!!.let { it.priority to it.reminderMinuteOfDay })
+        assertEquals("A" to 15 * 60, sync.getLink(id)!!.let { it.syncedPriority to it.syncedReminder })
+        TaskSyncScanner(db, extras = { true }) { { true } }.scan(now, DAY)
+        assertTrue("nothing goes back: ${sync.getOutbox()}", sync.getOutbox().isEmpty())
+
+        // Then the tablet's reminder moves to 8:30 while the phone makes it B: each side's change stays
+        repo.setReminderMinuteOfDay(id, 8 * 60 + 30)
+        sync.queueUpsert(id, now)
+        calDav.merge(remote("r-1", "Call mom", version = "v3", modifiedAt = now - 60_000).copy(extras = TaskExtras("B", 15 * 60)))
+        assertEquals("B" to 8 * 60 + 30, tasks.getById(id)!!.let { it.priority to it.reminderMinuteOfDay })
+        assertEquals("the tablet's reminder goes back", listOf(TaskSyncOp.UPSERT to id), sync.getOutbox().map { it.op to it.taskId })
+
+        // Google Tasks carries neither: what it reports changes nothing
+        merger.merge(remote("r-1", "Call mom", version = "v4").copy(extras = TaskExtras("C", 9 * 60)))
+        assertEquals("B" to 8 * 60 + 30, tasks.getById(id)!!.let { it.priority to it.reminderMinuteOfDay })
+    }
+
     // ── Helpers ──
 
     /** A task on [DAY] linked as the sender leaves it after a send (version "v1"). */

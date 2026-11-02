@@ -32,6 +32,12 @@ internal interface TabletTasks {
     /** Its own due day; false when BooxDay refuses it (a subtask due after its parent). */
     fun setDueDay(taskId: String, dueDay: String?): Boolean
 
+    /** Priority ("", "A", "B", "C"), with BooxDay's subtask rules. */
+    fun setPriority(taskId: String, priority: String)
+
+    /** Its own reminder time (minutes after midnight), null = the usual time. */
+    fun setReminder(taskId: String, minuteOfDay: Int?)
+
     /** Moves it, with its subtasks and ink, to [day] (its link goes along); false: not now. */
     fun moveToDay(task: Task, day: String): Boolean
 
@@ -40,10 +46,11 @@ internal interface TabletTasks {
 
     /**
      * A new typed task, unticked (owner decision 27), on [day]'s first free row, due [dueDay] (the
-     * service's due date, with its reminder; null when undated, decision 43); [link] writes its link
-     * in the same transaction, so the change watcher never sends it back as new. False: not now.
+     * service's due date, with its reminder; null when undated, decision 43), with [extras] where the
+     * service carries them; [link] writes its link in the same transaction, so the change watcher
+     * never sends it back as new. False: not now.
      */
-    suspend fun add(day: String, words: String, dueDay: String?, link: (Task) -> Unit): Boolean
+    suspend fun add(day: String, words: String, dueDay: String?, extras: TaskExtras?, link: (Task) -> Unit): Boolean
 }
 
 /**
@@ -116,6 +123,16 @@ internal class RepositoryTabletTasks(
         return done
     }
 
+    override fun setPriority(taskId: String, priority: String) {
+        repo.setPriority(taskId, priority, canvasHeight())
+        tasks.getDayDateById(taskId)?.let(::changed)
+    }
+
+    override fun setReminder(taskId: String, minuteOfDay: Int?) {
+        repo.setReminderMinuteOfDay(taskId, minuteOfDay)
+        tasks.getDayDateById(taskId)?.let(::changed)
+    }
+
     override fun moveToDay(task: Task, day: String): Boolean {
         val height = canvasHeight()
         // Moves work on pages of 10: not while a day is on full screen pages (TaskPagination)
@@ -135,7 +152,7 @@ internal class RepositoryTabletTasks(
         return true
     }
 
-    override suspend fun add(day: String, words: String, dueDay: String?, link: (Task) -> Unit): Boolean {
+    override suspend fun add(day: String, words: String, dueDay: String?, extras: TaskExtras?, link: (Task) -> Unit): Boolean {
         val height = canvasHeight()
         if (height <= 0f || TaskPagination.isReflowed(day)) return false
         val slot = SlotAllocator.allocateSingle(day, height, repo)
@@ -145,7 +162,7 @@ internal class RepositoryTabletTasks(
         }
         // Never onto the page being written on; nor a row taken since it was found
         if (penOn(listOf(slot.task.pageId)) || !SlotAllocator.validateBeforeWrite(slot.task, height, repo)) return false
-        if (!repo.writeSyncedTask(slot.task.id, words, dueDay, link)) return false
+        if (!repo.writeSyncedTask(slot.task.id, words, dueDay, extras?.priority.orEmpty(), extras?.reminderMinute, link)) return false
         TaskSync.setDayFull(context, day, false)
         TaskRepository.notifyDayChangedBySync(day)
         return true

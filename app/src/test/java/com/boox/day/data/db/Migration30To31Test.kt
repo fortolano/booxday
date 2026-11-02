@@ -129,7 +129,7 @@ class Migration30To31Test {
 
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbFile.absolutePath)
-            .addMigrations(MIGRATION_30_31, MIGRATION_31_32)
+            .addMigrations(MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33)
             .addCallback(TaskSyncSchema.CALLBACK)
             .allowMainThreadQueries()
             .build()

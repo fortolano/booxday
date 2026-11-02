@@ -148,7 +148,44 @@ internal class CalDavConnection(
     /** The calendars in the account's calendar home now (names, colours and change markers move). */
     suspend fun listCalendars(calendarHomeUrl: String): List<RemoteCalendar> = call { listCalendarsAt(httpsUrl(calendarHomeUrl)) }
 
-    /** One event file as the server holds it. [href] is its URL path. */
+    /**
+     * The task lists in the account's calendar home (plan stage 4, step 4.1): collections that take
+     * tasks (VTODO). One that takes events too (Nextcloud's "Personal") is a calendar and a task list.
+     */
+    suspend fun listTaskLists(calendarHomeUrl: String): List<RemoteCalendar> =
+        call { listCalendarsAt(httpsUrl(calendarHomeUrl), tasks = true) }
+
+    /**
+     * A collection's change marker (getctag, else the RFC 6578 sync-token): the same marker means
+     * nothing in it changed. Null when the server has neither. A collection removed on the server
+     * fails with [Failure.Server] 404 or 410.
+     */
+    suspend fun collectionTag(collectionUrl: String): String? = call {
+        propfind(httpsUrl(collectionUrl), 0, GetCTag.NAME, SyncToken.NAME).firstNotNullOfOrNull { response ->
+            response[GetCTag::class.java]?.cTag ?: response[SyncToken::class.java]?.token
+        }
+    }
+
+    /** A task list's task files, path → change tag (RFC 4791 calendar-query for VTODO, no time range). */
+    suspend fun taskTags(listUrl: String): Map<String, String?> = call {
+        val found = LinkedHashMap<String, String?>()
+        DavCalendar(client, httpsUrl(listUrl)).calendarQuery("VTODO", null, null) { response, relation ->
+            if (relation != Response.HrefRelation.SELF && response.isSuccess()) {
+                found[response.href.encodedPath] = response[GetETag::class.java]?.eTag
+            }
+        }
+        found
+    }
+
+    /**
+     * Moves a file to another collection (WebDAV MOVE, never over an existing file). Servers that
+     * don't move between collections answer [Failure.Server] 403, 405, 501 or 502: then copy and delete.
+     */
+    suspend fun moveFile(fromUrl: String, toUrl: String) = call {
+        DavResource(client, httpsUrl(fromUrl)).move(httpsUrl(toUrl), false) { }
+    }
+
+    /** One event (or task) file as the server holds it. [href] is its URL path. */
     data class RemoteEventFile(val href: String, val etag: String?, val ics: String)
 
     /**
@@ -225,7 +262,8 @@ internal class CalDavConnection(
         return null
     }
 
-    private fun listCalendarsAt(home: HttpUrl): List<RemoteCalendar> =
+    /** The collections in [home] that take events, or with [tasks] the ones that take tasks. */
+    private fun listCalendarsAt(home: HttpUrl, tasks: Boolean = false): List<RemoteCalendar> =
         propfind(
             home, 1,
             ResourceType.NAME, DisplayName.NAME, CalendarColor.NAME, SupportedCalendarComponentSet.NAME,
@@ -234,8 +272,9 @@ internal class CalDavConnection(
             val types = response[ResourceType::class.java]?.types.orEmpty()
             if (ResourceType.CALENDAR !in types) return@mapNotNull null
             // No component set means every kind is allowed (RFC 4791 5.2.3)
-            val events = response[SupportedCalendarComponentSet::class.java]?.supportsEvents ?: true
-            if (!events) return@mapNotNull null
+            val kinds = response[SupportedCalendarComponentSet::class.java]
+            val takes = if (tasks) kinds?.supportsTasks ?: true else kinds?.supportsEvents ?: true
+            if (!takes) return@mapNotNull null
             val privileges = response[CurrentUserPrivilegeSet::class.java]
             RemoteCalendar(
                 href = response.href.encodedPath,

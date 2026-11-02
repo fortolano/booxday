@@ -70,9 +70,17 @@ class TaskSyncCardRenderTest {
     private fun card(state: TaskSyncCardState): @Composable () -> Unit = {
         SettingCard(
             title = "Task Sync",
-            description = "Keep your tasks in step with Google Tasks on your phone. Off until you turn it on."
+            description = "Keep your tasks in step with Google Tasks or a CalDAV server (Nextcloud, Fastmail and others). Off until you turn it on."
         ) { TaskSyncCardContent(state) }
     }
+
+    private val google = TaskSyncChoice("google:ortolano@gmail.com", "Google Tasks", "ortolano@gmail.com", isGoogle = true)
+    private val googleWork = TaskSyncChoice("google:work@example.com", "Google Tasks", "work@example.com", isGoogle = true)
+    private val nextcloud = TaskSyncChoice("caldav:n", "Nextcloud", "flavio", isGoogle = false)
+    private val other = TaskSyncChoice("caldav:o", "dav.example.com", "booxday-test", isGoogle = false)
+    private val iCloudNote = "iCloud isn't listed: Apple doesn't share Reminders with other apps."
+    private val calDavLists = listOf("Personal", "Work", "Shopping", "House")
+        .mapIndexed { i, title -> TaskSyncCardList("c-$i", title, ticked = title in setOf("Personal", "Work")) }
 
     // The owner's own Google Tasks lists (30 Oct 2026), plus the test list
     private val lists = listOf("My Tasks", "Tasks", "Personal", "Work", "Husband", "Church", "Dad", "Professional", "BooxDay test")
@@ -85,36 +93,62 @@ class TaskSyncCardRenderTest {
     @Test
     fun theCardOnBothTablets() {
         for (device in devices) {
-            render(device, "1-off", card(TaskSyncCardState(on = false)))
+            render(device, "1-off", card(TaskSyncCardState(on = false, chosen = google, choices = listOf(google))))
             render(device, "1b-off-two-accounts", card(
-                TaskSyncCardState(on = false, account = "ortolano@gmail.com", accounts = listOf("ortolano@gmail.com", "work@example.com"))
+                TaskSyncCardState(on = false, chosen = google, choices = listOf(google, googleWork))
             ))
             render(device, "2-off-no-account", card(
                 TaskSyncCardState(on = false, cantTurnOn = "Connect a Google account first: Settings → Calendar Accounts.")
             ))
             render(device, "3-on", card(
                 TaskSyncCardState(
-                    on = true, account = "ortolano@gmail.com", lists = lists, newTasksListId = "l-8",
+                    on = true, chosen = google, lists = lists, newTasksListId = "l-8",
                     status = "Last synced today at 10:42"
                 )
             ))
             render(device, "4-on-needs-you", card(
                 TaskSyncCardState(
-                    on = true, account = "ortolano@gmail.com", lists = lists, newTasksListId = "l-8",
+                    on = true, chosen = google, lists = lists, newTasksListId = "l-8",
                     status = "Waiting for you", needsReconnect = true, deletesWaiting = 25,
                     fullDays = listOf("Mon 3 Nov"), keptChangedHere = 2
                 )
             ))
             render(device, "4b-on-account-removed", card(
                 TaskSyncCardState(
-                    on = true, account = "ortolano@gmail.com", lists = lists, newTasksListId = "l-8",
+                    on = true, chosen = google, lists = lists, newTasksListId = "l-8",
                     status = "Waiting for you", needsReconnect = true, accountGone = true
                 )
             ))
             render(device, "5-twelve-lists", card(
                 TaskSyncCardState(
-                    on = true, account = "ortolano@gmail.com", lists = manyLists, newTasksListId = "m-9",
+                    on = true, chosen = google, lists = manyLists, newTasksListId = "m-9",
                     status = "Last synced today at 10:42"
+                )
+            ))
+            // CalDAV task lists (plan step 4.6, Nov 2026)
+            render(device, "7-off-choose-service", card(
+                TaskSyncCardState(on = false, chosen = nextcloud, choices = listOf(google, nextcloud, other), notListed = iCloudNote)
+            ))
+            render(device, "7b-off-only-icloud", card(
+                TaskSyncCardState(
+                    on = false,
+                    cantTurnOn = "iCloud can't be used: Apple doesn't share Reminders with other apps. " +
+                        "Connect Google, Nextcloud, Fastmail or another CalDAV server in Settings → Calendar Accounts."
+                )
+            ))
+            render(device, "7c-off-no-task-lists", card(
+                TaskSyncCardState(
+                    on = false, chosen = other, choices = listOf(google, other),
+                    status = "dav.example.com has no task lists. Make one there first, then turn Task Sync on again."
+                )
+            ))
+            render(device, "8-on-caldav", card(
+                TaskSyncCardState(on = true, chosen = nextcloud, lists = calDavLists, newTasksListId = "c-0", status = "Last synced today at 10:42")
+            ))
+            render(device, "8b-on-caldav-needs-you", card(
+                TaskSyncCardState(
+                    on = true, chosen = other, lists = calDavLists, newTasksListId = "c-0",
+                    status = "Waiting for you", needsReconnect = true, deletesWaiting = 25
                 )
             ))
             render(device, "6-new-tasks-to-open") {

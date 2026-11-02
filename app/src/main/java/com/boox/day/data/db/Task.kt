@@ -2202,17 +2202,23 @@ class TaskRepository(internal val context: Context) {
      * [rowId] that SlotAllocator found. In one transaction the row is checked again and written
      * with its [link], so the change watcher never sees the task without it (it would send it back
      * as new). Unticked (owner decision 27), due [dueDay] with its reminder like any due task (the
-     * service's due date; null when undated, decision 43). Rows are never inserted: every page has
-     * its rows, and an insert would replace one.
+     * service's due date; null when undated, decision 43), with the [priority] and own [reminderMinute]
+     * a CalDAV list carries (Nov 2026). Rows are never inserted: every page has its rows, and an
+     * insert would replace one.
      * @return false when the row was taken meanwhile (the next sync tries again)
      */
-    fun writeSyncedTask(rowId: String, words: String, dueDay: String?, link: (Task) -> Unit): Boolean = inTransaction {
+    fun writeSyncedTask(
+        rowId: String, words: String, dueDay: String?, priority: String = "", reminderMinute: Int? = null, link: (Task) -> Unit
+    ): Boolean = inTransaction {
         val row = taskDao.getById(rowId) ?: return@inTransaction false
         val free = row.typedText.isNullOrBlank() && row.convertedText.isNullOrBlank() &&
             row.recognizedText.isNullOrBlank() && !row.isCompleted && row.priority.isBlank() &&
             row.parentTaskId == null && taskSyncDao.getLink(rowId) == null
         if (!free) return@inTransaction false
         taskDao.setTypedText(rowId, words)
+        if (priority.isNotBlank()) taskDao.setPriority(rowId, priority)
+        // Before the due day, whose reminder is scheduled with it; a leftover on the empty row goes too
+        if (reminderMinute != null || row.reminderMinuteOfDay != null) taskDao.setReminderMinuteOfDay(rowId, reminderMinute?.coerceIn(0, 24 * 60 - 1))
         // A due day left over on the empty row (SlotAllocator ignores it) is replaced too
         if (dueDay != null || row.dueDay != null) writeDueDay(rowId, dueDay)
         val written = taskDao.getById(rowId) ?: return@inTransaction false

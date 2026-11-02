@@ -153,11 +153,13 @@ internal class TaskSyncSender(
         // Undated in the service until the user gives it a due day or moves it (owner decision 1)
         val staysUndated = current != null && current.remoteUndated && task.dueDay == null && task.dayDate == current.syncedDueDay
         val dueDay = if (staysUndated) null else TaskSyncRules.dueDay(task)
+        // Priority and reminder only where the service carries them (a CalDAV list)
+        val extras = if (service.carriesExtras) TaskSyncRules.extras(task, dueDay) else null
 
         // The service compares the parent with the tablet's last sent one (owner decision 24)
         val asLinked = if (leavingParent != null) current?.copy(syncedParentRemoteId = leavingParent) else current
         val remote = try {
-            service.upsert(OutgoingTask(task.id, listId, title, task.isCompleted, dueDay, parentRemoteId), asLinked)
+            service.upsert(OutgoingTask(task.id, listId, title, task.isCompleted, dueDay, parentRemoteId, extras), asLinked)
         } catch (e: TaskSyncServiceException.RemoteChanged) {
             // Changed in the service since the last sync: merged in, then sent once more
             if (retried || merger.merge(e.remote) == TaskSyncMerger.Result.WAITS) throw e
@@ -172,7 +174,7 @@ internal class TaskSyncSender(
             return false
         }
 
-        val sentHash = TaskSyncRules.contentHash(task, hashParentId)
+        val sentHash = TaskSyncRules.contentHash(task, hashParentId, service.carriesExtras)
         val keptTitle = remote.title ?: title  // as the service keeps it, so the pull sees no change
         // A new copy, or a parent move: the service's parent is now the one sent
         val moved = asLinked == null || parentRemoteId != asLinked.syncedParentRemoteId
@@ -186,19 +188,21 @@ internal class TaskSyncSender(
                         listId = remote.listId, remoteId = remote.remoteId, remoteVersion = remote.version,
                         syncedTitle = keptTitle, syncedCompleted = task.isCompleted, syncedDueDay = dueDay ?: task.dayDate,
                         syncedParentRemoteId = parentRemoteId, remoteParentId = serviceParent, contentHash = sentHash,
-                        remoteUndated = staysUndated, syncedAt = now
+                        remoteUndated = staysUndated, syncedPriority = extras?.priority, syncedReminder = extras?.reminderMinute,
+                        syncedAt = now
                     )
                 )
             } else {
                 sync.updateSyncedLink(
                     task.id, remote.listId, remote.remoteId, remote.version, keptTitle, task.isCompleted,
-                    dueDay ?: task.dayDate, parentRemoteId, serviceParent, sentHash, staysUndated, now
+                    dueDay ?: task.dayDate, parentRemoteId, serviceParent, sentHash, staysUndated,
+                    extras?.priority, extras?.reminderMinute, now
                 )
             }
         }
         // Changed while it was being sent: keep the entry, the newer state goes next
         val after = tasks.getById(task.id) ?: return false
-        return TaskSyncRules.contentHash(after, hashParentId) != sentHash
+        return TaskSyncRules.contentHash(after, hashParentId, service.carriesExtras) != sentHash
     }
 
     companion object {

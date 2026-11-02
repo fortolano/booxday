@@ -37,17 +37,20 @@ import com.boox.day.ui.theme.EInkTheme
 
 /**
  * The Task Sync card in Preferences (task sync plan step 2.6, Oct 2026; owner decision 8): off by
- * default; once on, the Google account, the lists to sync, "New tasks go to", what happened last
- * and what needs the user. Design approved by the owner from render images (30 Oct 2026): every
+ * default; once on, the service and account, the lists to sync, "New tasks go to", what happened
+ * last and what needs the user. Design approved by the owner from render images (30 Oct 2026): every
  * line in a section with a heading, lists in two columns, "New tasks go to" as one picker line.
+ * CalDAV task lists (plan step 4.6, Nov 2026): the service is chosen while off, one at a time.
  */
 internal data class TaskSyncCardState(
     val on: Boolean,
-    /** Why it can't be turned on (Private Mode, no Google account), or null. */
+    /** Why it can't be turned on (Private Mode, no account that has tasks), or null. */
     val cantTurnOn: String? = null,
-    val account: String? = null,
-    /** The connected Google accounts; with more than one, the account is chosen while off (decision 32). */
-    val accounts: List<String> = emptyList(),
+    val chosen: TaskSyncChoice? = null,
+    /** The accounts tasks can sync with; with more than one, it is chosen while off (decision 32). */
+    val choices: List<TaskSyncChoice> = emptyList(),
+    /** Why a connected account isn't among them (iCloud), or null. */
+    val notListed: String? = null,
     val lists: List<TaskSyncCardList> = emptyList(),
     val newTasksListId: String? = null,
     /** "Last synced today at 10:42", "Syncing…", "Waiting for a connection". */
@@ -65,15 +68,30 @@ internal data class TaskSyncCardState(
 
 internal data class TaskSyncCardList(val id: String, val title: String, val ticked: Boolean)
 
+/** A service tasks can sync with: a Google account, or a CalDAV account from Calendar Accounts. */
+internal data class TaskSyncChoice(
+    /** "google:<email>" or "caldav:<account id>". */
+    val key: String,
+    /** "Google Tasks", "Nextcloud", "Fastmail", or the server for Other ("dav.example.com"). */
+    val service: String,
+    /** The account's address or sign-in name. */
+    val account: String,
+    val isGoogle: Boolean
+) {
+    /** In sentences: "Google", "Nextcloud", the server. */
+    val shortName: String get() = if (isGoogle) "Google" else service
+    val label: String get() = "$service · $account"
+}
+
 internal class TaskSyncCardActions(
     val turnOn: (Boolean) -> Unit = {},
-    val pickAccount: (String) -> Unit = {},
+    val choose: (String) -> Unit = {},
     val tickList: (String, Boolean) -> Unit = { _, _ -> },
     val newTasksTo: (String) -> Unit = {},
     val syncNow: () -> Unit = {},
     val reconnect: () -> Unit = {},
-    val keepInGoogle: () -> Unit = {},
-    val deleteInGoogle: () -> Unit = {}
+    val keepInService: () -> Unit = {},
+    val deleteInService: () -> Unit = {}
 )
 
 @Composable
@@ -85,7 +103,7 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Sync with Google Tasks",
+                text = state.chosen?.let { "Sync with ${it.service}" } ?: "Sync tasks",
                 fontSize = EInkTheme.Typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = EInkTheme.Colors.primary
@@ -95,19 +113,21 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
 
         if (!state.on) {
             state.cantTurnOn?.let { Section("Before you can turn it on") { Note(it) } }
-            if (state.cantTurnOn == null && state.accounts.size > 1) {
-                Section("Google account") {
+            if (state.cantTurnOn == null && state.choices.size > 1) {
+                Section("Sync with") {
                     Column {
-                        for (email in state.accounts) {
-                            RadioOption(label = email, isSelected = email == state.account, onClick = { actions.pickAccount(email) })
+                        for (choice in state.choices) {
+                            RadioOption(label = choice.label, isSelected = choice.key == state.chosen?.key, onClick = { actions.choose(choice.key) })
                         }
                     }
+                    state.notListed?.let { Note(it) }
                 }
             }
             state.status?.let { status -> Section("Sync status") { Note(status) } }
+            val service = state.chosen?.service ?: "your task service"
             Section("When you turn it on") {
                 Note(
-                    "Your unfinished tasks from today on go to Google Tasks, and Google's unfinished tasks " +
+                    "Your unfinished tasks from today on go to $service, and its unfinished tasks " +
                         "come to their days here. Ticked tasks and older days stay on the tablet."
                 )
             }
@@ -115,6 +135,8 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
         }
 
         // Each part in its own section, what needs the user first
+        val chosen = state.chosen
+        val name = chosen?.shortName ?: "the service"
         val noList = state.lists.isNotEmpty() && state.lists.none { it.ticked }
         val needsYou = state.needsReconnect || state.accountGone || state.deletesWaiting > 0 || state.fullDays.isNotEmpty() || noList
         if (needsYou) {
@@ -122,33 +144,41 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
                 if (noList) Attention("Tick at least one list below: until then nothing syncs.") {}
                 if (state.accountGone) {
                     Attention(
-                        "The Google account Task Sync uses (${state.account.orEmpty()}) isn't connected any more. " +
+                        "The account Task Sync uses (${chosen?.label.orEmpty()}) isn't connected any more. " +
                             "Connect it again in Calendar Accounts, or turn Task Sync off to choose another."
                     ) {}
-                } else if (state.needsReconnect) {
+                } else if (state.needsReconnect && chosen?.isGoogle != false) {
                     Attention("Google needs you to sign in again before tasks can sync.") {
                         ActionButton(text = "Reconnect", onClick = actions.reconnect)
                     }
+                } else if (state.needsReconnect) {
+                    // The password is the calendar account's: fixed once there, for both
+                    Attention("$name refused the password. Sign in again in Settings → Calendar Accounts.") {}
                 }
                 if (state.deletesWaiting > 0) {
                     Attention(
-                        "${state.deletesWaiting} tasks you cleared on the tablet would be deleted in Google Tasks. " +
+                        "${state.deletesWaiting} tasks you cleared on the tablet would be deleted in ${chosen?.service ?: name}. " +
                             "Sync waits until you choose."
                     ) {
+                        val where = if (chosen?.isGoogle != false) "in Google" else "on Server"
                         Row(horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)) {
-                            EinkSecondaryButton(text = "Keep in Google", onClick = actions.keepInGoogle, width = 180.dp)
-                            ActionButton(text = "Delete in Google", onClick = actions.deleteInGoogle, modifier = Modifier.width(180.dp))
+                            EinkSecondaryButton(text = "Keep $where", onClick = actions.keepInService, width = 180.dp)
+                            ActionButton(text = "Delete $where", onClick = actions.deleteInService, modifier = Modifier.width(180.dp))
                         }
                     }
                 }
                 for (day in state.fullDays) {
-                    Attention("A task from Google is waiting: $day is full (10 pages). It comes once a row is free.") {}
+                    Attention("A task from $name is waiting: $day is full (10 pages). It comes once a row is free.") {}
                 }
             }
         }
 
-        Section("Google account") {
-            Text(state.account.orEmpty(), fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.primary)
+        Section("Synced with") {
+            Text(chosen?.label.orEmpty(), fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.primary)
+            Note(
+                if (chosen?.isGoogle != false) "Words, ticked, due date and subtasks."
+                else "Words, ticked, due date, reminder, priority and subtasks."
+            )
         }
 
         Section("Lists to sync") {
@@ -164,7 +194,7 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
         }
 
         Section("New tasks go to") {
-            Note("Tasks you write in BooxDay. Tasks from Google stay in their own list.")
+            Note("Tasks you write in BooxDay. Tasks from $name stay in their own list.")
             NewTasksToPicker(state, actions)
         }
 
@@ -187,8 +217,8 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
         if (state.keptChangedHere > 0) {
             Section("Kept on the tablet") {
                 Note(
-                    if (state.keptChangedHere == 1) "1 task deleted in Google stays on the tablet only, because you changed it here."
-                    else "${state.keptChangedHere} tasks deleted in Google stay on the tablet only, because you changed them here."
+                    if (state.keptChangedHere == 1) "1 task deleted in $name stays on the tablet only, because you changed it here."
+                    else "${state.keptChangedHere} tasks deleted in $name stay on the tablet only, because you changed them here."
                 )
             }
         }

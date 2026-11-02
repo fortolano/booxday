@@ -70,7 +70,14 @@ data class TaskSyncLink(
     /** Stays on the tablet only, never sent again (v31); why: [keptReason]. */
     @ColumnInfo(defaultValue = "0") val keptOnTablet: Boolean = false,
     /** [TaskSyncKept]: why the task is kept on the tablet only (the Task Sync card counts CHANGED_HERE). */
-    val keptReason: String? = null
+    val keptReason: String? = null,
+    /**
+     * Priority ("", "A", "B", "C") last synced (v33); null: the service doesn't carry priority and
+     * reminders (Google Tasks), so neither is compared.
+     */
+    val syncedPriority: String? = null,
+    /** The task's own reminder time last synced (minutes after midnight; null = the usual time), with [syncedPriority]. */
+    val syncedReminder: Int? = null
 )
 
 /** Why a task stays on the tablet only (task_sync_link.keptReason). */
@@ -222,11 +229,13 @@ interface TaskSyncDao {
         "UPDATE task_sync_link SET listId = :listId, remoteId = :remoteId, remoteVersion = :remoteVersion, syncedTitle = :title, " +
             "syncedCompleted = :completed, syncedDueDay = :dueDay, syncedParentRemoteId = :parentRemoteId, " +
             "remoteParentId = :remoteParentId, contentHash = :contentHash, " +
-            "remoteUndated = :remoteUndated, orphanedAt = NULL, syncedAt = :now WHERE taskId = :taskId"
+            "remoteUndated = :remoteUndated, syncedPriority = :priority, syncedReminder = :reminder, orphanedAt = NULL, " +
+            "syncedAt = :now WHERE taskId = :taskId"
     )
     fun updateSyncedLink(
         taskId: String, listId: String, remoteId: String, remoteVersion: String?, title: String, completed: Boolean,
-        dueDay: String?, parentRemoteId: String?, remoteParentId: String?, contentHash: String, remoteUndated: Boolean, now: Long
+        dueDay: String?, parentRemoteId: String?, remoteParentId: String?, contentHash: String, remoteUndated: Boolean,
+        priority: String?, reminder: Int?, now: Long
     )
 
     // ── Merging what the service changed (tasksync/TaskSyncMerger) ─────────────────────────
@@ -272,11 +281,11 @@ interface TaskSyncDao {
     @Query(
         "UPDATE task_sync_link SET remoteVersion = :remoteVersion, syncedTitle = :title, syncedCompleted = :completed, " +
             "syncedDueDay = :dueDay, remoteUndated = :remoteUndated, remoteParentId = :remoteParentId, " +
-            "contentHash = :contentHash, syncedAt = :now WHERE taskId = :taskId"
+            "syncedPriority = :priority, syncedReminder = :reminder, contentHash = :contentHash, syncedAt = :now WHERE taskId = :taskId"
     )
     fun updateMergedLink(
         taskId: String, remoteVersion: String?, title: String, completed: Boolean, dueDay: String?,
-        remoteUndated: Boolean, remoteParentId: String?, contentHash: String, now: Long
+        remoteUndated: Boolean, remoteParentId: String?, priority: String?, reminder: Int?, contentHash: String, now: Long
     )
 
     /** [reason]: [TaskSyncKept]. */

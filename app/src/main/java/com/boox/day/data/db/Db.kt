@@ -99,7 +99,7 @@ class Converters {
 
 
 @Database(
-    entities = [Folder::class, Notebook::class, Page::class, Stroke::class, Image::class, Kv::class, DayPage::class, CalendarEvent::class, TextAnnotation::class, BooxNoteIndex::class, BooxNoteLink::class, BooxNoteSemanticAggregate::class, Task::class, RecurringTaskTemplate::class, RecurringTaskException::class, Attachment::class, LocalEvent::class, LocalCalendar::class, SummaryCache::class, ConnectedAccountEntity::class, CalendarSelectionEntity::class, UnifiedOcrPage::class, UnifiedOcrText::class, EntityCooccurrence::class, UserActivityPattern::class, TaskSyncLink::class, TaskSyncOutboxEntry::class, TaskSyncList::class, CalDavAccount::class, CalDavCalendar::class, CalDavResource::class],
+    entities = [Folder::class, Notebook::class, Page::class, Stroke::class, Image::class, Kv::class, DayPage::class, CalendarEvent::class, TextAnnotation::class, BooxNoteIndex::class, BooxNoteLink::class, BooxNoteSemanticAggregate::class, Task::class, RecurringTaskTemplate::class, RecurringTaskException::class, Attachment::class, LocalEvent::class, LocalCalendar::class, SummaryCache::class, ConnectedAccountEntity::class, CalendarSelectionEntity::class, UnifiedOcrPage::class, UnifiedOcrText::class, EntityCooccurrence::class, UserActivityPattern::class, TaskSyncLink::class, TaskSyncOutboxEntry::class, TaskSyncList::class, CalDavAccount::class, CalDavCalendar::class, CalDavResource::class, CalDavTaskFile::class],
     version = CURRENT_DB_VERSION,  // v32: CalDAV accounts, calendars, event files; v31: task sync merge; v30: task sync tables, accounts unique per provider+server+email (v29: What's New dropped)
     exportSchema = true
 )
@@ -347,7 +347,8 @@ abstract class AppDatabase : RoomDatabase() {
                                 MIGRATION_28_29,
                                 MIGRATION_29_30,
                                 MIGRATION_30_31,
-                                MIGRATION_31_32
+                                MIGRATION_31_32,
+                                MIGRATION_32_33
                             )
 
                     // No destructive fallback in any build (plan T2, Oct 2026): the real-data

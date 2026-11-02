@@ -46,7 +46,9 @@ internal class TaskSyncMerger(
     private val serverUrl: String = "",
     private val clock: () -> Long = System::currentTimeMillis,
     private val today: () -> String = { LocalDate.now().toString() },
-    private val service: TaskSyncService? = null
+    private val service: TaskSyncService? = null,
+    /** Priority and reminder sync too (a CalDAV list; owner decision 67). */
+    private val extras: Boolean = service?.carriesExtras == true
 ) {
     enum class Result { APPLIED, UNCHANGED, WAITS }
 
@@ -115,7 +117,7 @@ internal class TaskSyncMerger(
         }
         // A row that only lost its words to recognition hasn't changed (owner decision 21)
         val changedHere = link.orphanedAt == null &&
-            (TaskSyncRules.contentHash(task, hashParentOf(task)) != link.contentHash || sync.queuedUpsertAt(task.id) != null)
+            (hashOf(task) != link.contentHash || sync.queuedUpsertAt(task.id) != null)
         // A ticked task stays on its day as a record ("Delete all completed tasks" on the phone,
         // owner decision 26), also one ticked there just before it was deleted
         val ticked = task.isCompleted || completedThere
@@ -180,11 +182,24 @@ internal class TaskSyncMerger(
             serviceWins(task.isCompleted != link.syncedCompleted)
         val takeDue = remote.dueDay != lastDue && remote.dueDay != dueHere && serviceWins(dueHere != lastDue)
 
+        // Priority and reminder (a CalDAV list), by the same rules; a link from before they synced
+        // counts as in step with the tablet
+        val theirs = remote.extras?.takeIf { extras }
+        val ours = TaskSyncRules.extras(task, dueHere)
+        val lastPriority = link.syncedPriority ?: ours.priority
+        val lastReminder = if (link.syncedPriority != null) link.syncedReminder else ours.reminderMinute
+        val takePriority = theirs != null && theirs.priority != lastPriority && theirs.priority != ours.priority &&
+            serviceWins(ours.priority != lastPriority)
+        val takeReminder = theirs != null && theirs.reminderMinute != lastReminder && theirs.reminderMinute != ours.reminderMinute &&
+            serviceWins(ours.reminderMinute != lastReminder)
+
         // The move first: if it can't be done now, nothing is written
         var row = task
         if (takeDue) row = applyDue(task, remote.dueDay)
         if (takeWords) tablet.setWords(row, remote.title)
         if (takeDone) tablet.setCompleted(row.id, remote.completed)
+        if (takePriority) tablet.setPriority(row.id, theirs!!.priority)
+        if (takeReminder) tablet.setReminder(row.id, theirs!!.reminderMinute)
 
         val after = tasks.getById(row.id) ?: throw IllegalStateException("Merged row vanished")
         sync.updateMergedLink(
@@ -195,11 +210,13 @@ internal class TaskSyncMerger(
             dueDay = remote.dueDay ?: after.dayDate,
             remoteUndated = remote.dueDay == null,
             remoteParentId = remote.parentRemoteId,
-            contentHash = TaskSyncRules.contentHash(after, hashParentOf(after)),
+            priority = theirs?.priority,
+            reminder = theirs?.reminderMinute,
+            contentHash = hashOf(after),
             now = clock()
         )
         sendBackWhatDiffers(after, remote)
-        return if (takeWords || takeDone || takeDue) Result.APPLIED else Result.UNCHANGED
+        return if (takeWords || takeDone || takeDue || takePriority || takeReminder) Result.APPLIED else Result.UNCHANGED
     }
 
     /**
@@ -238,10 +255,13 @@ internal class TaskSyncMerger(
         val text = TaskSyncRules.textToSend(task)
         val parentLink = task.parentTaskId?.let { sync.getLink(it) }
         val tabletParent = parentLink?.takeIf { it.listId == link.listId }?.remoteId
+        val due = dueSent(task, link)
+        val theirs = remote.extras?.takeIf { extras }
         val differs = (text != null && text != remote.title) ||
             task.isCompleted != remote.completed ||
-            dueSent(task, link) != remote.dueDay ||
-            tabletParent != link.syncedParentRemoteId
+            due != remote.dueDay ||
+            tabletParent != link.syncedParentRemoteId ||
+            (theirs != null && TaskSyncRules.extras(task, due) != theirs)
         if (differs) sync.queueUpsert(task.id, clock()) else tasks.dropQueuedSyncUpsert(task.id)
     }
 
@@ -261,7 +281,7 @@ internal class TaskSyncMerger(
         if (remote.completed || remote.title.isBlank()) return Result.UNCHANGED
         // On its due day; undated, on the day it first comes (owner decision 1)
         val day = remote.dueDay ?: today()
-        val added = tablet.add(day, remote.title, remote.dueDay) { row -> sync.insertLink(linkFor(row, remote)) }
+        val added = tablet.add(day, remote.title, remote.dueDay, remote.extras?.takeIf { extras }) { row -> sync.insertLink(linkFor(row, remote)) }
         return if (added) Result.APPLIED else Result.WAITS
     }
 
@@ -283,7 +303,9 @@ internal class TaskSyncMerger(
             // Each side keeps its own grouping (owner decision 24)
             syncedParentRemoteId = parentLink?.takeIf { it.listId == remote.listId }?.remoteId,
             remoteParentId = remote.parentRemoteId,
-            contentHash = TaskSyncRules.contentHash(task, parentLink?.remoteId),
+            syncedPriority = remote.extras?.takeIf { extras }?.priority,
+            syncedReminder = remote.extras?.takeIf { extras }?.reminderMinute,
+            contentHash = TaskSyncRules.contentHash(task, parentLink?.remoteId, extras),
             syncedAt = clock()
         )
     }
@@ -295,6 +317,9 @@ internal class TaskSyncMerger(
 
     /** The parent's copy as the change watcher hashes it (TaskSyncScanner). */
     private fun hashParentOf(task: Task): String? = task.parentTaskId?.let { sync.getLink(it)?.remoteId }
+
+    /** The task's hash as the change watcher computes it. */
+    private fun hashOf(task: Task): String = TaskSyncRules.contentHash(task, hashParentOf(task), extras)
 
     private inline fun notNowIsWaits(block: () -> Result): Result = try {
         block()

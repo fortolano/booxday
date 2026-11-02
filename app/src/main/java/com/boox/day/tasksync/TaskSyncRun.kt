@@ -4,13 +4,11 @@ import android.content.Context
 import android.util.Log
 import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.db.AppDatabase
-import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.data.model.ProviderId
 import com.boox.day.editor.DrawCanvas
 import com.boox.day.ocr.TaskTextExtractor
 import com.boox.day.sync.SingleFlight
 import com.boox.day.sync.workerAppSettings
-import com.boox.day.tasksync.google.GoogleTasksProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -58,34 +56,37 @@ internal object TaskSyncRun {
     }
 
     private suspend fun moveNow(app: Context, taskId: String, listId: String): String {
-        val email = TaskSync.account(app)
-        if (!TaskSync.isOn(app) || email == null || workerAppSettings(app).syncMode != AppSettings.SyncMode.HYBRID) {
+        val target = TaskSync.target(app)
+        if (!TaskSync.isOn(app) || target == null || workerAppSettings(app).syncMode != AppSettings.SyncMode.HYBRID) {
             return "Task Sync is off, so the task stays where it is."
         }
         val db = AppDatabase.getDatabase(app)
-        val provider = TaskSyncProvider.GOOGLE_TASKS
-        val lists = db.taskSyncDao().getListsFor(provider, email, "")
+        val provider = target.provider
+        val email = target.accountEmail
+        val server = target.serverUrl
+        val lists = db.taskSyncDao().getListsFor(provider, email, server)
         val name = lists.firstOrNull { it.listId == listId }?.title ?: return "That list isn't synced any more."
         val from = db.taskSyncDao().getLink(taskId)?.listId?.let { id -> lists.firstOrNull { it.listId == id }?.title }
         val stays = from?.let { "It stays in $it." } ?: "It stays where it is."
-        val service = GoogleTasksProvider.create(app, email)
         return try {
+            val service = target.service(app)
             if (db.taskSyncDao().getLink(taskId) == null) {
-                val merger = TaskSyncMerger(db, RepositoryTabletTasks(app), provider, email, service = service)
-                val sent = TaskSyncSender(db, service, merger, email, prefs = TaskSync.prefs(app)).sendNewTo(taskId, listId)
+                val merger = TaskSyncMerger(db, RepositoryTabletTasks(app), provider, email, server, service = service)
+                val sent = TaskSyncSender(db, service, merger, email, server, prefs = TaskSync.prefs(app)).sendNewTo(taskId, listId)
                 if (sent) "Moved to $name." else "The words of this task aren't read yet. Try again in a moment."
-            } else when (TaskSyncListMover(db, service, email).move(taskId, listId)) {
+            } else when (TaskSyncListMover(db, service, email, server).move(taskId, listId)) {
                 TaskSyncListMover.Outcome.MOVED, TaskSyncListMover.Outcome.ALREADY_THERE -> "Moved to $name."
-                TaskSyncListMover.Outcome.REFUSED -> "Google doesn't move repeating tasks to another list. $stays"
+                TaskSyncListMover.Outcome.REFUSED -> "${target.shortName} doesn't move repeating tasks to another list. $stays"
                 TaskSyncListMover.Outcome.SUBTASK -> "A subtask moves with its main task."
-                TaskSyncListMover.Outcome.NOT_SYNCED -> "This task isn't synced with Google Tasks."
+                TaskSyncListMover.Outcome.NOT_SYNCED -> "This task isn't synced with ${target.serviceName}."
             }
         } catch (e: TaskSyncServiceException.Offline) {
-            "No connection to Google. $stays"
+            "No connection to ${target.shortName}. $stays"
         } catch (e: TaskSyncServiceException.SignInNeeded) {
-            "Task Sync needs you to sign in again (Settings → Preferences → Task Sync). $stays"
+            if (target.isGoogle) "Task Sync needs you to sign in again (Settings → Preferences → Task Sync). $stays"
+            else "${target.shortName} refused the password. Sign in again in Settings → Calendar Accounts. $stays"
         } catch (e: TaskSyncServiceException.Busy) {
-            "Google is busy. Try again in a moment. $stays"
+            "${target.shortName} is busy. Try again in a moment. $stays"
         } catch (e: Exception) {
             Log.w(TAG, "Move to another list failed (${e.javaClass.simpleName})")  // never the message: it can hold words
             "The task couldn't be moved. Try again in a moment. $stays"
@@ -107,22 +108,25 @@ internal object TaskSyncRun {
         if (!TaskSync.isOn(app)) return Result.OFF
         // Cloud Sync only (plan step 2.6): Private Mode keeps everything on the tablet
         if (workerAppSettings(app).syncMode != AppSettings.SyncMode.HYBRID) return Result.OFF
-        val email = TaskSync.account(app) ?: return Result.OFF
+        val target = TaskSync.target(app) ?: return Result.OFF
+        val email = target.accountEmail
+        val server = target.serverUrl
         val db = AppDatabase.getDatabase(app)
         // The account was removed in Calendar Accounts: sync stops and asks for the user (plan 2.1).
-        // Android may still hold the account, so Google would go on answering without this check.
-        val accountGone = db.connectedAccountDao().getByEmail(ProviderId.GOOGLE.key, "", email) == null
+        // Android may still hold a Google account, so Google would go on answering without this check.
+        val accountKey = if (target.isGoogle) ProviderId.GOOGLE.key else ProviderId.CALDAV.key
+        val accountGone = db.connectedAccountDao().getByEmail(accountKey, server, email) == null
         TaskSync.recordAccountGone(app, accountGone)
         if (accountGone) return TaskSync.recordRun(app, Result.NEEDS_RECONNECT)
-        val provider = TaskSyncProvider.GOOGLE_TASKS
-        if (db.taskSyncDao().getListsFor(provider, email, "").isEmpty()) return TaskSync.recordRun(app, Result.NO_LIST)
+        val provider = target.provider
+        if (db.taskSyncDao().getListsFor(provider, email, server).isEmpty()) return TaskSync.recordRun(app, Result.NO_LIST)
 
         TaskSync.scanner(app).scan(System.currentTimeMillis(), LocalDate.now().toString(), wordsSettled = handwritingNow)
-        val service = GoogleTasksProvider.create(app, email)
-        val merger = TaskSyncMerger(db, RepositoryTabletTasks(app), provider, email, service = service)
         val result = try {
-            val pulled = TaskSyncPuller(db, service, merger, email).pull()
-            val sent = TaskSyncSender(db, service, merger, email, prefs = TaskSync.prefs(app)).sendDue()
+            val service = target.service(app)
+            val merger = TaskSyncMerger(db, RepositoryTabletTasks(app), provider, email, server, service = service)
+            val pulled = TaskSyncPuller(db, service, merger, email, server).pull()
+            val sent = TaskSyncSender(db, service, merger, email, server, prefs = TaskSync.prefs(app)).sendDue()
             Log.i(TAG, "Merged ${pulled.merged}, ${pulled.waiting} waiting; send: ${sent.javaClass.simpleName}")
             when (sent) {
                 is TaskSyncSender.Outcome.Sent -> if (pulled.failedLists > 0) Result.FAILED else Result.DONE

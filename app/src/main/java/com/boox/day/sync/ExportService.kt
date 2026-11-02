@@ -346,7 +346,9 @@ class ExportService(
         syncedAt = syncedAt,
         remoteParentId = remoteParentId,
         keptOnTablet = keptOnTablet,
-        keptReason = keptReason
+        keptReason = keptReason,
+        syncedPriority = syncedPriority,
+        syncedReminder = syncedReminder
     )
 
     private fun Stroke.toBackup() = BackupStroke(

@@ -18,6 +18,7 @@ import com.boox.day.data.db.MIGRATION_28_29
 import com.boox.day.data.db.MIGRATION_29_30
 import com.boox.day.data.db.MIGRATION_30_31
 import com.boox.day.data.db.MIGRATION_31_32
+import com.boox.day.data.db.MIGRATION_32_33
 import com.boox.day.data.db.TaskSyncSchema
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -396,6 +397,28 @@ class MigrationTest {
             assertEquals("me@gmail.com", c.getString(0))
         }
         migratedDb.query("SELECT COUNT(*) FROM caldav_resource").use { c -> assertTrue(c.moveToFirst()) }
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate32To33_addsCalDavTaskFilesAndLinkExtras() {
+        val dbName = "migration-test-32-33"
+        helper.createDatabase(dbName, 32).apply {
+            execSQL(
+                "INSERT INTO task_sync_link (taskId, provider, accountEmail, serverUrl, listId, remoteId, syncedTitle, syncedCompleted, " +
+                    "syncedDueDay, remoteUndated, syncedAt, keptOnTablet) VALUES ('t-1', 'GOOGLE_TASKS', 'me@gmail.com', '', 'l-1', 'r-1', 'Milk', 0, '2026-11-03', 0, 1, 0)"
+            )
+            close()
+        }
+
+        val migratedDb = helper.runMigrationsAndValidate(dbName, 33, true, MIGRATION_32_33)
+
+        migratedDb.query("SELECT syncedTitle, syncedPriority FROM task_sync_link WHERE taskId = 't-1'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Milk", c.getString(0))
+            assertTrue(c.isNull(1))
+        }
+        migratedDb.query("SELECT COUNT(*) FROM caldav_task_file").use { c -> assertTrue(c.moveToFirst()) }
     }
 
     @Test

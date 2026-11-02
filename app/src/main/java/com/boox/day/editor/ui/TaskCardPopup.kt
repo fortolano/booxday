@@ -73,7 +73,7 @@ import java.util.Locale
 enum class TaskCardScreen(val title: String) {
     Main(""), Text("Text"), Due("Due date"), Reminder("Reminder"), ReminderTime("Reminder time"),
     Repeat("Repeat"), RepeatStart("Repeat starts"), RepeatEnd("Repeat ends"), Subtasks("Subtasks"),
-    List("Google Tasks list");
+    List("Task list");
 
     /** Where Back goes; null on the main list (Back closes the card). */
     val parent: TaskCardScreen?
@@ -109,7 +109,9 @@ data class TaskCardList(
     /** Why it can't be changed here ("with its main task"), or null. */
     val fixedReason: String? = null,
     /** The list it is being moved to right now (owner decision 57), or null. */
-    val movingToId: String? = null
+    val movingToId: String? = null,
+    /** The service, for the List screen's title ("Google Tasks list", "Nextcloud list"; owner decision 68). */
+    val serviceName: String = "Google Tasks"
 )
 
 class TaskCardActions(
@@ -330,10 +332,10 @@ private fun MainList(
     }
 }
 
-/** The Google Tasks lists BooxDay syncs; picking one moves the task there (owner decision 47). */
+/** The task lists BooxDay syncs; picking one moves the task there (owner decision 47). */
 @Composable
 private fun ColumnScope.ListScreen(list: TaskCardList, subtitle: String, go: (TaskCardScreen) -> Unit, actions: TaskCardActions) {
-    Header(TaskCardScreen.List.title, subtitle)
+    Header("${list.serviceName} list", subtitle)
     for ((id, name) in list.lists) {
         ChoiceLine(name, id == list.currentId) {
             if (id != list.currentId) actions.onListChange?.invoke(id)

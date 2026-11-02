@@ -44,14 +44,28 @@ internal object TaskSyncRules {
      */
     fun dueDay(task: Task): String = task.dueDay ?: task.dayDate
 
+    /** "", "A", "B" or "C": anything else counts as none. */
+    fun priority(task: Task): String = task.priority.takeIf { it in PRIORITIES }.orEmpty()
+
+    private val PRIORITIES = setOf("A", "B", "C")
+
     /**
-     * The synced fields, hashed: words, done mark, due day, parent. Not updatedAt, which
-     * recognition rewrites on every row of a page. The parent is its synced copy's id, which moves
-     * with it, not its row id, which changes when it moves.
+     * Priority and reminder as sent with [dueDay]: a reminder only with a due day (it is a time on
+     * that day), so a task sent undated has none.
      */
-    fun contentHash(task: Task, parentRemoteId: String?): String {
+    fun extras(task: Task, dueDay: String?): TaskExtras =
+        TaskExtras(priority(task), task.reminderMinuteOfDay?.takeIf { dueDay != null })
+
+    /**
+     * The synced fields, hashed: words, done mark, due day, parent, and with [extras] (a service that
+     * carries them) priority and reminder time. Not updatedAt, which recognition rewrites on every row
+     * of a page. The parent is its synced copy's id, which moves with it, not its row id, which
+     * changes when it moves. Without [extras] the hash is the one links made before v33 hold.
+     */
+    fun contentHash(task: Task, parentRemoteId: String?, extras: Boolean = false): String {
         val parent = parentRemoteId ?: if (task.parentTaskId != null) "local" else ""
-        val fields = listOf(textToSend(task).orEmpty(), task.isCompleted.toString(), dueDay(task), parent)
+        val fields = listOf(textToSend(task).orEmpty(), task.isCompleted.toString(), dueDay(task), parent) +
+            if (extras) listOf(priority(task), task.reminderMinuteOfDay?.toString().orEmpty()) else emptyList()
         val digest = MessageDigest.getInstance("SHA-256").digest(fields.joinToString("\u0000").toByteArray(Charsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
     }
