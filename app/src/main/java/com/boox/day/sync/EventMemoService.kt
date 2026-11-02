@@ -136,7 +136,7 @@ class EventMemoService(context: Context) {
             // Add the header text annotation
             addEventHeader(targetPageId, event)
 
-            Log.i(TAG, "Created memo for event '${event.title}' on ${event.dayId}: page $targetPageId")
+            Log.i(TAG, "Created memo for event on ${event.dayId}: page $targetPageId")
             MemoResult.Created(targetPageId, event.dayId)
 
         } catch (e: Exception) {

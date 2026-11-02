@@ -509,7 +509,7 @@ class MultiAccountSyncManager(
 
             // Log if we had to use fallback
             if (!hasPrimaryCalendar && providerCalendars.isNotEmpty()) {
-                Log.w(TAG, "No primary calendar found for account $accountId - auto-enabled first calendar: ${providerCalendars.first().name}")
+                Log.w(TAG, "No primary calendar found for account $accountId - the first calendar is the default")
             }
 
             // Save updated selections
@@ -980,7 +980,7 @@ class MultiAccountSyncManager(
             refreshSemanticProfileForEvent(calendarEvent)
             refreshSmartLinksForEvents(listOf(calendarEvent), "cloud event created")
 
-            Log.i(TAG, "Created event: ${calendarEvent.title}")
+            Log.i(TAG, "Created event: ${calendarEvent.id}")
             Result.success(calendarEvent)
 
         } catch (e: Exception) {
@@ -1033,7 +1033,7 @@ class MultiAccountSyncManager(
                 reason = "cloud event updated"
             )
 
-            Log.i(TAG, "Updated event: ${calendarEvent.title}")
+            Log.i(TAG, "Updated event: ${calendarEvent.id}")
             Result.success(calendarEvent)
 
         } catch (e: Exception) {

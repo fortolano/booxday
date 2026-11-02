@@ -105,7 +105,7 @@ class LocalCalendarRepository(private val context: Context) {
         )
 
         dao.insert(calendar)
-        Log.i(TAG, "CREATE: Calendar '${calendar.name}' created with id=${calendar.id}, sortOrder=$nextOrder")
+        Log.i(TAG, "CREATE: Calendar created with id=${calendar.id}, sortOrder=$nextOrder")
         return calendar
     }
 

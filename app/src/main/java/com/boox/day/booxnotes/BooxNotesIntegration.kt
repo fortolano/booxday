@@ -208,7 +208,7 @@ class BooxNotesIntegration(private val context: Context) {
 
     /** Open an existing note through BOOX's direct document route, then older middleware. */
     fun openNote(uniqueId: String, title: String? = null) {
-        Log.i(TAG, "Opening Boox note (title: $title)")
+        Log.i(TAG, "Opening Boox note (title: ${title?.length ?: 0} chars)")
         try {
             context.startActivity(BooxNoteIntents.direct(uniqueId))
             return

@@ -395,7 +395,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
 
                     _lastOperationMessage.value = "Event created"
                     _lastOperationSuccess.value = true
-                    Log.i(TAG, "Local event created: ${localEvent.title}")
+                    Log.i(TAG, "Local event created: ${localEvent.id}")
 
                     // Convert to CalendarEvent for callback compatibility
                     val calendarEvent = localEvent.toCalendarEvent()
@@ -827,7 +827,7 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
 
                     _lastOperationMessage.value = "Event updated"
                     _lastOperationSuccess.value = true
-                    Log.i(TAG, "Local event updated: ${updatedEvent.title}")
+                    Log.i(TAG, "Local event updated: ${updatedEvent.id}")
 
                     val calendarEvent = updatedEvent.toCalendarEvent()
                     _selectedEvent.value = calendarEvent

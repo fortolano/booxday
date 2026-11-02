@@ -305,7 +305,7 @@ class CalendarSyncManager(
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error converting event: ${event.summary}", e)
+                    Log.e(TAG, "Error converting event: ${event.id}", e)
                 }
             }
 

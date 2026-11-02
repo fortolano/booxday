@@ -747,7 +747,7 @@ fun SharedToolbar(
                 // Fallback: plain text without formatting
                 voiceResultText = text
                 voiceResultSpans = null
-                toolbarLog.i("Voice text received (plain): $text")
+                toolbarLog.i("Voice text received (plain): ${text.length} chars")
                 isVoiceInputDialogOpen = false
             },
             onFormattedTextReceived = { plainText, markdownText, spansJson ->
@@ -1043,7 +1043,7 @@ fun SharedToolbar(
                         val clip = android.content.ClipData.newPlainText("Summary", action.summary)
                         clipboard.setPrimaryClip(clip)
                         android.widget.Toast.makeText(context, "Summary copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
-                        toolbarLog.i("Summary copied to clipboard: ${action.summary.take(50)}...")
+                        toolbarLog.i("Summary copied to clipboard: ${action.summary.length} chars")
                     }
                     is SummarizationAction.PlaceOnNewPage -> {
                         // Split text if needed and place on new page(s)

@@ -161,7 +161,7 @@ class HandwritingNormalizer private constructor(
             return result
 
         } catch (e: Exception) {
-            Log.e(TAG, "Normalization failed for '$text' [$languageTag]: ${e.message}")
+            Log.e(TAG, "Normalization failed for ${text.length} chars [$languageTag]: ${e.javaClass.simpleName}")
             return text
         }
     }

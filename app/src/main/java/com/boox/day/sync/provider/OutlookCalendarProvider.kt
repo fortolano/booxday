@@ -345,7 +345,7 @@ class OutlookCalendarProvider(
 
             result.fold(
                 onSuccess = { createdEvent ->
-                    Log.i(TAG, "Created event: ${createdEvent.title}")
+                    Log.i(TAG, "Created event")
                     Result.success(createdEvent)
                 },
                 onFailure = { e ->
@@ -379,7 +379,7 @@ class OutlookCalendarProvider(
 
             result.fold(
                 onSuccess = { updatedEvent ->
-                    Log.i(TAG, "Updated event: ${updatedEvent.title}")
+                    Log.i(TAG, "Updated event")
                     Result.success(updatedEvent)
                 },
                 onFailure = { e ->

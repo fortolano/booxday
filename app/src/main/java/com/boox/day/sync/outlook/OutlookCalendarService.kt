@@ -329,7 +329,7 @@ class OutlookCalendarService(
             val createdEvent = parseEvent(eventObj, calendarId)
 
             if (createdEvent != null) {
-                Log.i(TAG, "Created event: ${createdEvent.title}")
+                Log.i(TAG, "Created event")
                 Result.success(createdEvent)
             } else {
                 Result.failure(IOException("Failed to parse created event response"))
@@ -365,7 +365,7 @@ class OutlookCalendarService(
             val updatedEvent = parseEvent(eventObj, calendarId)
 
             if (updatedEvent != null) {
-                Log.i(TAG, "Updated event: ${updatedEvent.title}")
+                Log.i(TAG, "Updated event")
                 Result.success(updatedEvent)
             } else {
                 Result.failure(IOException("Failed to parse updated event response"))

@@ -49,7 +49,7 @@ object UniversalHandwritingNormalizer {
             return result
 
         } catch (e: Exception) {
-            Log.e(TAG, "Normalization failed for '$text': ${e.message}")
+            Log.e(TAG, "Normalization failed for ${text.length} chars: ${e.javaClass.simpleName}")
             return text
         }
     }

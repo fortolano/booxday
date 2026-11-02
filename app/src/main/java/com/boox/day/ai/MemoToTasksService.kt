@@ -364,7 +364,7 @@ Use this context to:
                     error = "No text detected in selection. Please write some notes first."
                 )
             }
-            log.i("Converting recognized text to tasks: ${recognizedText.take(200)}...")
+            log.i("Converting recognized text to tasks: ${recognizedText.length} chars")
 
             // Stage 2: Semantic correction
             onStageChange("Cleaning up and fixing errors...")
