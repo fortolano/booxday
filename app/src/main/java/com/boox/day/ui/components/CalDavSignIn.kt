@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.boox.day.data.model.AccountType
 import com.boox.day.data.model.ConnectedAccount
+import com.boox.day.data.model.ProviderId
+import com.boox.day.data.model.serviceName
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 
@@ -252,7 +254,8 @@ internal fun CalDavSignInContent(
     val text = calDavFormText(state.type)
     Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)) {
         Text(
-            text = if (state.again) "Sign In to ${state.type.displayName} Again" else text.title,
+            // The service, or the server for Other ("Sign In to dav.example.com Again"), as on the account row
+            text = if (state.again) "Sign In to ${serviceName(ProviderId.CALDAV, state.type, state.address)} Again" else text.title,
             fontSize = EInkTheme.PopupOverlay.titleFontSize,
             fontWeight = FontWeight.Bold,
             color = EInkTheme.PopupOverlay.titleColor
