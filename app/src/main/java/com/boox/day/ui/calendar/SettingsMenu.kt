@@ -382,7 +382,7 @@ private fun StandaloneTooltip(
                 }
 
                 Text(
-                    text = "Google and Outlook accounts can only be connected in Cloud Sync mode.",
+                    text = "Calendar accounts can only be connected in Cloud Sync mode.",
                     fontSize = EInkTheme.Typography.bodyMedium,
                     color = EInkTheme.Colors.darkGray
                 )

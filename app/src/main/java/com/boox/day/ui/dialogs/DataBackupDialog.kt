@@ -1099,7 +1099,7 @@ private fun WipeAllDataConfirmationDialog(
 
                 // Oct 2026: say what stays, so nobody believes it is gone
                 Text(
-                    text = "Not erased: your Google or Outlook calendars online, " +
+                    text = "Not erased: your Google, Outlook or iCloud calendars online, " +
                             (if (com.boox.day.BuildConfig.TASK_SYNC_ENABLED) "your tasks in Google Tasks, " else "") +
                             "Google Drive backups and " +
                             "Android's own backup, files saved to Documents or Downloads (exports, backups, " +

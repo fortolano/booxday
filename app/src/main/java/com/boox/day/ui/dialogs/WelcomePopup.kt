@@ -139,7 +139,7 @@ fun WelcomePopup(
                             )
                             FeatureRow(
                                 icon = { Icon(Icons.Default.CalendarMonth, null, Modifier.size(20.dp), tint = EInkTheme.Colors.primary) },
-                                text = "See your Google and Outlook calendars"
+                                text = "See your Google, Outlook and iCloud calendars"
                             )
                             FeatureRow(
                                 icon = { Icon(Icons.Default.AutoAwesome, null, Modifier.size(20.dp), tint = EInkTheme.Colors.primary) },

@@ -106,7 +106,7 @@ fun AddAccountPromptPopup(
 
                 // Explanation
                 Text(
-                    text = "Cloud Sync is now enabled. Connect Google or Outlook to see your cloud calendars alongside your on-device calendars.",
+                    text = "Cloud Sync is now enabled. Connect Google, Outlook or iCloud to see your cloud calendars alongside your on-device calendars.",
                     fontSize = EInkTheme.Typography.bodyMedium,
                     color = EInkTheme.Colors.darkGray,
                     lineHeight = 20.sp
@@ -142,6 +142,9 @@ fun AddAccountPromptPopup(
                         modifier = Modifier.size(32.dp),
                         tint = androidx.compose.ui.graphics.Color.Unspecified
                     )
+                    Spacer(modifier = Modifier.width(24.dp))
+                    // iCloud and other calendars (plan step 3.8)
+                    com.boox.day.ui.components.CalDavMark(32.dp)
                 }
 
                 Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))

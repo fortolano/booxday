@@ -27,14 +27,14 @@
 <main>
   <a class="back" href="../">BooxDay home</a>
   <h1>BooxDay Privacy Policy</h1>
-  <p class="meta">Last updated: 30 October 2026</p>
+  <p class="meta">Last updated: 2 November 2026</p>
 
   <div class="box">
     <p><strong>In short:</strong></p>
     <ul>
       <li>BooxDay has no server and no user accounts of its own. The developer never receives your data.</li>
-      <li>Your planner, including calendar data from Google or Outlook, is stored on your tablet.</li>
-      <li>Data leaves your tablet only for features you use: to Google or Microsoft to sync your calendar or save backups, to Google Tasks to sync your tasks if you turn on Task Sync, and to OpenRouter when you use AI features with your own OpenRouter account.</li>
+      <li>Your planner, including calendar data from Google, Outlook, iCloud or another calendar server you add, is stored on your tablet.</li>
+      <li>Data leaves your tablet only for features you use: to Google or Microsoft to sync your calendar or save backups, to the calendar server you add (such as iCloud) to sync its calendars, to Google Tasks to sync your tasks if you turn on Task Sync, and to OpenRouter when you use AI features with your own OpenRouter account.</li>
       <li>No ads, no analytics, no tracking. Your data is never sold.</li>
     </ul>
   </div>
@@ -83,6 +83,12 @@
   <h2>Microsoft Outlook data</h2>
   <p>If you connect an Outlook or Microsoft 365 account, BooxDay uses Microsoft sign-in with the permissions to read your basic profile and to read and write your calendars. It uses your calendars and events the same way as Google Calendar data above: stored on your tablet, synced with Microsoft, and sent to OpenRouter only by the AI features described below. Microsoft sign-in tokens are kept on the tablet by Microsoft's sign-in library.</p>
 
+  <h2>iCloud and other calendar servers (CalDAV)</h2>
+  <p>If you add an iCloud, Fastmail, Nextcloud or other calendar account (Settings → Calendar Accounts → iCloud &amp; more), BooxDay connects directly to that account's server with the address, name and password you type. It reads the list of your calendars (names and colours) and, on the calendars you choose to sync, each event from two months back to three months ahead. It keeps each event as the server sent it, so that a change saved in BooxDay keeps the parts BooxDay doesn't show, such as alarms and guests.</p>
+  <p>BooxDay writes to the server only when you save or delete an event in BooxDay. It never adds guests to these events, so the server sends no invitations.</p>
+  <p>Your password is stored encrypted on the tablet, is sent only to that server, and is never included in backups (BooxDay's or Android's). If your server uses its own security certificate, as home servers often do, BooxDay connects only after you choose Trust This Server, and remembers that certificate.</p>
+  <p>These events are used the same way as Google Calendar data above: stored on your tablet, synced with your server, and sent to OpenRouter only by the AI features described below.</p>
+
   <h2>AI features (OpenRouter)</h2>
   <p>AI features are optional and work only after you connect your own <a href="https://openrouter.ai">OpenRouter</a> account. BooxDay has no AI key of its own. When you use an AI feature, BooxDay sends what that feature needs to OpenRouter, which passes it to the AI model provider that answers. OpenRouter and that provider handle it under their own privacy policies (<a href="https://openrouter.ai/privacy">OpenRouter's privacy policy</a>). You can control which providers your account may use in your OpenRouter settings. With AI Features off (Settings → AI Settings), BooxDay sends none of your data to OpenRouter.</p>
   <ul>
@@ -114,19 +120,19 @@
     <li><strong>Update check</strong>: shortly after it starts, BooxDay asks GitHub whether a newer version exists. The request carries only the app version.</li>
     <li><strong>Handwriting recognition</strong> for tasks runs on the tablet. Its language models are downloaded from Google the first time.</li>
   </ul>
-  <p>Like any internet request, these connections reveal your IP address to the server you connect to (Google, Microsoft, OpenRouter, GitHub).</p>
+  <p>Like any internet request, these connections reveal your IP address to the server you connect to (Google, Microsoft, your calendar server, OpenRouter, GitHub).</p>
 
   <h2>Keeping and deleting your data</h2>
   <ul>
     <li>Your data stays on the tablet until you delete it or uninstall BooxDay.</li>
-    <li><strong>Removing a Google or Outlook account</strong> in BooxDay (Settings → Calendar Accounts) deletes the events BooxDay downloaded for that account, and the account's email address, name and calendar choices. Removing the last Google account also withdraws BooxDay's access to your Google account. Turning Task Sync off stops it. Your tasks stay on the tablet and in Google Tasks. Removing the Google account it uses stops it too.</li>
+    <li><strong>Removing a calendar account</strong> in BooxDay (Settings → Calendar Accounts) deletes the events BooxDay downloaded for that account, and the account's email address, name and calendar choices; for an iCloud or other calendar server, also its saved password and trusted certificate. Removing the last Google account also withdraws BooxDay's access to your Google account. Turning Task Sync off stops it. Your tasks stay on the tablet and in Google Tasks. Removing the Google account it uses stops it too.</li>
     <li>You can withdraw BooxDay's access to your Google account at any time at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
     <li>Backups in your Google Drive stay in the "BooxDay Backups" folder until you delete them there.</li>
     <li>Uninstalling BooxDay deletes everything in its private storage. Files it saved in shared folders (sleep screen pictures, daily notes, exports) stay until you delete them.</li>
   </ul>
 
   <h2>Security</h2>
-  <p>Connections to Google, Microsoft, OpenRouter and GitHub use HTTPS. Sign-in tokens are kept by Google Play services and Microsoft's sign-in library, and BooxDay stores your keys in encrypted storage on the tablet.</p>
+  <p>Connections to Google, Microsoft, your calendar server, OpenRouter and GitHub use HTTPS; BooxDay doesn't connect to a calendar server over plain http. Sign-in tokens are kept by Google Play services and Microsoft's sign-in library, and BooxDay stores your keys and calendar passwords in encrypted storage on the tablet.</p>
 
   <h2>Children</h2>
   <p>BooxDay is not directed at children under 13.</p>

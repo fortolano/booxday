@@ -419,7 +419,7 @@ private fun SmartLinkBlocked(status: SmartLinkPreflightStatus, onBack: () -> Uni
         )
         SmartLinkPreflightState.FILTERS_HIDE_ALL_ELIGIBLE_EVENTS -> Triple(
             "Your calendar filters hide every event",
-            "The Local, Google and Outlook filters in the events panel hide all the events Smart Link could use.",
+            "The calendar filters in the events panel hide all the events Smart Link could use.",
             "Events panel › turn on a calendar that has events"
         )
         SmartLinkPreflightState.NO_ELIGIBLE_TIMED_EVENTS -> Triple(
@@ -434,7 +434,7 @@ private fun SmartLinkBlocked(status: SmartLinkPreflightStatus, onBack: () -> Uni
         )
         else -> Triple(
             "No calendar events",
-            "Smart Link matches your Boox Notes to calendar events. Connect a Google or Outlook account, or add events in BooxDay.",
+            "Smart Link matches your Boox Notes to calendar events. Connect a calendar account (Google, Outlook, iCloud and more), or add events in BooxDay.",
             "Open Calendar Accounts and tap Add Account"
         )
     }

@@ -466,7 +466,7 @@ private fun DisplayModeTabContent(
                 color = EInkTheme.Colors.primary
             )
             Text(
-                text = "• Already use Google or Outlook calendars",
+                text = "• Already use Google, Outlook or iCloud calendars",
                 fontSize = EInkTheme.Typography.bodySmall,
                 color = EInkTheme.Colors.darkGray
             )
@@ -583,7 +583,7 @@ private fun CalendarsTabContent(
                 Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
 
                 Text(
-                    text = "All your calendars stay on this device. To connect Google or Outlook calendars, switch to Cloud Sync in the Mode & Display tab.",
+                    text = "All your calendars stay on this device. To connect Google, Outlook or iCloud calendars, switch to Cloud Sync in the Mode & Display tab.",
                     fontSize = EInkTheme.Typography.bodySmall,
                     color = EInkTheme.Colors.darkGray,
                     textAlign = TextAlign.Center
@@ -664,7 +664,7 @@ private fun NoAccountsContent(onOpenCalendarAccounts: () -> Unit) {
         )
 
         Text(
-            text = "Connect a Google or Outlook account to see your cloud calendars alongside your on-device calendars.",
+            text = "Connect a Google, Outlook or iCloud account to see your cloud calendars alongside your on-device calendars.",
             fontSize = EInkTheme.Typography.bodyMedium,
             color = EInkTheme.Colors.darkGray,
             textAlign = TextAlign.Center
@@ -714,7 +714,7 @@ private fun NoAccountsContent(onOpenCalendarAccounts: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
                 Text(
-                    text = "• See events from Google/Outlook calendars",
+                    text = "• See events from Google, Outlook and iCloud calendars",
                     fontSize = EInkTheme.Typography.bodySmall,
                     color = EInkTheme.Colors.darkGray
                 )

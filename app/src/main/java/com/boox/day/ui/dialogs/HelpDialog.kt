@@ -558,6 +558,9 @@ private fun TaskManagementContent() {
     }
 }
 
+/** Where an iCloud or other CalDAV account's password goes (plan step 3.8). */
+private const val CALDAV_PASSWORD_HELP = "The password of an iCloud or other account stays on the tablet, encrypted, and goes only to its server."
+
 /** Task sync's texts show only in builds that have it (owner decision 36: release builds until Google approves). */
 private val TASK_SYNC_AVAILABLE: Boolean get() = com.boox.day.BuildConfig.TASK_SYNC_ENABLED
 
@@ -576,12 +579,14 @@ private fun CalendarSyncContent() {
 
     SectionSubheader("Calendar Mode (Settings → Calendar & Sync)")
     BulletItem("Private Mode", "Everything stays on the tablet. No account needed.")
-    BulletItem("Cloud Sync", "Also shows your Google and Outlook calendars.")
+    BulletItem("Cloud Sync", "Also shows your Google, Outlook, iCloud and other calendars.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Accounts (Settings → Calendar Accounts)")
     BulletPoint("Add Gmail Account, Add Workspace Account, Add Outlook.com Account or Add Work/School Account.")
+    BulletPoint("On the iCloud & more tab: Add iCloud, Fastmail, Nextcloud or Other Account. These sign in with a password made for BooxDay; the form says where to make it.")
+    BulletPoint("A home server with its own security certificate asks Trust This Server? the first time.")
     BulletPoint("Disconnect removes an account from BooxDay.")
     BulletPoint("A new event goes to a Cloud Calendar when an account is connected. Under Save to, pick This device only to keep it on the tablet: it never syncs.")
     BulletPoint("Events sync from two months back to three months ahead.")
@@ -604,9 +609,11 @@ private fun CalendarSyncContent() {
     SectionSubheader("Privacy")
     BodyText(
         if (TASK_SYNC_AVAILABLE) {
-            "Calendar sync sends and receives events. With Task Sync on (Preferences), your tasks' words, done marks and dates also sync with Google Tasks; handwriting ink stays on the tablet. Memos are never synced. Drive backup, if you turn it on, copies memos and tasks to your own Google Drive."
+            "Calendar sync sends and receives events. With Task Sync on (Preferences), your tasks' words, done marks and dates also sync with Google Tasks; handwriting ink stays on the tablet. Memos are never synced. Drive backup, if you turn it on, copies memos and tasks to your own Google Drive. " +
+                CALDAV_PASSWORD_HELP
         } else {
-            "Calendar sync sends and receives events only. Memos and tasks are never synced; Drive backup, if you turn it on, copies them to your own Google Drive."
+            "Calendar sync sends and receives events only. Memos and tasks are never synced; Drive backup, if you turn it on, copies them to your own Google Drive. " +
+                CALDAV_PASSWORD_HELP
         }
     )
     BodyText("The marks on the calendar are in Key Legends.")
@@ -628,7 +635,7 @@ private fun SearchContent() {
     SectionSubheader("What It Finds")
     BulletItem("Memos and Boox Notes", "The words read from your handwriting, once the pages are indexed (see Smart Link).")
     BulletItem("Tasks", "Typed text, and handwriting read on the tablet.")
-    BulletItem("Events", "Google, Outlook and the tablet's own events.")
+    BulletItem("Events", "From your calendar accounts, and the tablet's own events.")
     BodyText("The filters All, Memos, Tasks, Events and Notes narrow the results.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))

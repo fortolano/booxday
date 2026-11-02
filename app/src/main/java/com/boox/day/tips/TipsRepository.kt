@@ -294,7 +294,7 @@ object TipsRepository {
         ),
         Tip(
             id = "events_sync",
-            message = "Add your Google or Outlook account in Settings → Calendar Accounts to see its events here.",
+            message = "Add your Google, Outlook or iCloud account in Settings → Calendar Accounts to see its events here.",
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
