@@ -34,7 +34,7 @@
     <ul>
       <li>BooxDay has no server and no user accounts of its own. The developer never receives your data.</li>
       <li>Your planner, including calendar data from Google, Outlook, iCloud or another calendar server you add, is stored on your tablet.</li>
-      <li>Data leaves your tablet only for features you use: to Google or Microsoft to sync your calendar or save backups, to the calendar server you add (such as iCloud) to sync its calendars, to Google Tasks to sync your tasks if you turn on Task Sync, and to OpenRouter when you use AI features with your own OpenRouter account.</li>
+      <li>Data leaves your tablet only for features you use: to Google or Microsoft to sync your calendar or save backups, to the calendar server you add (such as iCloud) to sync its calendars, to Google Tasks or the calendar server you add to sync your tasks if you turn on Task Sync, and to OpenRouter when you use AI features with your own OpenRouter account.</li>
       <li>No ads, no analytics, no tracking. Your data is never sold.</li>
     </ul>
   </div>
@@ -73,7 +73,7 @@
   <p>BooxDay doesn't sell Google user data, doesn't use it for advertising, and doesn't send it to the developer. No person reads it. BooxDay doesn't use Google user data to develop, improve or train AI or machine-learning models. Google user data leaves your tablet only in these cases:</p>
   <ul>
     <li><strong>Google</strong>, to sync your calendar, your tasks (if you turn on Task Sync) and Drive backups.</li>
-    <li><strong>OpenRouter</strong>, when you use an AI feature that needs your schedule (events and tasks, including tasks from Google Tasks), on your own OpenRouter account (see "AI features").</li>
+    <li><strong>OpenRouter</strong>, when you use an AI feature that needs your schedule (events and tasks, including synced tasks), on your own OpenRouter account (see "AI features").</li>
     <li><strong>Files you turn on</strong>: the sleep screen image and daily notes files, saved on your tablet (see below).</li>
     <li><strong>A crash report you choose to send</strong> (see "Crash reports").</li>
     <li><strong>Android's own device backup.</strong> If backup is turned on in your tablet's settings, Android may include BooxDay's data, which contains your synced calendar and task data, in the backup it saves to your Google account. This is an Android feature that you control in the tablet's settings.</li>
@@ -88,6 +88,7 @@
   <p>BooxDay writes to the server only when you save or delete an event in BooxDay. It never adds guests to these events, so the server sends no invitations.</p>
   <p>Your password is stored encrypted on the tablet, is sent only to that server, and is never included in backups (BooxDay's or Android's). If your server uses its own security certificate, as home servers often do, BooxDay connects only after you choose Trust This Server, and remembers that certificate.</p>
   <p>These events are used the same way as Google Calendar data above: stored on your tablet, synced with your server, and sent to OpenRouter only by the AI features described below.</p>
+  <p>If you turn on Task Sync with one of these accounts (not iCloud: Apple doesn't share Reminders with other apps), BooxDay also reads the names of its task lists and, in the lists you tick, each task, and saves to them the words, done mark, due date, priority, reminder time and subtasks of the tasks you write in BooxDay. It keeps each task as the server sent it, so a change saved in BooxDay keeps the parts BooxDay doesn't show, such as notes. Tasks that repeat are left as they are. A synced task you clear or delete in BooxDay is deleted on the server too.</p>
 
   <h2>AI features (OpenRouter)</h2>
   <p>AI features are optional and work only after you connect your own <a href="https://openrouter.ai">OpenRouter</a> account. BooxDay has no AI key of its own. When you use an AI feature, BooxDay sends what that feature needs to OpenRouter, which passes it to the AI model provider that answers. OpenRouter and that provider handle it under their own privacy policies (<a href="https://openrouter.ai/privacy">OpenRouter's privacy policy</a>). You can control which providers your account may use in your OpenRouter settings. With AI Features off (Settings → AI Settings), BooxDay sends none of your data to OpenRouter.</p>
@@ -110,7 +111,7 @@
   <p>Other apps that can read these folders, and any sync service you use for them, can see these files.</p>
 
   <h2>Other apps on your tablet</h2>
-  <p>BooxDay offers a tasks feed that other apps on the tablet can read: your task text, due dates, priorities and whether tasks are done, including tasks that came from Google Tasks when Task Sync is on. It doesn't include calendar events, account details or handwriting.</p>
+  <p>BooxDay offers a tasks feed that other apps on the tablet can read: your task text, due dates, priorities and whether tasks are done, including tasks that came from Google Tasks or your calendar server when Task Sync is on. It doesn't include calendar events, account details or handwriting.</p>
 
   <h2>Crash reports</h2>
   <p>If BooxDay closes unexpectedly, it saves a report on the tablet and offers it at the next start. Nothing is sent unless you tap Copy Report or Report on GitHub. The report contains technical details and recent lines from the app's own log. Email addresses in it are partly hidden, but it can contain some calendar event titles. Read it before posting it: reports on GitHub are public.</p>
@@ -125,7 +126,7 @@
   <h2>Keeping and deleting your data</h2>
   <ul>
     <li>Your data stays on the tablet until you delete it or uninstall BooxDay.</li>
-    <li><strong>Removing a calendar account</strong> in BooxDay (Settings → Calendar Accounts) deletes the events BooxDay downloaded for that account, and the account's email address, name and calendar choices; for an iCloud or other calendar server, also its saved password and trusted certificate. Removing the last Google account also withdraws BooxDay's access to your Google account. Turning Task Sync off stops it. Your tasks stay on the tablet and in Google Tasks. Removing the Google account it uses stops it too.</li>
+    <li><strong>Removing a calendar account</strong> in BooxDay (Settings → Calendar Accounts) deletes the events BooxDay downloaded for that account, and the account's email address, name and calendar choices; for an iCloud or other calendar server, also its saved password and trusted certificate. Removing the last Google account also withdraws BooxDay's access to your Google account. Turning Task Sync off stops it. Your tasks stay on the tablet and in Google Tasks or on your server. Removing the account it uses stops it too.</li>
     <li>You can withdraw BooxDay's access to your Google account at any time at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
     <li>Backups in your Google Drive stay in the "BooxDay Backups" folder until you delete them there.</li>
     <li>Uninstalling BooxDay deletes everything in its private storage. Files it saved in shared folders (sleep screen pictures, daily notes, exports) stay until you delete them.</li>

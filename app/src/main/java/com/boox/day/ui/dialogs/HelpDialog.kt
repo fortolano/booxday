@@ -550,11 +550,12 @@ private fun TaskManagementContent() {
         Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
         SectionSubheader("Task Sync (Settings → Preferences)")
-        BodyText("Keeps your tasks in step with Google Tasks on your phone. It's off until you turn it on, and it needs Cloud Sync and a Google account.")
-        BulletPoint("Goes to Google: a task's words (typed, or your handwriting as read), its done mark, its day or due date, and subtasks. Ink, priority, reminders and time estimates stay on the tablet.")
+        BodyText("Keeps your tasks in step with Google Tasks or a CalDAV server (Nextcloud, Fastmail and others) on your phone. It's off until you turn it on, and it needs Cloud Sync and that account in Calendar Accounts.")
+        BulletPoint("What syncs: a task's words (typed, or your handwriting as read), its done mark, its day or due date, and subtasks; with a CalDAV server also its priority and its own reminder time. Ink and time estimates stay on the tablet.")
         BulletPoint("Tasks from your phone come to their due day; tasks with no date come to today.")
-        BulletPoint("It syncs when you open BooxDay, about 30 seconds after you write, with the cloud button, and in the background on Sync frequency.")
-        BulletPoint("Clearing or deleting a synced task deletes it in Google too; more than 20 at once waits for your OK. Ticked tasks deleted on your phone stay on the tablet.")
+        BulletPoint("It syncs when you open BooxDay, about 10 seconds after you stop writing, with the cloud button, and in the background on Sync frequency.")
+        BulletPoint("Clearing or deleting a synced task deletes it on your phone's service too; more than 20 at once waits for your OK. Ticked tasks deleted on your phone stay on the tablet.")
+        BulletPoint("iCloud can't be used: Apple doesn't share Reminders with other apps. Tasks that repeat on your phone stay there and don't come to the tablet.")
     }
 }
 
@@ -609,7 +610,7 @@ private fun CalendarSyncContent() {
     SectionSubheader("Privacy")
     BodyText(
         if (TASK_SYNC_AVAILABLE) {
-            "Calendar sync sends and receives events. With Task Sync on (Preferences), your tasks' words, done marks and dates also sync with Google Tasks; handwriting ink stays on the tablet. Memos are never synced. Drive backup, if you turn it on, copies memos and tasks to your own Google Drive. " +
+            "Calendar sync sends and receives events. With Task Sync on (Preferences), your tasks' words, done marks and dates also sync with Google Tasks or your CalDAV server (with a CalDAV server also priority and reminder times); handwriting ink stays on the tablet. Memos are never synced. Drive backup, if you turn it on, copies memos and tasks to your own Google Drive. " +
                 CALDAV_PASSWORD_HELP
         } else {
             "Calendar sync sends and receives events only. Memos and tasks are never synced; Drive backup, if you turn it on, copies them to your own Google Drive. " +

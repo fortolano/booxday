@@ -1100,7 +1100,7 @@ private fun WipeAllDataConfirmationDialog(
                 // Oct 2026: say what stays, so nobody believes it is gone
                 Text(
                     text = "Not erased: your Google, Outlook or iCloud calendars online, " +
-                            (if (com.boox.day.BuildConfig.TASK_SYNC_ENABLED) "your tasks in Google Tasks, " else "") +
+                            (if (com.boox.day.BuildConfig.TASK_SYNC_ENABLED) "your tasks in Google Tasks or on your CalDAV server, " else "") +
                             "Google Drive backups and " +
                             "Android's own backup, files saved to Documents or Downloads (exports, backups, " +
                             "daily notes), and your OpenRouter key in your OpenRouter account " +
