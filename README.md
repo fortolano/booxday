@@ -99,7 +99,7 @@ Third-party code shipped with the app:
 - [boox-note-parser](https://github.com/hhornbacher/boox-note-parser) by hhornbacher (Apache-2.0), included as a git submodule in `native/boox-note-parser`. With the JNI wrapper in `native/boox-note-android-ffi` it is built into `app/src/main/jniLibs/arm64-v8a/libboox_note_android_ffi.so`, which reads BOOX Notes.
 - The Onyx BOOX SDK (pen, device and base libraries, including `libneo_pen.so`) from Onyx International Inc., used for the e-ink pen and screen, as Notable does. It is not covered by this project's license.
 
-BooxDay is an independent project. It is not affiliated with, endorsed by or sponsored by Onyx International Inc., Google LLC or Microsoft Corporation. "BOOX" and "Onyx" are trademarks of Onyx International Inc.
+BooxDay is an independent project. It is not affiliated with, endorsed by or sponsored by Onyx International Inc., Google LLC, Microsoft Corporation or Apple Inc. "BOOX" and "Onyx" are trademarks of Onyx International Inc.
 
 ## License
 
