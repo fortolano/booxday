@@ -104,4 +104,54 @@ class EventsHeaderFitRenderTest {
             }
         }
     }
+
+    /** The Go 6 draft (owner's option A): one filter button, and the list it opens. */
+    @Test
+    fun theGo6FilterButtonDraft() {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        assumeTrue(runCatching { context.resources.getDrawable(R.drawable.ic_google_calendar, null) }.isSuccess)
+        val density = 300 / 160f
+        val panelDp = 572 * 0.44f
+        val states = listOf(
+            "1-all-shown" to Pair(CalendarSourceFilter(), false),
+            "2-outlook-hidden" to Pair(CalendarSourceFilter(showOutlook = false), false),
+            "3-list-open" to Pair(CalendarSourceFilter(showOutlook = false), true)
+        )
+        for ((name, state) in states) {
+            val (filter, open) = state
+            val bounds = mutableMapOf<String, Rect>()
+            val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+            activity.setContent {
+                CompositionLocalProvider(LocalDensity provides Density(density, 1f)) {
+                    Column(Modifier.background(Color.White)) {
+                        Column(Modifier.width(panelDp.dp).background(Color(0xFFEEEEEE)).onGloballyPositioned { bounds["panel"] = it.boundsInRoot() }) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(start = 10.dp, end = 7.dp, top = 8.dp, bottom = 4.dp).background(Color.White),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                EventsPanelTabs(selectedTab = "events", onTabSelected = {}, eventsCount = 99, dueCount = 99)
+                                com.boox.day.ui.components.CalendarSourceFilterButton(filtered = !filter.showOutlook) {}
+                            }
+                            if (open) {
+                                // Where the popup opens: under the button, right-aligned
+                                Box(Modifier.fillMaxWidth().padding(end = 7.dp), contentAlignment = Alignment.TopEnd) {
+                                    com.boox.day.ui.components.CalendarSourceFilterList(
+                                        filter, hasGoogleAccount = true, hasOutlookAccount = true, hasCalDavAccount = true
+                                    ) {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            shadowOf(Looper.getMainLooper()).idle()
+            val panel = bounds.getValue("panel")
+            val root = activity.findViewById<View>(android.R.id.content)
+            val image = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
+            root.draw(Canvas(image))
+            val crop = Bitmap.createBitmap(image, panel.left.toInt(), panel.top.toInt(), panel.width.toInt(), panel.height.toInt())
+            File(File("build/events-header").apply { mkdirs() }, "go6-button-$name.png").outputStream().use { crop.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
+    }
 }

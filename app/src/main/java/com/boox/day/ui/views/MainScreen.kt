@@ -264,7 +264,7 @@ import androidx.compose.material.icons.filled.Add
 import com.boox.day.ui.convertDpToPixel
 import com.boox.day.ui.fullScreenExtraProbe
 import com.boox.day.ui.noRippleClickable
-import com.boox.day.ui.components.CalendarSourceFilterIcons
+import com.boox.day.ui.components.CalendarSourceFilterControl
 import com.boox.day.ui.state.CalendarSource
 import com.boox.day.data.model.serviceName
 import com.boox.day.ui.state.CalendarSourceFilter
@@ -2479,7 +2479,7 @@ fun MainScreen(
                                     // shows the selected date (Oct 2026)
                                 } else if (showFilterIconsCollapsed) {
                                     // Source filter icons (compact for collapsed header)
-                                    CalendarSourceFilterIcons(
+                                    CalendarSourceFilterControl(
                                         filter = sourceFilter,
                                         onToggleSource = { source ->
                                             val success = eventsViewModel.toggleSource(source)
@@ -8579,7 +8579,7 @@ private fun ExpandedEventsList(
                 val showFilterIcons = (hasGoogleAccount || hasOutlookAccount || hasCalDavAccount) && selectedEventsTab == "events"
                 if (showFilterIcons) {
                     // Source filter icons
-                    CalendarSourceFilterIcons(
+                    CalendarSourceFilterControl(
                         filter = sourceFilter,
                         onToggleSource = onToggleSource,
                         hasGoogleAccount = hasGoogleAccount,
