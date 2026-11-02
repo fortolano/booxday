@@ -13,7 +13,8 @@ BooxDay is free and open source under the [GNU General Public License v3.0](LICE
 - Month calendar with the selected day's events and due tasks
 - Handwritten Memos pages for each day, with text boxes, images and linked files
 - Handwritten Tasks pages: ten rows a page, checkboxes, priorities, due dates, reminders, repeating tasks and subtasks
-- Google Calendar and Outlook Calendar sync, or a calendar kept only on the tablet
+- Google Calendar, Outlook and CalDAV calendar sync (iCloud, Fastmail, Nextcloud and other servers), or a calendar kept only on the tablet
+- Task Sync with Google Tasks or a CalDAV server (Nextcloud, Fastmail and others), off until you turn it on
 - BOOX Notes integration: see your BOOX notes on the days they were written and link them to events
 - Search across memos, tasks and notes
 - Optional AI features (voice to event or task, handwriting to text, summaries, translation, task suggestions, search of handwritten pages) on your own [OpenRouter](https://openrouter.ai) account
@@ -48,7 +49,7 @@ BooxDay is free. It is not on Google Play, so you install it from an APK file. T
 4. **Allow installs from this app, once.** The first time, Android says something like "For your security, your tablet isn't allowed to install unknown apps from this source". Tap **Settings**, turn on **Allow from this source**, then press Back. The installer opens again. You are only allowing the app you opened the file from (the browser or Files), not everything.
 5. **Tap Install.** If Android asks "Do you want to install this app?", confirm.
 6. **If you see "Google Play Protect" or "Blocked by Play Protect"**: this is Google's automatic scan, and it shows up for apps it has not seen before. It does not mean the app is harmful. Tap **More details**, then **Install anyway** (or **Open anyway**). If it only offers "Scan app", tap that, wait for the result, then continue. You can leave Play Protect on.
-7. **Tap Open**, pick your calendar (Google, Outlook or on the tablet only) and you are done.
+7. **Tap Open**, pick your calendar (Google, Outlook, iCloud or another CalDAV server, or on the tablet only) and you are done.
 8. Optional: for AI features, go to Settings > AI Settings and tap **Connect OpenRouter**.
 
 ### Good to know
@@ -71,7 +72,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Release builds are signed with a key you provide, either through the environment variables `STORE_FILE`, `STORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`, or through a `keystore.properties` file in the project root (it is ignored by git).
 
-Calendar sync needs your own OAuth setup if you build and sign the app yourself: a Google Cloud OAuth client for Android (package `com.boox.day` and your signing certificate's SHA-1), and for Outlook an Azure app registration, whose client ID and redirect URI go in `app/src/main/res/raw/auth_config.json`.
+Calendar sync needs your own OAuth setup if you build and sign the app yourself: a Google Cloud OAuth client for Android (package `com.boox.day` and your signing certificate's SHA-1) with the Google Calendar and Google Tasks APIs enabled, and for Outlook an Azure app registration, whose client ID and redirect URI go in `app/src/main/res/raw/auth_config.json`.
 
 ## Support
 
@@ -87,7 +88,7 @@ It's never required, and it doesn't buy support or features: BooxDay stays free 
 
 ## Privacy
 
-Your memos, tasks and calendar are stored on the tablet. BooxDay has no server and sends nothing to its developer. It goes online to download Google's on-device handwriting model and for the features you turn on: calendar sync (Google or Microsoft), backup to your own Google Drive, and AI features (OpenRouter, with your own key).
+Your memos, tasks and calendar are stored on the tablet. BooxDay has no server and sends nothing to its developer. It goes online to download Google's on-device handwriting model and for the features you turn on: calendar sync (Google, Microsoft or the calendar server you add), Task Sync (Google Tasks or your CalDAV server), backup to your own Google Drive, and AI features (OpenRouter, with your own key).
 
 ## Credits
 
