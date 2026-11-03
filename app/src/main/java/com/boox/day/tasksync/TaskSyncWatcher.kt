@@ -36,6 +36,9 @@ internal class TaskSyncWatcher(
     private var lastInkAt = 0L
     @Volatile
     private var lastChangeAt = 0L
+    /** The newest outbox delete a sync was started for (outbox ids are never reused). */
+    @Volatile
+    private var deleteSeen = 0L
     private val lock = Any()
     private var pending: Job? = null
     private var pendingAt = Long.MAX_VALUE
@@ -100,6 +103,11 @@ internal class TaskSyncWatcher(
         val settled = clock() - lastChangeAt >= debounceMs  // a timed rescan may come sooner
         val result = scanning.withLock { scanner.scan(clock(), today(), wordsSettled = settled) }
         result.rescanAt?.let { scheduleScan(maxOf(0L, it - clock()), onlyIfSooner = true) }
-        if (result.queued > 0 || result.deleted > 0) onQueued()
+        // A Clear or Delete queues its delete itself (TaskDao.retireSyncLink), not through the scan:
+        // it went only at the next return, Sync tap or background run (Nov 2026)
+        val newestDelete = db.taskSyncDao().lastDeleteId()
+        val newDelete = newestDelete > deleteSeen
+        if (newDelete) deleteSeen = newestDelete
+        if (result.queued > 0 || result.deleted > 0 || newDelete) onQueued()
     }
 }

@@ -32,6 +32,7 @@ class TaskSyncWatcherTest {
     private lateinit var db: AppDatabase
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var penDown = false
+    @Volatile private var syncsAsked = 0
     private lateinit var watcher: TaskSyncWatcher
 
     @Before
@@ -47,7 +48,8 @@ class TaskSyncWatcherTest {
         ))
         watcher = TaskSyncWatcher(
             db, scope, TaskSyncScanner(db) { { true } },
-            today = { TODAY }, debounceMs = 50L, inkQuietMs = 0L, penActive = { penDown }
+            today = { TODAY }, debounceMs = 50L, inkQuietMs = 0L, penActive = { penDown },
+            onQueued = { syncsAsked++ }
         )
     }
 
@@ -82,6 +84,27 @@ class TaskSyncWatcherTest {
 
         penDown = false
         assertTrue("pen up: scanned", waitFor { db.taskSyncDao().getOutbox().isNotEmpty() })
+    }
+
+    /** Nov 2026: a task cleared on the tablet queues its delete itself; it waited for the next Sync. */
+    @Test
+    fun aClearedSyncedTaskStartsASync() {
+        db.taskDao().setTypedText("t-1", "Call mom")
+        db.taskSyncDao().insertLink(
+            com.boox.day.data.db.TaskSyncLink(
+                taskId = "t-1", provider = "CALDAV", accountEmail = "me", serverUrl = "https://localhost/",
+                listId = "/tasks/", remoteId = "/tasks/a.ics", remoteVersion = "1", syncedAt = 1,
+                syncedTitle = "Call mom", syncedDueDay = TODAY
+            )
+        )
+        watcher.start()
+        assertTrue(waitFor { syncsAsked > 0 || db.taskSyncDao().getOutbox().isEmpty() })
+        val before = syncsAsked
+
+        db.taskDao().clearTaskMetadata("t-1")
+
+        assertTrue("the delete is queued", db.taskSyncDao().getOutbox().any { it.op == TaskSyncOp.DELETE })
+        assertTrue("and a sync is asked for", waitFor { syncsAsked > before })
     }
 
     private fun waitFor(timeoutMs: Long = 5_000, check: () -> Boolean): Boolean {
