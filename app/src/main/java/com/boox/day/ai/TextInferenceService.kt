@@ -398,7 +398,16 @@ object TextInferenceService {
             processResponse = { response, model ->
                 log.d("${model.displayName} response: ${response.data.take(300)}...")
                 val parsed = parseResponse(response.data, rawText, config.trackCorrections, model.displayName)
-                if (parsed.isSuccess) parsed else null
+                when {
+                    !parsed.isSuccess -> null
+                    // 2 Nov 2026: a memo's "goals for 24" came back as "goals for 2024"; the user's
+                    // own words are kept instead of a correction that changes a number
+                    inventsNumber(rawText, parsed.refinedText) -> {
+                        log.w("${model.displayName} added a number, keeping the original text")
+                        InferenceResult.unchanged(rawText)
+                    }
+                    else -> parsed
+                }
             }
         )) {
             is AiRetryExecutor.RetryResult.Success -> result.data
@@ -408,6 +417,17 @@ object TextInferenceService {
                 InferenceResult.error(rawText, result.message)
             }
         }
+    }
+
+    private val longNumberRegex = Regex("""\d{3,}""")
+
+    /**
+     * True when [refined] has a number of three or more digits that [original] doesn't (a year or
+     * an amount the model made up). Shorter numbers may come from time formats ("3pm" → "3:00 PM").
+     */
+    internal fun inventsNumber(original: String, refined: String): Boolean {
+        val written = longNumberRegex.findAll(original).map { it.value }.toSet()
+        return longNumberRegex.findAll(refined).any { it.value !in written }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -434,6 +454,7 @@ HARD RULES:
 5. Never add markdown, code fences, or commentary.
 6. Detect the language and apply corrections appropriate to that language.
 7. Keep the output in the same language as the input.
+8. Keep every number as written: never add digits, a century or a year to it ("goals for 24" stays "goals for 24").
 """.trimIndent()
 
         val contextPrompt = when (context) {
