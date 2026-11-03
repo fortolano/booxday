@@ -553,7 +553,7 @@ private fun TaskManagementContent() {
         BodyText("Keeps your tasks in step with Google Tasks or a CalDAV server (Nextcloud, Fastmail and others) on your phone. It's off until you turn it on, and it needs Cloud Sync and that account in Calendar Accounts.")
         BulletPoint("What syncs: a task's words (typed, or your handwriting as read), its done mark, its day or due date, and subtasks; with a CalDAV server also its priority and its own reminder time. Ink and time estimates stay on the tablet.")
         BulletPoint("Tasks from your phone come to their due day; tasks with no date come to today.")
-        BulletPoint("It syncs when you open BooxDay, about 10 seconds after you stop writing, with the cloud button, and in the background on Sync frequency.")
+        BulletPoint("It syncs when you open BooxDay, about 10 seconds after you stop writing, with the cloud button, and in the background on Sync frequency while the tablet is awake (on BOOX, see Data & Troubleshooting).")
         BulletPoint("Clearing or deleting a synced task deletes it on your phone's service too; more than 20 at once waits for your OK. Ticked tasks deleted on your phone stay on the tablet.")
         BulletPoint("iCloud can't be used: Apple doesn't share Reminders with other apps. Tasks that repeat on your phone stay there and don't come to the tablet.")
     }
@@ -858,6 +858,12 @@ private fun TroubleshootingContent() {
     TroubleshootingItem(
         problem = "Sync failed?",
         solution = "Check the Wi-Fi. If it keeps failing, go to Settings → Calendar Accounts, tap Disconnect, then add the account again."
+    )
+
+    // BOOX freezing (Nov 2026, owner decision 73)
+    TroubleshootingItem(
+        problem = "Reminders missing, or nothing syncs while BooxDay is closed?",
+        solution = "BOOX freezes apps it thinks you're done with, and a frozen BooxDay can't remind you or sync. Open Apps, tap the snowflake at the top and switch BooxDay off. Leave BooxDay with Home, not the ✕ in Recents. While the tablet sleeps, BOOX turns Wi-Fi off, so syncing waits until it wakes."
     )
 
     TroubleshootingItem(

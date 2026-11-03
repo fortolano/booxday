@@ -1449,6 +1449,7 @@ fun MainScreen(
                 com.boox.day.update.AppUpdateGate.isOpen ||
                 com.boox.day.diagnostics.CrashReportGate.isOpen ||
                 com.boox.day.ui.CalendarAiNotice.isOpen ||
+                com.boox.day.ui.dialogs.BooxFreezeTip.isOpen ||
                 com.boox.day.ui.FullScreenState.transitioning ||
                 onboardingDismissedAt == 0L
         }
@@ -2109,6 +2110,8 @@ fun MainScreen(
     com.boox.day.ui.dialogs.AppUpdateHost()
     // "Support BooxDay" (Oct 2026): from the Settings menu, About and Help
     com.boox.day.ui.dialogs.SupportPopupHost()
+    // "Reminders and sync on BOOX", once (Nov 2026, owner decision 73)
+    com.boox.day.ui.dialogs.BooxFreezeTipHost()
     // "BooxDay closed unexpectedly" after a crash (Oct 2026, diagnostics/CrashReportGate)
     com.boox.day.ui.dialogs.CrashReportHost()
     // "AI and your calendar", once before the first AI feature that sends events (Oct 2026, ui/CalendarAiNotice)
