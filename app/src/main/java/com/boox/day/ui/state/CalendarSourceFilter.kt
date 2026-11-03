@@ -36,6 +36,14 @@ data class CalendarSourceFilter(
         CalendarSource.CALDAV -> copy(showCalDav = !showCalDav)
     }
 
+    /** Whether events synced from [providerId] ("GOOGLE", "OUTLOOK", "CALDAV") are shown; any other service is. */
+    fun showsSynced(providerId: String): Boolean = when (providerId) {
+        "GOOGLE" -> showGoogle
+        "OUTLOOK" -> showOutlook
+        "CALDAV" -> showCalDav
+        else -> true
+    }
+
     /**
      * Check if a specific source is enabled.
      */

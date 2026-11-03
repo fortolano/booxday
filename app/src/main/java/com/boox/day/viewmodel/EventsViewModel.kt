@@ -13,6 +13,7 @@ import com.boox.day.data.db.LocalEvent
 import com.boox.day.data.db.LocalEventRepository
 import com.boox.day.data.db.SyncStatus
 import com.boox.day.data.db.TaskRepository
+import com.boox.day.data.db.shownEventDaysInMonth
 import com.boox.day.data.model.ProviderId
 import com.boox.day.ocr.model.OcrSource
 import com.boox.day.ocr.semantic.SemanticGeniusService
@@ -286,14 +287,9 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
         googleDates + localDates
     }
 
-    /**
-     * Get dates with events for a specific month.
-     * Combines dates from both sources.
-     */
+    /** Days of a month with a dot: events from both sources, as the source filter shows them. */
     suspend fun getDatesWithEventsForMonth(yearMonth: String): Set<String> = withContext(Dispatchers.IO) {
-        val googleDates = eventRepository.getDatesWithEventsForMonth(yearMonth)
-        val localDates = localEventRepository.getDatesWithEventsForMonth(yearMonth)
-        googleDates + localDates
+        shownEventDaysInMonth(eventRepository, localEventRepository, yearMonth, _sourceFilter.value)
     }
 
     /**
@@ -1653,12 +1649,5 @@ internal fun editedCopy(
  * and an event made on the tablet twice (its tablet copy and its synced copy).
  */
 internal fun shownEventCount(cloudByProvider: Map<String, Int>, local: Int, filter: CalendarSourceFilter): Int =
-    cloudByProvider.entries.sumOf { (provider, count) ->
-        val shown = when (provider) {
-            ProviderId.GOOGLE.key -> filter.showGoogle
-            ProviderId.OUTLOOK.key -> filter.showOutlook
-            ProviderId.CALDAV.key -> filter.showCalDav
-            else -> true
-        }
-        if (shown) count else 0
-    } + if (filter.showLocal) local else 0
+    cloudByProvider.entries.sumOf { (provider, count) -> if (filter.showsSynced(provider)) count else 0 } +
+        if (filter.showLocal) local else 0

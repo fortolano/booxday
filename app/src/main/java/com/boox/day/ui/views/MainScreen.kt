@@ -1562,7 +1562,7 @@ fun MainScreen(
         if (PERF_LOGS) Log.i(TAG, "PERF: CacheWarmupCoordinator START for $currentYearMonth")
         val startTime = System.currentTimeMillis()
         val result = withContext(Dispatchers.IO) {
-            cacheWarmupCoordinator.warmupForMonth(currentYearMonth)
+            cacheWarmupCoordinator.warmupForMonth(currentYearMonth, sourceFilter)
         }
         datesWithNotes = result.datesWithNotes.distinct()
         datesWithTasks = result.datesWithTasks
@@ -1874,8 +1874,8 @@ fun MainScreen(
         // or the sync completion effect below will trigger it
     }
 
-    // Refresh events dates after sync completes (off main thread)
-    LaunchedEffect(syncInProgress, multiAccountUiState.isSyncing) {
+    // Refresh events dates after sync completes, and when the source filter changes: the dots follow it (off main thread)
+    LaunchedEffect(syncInProgress, multiAccountUiState.isSyncing, sourceFilter) {
         val anySyncComplete = !syncInProgress && !multiAccountUiState.isSyncing
         val hasAccounts = isSignedIn || hasAnyExternalAccount
         if (anySyncComplete && hasAccounts) {

@@ -86,6 +86,34 @@ class EventBadgeDaysTest {
         assertTrue(db.localEventDao().getEventsForDay("2026-11-11").isEmpty())
     }
 
+    /** Nov 2026, seen on the Go 6: with Google switched off the list was empty but the day kept its dot. */
+    @Test
+    fun dotsFollowTheSourceFilter() = runBlocking {
+        db.connectedAccountDao().upsert(
+            ConnectedAccountEntity(id = "acc", providerId = "GOOGLE", accountType = "GOOGLE_PERSONAL",
+                email = "me@example.com", displayName = "Me", isActive = true, createdAt = 1_760_000_000_000)
+        )
+        db.calendarSelectionDao().upsert(selection("work", shown = true))
+        db.calendarEventDao().upsertAll(listOf(
+            event("google-only", "work", "2026-11-03", "2026-11-03"),
+            event("made-here", "work", "2026-11-05", "2026-11-05"),
+        ))
+        db.localEventDao().insert(localEvent("dentist", "2026-11-10", "2026-11-10"))
+        // the tablet copy of an event made here and synced: the list shows it once, from Google
+        db.localEventDao().insert(localEvent("copy", "2026-11-05", "2026-11-05").copy(providerId = "GOOGLE", providerEventId = "made-here"))
+        val (first, last) = monthDayRange("2026-11")
+        val cloudSpans = db.calendarEventDao().getDaySpansFiltered(first, last)
+        val localSpans = db.localEventDao().getShownDaySpans(first, last)
+
+        fun dots(filter: com.boox.day.ui.state.CalendarSourceFilter) = shownEventDays(cloudSpans, localSpans, filter, "2026-11")
+
+        assertEquals(setOf("2026-11-03", "2026-11-05", "2026-11-10"), dots(com.boox.day.ui.state.CalendarSourceFilter()))
+        assertEquals("Google off: only the tablet's own event", setOf("2026-11-10"),
+            dots(com.boox.day.ui.state.CalendarSourceFilter(showGoogle = false)))
+        assertEquals("This device off: only Google's", setOf("2026-11-03", "2026-11-05"),
+            dots(com.boox.day.ui.state.CalendarSourceFilter(showLocal = false)))
+    }
+
     private suspend fun days(yearMonth: String, query: suspend (String, String) -> List<EventDaySpan>): Set<String> {
         val (first, last) = monthDayRange(yearMonth)
         return daysCoveredInMonth(query(first, last), yearMonth)

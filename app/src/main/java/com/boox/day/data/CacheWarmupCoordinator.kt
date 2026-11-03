@@ -7,6 +7,8 @@ import com.boox.day.data.db.CalendarEventRepository
 import com.boox.day.data.db.DayPageRepository
 import com.boox.day.data.db.LocalEventRepository
 import com.boox.day.data.db.TaskRepository
+import com.boox.day.data.db.shownEventDaysInMonth
+import com.boox.day.ui.state.CalendarSourceFilter
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -41,9 +43,10 @@ class CacheWarmupCoordinator(
      * days that appear in the current month's view).
      *
      * @param yearMonth Format: "yyyy-MM" (e.g., "2025-12")
+     * @param sourceFilter the events panel's source filter: event dots follow it, like the list
      * @return CacheWarmupResult containing badge dates from current + adjacent months
      */
-    suspend fun warmupForMonth(yearMonth: String): CacheWarmupResult = coroutineScope {
+    suspend fun warmupForMonth(yearMonth: String, sourceFilter: CalendarSourceFilter = CalendarSourceFilter()): CacheWarmupResult = coroutineScope {
         val start = System.currentTimeMillis()
         if (PERF_LOGS) Log.i(TAG, "PERF: warmupForMonth START for $yearMonth (including overflow days)")
 
@@ -87,14 +90,19 @@ class CacheWarmupCoordinator(
         val booxPrevDeferred = async { booxNoteRepository.getDatesWithNotesForMonth(prevMonth) }
         val booxNextDeferred = async { booxNoteRepository.getDatesWithNotesForMonth(nextMonth) }
 
+        // Event dots: the days the source filter shows (Nov 2026; the caches above hold every event)
+        val eventDotsDeferred = listOf(prevMonth, yearMonth, nextMonth).map { month ->
+            async { shownEventDaysInMonth(calendarEventRepository, localEventRepository, month, sourceFilter) }
+        }
+
         // Await all results and combine current + adjacent month data
-        val localEventDates = localEventsDeferred.await() + localEventsPrevDeferred.await() + localEventsNextDeferred.await()
-        val cloudEventDates = cloudEventsDeferred.await() + cloudEventsPrevDeferred.await() + cloudEventsNextDeferred.await()
+        listOf(localEventsDeferred, localEventsPrevDeferred, localEventsNextDeferred,
+            cloudEventsDeferred, cloudEventsPrevDeferred, cloudEventsNextDeferred).forEach { it.await() }
 
         val result = CacheWarmupResult(
             datesWithNotes = notesDeferred.await() + notesPrevDeferred.await() + notesNextDeferred.await(),
             datesWithTasks = tasksDeferred.await() + tasksPrevDeferred.await() + tasksNextDeferred.await(),
-            datesWithEvents = localEventDates + cloudEventDates,
+            datesWithEvents = eventDotsDeferred.flatMap { it.await() }.toSet(),
             datesWithBooxNotes = booxDeferred.await() + booxPrevDeferred.await() + booxNextDeferred.await()
         )
 

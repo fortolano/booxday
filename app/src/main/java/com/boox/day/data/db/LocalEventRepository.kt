@@ -249,6 +249,12 @@ class LocalEventRepository(context: Context) {
         return daysCoveredInMonth(dao.getDaySpans(firstDay, lastDay), yearMonth)
     }
 
+    /** The tablet's event spans a month's dots count beside the synced ones ([LocalEventDao.getShownDaySpans]). */
+    suspend fun getShownDaySpansForMonth(yearMonth: String): List<EventDaySpan> {
+        val (firstDay, lastDay) = monthDayRange(yearMonth)
+        return dao.getShownDaySpans(firstDay, lastDay)
+    }
+
     /**
      * Get all dates with events (for calendar badges).
      */

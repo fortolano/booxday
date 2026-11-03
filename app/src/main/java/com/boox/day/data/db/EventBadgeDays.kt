@@ -1,5 +1,6 @@
 package com.boox.day.data.db
 
+import com.boox.day.ui.state.CalendarSourceFilter
 import java.time.YearMonth
 
 /**
@@ -9,7 +10,32 @@ import java.time.YearMonth
  * condition the day's event list uses (dayId <= day AND endDayId >= day), so a dot appears exactly on
  * the days that list the event.
  */
-data class EventDaySpan(val dayId: String, val endDayId: String)
+data class EventDaySpan(val dayId: String, val endDayId: String, val providerId: String)
+
+/**
+ * Days of [yearMonth] whose event list shows something (Nov 2026): the dots follow the source filter,
+ * like the list and the Events count. They used to count every event, so a day with only Google
+ * events kept its dot with Google switched off. Synced events count when their service is shown; the
+ * tablet's own events when "This device" is shown ([localSpans] leave out copies shown from a synced
+ * calendar, as the list does).
+ */
+internal fun shownEventDays(
+    cloudSpans: List<EventDaySpan>,
+    localSpans: List<EventDaySpan>,
+    filter: CalendarSourceFilter,
+    yearMonth: String
+): Set<String> = daysCoveredInMonth(
+    cloudSpans.filter { filter.showsSynced(it.providerId) } + if (filter.showLocal) localSpans else emptyList(),
+    yearMonth
+)
+
+/** [shownEventDays] read from the database for [yearMonth]. */
+internal suspend fun shownEventDaysInMonth(
+    cloud: CalendarEventRepository,
+    local: LocalEventRepository,
+    yearMonth: String,
+    filter: CalendarSourceFilter
+): Set<String> = shownEventDays(cloud.getDaySpansForMonth(yearMonth), local.getShownDaySpansForMonth(yearMonth), filter, yearMonth)
 
 /** First and last day ("yyyy-MM-dd") of [yearMonth] ("yyyy-MM"). */
 internal fun monthDayRange(yearMonth: String): Pair<String, String> {

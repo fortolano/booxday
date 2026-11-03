@@ -223,7 +223,7 @@ interface CalendarEventDao {
      * (EventBadgeDays.kt expands them into days).
      */
     @Query("""
-        SELECT DISTINCT ce.dayId, ce.endDayId FROM calendar_events ce
+        SELECT DISTINCT ce.dayId, ce.endDayId, ce.providerId FROM calendar_events ce
         INNER JOIN calendar_selections cs
             ON ce.accountId = cs.accountId AND ce.calendarId = cs.calendarId
         WHERE ce.dayId <= :lastDay AND ce.endDayId >= :firstDay AND cs.isFetchEnabled = 1
@@ -677,6 +677,12 @@ class CalendarEventRepository(context: Context) {
     suspend fun getDatesWithEventsForMonth(yearMonth: String): Set<String> {
         val (firstDay, lastDay) = monthDayRange(yearMonth)
         return daysCoveredInMonth(dao.getDaySpansFiltered(firstDay, lastDay), yearMonth)
+    }
+
+    /** Spans of a month's events on enabled calendars, with their service, for the filtered dots ([shownEventDays]). */
+    suspend fun getDaySpansForMonth(yearMonth: String): List<EventDaySpan> {
+        val (firstDay, lastDay) = monthDayRange(yearMonth)
+        return dao.getDaySpansFiltered(firstDay, lastDay)
     }
 
     /**

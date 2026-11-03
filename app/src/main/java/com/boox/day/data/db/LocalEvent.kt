@@ -305,10 +305,27 @@ interface LocalEventDao {
      * condition (EventBadgeDays.kt expands them into days for the calendar dots)
      */
     @Query("""
-        SELECT DISTINCT dayId, endDayId FROM local_events
+        SELECT DISTINCT dayId, endDayId, providerId FROM local_events
         WHERE dayId <= :lastDay AND endDayId >= :firstDay AND syncStatus != 'PENDING_DELETE'
     """)
     suspend fun getDaySpans(firstDay: String, lastDay: String): List<EventDaySpan>
+
+    /**
+     * [getDaySpans] without the tablet copies of synced events that show from their synced calendar
+     * (same id, enabled calendar), as the day list and [observeShownEventCountForDate] leave them out:
+     * those days get their dot from the synced copy, under that service's filter switch.
+     */
+    @Query("""
+        SELECT DISTINCT le.dayId, le.endDayId, le.providerId FROM local_events le
+        WHERE le.dayId <= :lastDay AND le.endDayId >= :firstDay AND le.syncStatus != 'PENDING_DELETE'
+        AND NOT EXISTS (
+            SELECT 1 FROM calendar_events ce
+            INNER JOIN calendar_selections cs ON ce.accountId = cs.accountId AND ce.calendarId = cs.calendarId
+            WHERE cs.isFetchEnabled = 1 AND ce.dayId <= le.endDayId AND ce.endDayId >= le.dayId
+            AND ce.id = COALESCE(le.providerEventId, le.googleEventId, le.id)
+        )
+    """)
+    suspend fun getShownDaySpans(firstDay: String, lastDay: String): List<EventDaySpan>
 
     // ========== Reactive queries (Flow) ==========
 
