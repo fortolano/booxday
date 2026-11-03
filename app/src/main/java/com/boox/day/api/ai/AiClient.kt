@@ -151,14 +151,15 @@ object AiClient {
             }
 
             // Extract content from response
-            // GPT-OSS and other reasoning models put output in 'reasoning' field, not 'content'
             else -> {
                 val choice = body?.choices?.firstOrNull()
                 val message = choice?.message
                 val content = message?.content
                 val reasoning = message?.reasoning
 
-                // Use content if available, otherwise fall back to reasoning field
+                // The answer is the content only. 2 Nov 2026: an empty content used the reasoning
+                // field (for GPT-OSS, no longer used), so a model's thinking could become the text of
+                // the user's memo or tasks; now it is no answer and the next model is tried.
                 val actualContent = when {
                     // Cut off at the output limit: the next model is tried. Oct 2026: reasoning is
                     // not the answer (it could end up in a note). 29 Oct 2026: a partly written
@@ -173,15 +174,11 @@ object AiClient {
                         )
                     }
                     !content.isNullOrBlank() -> content
-                    !reasoning.isNullOrBlank() -> {
-                        Log.d(TAG, "Content was empty, using reasoning field instead (${reasoning.length} chars)")
-                        reasoning
-                    }
                     else -> null
                 }
 
                 if (actualContent.isNullOrBlank()) {
-                    Log.w(TAG, "No content in response - content='$content', reasoning='${reasoning?.take(100)}'")
+                    Log.w(TAG, "No content in response (${content?.length ?: 0} chars of answer, ${reasoning?.length ?: 0} chars of reasoning)")
                     AiResponse.Error.NoContent()
                 } else {
                     val usage = body?.usage?.let {

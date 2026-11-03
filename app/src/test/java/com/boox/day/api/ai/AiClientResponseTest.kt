@@ -44,9 +44,10 @@ class AiClientResponseTest {
     }
 
     @Test
-    fun `a finished answer with only reasoning still uses it (older models)`() {
-        val result = AiClient.handleSuccessResponse(answer(null, "The text says hello", "stop"), "test/model")
-        assertEquals("The text says hello", (result as AiResponse.Success).data)
+    fun `an empty answer is an error, never the model's thinking`() {
+        // 2 Nov 2026: the reasoning was used, so a model's thinking could become a memo's text
+        val result = AiClient.handleSuccessResponse(answer(null, "The user wants the text of this page...", "stop"), "test/model")
+        assertTrue(result is AiResponse.Error.NoContent)
     }
 
     @Test
