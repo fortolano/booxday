@@ -830,3 +830,14 @@ val MIGRATION_32_33 = object : Migration(32, 33) {
         db.execSQL("ALTER TABLE `task_sync_link` ADD COLUMN `syncedReminder` INTEGER DEFAULT NULL")
     }
 }
+
+/**
+ * v34 (Nov 2026, owner decision 78): a CalDAV account is used for what its server has. Whether its
+ * calendars are used (off: none of its events show or sync) and how many task lists it had.
+ */
+val MIGRATION_33_34 = object : Migration(33, 34) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `caldav_account` ADD COLUMN `useCalendars` INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE `caldav_account` ADD COLUMN `taskListCount` INTEGER NOT NULL DEFAULT 0")
+    }
+}

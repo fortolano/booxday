@@ -458,10 +458,11 @@ class MultiAccountSyncViewModel(
         address: String,
         name: String,
         password: String,
-        trust: String? = null
+        trust: String? = null,
+        choice: com.boox.day.sync.caldav.CalDavUseChoice? = null
     ): CalDavSignInOutcome {
         val before = syncManager.trustedCalDavCertificate(address, name)
-        val outcome = calDavSignInOutcome(syncManager.addCalDavAccount(type, address, name, password, trust ?: before), type, before)
+        val outcome = calDavSignInOutcome(syncManager.addCalDavAccount(type, address, name, password, trust ?: before, choice), type, before)
         if (outcome is CalDavSignInOutcome.Connected) {
             Log.i(TAG, "CalDAV sign-in successful (${type.key})")
             loadAccounts().join()
@@ -723,6 +724,13 @@ class MultiAccountSyncViewModel(
                 }
             }
         }
+    }
+
+    /** "Use for: Calendars" on a CalDAV account (owner decision 78): on, its calendars are read and synced again. */
+    fun setCalDavCalendarsOn(accountId: String, on: Boolean): kotlinx.coroutines.Job = viewModelScope.launch {
+        syncManager.setCalDavCalendarsOn(accountId, on)
+        loadAccounts().join()
+        if (on) syncAccount(accountId)
     }
 
     /**

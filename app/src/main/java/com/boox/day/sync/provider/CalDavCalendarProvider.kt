@@ -18,7 +18,10 @@ import com.boox.day.security.AccountSecretStore
 import com.boox.day.sync.NewEventData
 import com.boox.day.sync.SyncResult
 import com.boox.day.sync.UpdateEventData
+import com.boox.day.sync.caldav.CalDavChoiceNeeded
 import com.boox.day.sync.caldav.CalDavConnection
+import com.boox.day.sync.caldav.CalDavSignedIn
+import com.boox.day.sync.caldav.CalDavUseChoice
 import com.boox.day.sync.caldav.chooseDefaultCalendar
 import com.boox.day.sync.caldav.CalDavEditor
 import com.boox.day.sync.caldav.CalDavReader
@@ -89,14 +92,24 @@ class CalDavCalendarProvider internal constructor(
         address: String,
         username: String,
         password: String,
-        trustedCertSha256: String? = null
-    ): Result<ConnectedAccount> = withContext(Dispatchers.IO) {
+        trustedCertSha256: String? = null,
+        /** What the user picked in "Use … For"; null on the first try (owner decision 78). */
+        choice: CalDavUseChoice? = null
+    ): Result<CalDavSignedIn> = withContext(Dispatchers.IO) {
         try {
             require(accountType.providerId == ProviderId.CALDAV) { "Not a CalDAV account type: ${accountType.key}" }
             val name = username.trim()
             val found = CalDavConnection(name, password, trustedCertSha256).discover(address)
             val server = serverKey(address)
             val existing = accountDao.getByEmail(ProviderId.CALDAV.key, server, name)
+            // Used for what the server has (owner decision 78): both kinds on a new account → the user picks
+            val hasCalendars = found.calendars.isNotEmpty()
+            val hasTaskLists = found.taskLists.isNotEmpty()
+            if (existing == null && hasCalendars && hasTaskLists && choice == null) {
+                throw CalDavChoiceNeeded(found.calendars.size, found.taskLists.size)
+            }
+            val useCalendars = existing?.let { calDavDao.getAccount(it.id)?.useCalendars } ?: choice?.calendars ?: true
+            val startTasks = existing == null && hasTaskLists && (choice?.tasks ?: !hasCalendars)
             val account = existing?.toDomainModel()?.copy(accountType = accountType, isActive = true)
                 ?: ConnectedAccount.create(ProviderId.CALDAV, accountType, name, serverUrl = server)
 
@@ -106,7 +119,10 @@ class CalDavCalendarProvider internal constructor(
                 db.withTransaction {
                     accountDao.upsert(ConnectedAccountEntity.fromDomainModel(account))
                     calDavDao.upsertAccount(
-                        CalDavAccount(account.id, found.principalUrl, found.calendarHomeUrl, name, trustedCertSha256)
+                        CalDavAccount(
+                            account.id, found.principalUrl, found.calendarHomeUrl, name, trustedCertSha256,
+                            useCalendars = useCalendars, taskListCount = found.taskLists.size
+                        )
                     )
                     for (calendar in found.calendars) {
                         calDavDao.upsertCalendar(CalDavCalendar(account.id, calendar.href, calendar.ctag, calendar.syncToken))
@@ -116,8 +132,8 @@ class CalDavCalendarProvider internal constructor(
                 if (existing == null) secrets.delete(account.id)
                 throw e
             }
-            Log.i(TAG, "CalDAV account saved (${accountType.key}, ${found.calendars.size} calendars)")
-            Result.success(account)
+            Log.i(TAG, "CalDAV account saved (${accountType.key}, ${found.calendars.size} calendars, ${found.taskLists.size} task lists)")
+            Result.success(CalDavSignedIn(account, startTasks))
         } catch (e: Exception) {
             Log.w(TAG, "CalDAV sign-in failed: ${e.javaClass.simpleName}")
             Result.failure(e)
@@ -170,6 +186,9 @@ class CalDavCalendarProvider internal constructor(
         try {
             val (connection, account) = connect(accountId)
             val calendars = listCalendars(connection, account)
+            // How many task lists, for the account row's "Tasks" switch (owner decision 78)
+            runCatching { connection.listTaskLists(account.calendarHomeUrl).size }
+                .onSuccess { if (it != account.taskListCount) calDavDao.setTaskListCount(accountId, it) }
             // The one new events go to on a new account (owner's choice, 2 Nov 2026): the server's own
             // default, else the first that isn't shared (not iCloud's Family calendar)
             val serverDefault = connection.defaultCalendarHref(account.principalUrl, account.calendarHomeUrl)

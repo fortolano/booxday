@@ -63,7 +63,13 @@ internal class CalDavConnection(
         class Server(val code: Int) : Failure("The server answered $code")
     }
 
-    data class Discovery(val principalUrl: String, val calendarHomeUrl: String, val calendars: List<RemoteCalendar>)
+    /** What the account's server has: its calendars and its task lists (owner decision 78: either may be empty, not both). */
+    data class Discovery(
+        val principalUrl: String,
+        val calendarHomeUrl: String,
+        val calendars: List<RemoteCalendar>,
+        val taskLists: List<RemoteCalendar> = emptyList()
+    )
 
     /** One calendar collection. [href] is its URL path (BooxDay's calendarId). */
     data class RemoteCalendar(
@@ -110,7 +116,7 @@ internal class CalDavConnection(
         }
         .build()
 
-    /** Finds the user's calendars from the address the user gave (or a ready-made one, owner decision 59). */
+    /** Finds the user's calendars and task lists from the address the user gave (or a ready-made one, owner decision 59). */
     suspend fun discover(address: String): Discovery = call {
         val base = httpsUrl(address)
         val principal = findPrincipal(base) ?: throw Failure.NoCalendars()
@@ -118,8 +124,10 @@ internal class CalDavConnection(
             response[CalendarHomeSet::class.java]?.hrefs?.firstOrNull()?.let { response.href.resolve(it) }
         } ?: throw Failure.NoCalendars()
         val calendars = listCalendarsAt(home)
-        if (calendars.isEmpty()) throw Failure.NoCalendars()
-        Discovery(principal.toString(), home.toString(), calendars)
+        val taskLists = listCalendarsAt(home, tasks = true)
+        // A server with task lists and no calendar is used for tasks (owner decision 78); with neither it isn't one
+        if (calendars.isEmpty() && taskLists.isEmpty()) throw Failure.NoCalendars()
+        Discovery(principal.toString(), home.toString(), calendars, taskLists)
     }
 
     /**

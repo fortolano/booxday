@@ -58,8 +58,11 @@ class Migration32To33Test {
                 "INSERT INTO task_sync_link (taskId, provider, accountEmail, serverUrl, listId, remoteId, syncedTitle, syncedCompleted, " +
                     "syncedDueDay, remoteUndated, syncedAt, keptOnTablet) VALUES ('t-1', 'GOOGLE_TASKS', 'me@gmail.com', '', 'l-1', 'r-1', 'Milk', 0, '2026-11-03', 0, 1, 0)"
             )
+            db.execSQL("INSERT INTO caldav_account (accountId, principalUrl, calendarHomeUrl, username, pinnedCertSha256) VALUES ('acc-1', '/p/', '/h/', 'me', NULL)")
         }
         val room = openMigrated()
+        // v34 (owner decision 78): an account from before keeps using its calendars
+        assertEquals(true, room.calDavDao().getAccount("acc-1")?.useCalendars)
         val link = room.taskSyncDao().getLink("t-1")!!
         assertEquals("Milk", link.syncedTitle)
         assertNull("nothing carried priority before v33", link.syncedPriority)
@@ -92,7 +95,7 @@ class Migration32To33Test {
 
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbFile.absolutePath)
-            .addMigrations(MIGRATION_32_33)
+            .addMigrations(MIGRATION_32_33, MIGRATION_33_34)
             .addCallback(TaskSyncSchema.CALLBACK)
             .allowMainThreadQueries()
             .build()

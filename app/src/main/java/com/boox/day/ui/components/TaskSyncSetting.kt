@@ -25,6 +25,7 @@ import com.boox.day.tasksync.RemoteList
 import com.boox.day.tasksync.TaskSync
 import com.boox.day.tasksync.TaskSyncRun
 import com.boox.day.tasksync.TaskSyncServiceException
+import com.boox.day.tasksync.TaskSyncStart
 import com.boox.day.tasksync.TaskSyncTarget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -85,28 +86,10 @@ fun TaskSyncSetting(modifier: Modifier = Modifier) {
     }
 
     suspend fun turnOn(target: TaskSyncTarget) {
-        val name = target.shortName
-        working = "Connecting to $name…"
-        message = try {
-            val service = withContext(Dispatchers.IO) { target.service(context) }
-            // A server without task lists: nothing to sync with yet (picture E, owner decision 68)
-            if (!target.isGoogle && withContext(Dispatchers.IO) { service.lists() }.isEmpty()) {
-                "$name has no task lists. Make one there first, then turn Task Sync on again."
-            } else {
-                withContext(Dispatchers.IO) { TaskSync.turnOn(context, target, service) }
-                serviceLists = null
-                working = "Syncing…"
-                withContext(Dispatchers.IO) { TaskSyncRun.run(context, changedAt = System.currentTimeMillis()) }
-                null
-            }
-        } catch (e: TaskSyncServiceException.Offline) {
-            "No connection to $name. Try again when the tablet is online."
-        } catch (e: TaskSyncServiceException.SignInNeeded) {
-            "$name refused the password. Sign in again in Settings → Calendar Accounts."
-        } catch (e: TaskSyncServiceException) {
-            "$name didn't answer as expected. Try again in a moment."
-        } catch (e: Exception) {
-            "Task Sync couldn't be turned on. Try again in a moment."
+        working = "Connecting to ${target.shortName}…"
+        message = TaskSyncStart.turnOn(context, target) {
+            serviceLists = null
+            working = "Syncing…"
         }
         working = null
         reloads++

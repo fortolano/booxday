@@ -19,6 +19,7 @@ import com.boox.day.data.db.MIGRATION_29_30
 import com.boox.day.data.db.MIGRATION_30_31
 import com.boox.day.data.db.MIGRATION_31_32
 import com.boox.day.data.db.MIGRATION_32_33
+import com.boox.day.data.db.MIGRATION_33_34
 import com.boox.day.data.db.TaskSyncSchema
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -419,6 +420,28 @@ class MigrationTest {
             assertTrue(c.isNull(1))
         }
         migratedDb.query("SELECT COUNT(*) FROM caldav_task_file").use { c -> assertTrue(c.moveToFirst()) }
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate33To34_calDavAccountsKeepTheirCalendars() {
+        val dbName = "migration-test-33-34"
+        helper.createDatabase(dbName, 33).apply {
+            execSQL(
+                "INSERT INTO connected_accounts (id, providerId, accountType, email, displayName, isActive, createdAt, lastSyncAt, serverUrl) " +
+                    "VALUES ('acc-1', 'CALDAV', 'CALDAV_OTHER', 'me', NULL, 1, 1, NULL, 'https://dav.example.com/')"
+            )
+            execSQL("INSERT INTO caldav_account (accountId, principalUrl, calendarHomeUrl, username, pinnedCertSha256) VALUES ('acc-1', '/p/', '/h/', 'me', NULL)")
+            close()
+        }
+
+        val migratedDb = helper.runMigrationsAndValidate(dbName, 34, true, MIGRATION_33_34)
+
+        migratedDb.query("SELECT useCalendars, taskListCount FROM caldav_account WHERE accountId = 'acc-1'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(1, c.getInt(0))
+            assertEquals(0, c.getInt(1))
+        }
     }
 
     @Test

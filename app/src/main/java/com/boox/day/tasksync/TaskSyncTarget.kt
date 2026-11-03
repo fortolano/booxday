@@ -29,6 +29,13 @@ internal data class TaskSyncTarget(
     /** In sentences: "Google", "Nextcloud", the server. */
     val shortName: String get() = if (isGoogle) "Google" else serviceName
 
+    /**
+     * [serviceName], with the account when [other] has the same one ("localhost (both)"): two
+     * accounts on one server told apart (owner decision 78's "Switch Task Sync?").
+     */
+    fun nameBeside(other: TaskSyncTarget): String =
+        if (other.serviceName == serviceName && other.key != key) "$serviceName ($accountEmail)" else serviceName
+
     /** The Task Sync card's choice. */
     val key: String get() = if (isGoogle) "google:$accountEmail" else "caldav:$accountId"
 

@@ -348,7 +348,8 @@ abstract class AppDatabase : RoomDatabase() {
                                 MIGRATION_29_30,
                                 MIGRATION_30_31,
                                 MIGRATION_31_32,
-                                MIGRATION_32_33
+                                MIGRATION_32_33,
+                                MIGRATION_33_34
                             )
 
                     // No destructive fallback in any build (plan T2, Oct 2026): the real-data

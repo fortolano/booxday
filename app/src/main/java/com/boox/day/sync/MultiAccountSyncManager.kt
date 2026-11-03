@@ -325,11 +325,31 @@ class MultiAccountSyncManager(
         address: String,
         username: String,
         password: String,
-        trustedCertSha256: String? = null
-    ): Result<ConnectedAccount> = withContext(Dispatchers.IO) {
-        calDavProvider.signIn(accountType, address, username, password, trustedCertSha256).onSuccess { account ->
-            refreshCalendarsForAccount(account.id)
+        trustedCertSha256: String? = null,
+        choice: com.boox.day.sync.caldav.CalDavUseChoice? = null
+    ): Result<com.boox.day.sync.caldav.CalDavSignedIn> = withContext(Dispatchers.IO) {
+        calDavProvider.signIn(accountType, address, username, password, trustedCertSha256, choice).onSuccess { signedIn ->
+            refreshCalendarsForAccount(signedIn.account.id)
             rescheduleBackgroundSync()
+        }
+    }
+
+    /** Whether a CalDAV account is used for its calendars ("Use for: Calendars", owner decision 78); other accounts always are. */
+    internal fun calDavCalendarsOn(accountId: String): Boolean =
+        com.boox.day.data.db.AppDatabase.getDatabase(context).calDavDao().getAccount(accountId)?.useCalendars ?: true
+
+    /**
+     * "Use for: Calendars" switched (owner decision 78). Off: the account's events and its calendars
+     * for new events go, and syncs skip it; on: its calendars are read again (the ticks it had stay).
+     */
+    internal suspend fun setCalDavCalendarsOn(accountId: String, on: Boolean) = withContext(Dispatchers.IO) {
+        val database = com.boox.day.data.db.AppDatabase.getDatabase(context)
+        database.calDavDao().setUseCalendars(accountId, on)
+        if (on) {
+            refreshCalendarsForAccount(accountId)
+        } else {
+            database.calendarEventDao().deleteByAccountId(accountId)
+            _allWritableCalendars.value = _allWritableCalendars.value.filterNot { it.accountId == accountId }
         }
     }
 
@@ -680,6 +700,12 @@ class MultiAccountSyncManager(
             providerId = account.providerId
 
             val provider = providerOf(account)
+
+            // A CalDAV account not used for its calendars (owner decision 78): none of its events, nothing fetched, no sign-in asked for its calendars
+            if (account.providerId == ProviderId.CALDAV.key && !calDavCalendarsOn(accountId)) {
+                com.boox.day.data.db.AppDatabase.getDatabase(context).calendarEventDao().deleteByAccountId(accountId)
+                return@withContext SyncResult.Success(eventCount = 0, newEvents = 0, updatedEvents = 0)
+            }
 
 
 
@@ -1166,7 +1192,9 @@ class MultiAccountSyncManager(
         calendars: List<ProviderCalendar>
     ): List<WritableCalendar> {
         val defaultId = selectionDao.getDefaultCalendar(account.id)?.calendarId
-        val writableCalendars = calendars.filter { it.isWritable }.map { calendar ->
+        // A CalDAV account not used for its calendars offers none for new events (owner decision 78)
+        val used = account.providerId != ProviderId.CALDAV.key || calDavCalendarsOn(account.id)
+        val writableCalendars = calendars.filter { it.isWritable && used }.map { calendar ->
             WritableCalendar(
                 id = calendar.id,
                 name = calendar.name,

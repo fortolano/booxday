@@ -98,6 +98,10 @@ fun AccountCalendarList(
     error: String? = null,
     lastSyncMessage: String? = null,
     onReauth: (() -> Unit)? = null,
+    /** A CalDAV account: what its server has and what it's used for (owner decision 78); null for Google and Outlook. */
+    uses: CalDavUses? = null,
+    onUseCalendars: (Boolean) -> Unit = {},
+    onUseTasks: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
     // Legacy parameter name for backward compatibility - maps to onDisconnectAccount
     onRemoveAccount: (() -> Unit)? = null
@@ -148,8 +152,13 @@ fun AccountCalendarList(
                     .padding(EInkTheme.Global.paddingMedium),
                 verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
             ) {
+                if (uses != null) CalDavUsesSection(uses, onUseCalendars, onUseTasks)
+                // A CalDAV account's calendars only while it's used for them (a tasks-only server has none)
+                val showCalendars = uses == null || (uses.hasCalendars && uses.calendarsOn)
                 // Default calendar selector
-                if (calendars.isNotEmpty()) {
+                if (!showCalendars) {
+                    // nothing more: the switches say it all
+                } else if (calendars.isNotEmpty()) {
                     DefaultCalendarSelector(
                         calendars = calendars,
                         onSetDefault = onSetDefaultCalendar,

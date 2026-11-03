@@ -61,6 +61,13 @@ import com.boox.day.ui.components.CalDavAddButtons
 import com.boox.day.ui.components.CalDavEmptyMessage
 import com.boox.day.ui.components.CalDavSignInState
 import com.boox.day.ui.components.CalDavTabLabel
+import com.boox.day.ui.components.CalDavUses
+import com.boox.day.ui.components.TaskSyncSwitchContent
+import com.boox.day.ui.components.loadCalDavUses
+import com.boox.day.tasksync.TaskSync
+import com.boox.day.tasksync.TaskSyncStart
+import com.boox.day.tasksync.TaskSyncTarget
+import kotlinx.coroutines.launch
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 
@@ -248,7 +255,7 @@ fun CalendarSyncSettingsDialog(
             androidx.compose.runtime.key(form) {
                 CalDavSignInPopup(
                     initial = form,
-                    signIn = { f, address, trust -> viewModel.signInCalDav(f.type, address, f.name, f.password, trust) },
+                    signIn = { f, address, trust, choice -> viewModel.signInCalDav(f.type, address, f.name, f.password, trust, choice) },
                     onDismiss = { calDavForm = null }
                 )
             }
@@ -437,7 +444,8 @@ fun CalendarSyncSettingsDialog(
                                 onReauth = { accountId ->
                                     uiState.calDavAccounts.find { it.account.id == accountId }
                                         ?.let { calDavForm = CalDavSignInState.again(it.account) }
-                                }
+                                },
+                                onUseCalendars = { accountId, on -> viewModel.setCalDavCalendarsOn(accountId, on) }
                             )
                         }
                     }
@@ -855,8 +863,66 @@ private fun CalDavTabContent(
     onSetDefaultCalendar: (accountId: String, calendarId: String) -> Unit,
     onRefreshCalendars: (accountId: String) -> Unit,
     onToggleExpanded: (accountId: String) -> Unit,
-    onReauth: (accountId: String) -> Unit
+    onReauth: (accountId: String) -> Unit,
+    onUseCalendars: (accountId: String, on: Boolean) -> kotlinx.coroutines.Job
 ) {
+    // "Use for" (owner decision 78): what each account's server has and what it's used for
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var usesReload by remember { mutableStateOf(0) }
+    var uses by remember { mutableStateOf<Map<String, CalDavUses>>(emptyMap()) }
+    var switching by remember { mutableStateOf<Pair<TaskSyncTarget, TaskSyncTarget>?>(null) }
+    var tasksWorking by remember { mutableStateOf(false) }
+    var tasksMessage by remember { mutableStateOf<String?>(null) }
+    // Task Sync turned on or off anywhere (the connect step, Preferences) shows on the rows at once
+    val taskSyncChanges by TaskSync.statusChanges.collectAsState()
+    LaunchedEffect(accounts.map { it.account.id to it.calendars.size }, usesReload, taskSyncChanges) {
+        uses = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            loadCalDavUses(context, accounts.map { it.account }, accounts.associate { it.account.id to it.calendars.size })
+        }
+    }
+    fun startTasks(target: TaskSyncTarget) {
+        tasksWorking = true
+        tasksMessage = null
+        scope.launch {
+            tasksMessage = TaskSyncStart.turnOn(context, target)
+            tasksWorking = false
+            usesReload++
+        }
+    }
+    fun useTasks(account: com.boox.day.data.model.ConnectedAccount, on: Boolean) {
+        val target = TaskSyncTarget.calDav(account)
+        when {
+            !on -> {
+                TaskSync.turnOff(context)
+                tasksMessage = null
+                usesReload++
+            }
+            else -> TaskSyncStart.otherServiceOn(context, target)?.let { other -> switching = target to other } ?: startTasks(target)
+        }
+    }
+    switching?.let { (target, other) ->
+        Popup(alignment = Alignment.Center, onDismissRequest = { switching = null }, properties = PopupProperties(focusable = true)) {
+            Box(
+                modifier = Modifier
+                    .width(EInkTheme.PopupOverlay.width)
+                    .background(EInkTheme.PopupOverlay.background, RoundedCornerShape(EInkTheme.Global.cornerRadius))
+                    .border(EInkTheme.PopupOverlay.borderWidth, EInkTheme.PopupOverlay.borderColor, RoundedCornerShape(EInkTheme.Global.cornerRadius))
+                    .padding(EInkTheme.PopupOverlay.padding)
+            ) {
+                TaskSyncSwitchContent(
+                    currentService = other.nameBeside(target),
+                    newServer = target.nameBeside(other),
+                    onKeep = { switching = null },
+                    onSwitch = {
+                        switching = null
+                        startTasks(target)
+                    }
+                )
+            }
+        }
+    }
+
     if (isLoading && accounts.isEmpty()) {
         ConnectingMessage(message = "Loading accounts...")
         return
@@ -870,6 +936,9 @@ private fun CalDavTabContent(
         ) {
             Text(text = errorMsg, fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.primary)
         }
+    }
+    (if (tasksWorking) "Starting Task Sync…" else tasksMessage)?.let { line ->
+        Text(text = line, fontSize = EInkTheme.Typography.bodyMedium, fontWeight = FontWeight.Bold, color = EInkTheme.Colors.primary)
     }
     if (accounts.isEmpty()) {
         CalDavEmptyMessage()
@@ -891,7 +960,17 @@ private fun CalDavTabContent(
                 needsReauth = accountWithCalendars.needsReauth,
                 error = accountWithCalendars.error,
                 lastSyncMessage = syncResults[accountId]?.getDisplayMessage(),
-                onReauth = { onReauth(accountId) }
+                onReauth = { onReauth(accountId) },
+                uses = uses[accountId],
+                onUseCalendars = { on ->
+                    // Shown at once; read again once saved
+                    uses[accountId]?.let { uses = uses + (accountId to it.copy(calendarsOn = on)) }
+                    scope.launch {
+                        onUseCalendars(accountId, on).join()
+                        usesReload++
+                    }
+                },
+                onUseTasks = { on -> useTasks(accountWithCalendars.account, on) }
             )
         }
     }

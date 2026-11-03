@@ -16,7 +16,7 @@ class CalDavSignInOutcomeTest {
 
     @Test
     fun anUncheckableCertificateIsAskedAboutAndAChangedOneSaysSo() {
-        val untrusted = Result.failure<ConnectedAccount>(
+        val untrusted = Result.failure<CalDavSignedIn>(
             CalDavConnection.Failure.UntrustedCertificate(NEW, "CN=radicale.home.lan,O=Home")
         )
 
@@ -36,7 +36,7 @@ class CalDavSignInOutcomeTest {
         assertTrue("app-specific password" in (refused as CalDavSignInOutcome.Failed).message)
 
         val account = ConnectedAccount("a1", ProviderId.CALDAV, AccountType.CALDAV_OTHER, "fort")
-        assertEquals(CalDavSignInOutcome.Connected(account), calDavSignInOutcome(Result.success(account), AccountType.CALDAV_OTHER, OLD))
+        assertEquals(CalDavSignInOutcome.Connected(account), calDavSignInOutcome(Result.success(CalDavSignedIn(account, startTasks = false)), AccountType.CALDAV_OTHER, OLD))
     }
 
     private companion object {

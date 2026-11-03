@@ -33,7 +33,11 @@ data class CalDavAccount(
     /** The sign-in name (iCloud: the Apple ID; may not be an email elsewhere). */
     val username: String,
     /** SHA-256 of the server certificate the user chose to trust ("Trust This Server"), or null for a normally trusted one. */
-    val pinnedCertSha256: String? = null
+    val pinnedCertSha256: String? = null,
+    /** The account's calendars show and sync ("Use for: Calendars", owner decision 78, v34); off: none of its events. */
+    @androidx.room.ColumnInfo(defaultValue = "1") val useCalendars: Boolean = true,
+    /** Task lists the server had at the last look, so the account row knows to offer "Tasks" (v34). */
+    @androidx.room.ColumnInfo(defaultValue = "0") val taskListCount: Int = 0
 )
 
 /** One calendar collection's change markers, so an unchanged calendar costs one small request. */
@@ -123,6 +127,13 @@ interface CalDavDao {
 
     @Query("SELECT * FROM caldav_account WHERE accountId = :accountId")
     fun getAccount(accountId: String): CalDavAccount?
+
+    /** "Use for: Calendars" (owner decision 78). */
+    @Query("UPDATE caldav_account SET useCalendars = :on WHERE accountId = :accountId")
+    fun setUseCalendars(accountId: String, on: Boolean)
+
+    @Query("UPDATE caldav_account SET taskListCount = :count WHERE accountId = :accountId")
+    fun setTaskListCount(accountId: String, count: Int)
 
     @Upsert
     fun upsertCalendar(calendar: CalDavCalendar)

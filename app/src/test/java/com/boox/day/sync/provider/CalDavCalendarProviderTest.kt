@@ -8,7 +8,9 @@ import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.CalendarSelectionEntity
 import com.boox.day.data.model.AccountType
 import com.boox.day.security.AccountSecretStore
+import com.boox.day.sync.caldav.CalDavChoiceNeeded
 import com.boox.day.sync.caldav.CalDavConnection
+import com.boox.day.sync.caldav.CalDavUseChoice
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -51,6 +53,8 @@ class CalDavCalendarProviderTest {
     /** What the server holds: its password, its calendars, whether Home fails. */
     private var serverPassword = "app-password"
     private val calendars = linkedMapOf("/calendars/me/work/" to "Work", "/calendars/me/home/" to "Home")
+    /** Collections that take tasks only (owner decision 78). */
+    private val taskLists = linkedMapOf<String, String>()
     private var homeBroken = false
     /** Work is shared (an iCloud Family calendar); the server names a default calendar for new events. */
     private var workShared = false
@@ -81,7 +85,14 @@ class CalDavCalendarProviderTest {
                             href,
                             "<d:resourcetype><d:collection/><c:calendar/>${if (workShared && name == "Work") "<cs:shared-owner/>" else ""}</d:resourcetype><d:displayname>$name</d:displayname>" +
                                 "<ic:calendar-color>#3366CCFF</ic:calendar-color>" +
+                                "<c:supported-calendar-component-set><c:comp name=\"VEVENT\"/></c:supported-calendar-component-set>" +
                                 "<d:current-user-privilege-set><d:privilege><d:read/></d:privilege><d:privilege><d:write/></d:privilege></d:current-user-privilege-set>"
+                        )
+                    } + taskLists.entries.joinToString("") { (href, name) ->
+                        response(
+                            href,
+                            "<d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>$name</d:displayname>" +
+                                "<c:supported-calendar-component-set><c:comp name=\"VTODO\"/></c:supported-calendar-component-set>"
                         )
                     } + if (serverDefault != null) response("/calendars/me/inbox/", "<d:resourcetype><d:collection/><c:schedule-inbox/></d:resourcetype>") else "")
                     "/calendars/me/home/" -> if (homeBroken) MockResponse().setResponseCode(500) else multistatus("")
@@ -119,6 +130,34 @@ class CalDavCalendarProviderTest {
         assertEquals(account.id, again.id)
         assertEquals("new-password", secrets.read(account.id))
         assertFalse(db.calendarSelectionDao().getByAccountAndCalendarId(account.id, "/calendars/me/work/")!!.isFetchEnabled)
+    }
+
+    /**
+     * Owner decision 78: an account is used for what its server has. Calendars and task lists: the
+     * user picks first; only task lists: tasks only (it was refused, "No calendar server found").
+     */
+    @Test
+    fun anAccountIsUsedForWhatItsServerHas(): Unit = runBlocking<Unit> {
+        taskLists["/calendars/me/tasks/"] = "Tasks"
+        val asked = signInWith().exceptionOrNull()
+        assertTrue("both kinds: the user picks", asked is CalDavChoiceNeeded)
+        assertEquals(2 to 1, (asked as CalDavChoiceNeeded).let { it.calendarCount to it.taskListCount })
+
+        val picked = signInWith(choice = CalDavUseChoice(calendars = false, tasks = true)).getOrThrow()
+        assertTrue("Tasks picked: Task Sync starts", picked.startTasks)
+        val dav = db.calDavDao().getAccount(picked.account.id)!!
+        assertEquals(false to 1, dav.useCalendars to dav.taskListCount)
+
+        // Signing in again keeps the choice and asks nothing
+        val again = signInWith().getOrThrow()
+        assertEquals(false to false, db.calDavDao().getAccount(again.account.id)!!.useCalendars to again.startTasks)
+
+        // A server with only task lists connects, for its tasks
+        db.connectedAccountDao().deleteById(picked.account.id)
+        calendars.clear()
+        val tasksOnly = signInWith().getOrThrow()
+        assertTrue(tasksOnly.startTasks)
+        assertTrue(db.calDavDao().getCalendars(tasksOnly.account.id).isEmpty())
     }
 
     @Test
@@ -160,7 +199,10 @@ class CalDavCalendarProviderTest {
     // ── Helpers ──
 
     private suspend fun signIn(password: String = "app-password", address: String = address()) =
-        provider.signIn(AccountType.CALDAV_OTHER, address, " me ", password, trustedCertSha256 = pin)
+        signInWith(password, address).map { it.account }
+
+    private suspend fun signInWith(password: String = "app-password", address: String = address(), choice: CalDavUseChoice? = null) =
+        provider.signIn(AccountType.CALDAV_OTHER, address, " me ", password, trustedCertSha256 = pin, choice = choice)
 
     private fun address() = server.url("/").toString()
 
