@@ -51,6 +51,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.material.LocalTextStyle
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.ui.components.ScrollMoreBar
@@ -109,36 +114,39 @@ fun HelpDialog(
                 Divider(color = EInkTheme.Colors.primary, thickness = EInkTheme.Global.borderWidth)
 
                 // Main content: Split screen
-                Row(
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
-                    // Left Navigation (30%)
-                    NavigationMenu(
-                        sections = sections,
-                        selectedIndex = selectedSection,
-                        onSectionSelected = { selectedSection = it },
-                        modifier = Modifier
-                            .weight(0.30f)
-                            .fillMaxHeight()
-                    )
+                    val menuWidth = helpMenuWidth(sections, maxWidth)
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        // Left Navigation (30%, wider only if a word wouldn't fit)
+                        NavigationMenu(
+                            sections = sections,
+                            selectedIndex = selectedSection,
+                            onSectionSelected = { selectedSection = it },
+                            modifier = Modifier
+                                .width(menuWidth)
+                                .fillMaxHeight()
+                        )
 
-                    // Vertical Divider
-                    Divider(
-                        color = EInkTheme.Colors.primary,
-                        modifier = Modifier
-                            .width(EInkTheme.Global.borderWidth)
-                            .fillMaxHeight()
-                    )
+                        // Vertical Divider
+                        Divider(
+                            color = EInkTheme.Colors.primary,
+                            modifier = Modifier
+                                .width(EInkTheme.Global.borderWidth)
+                                .fillMaxHeight()
+                        )
 
-                    // Right Content (70%)
-                    HelpContent(
-                        sectionIndex = selectedSection,
-                        modifier = Modifier
-                            .weight(0.70f)
-                            .fillMaxHeight()
-                    )
+                        // Right Content (the rest)
+                        HelpContent(
+                            sectionIndex = selectedSection,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                    }
                 }
             }
         }
@@ -188,6 +196,24 @@ private fun HelpHeader(onDismiss: () -> Unit) {
             )
         }
     }
+}
+
+/**
+ * Help's menu column: 30% of the split, wider only when its longest word (bold, as when selected)
+ * wouldn't fit beside the icon (Nov 2026, owner's choice: "Troubleshooting" broke inside the word on
+ * the Go 6). Matches the row layout in [NavigationMenu]: side padding, 20 dp icon, gap.
+ */
+@Composable
+private fun helpMenuWidth(sections: List<HelpSection>, splitWidth: Dp): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = LocalTextStyle.current.merge(TextStyle(fontSize = EInkTheme.Typography.bodyMedium, fontWeight = FontWeight.Bold))
+    val longestWord = remember(sections, measurer, density, style) {
+        sections.flatMap { it.title.split(' ') }.maxOf { measurer.measure(it, style, softWrap = false).size.width }
+    }
+    val needed = with(density) { longestWord.toDp() } +
+        EInkTheme.Global.padding * 2 + 20.dp + EInkTheme.Global.paddingSmall + 2.dp
+    return maxOf(splitWidth * 0.30f, needed).coerceAtMost(splitWidth * 0.5f)
 }
 
 @Composable
