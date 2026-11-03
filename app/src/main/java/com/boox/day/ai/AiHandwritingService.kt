@@ -481,7 +481,8 @@ OUTPUT FORMAT:
                 return Result.failure(NoTextFoundException("No handwritten text detected"))
             }
 
-            log.i("Digital Ink: Recognized '${result.text.take(50)}...' (confidence=${result.confidence})")
+            // 2 Nov 2026: the length only; the handwriting itself was kept in release builds' logs
+            log.i("Digital Ink: Recognized ${result.text.length} chars (confidence=${result.confidence})")
 
             // Return result (no formatting stage for Digital Ink - it's already clean)
             val aiResult = AiRecognitionResult(

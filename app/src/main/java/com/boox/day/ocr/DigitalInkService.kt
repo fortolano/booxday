@@ -236,7 +236,8 @@ class DigitalInkService(
             } else 0f
 
             val elapsed = System.currentTimeMillis() - startTime
-            Log.i(TAG, "recognizeStrokes: '${normalizedResult.take(50)}...' (${elapsed}ms, confidence=$confidence)")
+            // 2 Nov 2026: the length only; the handwriting itself was kept in release builds' logs
+            Log.i(TAG, "recognizeStrokes: ${normalizedResult.length} chars (${elapsed}ms, confidence=$confidence)")
 
             RecognitionResult(
                 text = normalizedResult,

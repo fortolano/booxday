@@ -318,7 +318,8 @@ object TextInferenceService {
             return InferenceResult.unchanged(rawText)
         }
 
-        log.i("Refining text: ${rawText.take(50)}... (context=$context)")
+        // 2 Nov 2026: the length only; the first 50 characters of the user's text were kept in release builds
+        log.i("Refining ${rawText.length} chars (context=$context)")
 
         // Execute with fallback chain
         return executeWithFallback(rawText, context, config)
@@ -601,7 +602,7 @@ Return only the JSON object.
                             }
                         )
                     } catch (e: Exception) {
-                        log.w("Failed to parse correction: $correctionJson")
+                        log.w("Failed to parse a correction")
                         null
                     }
                 }
@@ -617,7 +618,7 @@ Return only the JSON object.
                 modelUsed = modelUsed
             )
         } catch (e: JsonSyntaxException) {
-            log.e("Failed to parse JSON response: ${json.take(200)}", e)
+            log.e("Failed to parse JSON response (${json.length} chars)", e)
             // Try to extract refinedText with regex as fallback
             extractRefinedTextFallback(json, originalText, modelUsed)
         } catch (e: Exception) {
@@ -646,7 +647,7 @@ Return only the JSON object.
                 .replace("\\n", "\n")
                 .replace("\\\"", "\"")
 
-            log.i("Fallback extraction successful: ${extractedText.take(50)}...")
+            log.i("Fallback extraction successful (${extractedText.length} chars)")
 
             InferenceResult.success(
                 refined = extractedText,
