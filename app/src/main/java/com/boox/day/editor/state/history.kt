@@ -9,12 +9,16 @@ import com.boox.day.editor.DrawCanvas
 import com.boox.day.editor.PageView
 import com.boox.day.editor.utils.attachmentBoundsInt
 import com.boox.day.editor.utils.imageBoundsInt
+import com.boox.day.data.db.TaskRepository
+import com.boox.day.editor.utils.TaskRowMove
 import com.boox.day.editor.utils.strokeBounds
 import com.boox.day.editor.utils.textAnnotationBoundsInt
 import com.boox.day.ui.SnackConf
 import com.boox.day.ui.SnackState
 import com.boox.day.utils.logCallStack
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 
@@ -31,6 +35,8 @@ sealed class Operation {
     // Update operations for position/size changes (used by text box move, image resize)
     data class UpdateTextAnnotation(val before: TextAnnotation, val after: TextAnnotation) : Operation()
     data class UpdateImage(val before: Image, val after: Image) : Operation()
+    // A task moved to other rows of the same day (owner decision 75): the whole task moves back
+    data class MoveTasks(val move: TaskRowMove) : Operation()
 }
 
 typealias OperationBlock = List<Operation>
@@ -100,8 +106,17 @@ class History(pageView: PageView) {
         redoList.clear()
     }
 
-    private fun treatOperation(operation: Operation): Pair<Operation, Rect> {
+    /** The operation that cancels [operation], and the area it changed; null when it couldn't be done. */
+    private suspend fun treatOperation(operation: Operation): Pair<Operation, Rect>? {
         when (operation) {
+            is Operation.MoveTasks -> {
+                // Words, tick, dates, sync link and ink move in the database; the page on screen
+                // reloads itself afterwards (TaskRepository.moveTaskRows)
+                val moved = withContext(Dispatchers.IO) {
+                    TaskRepository(pageModel.context).moveTaskRows(operation.move)
+                }
+                return if (moved) Operation.MoveTasks(operation.move.reversed()) to Rect() else null
+            }
             is Operation.ReplaceStrokes -> {
                 // History may outlive a day switch; never apply a replacement on another page.
                 if (operation.pageId != pageModel.currentPageId) return operation to Rect()
@@ -185,7 +200,7 @@ class History(pageView: PageView) {
         }
     }
 
-    private fun undoRedo(type: UndoRedoType): Rect? {
+    private suspend fun undoRedo(type: UndoRedoType): Rect? {
         val originList =
             if (type == UndoRedoType.Undo) undoList else redoList
         val targetList =
@@ -197,7 +212,17 @@ class History(pageView: PageView) {
         val revertOperations = mutableListOf<Operation>()
         val zoneAffected = Rect()
         for (operation in operationBlock) {
-            val (cancelOperation, thisZoneAffected) = treatOperation(operation = operation)
+            val (cancelOperation, thisZoneAffected) = treatOperation(operation = operation) ?: run {
+                // A task move whose old rows were used since (it is the only operation of its block)
+                SnackState.globalSnackFlow.emit(
+                    SnackConf(
+                        key = "history-action",
+                        text = "Can't move the task back: its old row isn't empty now",
+                        duration = SnackConf.DURATION_STANDARD,
+                    )
+                )
+                return Rect()
+            }
             revertOperations.add(cancelOperation)
             zoneAffected.union(thisZoneAffected)
         }

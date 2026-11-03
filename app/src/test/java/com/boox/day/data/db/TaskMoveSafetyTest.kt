@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.boox.day.data.getDbDir
+import com.boox.day.editor.utils.Pen
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -104,6 +105,44 @@ class TaskMoveSafetyTest {
         assertEquals(parent.id, child.parentTaskId)
         assertEquals(parent.rowIndex + 1, child.rowIndex)
         assertTrue(tasks.getTasksForDay(SOURCE).none { it.typedText != null })
+    }
+
+    /**
+     * Owner decision 75 (Nov 2026): Undo of a same-day Move puts the whole task back. It used to undo
+     * only the ink, on the page on screen, so the words stayed on the new row and the ink on both.
+     */
+    @Test
+    fun undoOfASameDayMovePutsTheWholeTaskBack() {
+        repo.getOrCreateTasksForPage(SOURCE, 0)
+        val (page1, _) = repo.getOrCreateTasksForPage(SOURCE, 1)
+        val task = page1[3]
+        repo.setTypedText(task.id, "Pay rent")
+        repo.setPriority(task.id, "A")
+        repo.setDueDay(task.id, "2026-11-10", CANVAS_HEIGHT)
+        val strokes = StrokeRepository(context)
+        strokes.create(Stroke(size = 6f, pen = Pen.BALLPEN, top = 470f, bottom = 490f, left = 100f, right = 300f,
+            points = (0..10).map { StrokePoint(100f + it * 20f, 480f) }, pageId = task.pageId))
+
+        val result = repo.moveTaskWithStrokes(tasks.getById(task.id)!!, SOURCE, 0, CANVAS_HEIGHT, context)
+        val undo = result.undoOperations?.single() as com.boox.day.editor.state.Operation.MoveTasks
+        val movedTo = tasks.getById(result.movedTaskId!!)!!
+        assertEquals(0, movedTo.taskPageIndex)
+
+        assertTrue(repo.moveTaskRows(undo.move))
+
+        val back = tasks.getById(task.id)!!
+        assertEquals("Pay rent", back.typedText)
+        assertEquals("A", back.priority)
+        assertEquals("2026-11-10", back.dueDay)
+        assertEquals(null, tasks.getById(movedTo.id)?.typedText)
+        assertEquals("the ink is on the old row only", 1, strokes.getAllForPage(task.pageId).size)
+        assertTrue(strokes.getAllForPage(movedTo.pageId).isEmpty())
+
+        // Redo refuses a row that was used since, and changes nothing
+        repo.setTypedText(movedTo.id, "Buy milk")
+        assertEquals(false, repo.moveTaskRows(undo.move.reversed()))
+        assertEquals("Pay rent", tasks.getById(task.id)?.typedText)
+        assertEquals("Buy milk", tasks.getById(movedTo.id)?.typedText)
     }
 
     private fun deleteDatabaseFiles() {

@@ -22,6 +22,8 @@ import com.boox.day.editor.utils.MoveTaskError
 import com.boox.day.notifications.TaskNotificationScheduler
 import com.boox.day.ocr.TaskTextIndexer
 import com.boox.day.editor.utils.MoveTaskResult
+import com.boox.day.editor.utils.TaskRowMove
+import com.boox.day.editor.utils.taskRowHasContent
 import com.boox.day.editor.state.Operation
 import com.boox.day.editor.utils.calculateRowBounds
 import com.boox.day.editor.utils.hasIntentionalStrokeContent
@@ -3005,9 +3007,6 @@ class TaskRepository(internal val context: Context) {
         // Same-date moves can be undone; cross-date moves cannot (different History instances)
         val isSameDateMove = targetDate == sourceDate
 
-        // Collect undo operations for same-date moves
-        val sameDateUndoOperations = mutableListOf<Operation>()
-
         // Get or create target page
         val (targetTasks, _) = getOrCreateTasksForPage(targetDate, targetPageIndex)
 
@@ -3132,13 +3131,6 @@ class TaskRepository(internal val context: Context) {
 
                 totalMigratedCount += migratedStrokes.size
 
-                // Collect undo operations for same-date moves
-                // To undo: delete migrated strokes, restore original strokes
-                if (isSameDateMove) {
-                    sameDateUndoOperations.add(Operation.DeleteStroke(migratedStrokes.map { it.id }))
-                    sameDateUndoOperations.add(Operation.AddStroke(strokesInRow))
-                }
-
                 Log.i(TAG, "STROKE_MIGRATE: Moved ${migratedStrokes.size} strokes from row $sourceRowIndex to row $targetRowIndex")
             }
 
@@ -3201,14 +3193,102 @@ class TaskRepository(internal val context: Context) {
             success = true,
             sourceStrokeIds = allSourceStrokeIds,
             migratedStrokeCount = totalMigratedCount,
-            undoOperations = if (isSameDateMove && sameDateUndoOperations.isNotEmpty()) {
-                sameDateUndoOperations
+            // Undo puts the whole task back (owner decision 75, Nov 2026). It used to undo only the ink,
+            // and on the page on screen: the words, tick and dates stayed on the new row, and the ink
+            // that had gone to another page stayed there too, so it showed on both rows.
+            undoOperations = if (isSameDateMove) {
+                listOf(Operation.MoveTasks(TaskRowMove(
+                    date = targetDate,
+                    fromPage = targetPageIndex,
+                    fromRows = (startRow until startRow + groupSize).toList(),
+                    toPage = sourcePageIndex,
+                    toRows = taskGroup.map { it.rowIndex },
+                    canvasHeight = canvasHeight
+                )))
             } else {
                 null
             },
             targetPageIndex = targetPageIndex,
             movedTaskId = targetTasks.find { it.rowIndex == startRow }?.id
         )
+    }
+
+    /**
+     * Moves the task group on [move]'s rows to its other rows, everything a Move moves: words, tick,
+     * priority, due date, reminder, subtasks, sync link and ink (owner decision 75, Nov 2026: Undo and
+     * Redo of a same-day Move). False, with nothing changed, when the task isn't on its rows any more,
+     * a row it goes to holds something now, or the day is on full screen pages.
+     */
+    fun moveTaskRows(move: TaskRowMove): Boolean = try {
+        inTransaction { moveTaskRowsInTransaction(move) }
+    } catch (e: Exception) {
+        invalidateTaskCache(move.date)
+        throw e
+    }
+
+    private fun moveTaskRowsInTransaction(move: TaskRowMove): Boolean {
+        if (TaskPagination.isReflowed(move.date) || move.fromRows.size != move.toRows.size || move.fromRows.isEmpty()) return false
+        if (move.fromPage == move.toPage && move.fromRows.any { it in move.toRows }) return false
+        val strokeRepo = StrokeRepository(context)
+        val fromTasks = taskDao.getTasksForPage(move.date, move.fromPage)
+        val toTasks = if (move.toPage == move.fromPage) fromTasks else taskDao.getTasksForPage(move.date, move.toPage)
+        val sources = move.fromRows.map { row -> fromTasks.find { it.rowIndex == row } ?: return false }
+        val targets = move.toRows.map { row -> toTasks.find { it.rowIndex == row } ?: return false }
+        fun pageStrokes(pageId: String) =
+            PageDataManager.getStrokesInRectangle(Rect(0, 0, Int.MAX_VALUE, Int.MAX_VALUE), pageId) ?: strokeRepo.getAllForPage(pageId)
+        fun rowStrokes(task: Task, strokes: List<Stroke>) =
+            extractStrokesForRow(strokes, calculateRowBounds(task.rowIndex, move.canvasHeight, 10), move.canvasHeight)
+        val fromStrokes = pageStrokes(sources[0].pageId)
+        val toStrokes = if (targets[0].pageId == sources[0].pageId) fromStrokes else pageStrokes(targets[0].pageId)
+
+        // The task must still be where the move put it, and its old rows still free
+        val first = sources[0]
+        if (!taskRowHasContent(first, rowStrokes(first, fromStrokes), calculateRowBounds(first.rowIndex, move.canvasHeight, 10))) return false
+        val sourceIds = sources.map { it.id }.toSet()
+        val blocked = targets.any { target ->
+            target.id !in sourceIds && (target.parentTaskId != null ||
+                taskRowHasContent(target, rowStrokes(target, toStrokes), calculateRowBounds(target.rowIndex, move.canvasHeight, 10)))
+        }
+        if (blocked) return false
+
+        for ((index, source) in sources.withIndex()) {
+            val target = targets[index]
+            val strokes = rowStrokes(source, fromStrokes)
+            if (strokes.isNotEmpty()) {
+                val migrated = createMigratedStrokes(
+                    sourceStrokes = strokes,
+                    sourceRowBounds = calculateRowBounds(source.rowIndex, move.canvasHeight, 10),
+                    targetRowBounds = calculateRowBounds(target.rowIndex, move.canvasHeight, 10),
+                    targetPageId = target.pageId
+                )
+                val strokeIds = strokes.map { it.id }
+                strokeRepo.migrateStrokes(strokeIds, migrated)
+                afterCommit {
+                    PageDataManager.removeStrokes(strokeIds, source.pageId)
+                    PageDataManager.addStrokes(migrated, target.pageId)
+                }
+            }
+            // The link moves before the source row is cleared, as in moveTaskWithStrokes
+            transferTaskContent(source, target.id, keepTemplateLink = true)
+            taskDao.clearTaskMetadata(source.id)
+        }
+        for (index in 1 until targets.size) {
+            if (sources[index].parentTaskId == sources[0].id) taskDao.setParentTask(targets[index].id, targets[0].id)
+        }
+
+        afterCommit {
+            invalidateTaskCache(move.date)
+            _taskChanged.tryEmit(move.date)
+            TaskTextIndexer.getInstanceOrNull()?.let { indexer ->
+                indexer.onTypedTextChanged(first.id, move.date, move.fromPage, first.pageId)
+                indexer.onTypedTextChanged(targets[0].id, move.date, move.toPage, targets[0].pageId)
+            }
+            // The page on screen shows the rows again (MainScreen reloads it, as after a sync change)
+            notifyDayChangedBySync(move.date)
+            TasksCanvasRefresh.request()
+        }
+        Log.i(TAG, "TASK_ROW_MOVE: ${sources.size} task(s) on ${move.date} from page ${move.fromPage} rows ${move.fromRows} to page ${move.toPage} rows ${move.toRows}")
+        return true
     }
 
     /**

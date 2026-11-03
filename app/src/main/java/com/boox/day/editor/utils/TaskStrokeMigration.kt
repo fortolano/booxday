@@ -346,6 +346,22 @@ fun taskRowHasContent(
 }
 
 /**
+ * A task group moved between rows of one day (owner decision 75, Nov 2026): what Undo of a same-day
+ * Move puts back, and Redo moves again. Rows are listed parent first, in the same order on both sides.
+ */
+data class TaskRowMove(
+    val date: String,
+    val fromPage: Int,
+    val fromRows: List<Int>,
+    val toPage: Int,
+    val toRows: List<Int>,
+    /** The Tasks canvas height the rows were measured with (the normal view's) */
+    val canvasHeight: Float
+) {
+    fun reversed() = copy(fromPage = toPage, fromRows = toRows, toPage = fromPage, toRows = fromRows)
+}
+
+/**
  * Result of a task move operation with stroke migration.
  *
  * @param success Whether the operation succeeded
