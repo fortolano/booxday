@@ -91,7 +91,7 @@ object DigitalInkModelManager {
         // Initialize download states for all supported languages
         val supportedLanguages = listOf(
             "en-US", "es-ES", "fr-FR", "de-DE", "zh-Hans",
-            "ja", "ko", "it-IT", "ru-RU", "ar"
+            "ja", "ko", "it-IT", "ru-RU", "uk", "ar"
         )
         supportedLanguages.forEach { lang ->
             downloadStates[lang] = MutableStateFlow(DownloadState.NOT_DOWNLOADED)
@@ -108,7 +108,7 @@ object DigitalInkModelManager {
     private suspend fun syncDownloadStatesWithDevice() = withContext(Dispatchers.IO) {
         val supportedLanguages = listOf(
             "en-US", "es-ES", "fr-FR", "de-DE", "zh-Hans",
-            "ja", "ko", "it-IT", "ru-RU", "ar"
+            "ja", "ko", "it-IT", "ru-RU", "uk", "ar"
         )
 
         supportedLanguages.forEach { lang ->
@@ -260,7 +260,7 @@ object DigitalInkModelManager {
 
     /**
      * Get all available languages for UI.
-     * Returns 10 supported languages: English (Full), 9 others (Basic).
+     * Returns 11 supported languages: English (Full), 10 others (Basic).
      * Uses cached downloadStates for instant performance (no file I/O).
      */
     fun getAvailableLanguages(): List<LanguageInfo> {
@@ -271,6 +271,7 @@ object DigitalInkModelManager {
             "fr-FR" to "French (France) - Basic",
             "it-IT" to "Italian (Italy) - Basic",
             "ru-RU" to "Russian (Russia) - Basic",
+            "uk" to "Ukrainian - Basic",
             "ja" to "Japanese - Basic",
             "ko" to "Korean - Basic",
             "zh-Hans" to "Chinese (Simplified) - Basic",

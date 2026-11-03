@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
  * - Set active language for recognition
  * - English is protected (cannot be deleted)
  *
- * Supported languages: English, German, Spanish, French, Italian, Russian, Japanese, Korean, Chinese, Arabic
+ * Supported languages: English, German, Spanish, French, Italian, Russian, Ukrainian, Japanese, Korean, Chinese, Arabic
  *
  * E-Ink optimized: Uses Popup, noRippleClickable, EInkTheme styling, no scrolling required.
  */
