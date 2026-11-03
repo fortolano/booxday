@@ -231,7 +231,7 @@ internal object CalDavEvents {
     }
 
     /** A start as the same text whatever time zone it was written in: "yyyyMMdd" or UTC "yyyyMMddTHHmmssZ". */
-    private fun key(date: Date): String =
+    internal fun key(date: Date): String =
         if (date is DateTime) UTC_KEY.format(Instant.ofEpochMilli(date.time)) else date.toString()
 
     private fun Calendar.events(): List<VEvent> = getComponents<VEvent>(Component.VEVENT)

@@ -33,7 +33,8 @@ import java.time.ZoneId
 
 /**
  * CalDAV task lists as a task service (plan stage 4): a pull reports new, changed and deleted tasks
- * (not ticked or repeating ones it would never bring), and again while their merge waits; a change
+ * (not ticked ones it would never bring), and again while their merge waits; a repeating task comes
+ * as each due day of the coming week, a ticked day as that day's exception (decision 76); a change
  * made on the phone during a send is merged first, never overwritten; a new task is a file of its
  * own; a task moves between lists. A local https server stands in for Nextcloud or Radicale, with
  * real change tags (If-Match, If-None-Match, getctag).
@@ -114,11 +115,10 @@ class CalDavTasksProviderTest {
     fun aPullBringsNewChangedAndDeletedTasksAndAWaitingMergeComesAgain(): Unit = runBlocking<Unit> {
         put(TASKS, "a.ics", task("a", "Milk"))
         put(TASKS, "b.ics", task("b", "Old", extra = "STATUS:COMPLETED"))
-        put(TASKS, "c.ics", task("c", "Pills", extra = "RRULE:FREQ=DAILY"))
         put(TASKS, "d.ics", task("d", "Bread"))
 
         val first = provider().changes(TASKS, null)
-        assertEquals("not ticked or repeating ones (owner decisions 27, 69)", listOf("Milk", "Bread"), first.tasks.map { it.title })
+        assertEquals("not ticked ones (owner decision 27)", listOf("Milk", "Bread"), first.tasks.map { it.title })
         assertEquals(TaskExtras("", null), first.tasks.first().extras)
         val cursor = first.nextCursor!!
         assertTrue("an unchanged list costs one request", provider().changes(TASKS, cursor).tasks.isEmpty())
@@ -180,12 +180,59 @@ class CalDavTasksProviderTest {
         assertEquals("Call mom", moved.title)
     }
 
+    /**
+     * Owner decision 76 (Nov 2026): a repeating task comes as one task per due day of the coming week;
+     * ticking a day writes that day's exception (the series goes on), clearing one adds an EXDATE, a
+     * new day arrives with the next day, and a day can't move to another list.
+     */
+    @Test
+    fun aRepeatingTaskComesAsEachDayOfTheWeekAndADayIsTickedOnItsOwn(): Unit = runBlocking<Unit> {
+        put(TASKS, "p.ics", task("p", "Pills", due = "20261102", extra = "RRULE:FREQ=DAILY;COUNT=10"))
+        val href = "$TASKS" + "p.ics"
+
+        val first = provider().changes(TASKS, null)
+        assertEquals((2..8).map { "2026-11-%02d".format(it) }, first.tasks.map { it.dueDay })
+        assertEquals("$href#20261103", first.tasks[1].remoteId)
+        assertTrue(first.tasks.all { it.title == "Pills" && !it.completed })
+
+        // On the tablet: the 3rd ticked, the 4th cleared
+        link("t-3", "$href#20261103", "1")
+        link("t-4", "$href#20261104", "1")
+        val ticked = provider().upsert(OutgoingTask("t-3", TASKS, "Pills", true, "2026-11-03", null, TaskExtras("", null)), db.taskSyncDao().getLink("t-3"))
+        db.taskSyncDao().setMovedVersion("t-3", ticked.version!!, 1)
+        db.taskSyncDao().setMovedVersion("t-4", ticked.version!!, 1)
+        provider().delete(TASKS, "$href#20261104")
+        val file = collections.getValue(TASKS).getValue(href).second
+        for (line in listOf("RRULE:FREQ=DAILY;COUNT=10", "RECURRENCE-ID;VALUE=DATE:20261103", "STATUS:COMPLETED", "EXDATE;VALUE=DATE:20261104")) {
+            assertTrue("$line\n$file", line in file)
+        }
+
+        // Read again: the 3rd ticked, the 4th deleted, the others as they were
+        val reported = provider().changes(TASKS, first.nextCursor).tasks
+        assertEquals("each day once", reported.size, reported.map { it.remoteId }.toSet().size)
+        val again = reported.associateBy { it.remoteId }
+        assertEquals(true to false, again.getValue("$href#20261103").let { it.completed to it.deleted })
+        assertEquals(true, again.getValue("$href#20261104").deleted)
+        assertEquals(false, again.getValue("$href#20261105").completed)
+
+        // The next morning the 9th comes, with no change on the server
+        val cursor = provider().changes(TASKS, null).nextCursor
+        val tomorrow = provider(now = NOW + 86_400_000L).changes(TASKS, cursor).tasks.map { it.dueDay }
+        assertTrue(tomorrow.toString(), "2026-11-09" in tomorrow)
+
+        try {
+            provider().moveToList(TASKS, "$href#20261105", WORK)
+            fail("a day can't leave its series")
+        } catch (e: TaskSyncServiceException.Refused) {
+        }
+    }
+
     // ── Helpers ──
 
-    private fun provider() = CalDavTasksProvider(
+    private fun provider(now: Long = NOW) = CalDavTasksProvider(
         db, "acc-1", "me", "https://localhost/", server.url("/home/").toString(),
         CalDavConnection("me", "app-password", CalDavConnection.sha256(serverCert.certificate), OkHttpClient()),
-        zone = { zone }, now = { NOW }
+        zone = { zone }, now = { now }
     )
 
     private fun outgoing(title: String, completed: Boolean = false, extras: TaskExtras = TaskExtras("", null)) =
@@ -204,9 +251,9 @@ class CalDavTasksProviderTest {
         ctag++
     }
 
-    private fun task(uid: String, title: String, extra: String? = null) = listOfNotNull(
+    private fun task(uid: String, title: String, extra: String? = null, due: String = "20261105") = listOfNotNull(
         "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//test//EN", "BEGIN:VTODO", "UID:$uid", "SUMMARY:$title",
-        "DUE;VALUE=DATE:20261105", extra, "END:VTODO", "END:VCALENDAR"
+        "DUE;VALUE=DATE:$due", extra, "END:VTODO", "END:VCALENDAR"
     ).joinToString("\r\n", postfix = "\r\n")
 
     private fun home() = multistatus(

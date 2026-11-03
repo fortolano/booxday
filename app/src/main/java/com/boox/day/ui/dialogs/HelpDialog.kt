@@ -581,7 +581,7 @@ private fun TaskManagementContent() {
         BulletPoint("Tasks from your phone come to their due day; tasks with no date come to today.")
         BulletPoint("It syncs when you open BooxDay, about 10 seconds after you stop writing, with the cloud button, and in the background on Sync frequency while the tablet is awake (on BOOX, see Data & Troubleshooting).")
         BulletPoint("Clearing or deleting a synced task deletes it on your phone's service too; more than 20 at once waits for your OK. Ticked tasks deleted on your phone stay on the tablet.")
-        BulletPoint("iCloud can't be used: Apple doesn't share Reminders with other apps. Tasks that repeat on your phone stay there and don't come to the tablet.")
+        BulletPoint("iCloud can't be used: Apple doesn't share Reminders with other apps. Repeating tasks come to each day of the coming week with a CalDAV server, not with Google Tasks.")
     }
 }
 

@@ -76,6 +76,43 @@ class CalDavTasksTest {
         assertEquals(listOf("n", false, "2026-11-03", null, "C", 8 * 60 + 30), listOf(made.uid, made.completed, made.dueDay, made.parentUid, made.priority, made.reminderMinute))
     }
 
+    /**
+     * Owner decision 76: a series with a time, in its own time zone (Mon and Wed 9:00 Toronto, due an
+     * hour later): its days fall on the right dates, a ticked day becomes that day's exception, and
+     * an exception made on the phone (moved to Thursday) counts as that day.
+     */
+    @Test
+    fun aRepeatingTaskWithATimeGivesItsDaysAndTicksOneOnItsOwn() {
+        val series = ics(
+            "BEGIN:VTIMEZONE", "TZID:America/Toronto",
+            "BEGIN:STANDARD", "DTSTART:19701101T020000", "RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU", "TZOFFSETFROM:-0400", "TZOFFSETTO:-0500", "END:STANDARD",
+            "BEGIN:DAYLIGHT", "DTSTART:19700308T020000", "RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU", "TZOFFSETFROM:-0500", "TZOFFSETTO:-0400", "END:DAYLIGHT",
+            "END:VTIMEZONE",
+            "BEGIN:VTODO", "UID:r", "SUMMARY:Stand-up notes", "DTSTART;TZID=America/Toronto:20261102T090000",
+            "DUE;TZID=America/Toronto:20261102T100000", "RRULE:FREQ=WEEKLY;BYDAY=MO,WE", "PRIORITY:5", "END:VTODO",
+            "BEGIN:VTODO", "UID:r", "SUMMARY:Stand-up notes (moved)", "RECURRENCE-ID;TZID=America/Toronto:20261111T090000",
+            "DTSTART;TZID=America/Toronto:20261112T090000", "DUE;TZID=America/Toronto:20261112T100000", "END:VTODO"
+        )
+        val week = CalDavTasks.occurrences(series, zone, java.time.LocalDate.of(2026, 11, 2), java.time.LocalDate.of(2026, 11, 13))!!
+        assertEquals(
+            listOf("20261102T140000Z" to "2026-11-02", "20261104T140000Z" to "2026-11-04", "20261109T140000Z" to "2026-11-09", "20261111T140000Z" to "2026-11-12"),
+            week.map { it.key to it.read.dueDay }
+        )
+        assertEquals(listOf("B", 10 * 60), week[0].read.let { listOf(it.priority, it.reminderMinute) })
+        assertEquals("Stand-up notes (moved)", week[3].read.title)
+
+        val ticked = CalDavTasks.editOccurrence(
+            series, "20261104T140000Z", CalDavTasks.Fields("Stand-up notes", true, "2026-11-04", null, "B", 10 * 60), zone, NOW
+        )
+        assertTrue(ticked, "RECURRENCE-ID:20261104T140000Z" in ticked)
+        assertTrue("the series goes on", "RRULE:FREQ=WEEKLY;BYDAY=MO,WE" in ticked)
+        assertEquals(true, CalDavTasks.occurrence(ticked, zone, "20261104T140000Z")?.completed)
+        assertEquals(false, CalDavTasks.occurrence(ticked, zone, "20261109T140000Z")?.completed)
+        assertEquals("the moved day's time stays a reminder", 10 * 60, CalDavTasks.occurrence(ticked, zone, "20261104T140000Z")?.reminderMinute)
+        assertNull("not a day of the series", CalDavTasks.occurrence(ticked, zone, "20261103T140000Z"))
+        assertNull("removed", CalDavTasks.occurrence(CalDavTasks.removeOccurrence(ticked, "20261109T140000Z", NOW), zone, "20261109T140000Z"))
+    }
+
     private fun ics(vararg lines: String) =
         (listOf("BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//test//EN") + lines + "END:VCALENDAR").joinToString("\r\n", postfix = "\r\n")
 
