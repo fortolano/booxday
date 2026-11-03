@@ -1,7 +1,10 @@
 package com.boox.day.api.ai
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.SharedPreferences
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -84,6 +87,17 @@ object LastAiProblem {
         val problem = Problem(feature, message, nowMs, BuildConfig.VERSION_NAME, tries)
         last = problem
         prefs?.edit()?.putString(KEY, json.encodeToString(Problem.serializer(), problem))?.apply()
+    }
+
+    /** [problem] in one line for AI Settings: which feature, when, and what it said. */
+    fun summary(problem: Problem): String =
+        "${problem.feature}, ${SimpleDateFormat("d MMM, h:mm a", Locale.US).format(Date(problem.atMs))}: ${problem.message}"
+
+    /** Puts [text] of [problem] on the clipboard (AI Settings → AI Models, owner's choice). */
+    fun copy(context: Context, problem: Problem) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("BooxDay AI problem", text(problem)))
+        Toast.makeText(context, "Details copied", Toast.LENGTH_SHORT).show()
     }
 
     /** [problem] as plain lines, to copy into a report. */

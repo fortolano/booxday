@@ -17,11 +17,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.boox.day.api.AiJob
 import com.boox.day.api.AiPickStatus
 import com.boox.day.api.ModelConfigProvider
+import com.boox.day.api.ai.LastAiProblem
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.api.OpenRouterAccount
 import com.boox.day.ui.dialogs.ModelPickerPopup
@@ -148,6 +150,31 @@ fun AiModelsCard(aiEnabled: Boolean, modifier: Modifier = Modifier) {
                     )
                 }
             }
+            // 2 Nov 2026 (owner's choice): the last failure an AI dialog showed, to copy into a report
+            LastAiProblem.last?.let { problem -> LastAiProblemRow(problem) }
         }
+    }
+}
+
+@Composable
+private fun LastAiProblemRow(problem: LastAiProblem.Problem) {
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)) {
+        Text(
+            text = "Last AI problem",
+            fontSize = EInkTheme.Typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            color = EInkTheme.Colors.primary
+        )
+        Text(
+            text = LastAiProblem.summary(problem),
+            fontSize = EInkTheme.Typography.bodyMedium,
+            color = EInkTheme.Colors.darkGray
+        )
+        EinkSecondaryButton(
+            text = "Copy Details",
+            onClick = { LastAiProblem.copy(context, problem) },
+            modifier = Modifier.fillMaxWidth(0.5f)
+        )
     }
 }
