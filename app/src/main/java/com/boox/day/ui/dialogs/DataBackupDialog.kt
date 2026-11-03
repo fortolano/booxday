@@ -662,15 +662,15 @@ fun DataBackupDialog(
                                             isBackupInProgress = false
                                         }
                                     },
-                                    onSignOutClick = {
-                                        authManager.revokeAccess {
-                                            isSignedIn = false
-                                            userEmail = null
-                                            isDriveBackupEnabled = false
-                                            authManager.setDriveBackupEnabled(false)
-                                            detectedBackupState = null
-                                            resetToIntent()
-                                        }
+                                    // Owner decision 74 (Nov 2026): stops backup on this tablet only. It was a
+                                    // "Sign Out" that withdrew every Google permission BooxDay had, so calendar
+                                    // sync and Task Sync stopped too, and reset the sync settings.
+                                    onTurnOffBackupClick = {
+                                        isDriveBackupEnabled = false
+                                        authManager.setDriveBackupEnabled(false)
+                                        authManager.setBackupFolderId(null)
+                                        detectedBackupState = null
+                                        resetToIntent()
                                     }
                                 )
 
@@ -1819,7 +1819,7 @@ private fun CloudBackupFlowContent(
     onBackupEnabledChanged: (Boolean) -> Unit,
     onBackupFrequencyChanged: (String) -> Unit,
     onBackupNowClick: () -> Unit,
-    onSignOutClick: () -> Unit
+    onTurnOffBackupClick: () -> Unit
 ) {
     ScrollableWithIndicator(
         modifier = Modifier.fillMaxWidth(),
@@ -1859,12 +1859,12 @@ private fun CloudBackupFlowContent(
                     }
                 }
 
-                // Sign out link
+                // Turn off backup link
                 Text(
-                    text = "Sign Out",
+                    text = "Turn Off Backup",
                     fontSize = EInkTheme.Preferences.infoLabelFontSize,
                     color = EInkTheme.Colors.gray,
-                    modifier = Modifier.noRippleClickable(onClick = onSignOutClick)
+                    modifier = Modifier.noRippleClickable(onClick = onTurnOffBackupClick)
                 )
             }
 

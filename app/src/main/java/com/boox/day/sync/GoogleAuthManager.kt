@@ -32,6 +32,24 @@ class GoogleAuthManager(private val context: Context) {
         private const val TAG = "GoogleAuthManager"
         private const val PREFS_NAME = "boox_day_google_auth"
 
+        /** Keys tied to the Google account itself, cleared when its access is withdrawn. */
+        private val SIGN_IN_KEYS = listOf(
+            "selected_account", "selected_calendars", "default_calendar_id",
+            "drive_backup_enabled", "backup_folder_id", "last_backup_time"
+        )
+
+        /**
+         * Clears only what belongs to the Google sign-in (Nov 2026): this file also holds the calendar
+         * sync switch and Sync frequency, which Outlook and CalDAV accounts use too, and the backup
+         * choices. Clearing the whole file reset them when the last Google account was removed.
+         */
+        internal fun clearSignInData(prefs: SharedPreferences) {
+            prefs.edit().apply {
+                for (key in SIGN_IN_KEYS) remove(key)
+                apply()
+            }
+        }
+
         // Least access sync needs (Oct 2026, for Google's OAuth verification): read and write
         // events on the user's calendars (events list/get/insert/update/delete) and read the
         // calendar list (calendarList list/get). The full "calendar" scope also allows sharing and
@@ -445,7 +463,7 @@ class GoogleAuthManager(private val context: Context) {
      * Clear all stored authentication data
      */
     private fun clearStoredData() {
-        editPrefs { clear() }
-        Log.d(TAG, "Cleared all stored auth data")
+        prefsOrNull()?.let { clearSignInData(it) }
+        Log.d(TAG, "Cleared stored Google sign-in data")
     }
 }

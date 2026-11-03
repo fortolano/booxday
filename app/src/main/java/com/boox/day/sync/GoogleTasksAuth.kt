@@ -25,7 +25,7 @@ import kotlinx.coroutines.tasks.await
  *
  * Until Google approves the Tasks permission, release builds don't ask for it (task sync is off
  * there, BuildConfig.TASK_SYNC_ENABLED); a debug build shows Google's "unverified app" screen.
- * Removing the last Google account or Data & Backup "Sign out" withdraw it too (revokeAccess):
+ * Removing the last Google account withdraws it too (revokeAccess):
  * calls then fail as a refused token, and task sync asks for Reconnect, which runs [check] again.
  */
 object GoogleTasksAuth {
