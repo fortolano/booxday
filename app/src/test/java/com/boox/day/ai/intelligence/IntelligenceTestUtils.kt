@@ -213,7 +213,9 @@ object IntelligenceTestUtils {
             "hobby" to 0.1f
         ),
         neglectedCategories: List<String> = emptyList(),
-        busiestDays: List<String> = listOf("MONDAY", "TUESDAY"),
+        // None by default (2 Nov 2026): with MONDAY and TUESDAY here, PatternScorer's busy-day bonus
+        // applied on those weekdays only (TODAY is the real date) and 11 PatternScorerTest tests failed
+        busiestDays: List<String> = emptyList(),
         currentStreak: Int = 3,
         avgTasksPerDay: Float = 5f,
         workLifeBalance: WorkLifeBalance = WorkLifeBalance.BALANCED

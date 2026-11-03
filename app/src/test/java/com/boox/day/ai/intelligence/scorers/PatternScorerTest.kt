@@ -22,6 +22,23 @@ class PatternScorerTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // BUSY DAY (2 Nov 2026: today's weekday, so it holds on every day of the week)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `a busy weekday gives 0_05 bonus`() = runBlocking {
+        val task = createTask(text = "Any task")
+        val item = createTaskItem(task)
+        val busy = createPatternAnalysis(currentStreak = 0, busiestDays = listOf(TODAY.dayOfWeek.name))
+        val quiet = createPatternAnalysis(currentStreak = 0, busiestDays = listOf(TODAY.plusDays(1).dayOfWeek.name))
+
+        val busyScore = scorer.score(createScoringInput(listOf(item), patternAnalysis = busy)).scores[task.id]!!
+        val quietScore = scorer.score(createScoringInput(listOf(item), patternAnalysis = quiet)).scores[task.id]!!
+
+        assertEquals(0.05f, busyScore - quietScore, 0.001f)
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // STREAK BONUS TESTS
     // ═══════════════════════════════════════════════════════════════════════════
 
