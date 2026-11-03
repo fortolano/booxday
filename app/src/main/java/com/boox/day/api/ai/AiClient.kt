@@ -93,6 +93,8 @@ object AiClient {
         noteCreditState(request.model.id, result)
         // A picked model's failure shows on its AI Models row until it answers again (Oct 2026)
         if (notePick) com.boox.day.api.AiPickStatus.noteResult(request.model, result)
+        // Behind the next failure a dialog shows (2 Nov 2026)
+        if (result is AiResponse.Error) LastAiProblem.noteTry(request, result)
         return result
     }
 

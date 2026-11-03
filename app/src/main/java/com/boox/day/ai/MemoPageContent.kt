@@ -91,6 +91,32 @@ object MemoPageContent {
     }
 
     /**
+     * A lasso selection's [strokes] as one picture, cropped to the ink with white space around it
+     * (2 Nov 2026, Convert to Tasks), drawn as [render] draws them. Null when nothing was selected.
+     * Off the main thread.
+     */
+    fun renderSelection(strokes: List<Stroke>): Bitmap? {
+        if (strokes.isEmpty()) return null
+        val content = contentBounds(Page("selection", strokes, emptyList(), emptyList())) ?: return null
+        val left = content.left - PADDING
+        val top = content.top - PADDING
+        val width = content.width() + 2 * PADDING
+        val height = content.height() + 2 * PADDING
+        val scale = min(1f, sqrt(MAX_PIXELS / (width * height)))
+        val bitmap = createBitmap(
+            ceil(width * scale).toInt().coerceAtLeast(1),
+            ceil(height * scale).toInt().coerceAtLeast(1)
+        )
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.WHITE)
+        canvas.scale(scale, scale)
+        val shift = Offset(-left, -top)
+        strokes.forEach { drawStroke(canvas, it, shift) }
+        log.d("Selection of ${strokes.size} strokes as ${bitmap.width}x${bitmap.height}")
+        return bitmap
+    }
+
+    /**
      * The whole page as one picture: from the page corner (or content above or left of it) to its
      * lowest and rightmost content, at least a screen wide, on white. Images, ink and text boxes as
      * the canvas draws them, markers in their own grey (the e-ink dots are for the panel only).

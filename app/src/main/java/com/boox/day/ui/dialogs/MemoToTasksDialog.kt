@@ -100,7 +100,9 @@ fun MemoToTasksDialog(
     onAddTasks: () -> Unit,
     onDismiss: () -> Unit,
     // When true, skip scope selection and go directly to processing (used for lasso selection)
-    skipScopeSelection: Boolean = false
+    skipScopeSelection: Boolean = false,
+    // The lasso conversion, run again by Retry (2 Nov 2026: Retry converted the whole page instead)
+    onRetrySelection: (() -> Unit)? = null
 ) {
     // Initialize phase based on whether we're skipping scope selection
     // For lasso selection, we already have the bitmap - go straight to processing
@@ -133,10 +135,8 @@ fun MemoToTasksDialog(
 
     val canDismiss = dialogPhase !is MemoToTasksDialogPhase.Processing
 
-    // Retry handler: re-trigger conversion with the previously selected scope
-    fun onRetry() {
-        selectedScope?.let { onScopeSelected(it) }
-    }
+    // Retry handler: the same selection again, else the previously selected scope
+    fun onRetry() = memoToTasksRetry(onRetrySelection, selectedScope, onScopeSelected)
 
     when (dialogPhase) {
         MemoToTasksDialogPhase.ScopeSelection -> {
@@ -251,6 +251,14 @@ fun MemoToTasksDialog(
             }
         }
     }
+}
+
+/**
+ * What Retry runs: the lasso's own conversion again when there is one, else the page choice made
+ * before (2 Nov 2026: a lasso's placeholder choice, This page, made Retry convert the whole page).
+ */
+internal fun memoToTasksRetry(selectionRun: (() -> Unit)?, scope: AiScope?, onScopeSelected: (AiScope) -> Unit) {
+    if (selectionRun != null) selectionRun() else scope?.let(onScopeSelected)
 }
 
 @Composable
@@ -393,9 +401,10 @@ private fun SelectTasksContent(
 
         Spacer(Modifier.height(12.dp))
 
-        // Tasks list header (fixed)
+        // Tasks list header (fixed). No clear to-do (2 Nov 2026, owner's choice): the lines read, to tick
         Text(
-            text = "Select tasks to add ($selectedCount selected)",
+            text = if (result.linesToPick) "No clear to-dos found. Tick any line to add it as a task."
+            else "Select tasks to add ($selectedCount selected)",
             fontSize = EInkTheme.Typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = EInkTheme.Colors.primary

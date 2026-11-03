@@ -7,14 +7,19 @@ import com.boox.day.api.ai.AiCapability
 import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiProblem
 import com.boox.day.api.ai.AiResponse
+import com.boox.day.api.ai.LastAiProblem
 import com.boox.day.api.ai.aiRequest
+import com.boox.day.data.db.Stroke
 import com.boox.day.ocr.model.OcrSource
 import com.boox.day.ocr.semantic.model.DateSemanticContext
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.boox.day.utils.TaggedLog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.time.LocalDate
+import kotlin.coroutines.cancellation.CancellationException
 
 private val log = TaggedLog("MemoToTasksService")
 
@@ -41,7 +46,9 @@ data class MemoToTasksResult(
     val originalText: String,       // Raw OCR text
     val cleanedText: String,        // After TextInferenceService
     val tasks: List<ConvertedTask>, // Generated tasks
-    val error: String? = null       // Null if success
+    val error: String? = null,      // Null if success
+    /** No clear to-dos (2 Nov 2026): [tasks] are the lines read, unticked, for the user to pick */
+    val linesToPick: Boolean = false
 )
 
 /**
@@ -51,6 +58,12 @@ sealed class MemoToTasksProcessingState {
     data class Processing(val stageMessage: String) : MemoToTasksProcessingState()
     data object SelectTasks : MemoToTasksProcessingState()
     data class Error(val message: String) : MemoToTasksProcessingState()
+
+    companion object {
+        /** The dialog's screen for [result]: its tasks or lines to tick whenever there are any, else its error. */
+        fun of(result: MemoToTasksResult): MemoToTasksProcessingState =
+            if (result.error != null && result.tasks.isEmpty()) Error(result.error) else SelectTasks
+    }
 }
 
 /**
@@ -228,8 +241,41 @@ Output:
 Note: "nice weather today" skipped — not actionable.
     """.trimIndent()
 
-    private fun buildTaskConversionPrompt(): String {
-        return TASK_CONVERSION_PROMPT
+    // Lasso → Convert to Tasks (2 Nov 2026, owner's decision): the user chose the text, so every
+    // item is a task. With the prompt above a selected sentence that read like a note gave no tasks
+    // and the dialog said "Could not convert memo".
+    private val SELECTION_CONVERSION_PROMPT = """
+You turn text the user selected on their handwritten memo into tasks. They selected it and asked for tasks, so every item in it is a task.
+
+JOB:
+1. Return one task per item. An item is a list item, a checklist line, a numbered line or a sentence. A sentence that continues on the next line is one item.
+2. Never leave an item out and never return an empty list. When an item reads like a note rather than an action, keep its words as the task.
+3. Keep the user's wording. Fix only obvious reading errors, and add an action verb only when the intended action is obvious.
+
+RULES:
+1. Do not invent names, dates, times, places, priorities, or extra details.
+2. Keep times, quantities, and names exactly when present.
+3. Keep duplicate mentions as one task only.
+4. For each returned task, include every field: text, suggestedPriority, reason, confidence, suggestedTime, relatedEventId.
+5. Use "A" only for clearly urgent or explicitly time-critical items, "" when priority is unclear.
+6. Set suggestedTime to an explicit time or date phrase from the item worth preserving, else "". Never "today", "soon", "later", or the whole task text.
+7. Set relatedEventId to "" unless the input already contains a real event ID.
+8. Set reason to a few words, e.g. "Selected by you".
+9. Return raw JSON only and match the schema exactly: "" for a field with nothing to say, never null.
+10. Write tasks in the same language as the text.
+    """.trimIndent()
+
+    /** Where the text to convert came from (2 Nov 2026). */
+    internal enum class Source {
+        /** AI menu → Convert Memo to Tasks: the AI picks the to-dos; none found → the lines read, to tick */
+        PAGE,
+        /** Lasso → Convert to Tasks: the selection decides, every item is a task */
+        SELECTION
+    }
+
+    private fun buildTaskConversionPrompt(source: Source): String = when (source) {
+        Source.PAGE -> TASK_CONVERSION_PROMPT
+        Source.SELECTION -> SELECTION_CONVERSION_PROMPT
     }
 
     private fun buildContextSection(context: DateSemanticContext): String {
@@ -263,148 +309,156 @@ Use this context to:
     }
 
     /**
-     * Converts memo content (bitmap) to actionable tasks.
-     *
-     * @param bitmap The memo page bitmap (or selection bitmap)
-     * @param onStageChange Callback for progress updates
-     * @return MemoToTasksResult with tasks or error
+     * AI menu → Convert Memo to Tasks: a memo page's picture to tasks. When the AI finds no clear
+     * to-do, the lines read come back unticked for the user to pick ([MemoToTasksResult.linesToPick]).
      */
     suspend fun convertMemoToTasks(
         bitmap: Bitmap,
         dayContext: DateSemanticContext? = null,
         existingTasks: List<String> = emptyList(),
         onStageChange: (String) -> Unit
+    ): MemoToTasksResult = convertPicture(bitmap, Source.PAGE, dayContext, existingTasks, onStageChange)
+
+    /**
+     * Lasso → Convert to Tasks (2 Nov 2026): the selected [strokes] are read by the same AI
+     * handwriting models as a whole page and AI Recognize, and every item read becomes a task.
+     * They were read by ML Kit as one line of text, which garbles a selection of more than one
+     * line (ML Kit assumes a single line, developers.google.com/ml-kit/vision/digital-ink-recognition).
+     */
+    suspend fun convertSelectionToTasks(
+        strokes: List<Stroke>,
+        dayContext: DateSemanticContext? = null,
+        onStageChange: (String) -> Unit
     ): MemoToTasksResult {
-        try {
-            // Stage 0: Capture and encode
-            onStageChange("Capturing your memo...")
-            val base64Image = encodeBitmapToBase64(bitmap)
-            log.i("Encoded bitmap: ${base64Image.length} chars")
-
-            // Stage 1: OCR extraction
-            onStageChange("Extracting text from handwriting...")
-            val rawText = extractTextFromImage(base64Image)
-
-            if (rawText.isBlank()) {
-                log.w("No text detected in memo")
-                return MemoToTasksResult(
-                    originalText = "",
-                    cleanedText = "",
-                    tasks = emptyList(),
-                    error = "No text detected in memo. Please write some notes first."
-                )
-            }
-            log.i("Extracted raw text: ${rawText.take(200)}...")
-
-            // Stage 2: Semantic correction
-            onStageChange("Cleaning up and fixing errors...")
-            val inferenceResult = TextInferenceService.refineText(
-                rawText = rawText,
-                context = InferenceContext.TASK
-            )
-            val cleanedText = inferenceResult.refinedText
-            log.i("Cleaned text: ${cleanedText.take(200)}...")
-
-            // Stage 3: Task conversion
-            onStageChange("Converting to actionable tasks...")
-            val tasks = convertTextToTasks(cleanedText, dayContext, existingTasks)
-            log.i("Generated ${tasks.size} tasks")
-
-            if (tasks.isEmpty()) {
-                return MemoToTasksResult(
-                    originalText = rawText,
-                    cleanedText = cleanedText,
-                    tasks = emptyList(),
-                    error = "Could not identify any actionable tasks in your notes."
-                )
-            }
-
-            return MemoToTasksResult(
-                originalText = rawText,
-                cleanedText = cleanedText,
-                tasks = tasks,
-                error = null
-            )
-
-        } catch (e: Exception) {
-            log.e("Memo to tasks conversion failed", e)
-            return MemoToTasksResult(
-                originalText = "",
-                cleanedText = "",
-                tasks = emptyList(),
-                error = e.message ?: "Conversion failed. Please try again."
-            )
+        val bitmap = withContext(Dispatchers.Default) { MemoPageContent.renderSelection(strokes) }
+            ?: return failed(NO_TEXT_IN_SELECTION)
+        return try {
+            // Tasks already on the day don't count: the user chose this text
+            convertPicture(bitmap, Source.SELECTION, dayContext, emptyList(), onStageChange)
+        } finally {
+            bitmap.recycle()
         }
     }
 
-    /**
-     * Converts pre-recognized text to actionable tasks.
-     * Used for lasso selection where Digital Ink has already extracted text from strokes.
-     * Skips Stage 0 (capture) and Stage 1 (OCR), goes directly to Stage 2 + 3.
-     *
-     * @param recognizedText Text already extracted via Digital Ink
-     * @param dayContext Optional semantic context for the day
-     * @param existingTasks List of existing task texts to avoid duplicates
-     * @param onStageChange Callback for progress updates
-     * @return MemoToTasksResult with tasks or error
-     */
-    suspend fun convertRecognizedTextToTasks(
-        recognizedText: String,
-        dayContext: DateSemanticContext? = null,
-        existingTasks: List<String> = emptyList(),
+    private const val NO_TEXT_IN_MEMO = "No text detected in memo. Please write some notes first."
+    private const val NO_TEXT_IN_SELECTION = "No text detected in selection. Please write some notes first."
+
+    private fun noText(source: Source) = if (source == Source.SELECTION) NO_TEXT_IN_SELECTION else NO_TEXT_IN_MEMO
+
+    /** A result the dialog shows as "Could not convert memo", kept as the last AI problem (2 Nov 2026). */
+    private fun failed(message: String, originalText: String = ""): MemoToTasksResult {
+        LastAiProblem.noteShown("Convert to Tasks", message)
+        return MemoToTasksResult(originalText, "", emptyList(), error = message)
+    }
+
+    private suspend fun convertPicture(
+        bitmap: Bitmap,
+        source: Source,
+        dayContext: DateSemanticContext?,
+        existingTasks: List<String>,
         onStageChange: (String) -> Unit
     ): MemoToTasksResult {
-        try {
-            if (recognizedText.isBlank()) {
-                log.w("No text provided for task conversion")
-                return MemoToTasksResult(
-                    originalText = "",
-                    cleanedText = "",
-                    tasks = emptyList(),
-                    error = "No text detected in selection. Please write some notes first."
-                )
-            }
-            log.i("Converting recognized text to tasks: ${recognizedText.length} chars")
+        val rawText = try {
+            onStageChange(if (source == Source.SELECTION) "Capturing your selection..." else "Capturing your memo...")
+            val base64Image = encodeBitmapToBase64(bitmap)
+            log.i("Encoded bitmap: ${base64Image.length} chars")
 
+            onStageChange("Extracting text from handwriting...")
+            extractTextFromImage(base64Image)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.e("Reading the handwriting failed: ${e.message}")
+            return failed(e.message ?: "Conversion failed. Please try again.")
+        }
+        if (rawText.isBlank()) {
+            log.w("No text detected")
+            return failed(noText(source))
+        }
+        return convertReadText(rawText, source, dayContext, existingTasks, onStageChange)
+    }
+
+    /**
+     * Stages 2 and 3 for text already read. No task from the AI is not a failure (2 Nov 2026: it
+     * showed "Could not convert memo" with a Retry that asked again): a page's lines come back to
+     * tick, a selection's lines are its tasks.
+     */
+    internal suspend fun convertReadText(
+        rawText: String,
+        source: Source,
+        dayContext: DateSemanticContext?,
+        existingTasks: List<String>,
+        onStageChange: (String) -> Unit
+    ): MemoToTasksResult {
+        log.i("Read ${rawText.length} chars")
+        log.d("Read text: $rawText")
+        return try {
             // Stage 2: Semantic correction
             onStageChange("Cleaning up and fixing errors...")
-            val inferenceResult = TextInferenceService.refineText(
-                rawText = recognizedText,
-                context = InferenceContext.TASK
-            )
-            val cleanedText = inferenceResult.refinedText
-            log.i("Cleaned text: ${cleanedText.take(200)}...")
+            val cleanedText = TextInferenceService.refineText(rawText = rawText, context = InferenceContext.TASK).refinedText
+            log.d("Cleaned text: $cleanedText")
 
             // Stage 3: Task conversion
             onStageChange("Converting to actionable tasks...")
-            val tasks = convertTextToTasks(cleanedText, dayContext, existingTasks)
-            log.i("Generated ${tasks.size} tasks")
+            val tasks = convertTextToTasks(cleanedText, source, dayContext, existingTasks)
+            log.i("Generated ${tasks.size} tasks ($source)")
+            if (tasks.isNotEmpty()) return MemoToTasksResult(rawText, cleanedText, tasks)
 
-            if (tasks.isEmpty()) {
-                return MemoToTasksResult(
-                    originalText = recognizedText,
-                    cleanedText = cleanedText,
-                    tasks = emptyList(),
-                    error = "Could not identify any actionable tasks in your notes."
-                )
-            }
-
-            return MemoToTasksResult(
-                originalText = recognizedText,
+            val lines = lineItems(cleanedText).ifEmpty { lineItems(rawText) }
+            if (lines.isEmpty()) return failed(noText(source), rawText)
+            val chosen = source == Source.SELECTION
+            MemoToTasksResult(
+                originalText = rawText,
                 cleanedText = cleanedText,
-                tasks = tasks,
-                error = null
+                tasks = lines.map { ConvertedTask(text = it, reason = if (chosen) "Selected by you" else "", isSelected = chosen) },
+                linesToPick = !chosen
             )
-
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            log.e("Text to tasks conversion failed", e)
-            return MemoToTasksResult(
-                originalText = recognizedText,
-                cleanedText = "",
-                tasks = emptyList(),
-                error = e.message ?: "Conversion failed. Please try again."
-            )
+            log.e("Text to tasks conversion failed: ${e.message}")
+            failed(e.message ?: "Conversion failed. Please try again.", rawText)
         }
+    }
+
+    // A list marker at the start of a line: a bullet or box, or a number followed by "." or ")"
+    private val listMarkerRegex = Regex("""^(?:[-•*·▪◦–—☐☑✓✔]+|\[[ xX]?]|\d{1,2}[.)](?=\s))\s*""")
+
+    // English words a sentence doesn't end on: the line after one goes on with the sentence, even
+    // when it starts with a name ("Ask Sam about the / Lisbon trip")
+    private val joiningWords = setOf(
+        "a", "an", "the", "to", "of", "for", "with", "about", "and", "or", "but", "at", "on", "in", "by",
+        "from", "into", "my", "your", "his", "her", "our", "their", "its", "this", "that", "w/"
+    )
+
+    /**
+     * The items of [text], one per line, for the user to tick or as a selection's tasks (2 Nov 2026):
+     * list markers dropped, a line joined to the one before when that one has no end punctuation and
+     * this one starts in lower case or follows a word like "the" (a sentence written over two lines),
+     * blank lines ending an item, repeats left out.
+     */
+    internal fun lineItems(text: String): List<String> {
+        val items = mutableListOf<String>()
+        var canContinue = false
+        for (rawLine in text.lines()) {
+            val line = collapseWhitespace(rawLine)
+            if (line.isEmpty()) {
+                canContinue = false
+                continue
+            }
+            val marker = listMarkerRegex.find(line)
+            val body = if (marker != null) line.substring(marker.range.last + 1).trim() else line
+            if (body.isEmpty()) continue
+            val goesOn = body.first().isLowerCase() ||
+                items.lastOrNull()?.substringAfterLast(' ')?.lowercase() in joiningWords
+            if (marker == null && canContinue && goesOn) {
+                items[items.lastIndex] = items.last() + " " + body
+            } else {
+                items += body
+            }
+            canContinue = items.last().last() !in ".!?:;"
+        }
+        return items.distinctBy { normalizeTaskKey(it) }.take(StructuredOutputSchemas.MEMO_TO_TASKS_MAX_ITEMS)
     }
 
     /**
@@ -458,12 +512,10 @@ Use this context to:
                     if (extractedText.isNotBlank()) {
                         return extractedText
                     }
-
-                    // Fallback: use full response if no delimiters
-                    if (content.isNotBlank() && !content.contains("no text") && !content.contains("cannot")) {
-                        return content.trim()
-                    }
+                    // Any other answer goes to the next model (2 Nov 2026): the whole answer was
+                    // taken as the memo's text, so a model's own words could become the user's tasks
                 }
+                if (response is AiResponse.Success) LastAiProblem.noteTry(request, AiRetryExecutor.UNUSABLE_ANSWER)
                 if (failures.note(response)) break
 
                 log.w("Model ${model.id} failed or returned empty, trying next...")
@@ -496,6 +548,7 @@ Use this context to:
      */
     private suspend fun convertTextToTasks(
         text: String,
+        source: Source,
         dayContext: DateSemanticContext?,
         existingTasks: List<String>
     ): List<ConvertedTask> {
@@ -518,7 +571,7 @@ Use this context to:
             taskScopeSection = taskScopeSection,
             semanticFallbackSection = semanticFallbackSection
         )
-        val systemPrompt = buildTaskConversionPrompt()
+        val systemPrompt = buildTaskConversionPrompt(source)
         val truncatedText = if (text.length > MAX_TEXT_LENGTH) {
             log.w("Text truncated from ${text.length} to $MAX_TEXT_LENGTH chars")
             text.take(MAX_TEXT_LENGTH) + "\n...[content truncated]"
@@ -530,7 +583,10 @@ Use this context to:
                 appendLine(contextBlock)
                 appendLine()
             }
-            appendLine("Convert this memo to tasks (make tasks only from this memo):")
+            appendLine(
+                if (source == Source.SELECTION) "Turn this selected text into tasks (make tasks only from this text):"
+                else "Convert this memo to tasks (make tasks only from this memo):"
+            )
             appendLine()
             append(truncatedText)
         }
@@ -556,11 +612,13 @@ Use this context to:
                     val content = response.data
                     log.i("Task conversion model ${model.id} returned ${content.length} chars")
 
-                    val tasks = parseTasksResponse(content)
+                    // A selection keeps every item, however unsure the model is of it
+                    val tasks = parseTasksResponse(content, minConfidence = if (source == Source.SELECTION) 0f else 0.3f)
                     if (tasks != null) {
                         return tasks
                     }
                 }
+                if (response is AiResponse.Success) LastAiProblem.noteTry(request, AiRetryExecutor.UNUSABLE_ANSWER)
                 if (failures.note(response)) break
 
                 log.w("Model ${model.id} failed or returned empty tasks, trying next...")
@@ -577,7 +635,7 @@ Use this context to:
     /**
      * Parse JSON response into ConvertedTask list.
      */
-    private fun parseTasksResponse(json: String): List<ConvertedTask>? {
+    private fun parseTasksResponse(json: String, minConfidence: Float): List<ConvertedTask>? {
         try {
             val cleaned = JsonExtractor.extract(json)
             log.d("Parsing JSON: ${cleaned.take(500)}...")
@@ -588,7 +646,7 @@ Use this context to:
             return parsed.tasks.mapNotNull { task ->
                 val converted = sanitizeConvertedTask(task) ?: return@mapNotNull null
                 val key = normalizeTaskKey(converted.text)
-                if (!seen.add(key) || converted.confidence < 0.3f) {
+                if (!seen.add(key) || converted.confidence < minConfidence) {
                     null
                 } else {
                     converted
@@ -623,7 +681,8 @@ Use this context to:
                 convertMemoToTasks(
                     bitmap = bitmap,
                     dayContext = dayContext,
-                    existingTasks = existingTasks + allTasks.map { it.text },
+                    // Lines offered to tick are not tasks yet
+                    existingTasks = existingTasks + allTasks.filter { it.isSelected }.map { it.text },
                     onStageChange = onStageChange
                 )
             } finally {
@@ -636,12 +695,14 @@ Use this context to:
             }
         }
 
-        val deduped = allTasks.distinctBy { normalizeTaskKey(it.text) }
+        val deduped = allTasks.distinctBy { normalizeTaskKey(it.text) }.take(StructuredOutputSchemas.MEMO_TO_TASKS_MAX_ITEMS)
         return MemoToTasksResult(
             originalText = "",
             cleanedText = "",
-            tasks = deduped.take(StructuredOutputSchemas.MEMO_TO_TASKS_MAX_ITEMS),
-            error = lastError
+            tasks = deduped,
+            error = lastError,
+            // No page had a clear to-do: the dialog says so above the lines
+            linesToPick = deduped.isNotEmpty() && deduped.none { it.isSelected }
         )
     }
 

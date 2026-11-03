@@ -819,7 +819,8 @@ fun MainScreen(
     var memoToTasksResult by remember { mutableStateOf<MemoToTasksResult?>(null) }
     var memoToTasksTargetDate by remember { mutableStateOf(selectedDate) }
     var memoToTasksProcessingStartTime by remember { mutableStateOf(0L) }
-    var memoToTasksSkipScopeSelection by remember { mutableStateOf(false) } // true when triggered from lasso selection
+    // The lasso conversion, which Retry runs again; null when the AI menu started it (page choice first)
+    var memoToTasksSelectionRun by remember { mutableStateOf<(() -> Unit)?>(null) }
     var memoToTasksDueDate by remember { mutableStateOf<Long?>(null) } // optional due date for converted tasks
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -2959,7 +2960,7 @@ fun MainScreen(
                                 memoToTasksTargetDate = selectedDate
                                 memoToTasksResult = null
                                 memoToTasksProcessingState = MemoToTasksProcessingState.Processing("Starting...")
-                                memoToTasksSkipScopeSelection = false  // Show scope selection for toolbar trigger
+                                memoToTasksSelectionRun = null  // Show scope selection for toolbar trigger
                                 showMemoToTasksDialog = true
                             }
                         } }
@@ -3253,27 +3254,13 @@ fun MainScreen(
                             // Trigger memo-to-tasks conversion with selected strokes
                             memoToTasksTargetDate = selectedDate
                             memoToTasksResult = null
-                            memoToTasksProcessingState = MemoToTasksProcessingState.Processing("Starting...")
-                            memoToTasksSkipScopeSelection = true  // Skip scope selection for lasso
                             showMemoToTasksDialog = true
-                            memoToTasksProcessingStartTime = System.currentTimeMillis()
 
-                            // Start conversion: Digital Ink → text → tasks
-                            scope.launch {
-                                // Stage 1: Use Digital Ink to recognize strokes (fast, on-device)
-                                memoToTasksProcessingState = MemoToTasksProcessingState.Processing("Recognizing handwriting...")
-
-                                val digitalInkService = com.boox.day.ocr.DigitalInkService.create(context, scope)
-                                val recognitionResult = digitalInkService.recognizeStrokes(selectionStrokes)
-
-                                if (recognitionResult.isEmpty) {
-                                    memoToTasksProcessingState = MemoToTasksProcessingState.Error(
-                                        "No text detected in selection. Please write some notes first."
-                                    )
-                                    return@launch
-                                }
-
-                                val recognizedText = recognitionResult.text
+                            // 2 Nov 2026: the selection is read by the AI handwriting models, like a page
+                            // and AI Recognize (ML Kit read it as one line), and Retry runs this again
+                            val run: () -> Unit = { scope.launch {
+                                memoToTasksProcessingState = MemoToTasksProcessingState.Processing("Starting...")
+                                memoToTasksProcessingStartTime = System.currentTimeMillis()
 
                                 // Fetch semantic context for prompt enrichment
                                 val dayContext = withContext(Dispatchers.IO) {
@@ -3284,18 +3271,9 @@ fun MainScreen(
                                     }
                                 }
 
-                                // Get existing tasks to avoid duplicates
-                                val existingTasks = withContext(Dispatchers.IO) {
-                                    appRepository.taskRepository
-                                        .getTasksForDateRange(memoToTasksTargetDate, memoToTasksTargetDate)
-                                        .mapNotNull { it.typedText ?: it.convertedText ?: it.recognizedText }
-                                }
-
-                                // Stage 2+3: Text correction + task conversion
-                                val result = MemoToTasksService.convertRecognizedTextToTasks(
-                                    recognizedText = recognizedText,
+                                val result = MemoToTasksService.convertSelectionToTasks(
+                                    strokes = selectionStrokes,
                                     dayContext = dayContext,
-                                    existingTasks = existingTasks,
                                     onStageChange = { stage ->
                                         memoToTasksProcessingState = MemoToTasksProcessingState.Processing(stage)
                                     }
@@ -3308,14 +3286,11 @@ fun MainScreen(
                                     delay(minDisplayMs - elapsed)
                                 }
 
-                                // Update state with result
-                                if (result.error != null) {
-                                    memoToTasksProcessingState = MemoToTasksProcessingState.Error(result.error)
-                                } else {
-                                    memoToTasksResult = result
-                                    memoToTasksProcessingState = MemoToTasksProcessingState.SelectTasks
-                                }
-                            }
+                                memoToTasksResult = result
+                                memoToTasksProcessingState = MemoToTasksProcessingState.of(result)
+                            } }
+                            memoToTasksSelectionRun = run
+                            run()
                         }
                     )
                 }
@@ -5450,12 +5425,8 @@ fun MainScreen(
                 // Update state with result
                 // Show error only if no tasks were extracted at all;
                 // if some pages failed but others produced tasks, show the tasks
-                if (result.error != null && result.tasks.isEmpty()) {
-                    memoToTasksProcessingState = MemoToTasksProcessingState.Error(result.error)
-                } else {
-                    memoToTasksResult = result
-                    memoToTasksProcessingState = MemoToTasksProcessingState.SelectTasks
-                }
+                memoToTasksResult = result
+                memoToTasksProcessingState = MemoToTasksProcessingState.of(result)
             }
         }
 
@@ -5640,7 +5611,8 @@ fun MainScreen(
                     memoToTasksProcessingState = MemoToTasksProcessingState.Processing("")
                     memoToTasksDueDate = null
                 },
-                skipScopeSelection = memoToTasksSkipScopeSelection
+                skipScopeSelection = memoToTasksSelectionRun != null,
+                onRetrySelection = memoToTasksSelectionRun
             )
         }
 

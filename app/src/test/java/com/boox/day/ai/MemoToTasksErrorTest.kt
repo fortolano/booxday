@@ -4,9 +4,12 @@ import android.app.Application
 import com.boox.day.api.OpenRouterAccount
 import com.boox.day.api.ai.AiProblem
 import com.boox.day.api.ai.AiResponse
+import com.boox.day.api.ai.LastAiProblem
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,7 +39,7 @@ class MemoToTasksErrorTest {
     }
 
     private fun convert(): String? = runBlocking {
-        MemoToTasksService.convertRecognizedTextToTasks("call the dentist tomorrow", onStageChange = {}).error
+        MemoToTasksService.convertReadText("call the dentist tomorrow", MemoToTasksService.Source.PAGE, null, emptyList()) {}.error
     }
 
     @Test
@@ -67,5 +70,11 @@ class MemoToTasksErrorTest {
     fun `answers that can't be used say the model failed`() {
         AiRetryExecutor.send = { request, _ -> AiResponse.Success("not json", request.model.id, null) }
         assertEquals(AiProblem.MODEL_FAILED.message, convert())
+
+        // 2 Nov 2026: kept on the tablet, with the steps behind it, never the memo's words
+        val problem = checkNotNull(LastAiProblem.last)
+        assertEquals(AiProblem.MODEL_FAILED.message, problem.message)
+        assertTrue(problem.tries.any { it.step == "making tasks" && it.why == AiRetryExecutor.UNUSABLE_ANSWER })
+        assertFalse(LastAiProblem.text(problem).contains("dentist"))
     }
 }

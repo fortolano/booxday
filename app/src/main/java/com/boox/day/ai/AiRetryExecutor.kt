@@ -35,6 +35,9 @@ object AiRetryExecutor {
     /** User-friendly error message when all attempts fail */
     const val SERVICE_UNAVAILABLE_MESSAGE = "AI service temporarily unavailable. Please try again later."
 
+    /** Why a try failed when the model answered in a shape the feature can't read (LastAiProblem). */
+    const val UNUSABLE_ANSWER = "answer not in the expected format"
+
     /** Sends one request (request, promptForKey); unit tests replace it. */
     @VisibleForTesting
     internal var send: suspend (AiRequest, Boolean) -> AiResponse<String> =
@@ -100,6 +103,7 @@ object AiRetryExecutor {
                             lastError = "Invalid response from ${model.displayName}"
                             lastProblem = AiProblem.MODEL_FAILED
                             AiPickStatus.noteUnusableAnswer(model)
+                            com.boox.day.api.ai.LastAiProblem.noteTry(request, UNUSABLE_ANSWER)
                         }
                     }
                     is AiResponse.Error.RateLimitError -> {
