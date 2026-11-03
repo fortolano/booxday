@@ -577,7 +577,7 @@ private fun TaskManagementContent() {
 
         SectionSubheader("Task Sync (Settings → Preferences)")
         BodyText("Keeps your tasks in step with Google Tasks or a CalDAV server (Nextcloud, Fastmail and others) on your phone. It's off until you turn it on, and it needs Cloud Sync and that account in Calendar Accounts.")
-        BulletPoint("What syncs: a task's words (typed, or your handwriting as read), its done mark, its day or due date, and subtasks; with a CalDAV server also its priority and its own reminder time. Ink and time estimates stay on the tablet.")
+        BulletPoint("What syncs: a task's words (typed, or your handwriting as read), its done mark, its day or due date, and subtasks; with a CalDAV server also its priority and its own reminder time. Ink and time estimates stay on the tablet. Google Tasks deadlines and attachments stay on your phone: Google doesn't share them with other apps.")
         BulletPoint("Tasks from your phone come to their due day; tasks with no date come to today.")
         BulletPoint("It syncs when you open BooxDay, about 10 seconds after you stop writing, with the cloud button, and in the background on Sync frequency while the tablet is awake (on BOOX, see Data & Troubleshooting).")
         BulletPoint("Clearing or deleting a synced task deletes it on your phone's service too; more than 20 at once waits for your OK. Ticked tasks deleted on your phone stay on the tablet.")
