@@ -55,4 +55,6 @@ data class DigestMemoPage(
     val textBoxes: List<String> = emptyList(),
     /** The page has handwriting (so a page without [text] is not read yet, rather than empty). */
     val hasInk: Boolean = false,
+    /** The page holds a picture, which a Markdown export can show even with no text. */
+    val hasPicture: Boolean = false,
 )

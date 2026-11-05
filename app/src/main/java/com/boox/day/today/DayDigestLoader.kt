@@ -53,8 +53,7 @@ class DayDigestLoader(context: Context) {
     private suspend fun events(date: LocalDate, withNotes: Boolean): List<DigestEvent> {
         val day = date.toString()
         val cloud = db.calendarEventDao().getByDayIdFilteredSync(day)
-        val cloudIds = cloud.mapTo(HashSet()) { it.id }
-        val local = db.localEventDao().getEventsForDay(day).filter { it.id !in cloudIds }
+        val local = ShownEvents.tabletOnly(cloud, db.localEventDao().getEventsForDay(day))
         val notes = if (withNotes) BooxNoteRepository(app) else null
         val merged = cloud.map { DigestEvent(it.id, it.title, it.startTime, it.endTime, it.isAllDay, it.location) } +
             local.map { DigestEvent(it.id, it.title, it.startTime, it.endTime, it.isAllDay, it.location) }
@@ -105,6 +104,7 @@ class DayDigestLoader(context: Context) {
     private suspend fun memoPages(date: LocalDate, withText: Boolean): List<DigestMemoPage> {
         val dayPage = db.dayPageDao().getByDate(date.toString()) ?: return emptyList()
         val ocr = if (withText) UnifiedOcrRepository(app) else null
+        val withPictures = db.ImageDao().getPagesWithImages(dayPage.pageIds).toSet()
         return dayPage.pageIds.map { pageId ->
             DigestMemoPage(
                 pageId = pageId,
@@ -112,6 +112,7 @@ class DayDigestLoader(context: Context) {
                 textBoxes = if (withText) db.textAnnotationDao().getByPageId(pageId).map { it.content }.filter { it.isNotBlank() }
                 else emptyList(),
                 hasInk = db.strokeDao().hasStrokesForPage(pageId),
+                hasPicture = pageId in withPictures,
             )
         }
     }

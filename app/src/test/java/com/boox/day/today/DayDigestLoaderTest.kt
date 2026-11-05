@@ -77,6 +77,20 @@ class DayDigestLoaderTest {
     }
 
     @Test
+    fun aTabletCopyOfASyncedEventShowsOnce() = runBlocking {
+        db.connectedAccountDao().upsert(
+            ConnectedAccountEntity(id = "acc", providerId = "GOOGLE", accountType = "GOOGLE_PERSONAL",
+                email = "me@example.com", displayName = "Me", isActive = true, createdAt = 1_760_000_000_000)
+        )
+        db.calendarSelectionDao().upsert(selection("work", shown = true))
+        db.calendarEventDao().upsertAll(listOf(event("remote-1", "work", "Stand-up", startHour = 9)))
+        db.localEventDao().insert(LocalEvent(id = "tablet-copy", title = "Stand-up", dayId = day.toString(), endDayId = day.toString(),
+            startTime = millis(day, 9), endTime = millis(day, 10), providerEventId = "remote-1"))
+
+        assertEquals(listOf("Stand-up"), DayDigestLoader(context).load(day).events.map { it.title })
+    }
+
+    @Test
     fun tasksWithContentInPageOrder() = runBlocking {
         val page = Page().also { db.pageDao().create(it) }
         db.taskDao().insertAll((0 until 10).map { row ->

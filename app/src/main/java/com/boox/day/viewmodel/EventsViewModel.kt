@@ -259,11 +259,11 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
      */
     suspend fun getEventsForDateSync(dayId: String): List<CalendarEvent> = withContext(Dispatchers.IO) {
         val googleEvents = eventRepository.getEventsForDateSync(dayId)
-        val localEvents = localEventRepository.getEventsForDay(dayId).map { it.toCalendarEvent() }
 
         // Combine both sources, avoiding duplicates
-        val googleIds = googleEvents.map { it.id }.toSet()
-        val uniqueLocal = localEvents.filter { it.id !in googleIds }
+        val uniqueLocal = com.boox.day.today.ShownEvents
+            .tabletOnly(googleEvents, localEventRepository.getEventsForDay(dayId))
+            .map { it.toCalendarEvent() }
         (googleEvents + uniqueLocal).sortedWith(
             compareByDescending<CalendarEvent> { it.isAllDay }
                 .thenBy { it.startTime }
