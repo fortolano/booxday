@@ -47,6 +47,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Icon
@@ -78,6 +79,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -1784,6 +1786,12 @@ fun SharedToolbar(
                         ) {
                             Text(
                                 text = "$pageNumber/$totalPages",
+                                // One line: "16/16" is wider than the label and broke as "16/1" over "6";
+                                // it uses the spare room beside the chevrons, so nothing on the bar moves
+                                modifier = Modifier.wrapContentWidth(unbounded = true),
+                                softWrap = false,
+                                maxLines = 1,
+                                overflow = TextOverflow.Visible,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Light,
                                 textAlign = TextAlign.Center,
