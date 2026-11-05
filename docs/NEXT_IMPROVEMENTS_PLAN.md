@@ -851,7 +851,7 @@ Chips and ticks are 44 dp tall. No scrolling at font scale 1.0. No animation.
 4. Fix the stale "5 rows, 10 languages" comment.
 5. Merge with the owner's OK. Credit the author in the release notes.
 
-**Done differently (owner, 5 Nov 2026):** a sixth row of languages didn't fit the Go 6, so the screen became nine fixed languages (English, German, Spanish, French, Italian, Russian, Japanese, Korean, Chinese) and a tenth Other language card, for any of the rest. Picking from the list (by letter, 248 languages with a name) replaces what's on the card: the new one downloads first, a language in use hands over, the old one is deleted last, and a failed download changes nothing. Names are short ("German"), "Set Active" is "Use", the 5-download limit stays. Still to check on a tablet: a real swap, and handwriting read in an Other language.
+**Done differently (owner, 5 Nov 2026):** a sixth row of languages didn't fit the Go 6, so the screen became nine fixed languages (English, German, Spanish, French, Italian, Russian, Japanese, Korean, Chinese) and a tenth Other language card, for any of the rest. Picking from the list (by letter, 248 languages with a name) replaces what's on the card: the new one downloads first, a language in use hands over, the old one is deleted last, and a failed download changes nothing. Names are short ("German"), "Set Active" is "Use", the 5-download limit stays. A real swap passed on the Go 10.3 (5 Nov 2026: Ukrainian to Polish, old files gone). Still to check: handwriting read in an Other language, a failed download, the Go 6.
 
 #### 2B. Issue #3, eraser to pen
 
@@ -1031,7 +1031,7 @@ When space runs short the existing order applies, but a chosen Month is never dr
 **Checklist**
 
 - [x] Owner's picture OK (5 Nov 2026)
-- [ ] All combinations tested, on two real sleep screens
+- [ ] All combinations tested, on two real sleep screens (5 Nov 2026, Go 10.3 awake: month and events, month alone, the last switch, Preview, the hand-off to BOOX and clean-up pass; a real sleep and the Go 6 are left)
 - [x] Help and tip updated
 
 ---
