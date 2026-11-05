@@ -10,6 +10,7 @@ import com.boox.day.data.db.DayPageRepository
 import com.boox.day.data.db.PageRepository
 import com.boox.day.data.db.UnifiedOcrPage
 import com.boox.day.data.db.UnifiedOcrRepository
+import com.boox.day.booxnotes.BooxReaderAnnotations
 import com.boox.day.ocr.model.OcrQueueItem
 import com.boox.day.ocr.model.OcrSource
 import com.boox.day.ocr.source.BooxNoteBitmapSource
@@ -238,6 +239,9 @@ class UnifiedOcrScheduler(private val context: Context) {
                     break
                 }
 
+                // Pen marks on a book or PDF are not read: the next scan drops them from the index
+                if (BooxReaderAnnotations.isAnnotation(note.uniqueId)) continue
+
                 // Parse page IDs from the indexed JSON
                 val pageIds = parsePageIds(note.pageIdsJson)
                 if (pageIds.isEmpty()) {
@@ -419,7 +423,10 @@ class UnifiedOcrScheduler(private val context: Context) {
     fun loadQueue(): List<OcrQueueItem> {
         val json = prefs.getString(KEY_QUEUE, null) ?: return emptyList()
         return try {
-            Json.decodeFromString(json)
+            // A queue saved before book and PDF annotations were left out of Boox Notes
+            Json.decodeFromString<List<OcrQueueItem>>(json).filterNot {
+                it.sourceType == OcrSource.BOOX_NOTE && BooxReaderAnnotations.isAnnotation(it.sourceId)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to load queue: ${e.message}")
             emptyList()

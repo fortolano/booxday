@@ -1205,7 +1205,23 @@ class BooxNoteIndexer(
         }
     }
 
+    /** Pen marks on books and PDFs aren't notes. Leaving scannedIds, they are removed like a deleted note. */
     private suspend fun discoverNotesSmart(): DiscoveryResult {
+        val found = discoverDocuments()
+        val annotations = found.notes
+            .filter { it.nativeTitle.isNullOrBlank() && it.providerTitle.isNullOrBlank() }
+            .map { it.uniqueId }
+            .filter { BooxReaderAnnotations.isAnnotation(it) }
+            .toSet()
+        if (annotations.isEmpty()) return found
+        Log.i(TAG, "Left out ${annotations.size} book and PDF annotations")
+        return found.copy(
+            notes = found.notes.filter { it.uniqueId !in annotations },
+            scannedIds = found.scannedIds - annotations
+        )
+    }
+
+    private suspend fun discoverDocuments(): DiscoveryResult {
         var nativeErrorRaw: String? = null
         val providerNotesById = loadProviderNotesById()
 
