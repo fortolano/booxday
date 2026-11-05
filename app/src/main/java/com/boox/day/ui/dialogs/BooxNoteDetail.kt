@@ -178,6 +178,9 @@ private fun NoteLinkRow(
             NoteLinkUi.Checking -> {
                 LinkRowLabel(icon = null, text = "Not linked")
                 LinkRowText("Looking for a suggestion…", muted = true)
+                LinkRowButtons {
+                    EinkSecondaryButton(text = "Link to event…", onClick = onChooseEvent, modifier = Modifier.weight(1f))
+                }
             }
 
             is NoteLinkUi.Linked -> {
