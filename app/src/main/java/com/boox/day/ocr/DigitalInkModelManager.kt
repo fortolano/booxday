@@ -65,6 +65,10 @@ object DigitalInkModelManager {
         val downloadState: DownloadState
     )
 
+    // The language on the Other language card
+    private val _otherLanguage = MutableStateFlow<String?>(null)
+    val otherLanguage: StateFlow<String?> = _otherLanguage.asStateFlow()
+
     // Active language tag
     private var _activeLanguage = MutableStateFlow(DEFAULT_LANGUAGE)
     val activeLanguage: StateFlow<String> = _activeLanguage.asStateFlow()
@@ -89,11 +93,7 @@ object DigitalInkModelManager {
 
     init {
         // Initialize download states for all supported languages
-        val supportedLanguages = listOf(
-            "en-US", "es-ES", "fr-FR", "de-DE", "zh-Hans",
-            "ja", "ko", "it-IT", "ru-RU", "uk", "ar"
-        )
-        supportedLanguages.forEach { lang ->
+        HandwritingLanguages.FIXED.forEach { lang ->
             downloadStates[lang] = MutableStateFlow(DownloadState.NOT_DOWNLOADED)
         }
         // Note: Language states are populated lazily when UI requests them via getAvailableLanguages()
@@ -106,12 +106,7 @@ object DigitalInkModelManager {
      * Called on app startup to recover state after app restart.
      */
     private suspend fun syncDownloadStatesWithDevice() = withContext(Dispatchers.IO) {
-        val supportedLanguages = listOf(
-            "en-US", "es-ES", "fr-FR", "de-DE", "zh-Hans",
-            "ja", "ko", "it-IT", "ru-RU", "uk", "ar"
-        )
-
-        supportedLanguages.forEach { lang ->
+        HandwritingLanguages.FIXED.forEach { lang ->
             try {
                 val isDownloaded = isLanguageDownloaded(lang)
                 val currentState = downloadStates[lang]?.value
@@ -127,10 +122,58 @@ object DigitalInkModelManager {
             }
         }
 
+        syncOtherLanguage()
+
         // Update downloaded count and language states for UI
         _downloadedCount.value = getDownloadedLanguagesCount()
         updateLanguageStates()
         Log.i(TAG, "Download state sync complete: ${_downloadedCount.value}/5 languages")
+    }
+
+    /** Finds what's on the Other language card from the models on the tablet, so nothing needs saving. */
+    private suspend fun syncOtherLanguage() {
+        try {
+            val tags = RemoteModelManager.getInstance()
+                .getDownloadedModels(DigitalInkRecognitionModel::class.java).await()
+                .map { it.modelIdentifier.languageTag }
+                .filter { HandwritingLanguages.isOther(it) }
+            tags.forEach { tag ->
+                downloadStates.getOrPut(tag) { MutableStateFlow(DownloadState.NOT_DOWNLOADED) }.value = DownloadState.READY
+                getOrCreateModel(tag)
+                initRecognizer(tag)
+            }
+            val saved = com.boox.day.data.datastore.GlobalAppSettings.current.handwritingLanguage
+            _otherLanguage.value = tags.firstOrNull { it == saved } ?: tags.firstOrNull()
+        } catch (e: Exception) {
+            Log.e(TAG, "Other language not read: ${e.message}")
+        }
+    }
+
+    /** True while a language is downloading: one at a time. */
+    fun isDownloadRunning(): Boolean = downloadInProgress.get()
+
+    /**
+     * Puts [languageTag] on the Other language card, in place of what was there (see [OtherLanguageSwap]).
+     * @return false when it couldn't be downloaded; the card keeps what it had.
+     */
+    suspend fun chooseOtherLanguage(languageTag: String): Boolean {
+        val old = _otherLanguage.value
+        return OtherLanguageSwap.swap(
+            old = old,
+            new = languageTag,
+            wasActive = old != null && old == _activeLanguage.value,
+            show = {
+                _otherLanguage.value = it
+                updateLanguageStates()
+            },
+            download = { tag ->
+                val done = downloadLanguage(tag, replacing = old != null)
+                if (!done) downloadStates.remove(tag)
+                done
+            },
+            activate = { setActiveLanguage(it) },
+            delete = { deleteLanguage(it) }
+        )
     }
 
     /**
@@ -174,12 +217,13 @@ object DigitalInkModelManager {
      * Download a language model. Blocks until complete.
      *
      * @param languageTag Language tag (e.g., "en-US")
+     * @param replacing The language takes the place of one that's deleted right after
      * @return true if download succeeded or already downloaded
      */
-    suspend fun downloadLanguage(languageTag: String): Boolean = withContext(Dispatchers.IO) {
-        // Check quota BEFORE download
+    suspend fun downloadLanguage(languageTag: String, replacing: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+        // Check quota BEFORE download; a language replacing another leaves the count as it was
         val currentDownloadedCount = getDownloadedLanguagesCount()
-        if (currentDownloadedCount >= MAX_DOWNLOADED_LANGUAGES && !isLanguageDownloaded(languageTag)) {
+        if (!replacing && currentDownloadedCount >= MAX_DOWNLOADED_LANGUAGES && !isLanguageDownloaded(languageTag)) {
             Log.w(TAG, "Cannot download $languageTag - quota reached ($currentDownloadedCount/$MAX_DOWNLOADED_LANGUAGES)")
             return@withContext false
         }
@@ -260,30 +304,28 @@ object DigitalInkModelManager {
 
     /**
      * Get all available languages for UI.
-     * Returns 11 supported languages: English (Full), 10 others (Basic).
+     * Returns the nine fixed languages, then the one on the Other language card, if any.
      * Uses cached downloadStates for instant performance (no file I/O).
      */
     fun getAvailableLanguages(): List<LanguageInfo> {
         val allLanguages = listOf(
-            "en-US" to "English (US) - Full Support",
-            "de-DE" to "German (Germany) - Basic",
-            "es-ES" to "Spanish (Spain) - Basic",
-            "fr-FR" to "French (France) - Basic",
-            "it-IT" to "Italian (Italy) - Basic",
-            "ru-RU" to "Russian (Russia) - Basic",
-            "uk" to "Ukrainian - Basic",
-            "ja" to "Japanese - Basic",
-            "ko" to "Korean - Basic",
-            "zh-Hans" to "Chinese (Simplified) - Basic",
-            "ar" to "Arabic - Basic"
-        )
+            "en-US" to "English (US)",
+            "de-DE" to "German",
+            "es-ES" to "Spanish",
+            "fr-FR" to "French",
+            "it-IT" to "Italian",
+            "ru-RU" to "Russian",
+            "ja" to "Japanese",
+            "ko" to "Korean",
+            "zh-Hans" to "Simplified Chinese"
+        ) + listOfNotNull(_otherLanguage.value?.let { it to HandwritingLanguages.nameOf(it) })
 
         return allLanguages.map { (tag, displayName) ->
             val state = downloadStates[tag]?.value ?: DownloadState.NOT_DOWNLOADED
             LanguageInfo(
                 tag = tag,
                 displayName = displayName,
-                downloadSize = "~20MB",
+                downloadSize = "~15MB",
                 isDownloaded = state == DownloadState.READY,
                 isActive = _activeLanguage.value == tag,
                 downloadState = state
@@ -348,13 +390,14 @@ object DigitalInkModelManager {
         }
 
         try {
-            val model = models[languageTag] ?: return@withContext false
+            val model = getOrCreateModel(languageTag) ?: return@withContext false
             val remoteModelManager = RemoteModelManager.getInstance()
             remoteModelManager.deleteDownloadedModel(model).await()
 
             // Clean up - just remove from cache (no close() method on DigitalInkRecognizer)
             recognizers.remove(languageTag)
             downloadStates[languageTag]?.value = DownloadState.NOT_DOWNLOADED
+            if (languageTag !in HandwritingLanguages.FIXED) downloadStates.remove(languageTag)
             _downloadedCount.value = getDownloadedLanguagesCount()
             updateLanguageStates()
 
