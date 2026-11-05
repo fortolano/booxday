@@ -841,3 +841,45 @@ val MIGRATION_33_34 = object : Migration(33, 34) {
         db.execSQL("ALTER TABLE `caldav_account` ADD COLUMN `taskListCount` INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/**
+ * v35 (Nov 2026): a note can link to a tablet-only event. `linkedEventId` had a foreign key to
+ * calendar_events, but tablet-only events live in local_events, so linking to one closed the app.
+ * BooxNoteLinkSchema's trigger now clears links when a calendar event is deleted, as the key did.
+ */
+val MIGRATION_34_35 = object : Migration(34, 35) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE `boox_note_links_new` (
+                `id` TEXT NOT NULL, `noteUniqueId` TEXT NOT NULL, `linkedEventId` TEXT,
+                `linkedDayDate` TEXT NOT NULL, `isManualLink` INTEGER NOT NULL, `confidence` TEXT NOT NULL,
+                `confidenceScore` INTEGER NOT NULL, `matchReasons` TEXT, `suggestedEventIds` TEXT,
+                `dismissedEventIds` TEXT, `needsAttention` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL, `lastReviewedAt` INTEGER, `decisionMode` TEXT NOT NULL,
+                `engineVersion` TEXT, `dataQualityFlagsJson` TEXT, PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            INSERT INTO `boox_note_links_new` (
+                `id`, `noteUniqueId`, `linkedEventId`, `linkedDayDate`, `isManualLink`, `confidence`,
+                `confidenceScore`, `matchReasons`, `suggestedEventIds`, `dismissedEventIds`, `needsAttention`,
+                `createdAt`, `updatedAt`, `lastReviewedAt`, `decisionMode`, `engineVersion`, `dataQualityFlagsJson`
+            )
+            SELECT
+                `id`, `noteUniqueId`, `linkedEventId`, `linkedDayDate`, `isManualLink`, `confidence`,
+                `confidenceScore`, `matchReasons`, `suggestedEventIds`, `dismissedEventIds`, `needsAttention`,
+                `createdAt`, `updatedAt`, `lastReviewedAt`, `decisionMode`, `engineVersion`, `dataQualityFlagsJson`
+            FROM `boox_note_links`
+            """.trimIndent()
+        )
+        db.execSQL("DROP TABLE `boox_note_links`")
+        db.execSQL("ALTER TABLE `boox_note_links_new` RENAME TO `boox_note_links`")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_boox_note_links_noteUniqueId` ON `boox_note_links` (`noteUniqueId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_boox_note_links_linkedEventId` ON `boox_note_links` (`linkedEventId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_boox_note_links_linkedDayDate` ON `boox_note_links` (`linkedDayDate`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_boox_note_links_needsAttention` ON `boox_note_links` (`needsAttention`)")
+    }
+}
