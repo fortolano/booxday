@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,14 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Link
@@ -30,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -43,17 +43,18 @@ import com.boox.day.booxnotes.CrossDayLinkSuggestion
 import com.boox.day.booxnotes.LinkConfidence
 import com.boox.day.data.db.BooxNoteIndex
 import com.boox.day.data.db.CalendarEvent
-import com.boox.day.ui.components.DialogCloseButton
 import com.boox.day.ui.components.EinkSecondaryButton
-import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.components.ScrollMoreBar
+import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
+import com.boox.day.ui.theme.ScreenColour
 
-// Note pane of the Boox Notes dialog (Oct 2026): title and when, one link row, then the page itself as
-// the largest element (tap it to read the page full size), page arrows and "Open in Boox Notes".
+// Note place of the Boox Notes window (Nov 2026): the page as the largest element (tap it to read it
+// full size), then the link zone. The zone has one height in every state, so nothing moves the page.
 
-/** What the link row says about the selected note */
+/** What the link zone says about the note */
 internal sealed interface NoteLinkUi {
+    /** A suggestion is being looked for: linking by hand works all the same */
     data object Checking : NoteLinkUi
 
     /** [event] is null when the linked event is no longer in the calendar */
@@ -70,6 +71,18 @@ internal data class NotePageState(
     val result: BooxNotePreviewResult? = null
 )
 
+/** What the zone can do; [undo] is set right after a change, and takes an existing button's place */
+internal class NoteLinkActions(
+    val onLink: (CrossDayLinkSuggestion) -> Unit,
+    val onReject: (CrossDayLinkSuggestion) -> Unit,
+    val onChooseEvent: () -> Unit,
+    val onUnlink: () -> Unit,
+    val undo: (() -> Unit)? = null,
+    /** A suggestion that came in while the note was open: said on a line, never swapping the buttons */
+    val lateSuggestion: String? = null,
+    val onShowLate: () -> Unit = {}
+)
+
 @Composable
 internal fun BooxNotePane(
     note: BooxNoteIndex?,
@@ -78,12 +91,12 @@ internal fun BooxNotePane(
     pageIndex: Int,
     pageCount: Int,
     onPageChange: (Int) -> Unit,
-    onLinkSuggestion: (CrossDayLinkSuggestion) -> Unit,
-    onChooseEvent: () -> Unit,
-    onUnlink: () -> Unit,
+    actions: NoteLinkActions,
     onOpenReader: () -> Unit,
     onOpenInBooxNotes: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Single pane: the bar with back, title and X; two panes show the title here */
+    bar: (@Composable () -> Unit)? = null
 ) {
     val theme = EInkTheme.BooxNotes
     if (note == null) {
@@ -99,32 +112,26 @@ internal fun BooxNotePane(
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
+        verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (bar != null) {
+            bar()
+        } else {
             Text(
                 text = note.title.ifBlank { "Untitled note" },
                 fontSize = theme.paneTitleFontSize,
                 fontWeight = FontWeight.Bold,
                 color = EInkTheme.Colors.primary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = noteMetaLine(note, withDay = true, fullDay = true),
-                fontSize = theme.paneMetaFontSize,
-                color = EInkTheme.Colors.darkGray,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
-
-        NoteLinkRow(
-            note = note,
-            link = link,
-            onLinkSuggestion = onLinkSuggestion,
-            onChooseEvent = onChooseEvent,
-            onUnlink = onUnlink
+        Text(
+            text = noteMetaLine(note, withDay = true, fullDay = true),
+            fontSize = theme.paneMetaFontSize,
+            color = EInkTheme.Colors.darkGray,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
 
         NotePageView(
@@ -135,107 +142,158 @@ internal fun BooxNotePane(
                 .fillMaxWidth()
         )
 
+        PageRow(pageIndex, pageCount, onPageChange, onOpenInBooxNotes)
+
+        NoteLinkZone(note = note, link = link, actions = actions)
+    }
+}
+
+/** Page arrows and the only way out to BOOX's app */
+@Composable
+internal fun PageRow(
+    pageIndex: Int,
+    pageCount: Int,
+    onPageChange: (Int) -> Unit,
+    onOpenInBooxNotes: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(EInkTheme.Global.touchTarget),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
+    ) {
         if (pageCount > 1) {
             PageArrows(
                 pageIndex = pageIndex,
                 pageCount = pageCount,
                 onPageChange = onPageChange,
-                buttonSize = theme.chevronSize,
-                modifier = Modifier.fillMaxWidth()
+                buttonSize = EInkTheme.BooxNotes.chevronSize
             )
         }
+        Spacer(modifier = Modifier.weight(1f))
+        if (onOpenInBooxNotes != null) {
+            EinkSecondaryButton(text = "Open in Notes App", onClick = onOpenInBooxNotes, width = 156.dp)
+        }
+    }
+}
 
-        ActionButton(
-            text = "Open in Boox Notes",
-            onClick = onOpenInBooxNotes,
-            modifier = Modifier.fillMaxWidth()
+@Composable
+private fun NoteLinkZone(note: BooxNoteIndex, link: NoteLinkUi, actions: NoteLinkActions) {
+    val theme = EInkTheme.BooxNotes
+    val likely = link is NoteLinkUi.Suggested && link.suggestion.confidence == LinkConfidence.HIGH
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(theme.linkZoneHeight)
+            .border(
+                width = if (likely) theme.cardStrongBorderWidth else theme.cardBorderWidth,
+                color = EInkTheme.Colors.primary,
+                shape = RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
+            )
+            .padding(theme.linkRowPadding),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        when (link) {
+            is NoteLinkUi.Suggested -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ZoneLabel(icon = Icons.Default.Star, tint = ScreenColour.starTint, text = "Is this the event?", modifier = Modifier.weight(1f))
+                    ConfidenceTag(link.suggestion.confidence)
+                }
+                val event = link.suggestion.event
+                ZoneTitle(event.title)
+                ZoneText(listOfNotNull(eventWhen(event, withDay = true), link.reason).joinToString(" · "), lines = 2)
+                Spacer(modifier = Modifier.weight(1f))
+                ZoneButtons {
+                    EinkSecondaryButton(text = "Other Event…", onClick = actions.onChooseEvent, modifier = Modifier.weight(1.3f))
+                    if (actions.undo != null) {
+                        EinkSecondaryButton(text = "Undo", onClick = actions.undo, modifier = Modifier.weight(1f))
+                    } else {
+                        EinkSecondaryButton(text = "Reject", onClick = { actions.onReject(link.suggestion) }, modifier = Modifier.weight(1f))
+                    }
+                    ActionButton(text = "Link", onClick = { actions.onLink(link.suggestion) }, modifier = Modifier.weight(1f))
+                }
+            }
+
+            is NoteLinkUi.Linked -> {
+                ZoneLabel(icon = Icons.Default.Link, text = "Linked to")
+                val event = link.event
+                if (event != null) {
+                    ZoneTitle(event.title)
+                    ZoneText(listOfNotNull(eventWhen(event, withDay = true), eventRelationToNote(note, event)).joinToString(" · "))
+                } else {
+                    ZoneText("An event that is no longer in your calendar")
+                }
+                if (!link.byUser) ZoneText("Linked automatically", muted = true)
+                Spacer(modifier = Modifier.weight(1f))
+                ZoneButtons {
+                    if (actions.undo != null) {
+                        EinkSecondaryButton(text = "Undo", onClick = actions.undo, modifier = Modifier.weight(1f))
+                    } else {
+                        EinkSecondaryButton(text = "Unlink", onClick = actions.onUnlink, modifier = Modifier.weight(1f))
+                    }
+                    EinkSecondaryButton(text = "Change Event…", onClick = actions.onChooseEvent, modifier = Modifier.weight(1f))
+                }
+            }
+
+            NoteLinkUi.Checking, is NoteLinkUi.NotLinked -> {
+                ZoneLabel(icon = null, text = "Not linked")
+                val late = actions.lateSuggestion
+                when {
+                    late != null -> LateSuggestionLine(late, actions.onShowLate)
+                    link is NoteLinkUi.NotLinked -> ZoneText(
+                        if (link.sameDayEventCount > 0) "No suggestion" else "No events on ${formatDayShort(note.originalDate)}"
+                    )
+                    else -> ZoneText("Looking for a suggestion…", muted = true)
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                ZoneButtons {
+                    if (actions.undo != null) {
+                        EinkSecondaryButton(text = "Undo", onClick = actions.undo, modifier = Modifier.weight(1f))
+                    }
+                    EinkSecondaryButton(text = "Choose Event…", onClick = actions.onChooseEvent, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LateSuggestionLine(title: String, onShow: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
+    ) {
+        Icon(Icons.Default.Star, contentDescription = null, tint = ScreenColour.starTint, modifier = Modifier.size(18.dp))
+        Text(
+            text = "Suggested: $title",
+            fontSize = EInkTheme.Typography.bodyMedium,
+            color = EInkTheme.Colors.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = "Show",
+            fontSize = EInkTheme.Typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = EInkTheme.Colors.primary,
+            modifier = Modifier
+                .noRippleClickable(onClick = onShow)
+                .padding(horizontal = EInkTheme.Global.paddingSmall, vertical = EInkTheme.Global.spacingSmall)
         )
     }
 }
 
 @Composable
-private fun NoteLinkRow(
-    note: BooxNoteIndex,
-    link: NoteLinkUi,
-    onLinkSuggestion: (CrossDayLinkSuggestion) -> Unit,
-    onChooseEvent: () -> Unit,
-    onUnlink: () -> Unit
+private fun ZoneLabel(
+    icon: ImageVector?,
+    text: String,
+    modifier: Modifier = Modifier,
+    tint: Color = EInkTheme.Colors.primary
 ) {
-    val theme = EInkTheme.BooxNotes
-    val strongSuggestion = link is NoteLinkUi.Suggested && link.suggestion.confidence == LinkConfidence.HIGH
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = if (strongSuggestion) theme.cardStrongBorderWidth else theme.cardBorderWidth,
-                color = EInkTheme.Colors.primary,
-                shape = RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
-            )
-            .padding(theme.linkRowPadding),
-        verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-    ) {
-        when (link) {
-            NoteLinkUi.Checking -> {
-                LinkRowLabel(icon = null, text = "Not linked")
-                LinkRowText("Looking for a suggestion…", muted = true)
-                LinkRowButtons {
-                    EinkSecondaryButton(text = "Link to event…", onClick = onChooseEvent, modifier = Modifier.weight(1f))
-                }
-            }
-
-            is NoteLinkUi.Linked -> {
-                LinkRowLabel(icon = Icons.Default.Link, text = "Linked to")
-                val event = link.event
-                if (event != null) {
-                    LinkRowTitle(event.title)
-                    LinkRowText(listOfNotNull(eventWhen(event, withDay = true), eventRelationToNote(note, event)).joinToString(" · "))
-                } else {
-                    LinkRowText("An event that is no longer in your calendar")
-                }
-                if (!link.byUser) {
-                    LinkRowText("Linked by Smart Link", muted = true)
-                }
-                LinkRowButtons {
-                    EinkSecondaryButton(text = "Unlink", onClick = onUnlink, modifier = Modifier.weight(1f))
-                    EinkSecondaryButton(text = "Change event…", onClick = onChooseEvent, modifier = Modifier.weight(1f))
-                }
-            }
-
-            is NoteLinkUi.Suggested -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    LinkRowLabel(icon = Icons.Default.Star, text = "Suggested event", modifier = Modifier.weight(1f))
-                    ConfidenceTag(link.suggestion.confidence)
-                }
-                val event = link.suggestion.event
-                LinkRowTitle(event.title)
-                LinkRowText(listOfNotNull(eventWhen(event, withDay = true), eventRelationToNote(note, event)).joinToString(" · "))
-                LinkRowText(link.reason, muted = true)
-                LinkRowButtons {
-                    EinkSecondaryButton(text = "Other event…", onClick = onChooseEvent, modifier = Modifier.weight(1f))
-                    ActionButton(
-                        text = "Link",
-                        onClick = { onLinkSuggestion(link.suggestion) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            is NoteLinkUi.NotLinked -> {
-                LinkRowLabel(icon = null, text = "Not linked")
-                LinkRowText(
-                    if (link.sameDayEventCount > 0) "No suggestion for this note."
-                    else "No events on ${formatDayShort(note.originalDate)}."
-                )
-                LinkRowButtons {
-                    EinkSecondaryButton(text = "Link to event…", onClick = onChooseEvent, modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LinkRowLabel(icon: ImageVector?, text: String, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -245,7 +303,7 @@ private fun LinkRowLabel(icon: ImageVector?, text: String, modifier: Modifier = 
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = EInkTheme.Colors.primary,
+                tint = tint,
                 modifier = Modifier.size(EInkTheme.Global.iconSizeSmall)
             )
         }
@@ -253,40 +311,39 @@ private fun LinkRowLabel(icon: ImageVector?, text: String, modifier: Modifier = 
             text = text,
             fontSize = EInkTheme.Typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            color = EInkTheme.Colors.primary
+            color = EInkTheme.Colors.primary,
+            maxLines = 1
         )
     }
 }
 
 @Composable
-private fun LinkRowTitle(text: String) {
+private fun ZoneTitle(text: String) {
     Text(
         text = text,
         fontSize = EInkTheme.Typography.bodyLarge,
         fontWeight = FontWeight.Bold,
         color = EInkTheme.Colors.primary,
-        maxLines = 2,
+        maxLines = 1,
         overflow = TextOverflow.Ellipsis
     )
 }
 
 @Composable
-private fun LinkRowText(text: String, muted: Boolean = false) {
+private fun ZoneText(text: String, muted: Boolean = false, lines: Int = 1) {
     Text(
         text = text,
         fontSize = EInkTheme.Typography.bodyMedium,
         color = if (muted) EInkTheme.Colors.darkGray else EInkTheme.Colors.primary,
-        maxLines = 2,
+        maxLines = lines,
         overflow = TextOverflow.Ellipsis
     )
 }
 
 @Composable
-private fun LinkRowButtons(content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
+private fun ZoneButtons(content: @Composable RowScope.() -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = EInkTheme.Global.spacingSmall),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(EInkTheme.Button.spacing),
         content = content
     )
@@ -294,7 +351,7 @@ private fun LinkRowButtons(content: @Composable androidx.compose.foundation.layo
 
 /** The page as a 3:4 sheet that fills the space it gets; tapping it opens the reader. */
 @Composable
-private fun NotePageView(
+internal fun NotePageView(
     page: NotePageState,
     onOpenReader: () -> Unit,
     modifier: Modifier = Modifier
@@ -339,13 +396,15 @@ private fun NotePageView(
                         ScrollMoreBar(textScroll)
                     }
                 }
-                else -> PageMessage(
-                    (result as? BooxNotePreviewResult.Unavailable)?.diagnostics?.message ?: "This page can't be shown."
-                )
+                else -> PageMessage(pageUnavailableText(result))
             }
         }
     }
 }
+
+/** Plain words: this is a note with no pages, or a page that can't be drawn */
+private fun pageUnavailableText(result: BooxNotePreviewResult?): String =
+    if (result?.totalPages == 0) "This note has no pages yet." else "This page can't be shown."
 
 @Composable
 private fun PageMessage(text: String) {
@@ -369,7 +428,7 @@ private fun PageArrows(
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.padding, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall),
         verticalAlignment = Alignment.CenterVertically
     ) {
         PageArrow(
@@ -382,7 +441,8 @@ private fun PageArrows(
         Text(
             text = "Page ${pageIndex + 1} of $pageCount",
             fontSize = EInkTheme.Typography.bodyMedium,
-            color = EInkTheme.Colors.primary
+            color = EInkTheme.Colors.primary,
+            maxLines = 1
         )
         PageArrow(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -412,7 +472,7 @@ private fun PageArrow(icon: ImageVector, description: String, enabled: Boolean, 
     }
 }
 
-/** A page at full size: back, the page, then page arrows and "Open in Boox Notes". */
+/** A page at full size: back, the page, then page arrows and Open in Notes App. */
 @Composable
 internal fun BooxNoteReader(
     note: BooxNoteIndex,
@@ -429,41 +489,14 @@ internal fun BooxNoteReader(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
     ) {
-        // Back goes to the note list, the X closes Boox Notes (Oct 2026)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(EInkTheme.Global.touchTarget)
-                    .noRippleClickable(onClick = onBack),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = EInkTheme.Colors.primary,
-                    modifier = Modifier.size(EInkTheme.Global.iconSize)
-                )
-            }
-            Spacer(modifier = Modifier.width(EInkTheme.Global.spacingSmall))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = note.title.ifBlank { "Untitled note" },
-                    fontSize = EInkTheme.Typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = EInkTheme.Colors.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = noteMetaLine(note, withDay = true),
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.darkGray,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            DialogCloseButton(onClose = onClose)
-        }
+        BooxNotesBar(title = note.title.ifBlank { "Untitled note" }, onClose = onClose, onBack = onBack)
+        Text(
+            text = noteMetaLine(note, withDay = true),
+            fontSize = EInkTheme.Typography.bodyMedium,
+            color = EInkTheme.Colors.darkGray,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
         NotePageView(
             page = page,
             onOpenReader = {},
@@ -471,24 +504,6 @@ internal fun BooxNoteReader(
                 .weight(1f)
                 .fillMaxWidth()
         )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(EInkTheme.Global.touchTarget),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.padding)
-        ) {
-            if (pageCount > 1) {
-                // Same arrow size as the reader always had (44 dp)
-                PageArrows(
-                    pageIndex = pageIndex,
-                    pageCount = pageCount,
-                    onPageChange = onPageChange,
-                    buttonSize = EInkTheme.Global.touchTarget
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            ActionButton(text = "Open in Boox Notes", onClick = onOpenInBooxNotes)
-        }
+        PageRow(pageIndex, pageCount, onPageChange, onOpenInBooxNotes)
     }
 }

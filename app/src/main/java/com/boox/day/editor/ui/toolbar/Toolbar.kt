@@ -89,7 +89,6 @@ import com.boox.day.R
 import com.boox.day.api.OpenRouterClient
 import com.boox.day.data.AppRepository
 import com.boox.day.data.db.DayPageRepository
-import com.boox.day.data.db.UnifiedOcrRepository
 import com.boox.day.data.copyImageToDatabase
 import com.boox.day.data.saveBitmapToImagesFolder
 import com.boox.day.data.datastore.AppSettings
@@ -106,10 +105,8 @@ import com.boox.day.editor.utils.Pen
 import com.boox.day.editor.utils.PenSetting
 import com.boox.day.editor.utils.refreshScreen
 import androidx.core.content.ContextCompat
-import com.boox.day.ocr.UnifiedOcrIdleProcessor
 import com.boox.day.ocr.TextAnnotationIndexer
 import com.boox.day.ui.dialogs.AttachmentPickerDialog
-import com.boox.day.ui.dialogs.BooxNotesSettingsDialog
 import com.boox.day.ui.dialogs.ImagePickerDialog
 import com.boox.day.ui.dialogs.NativeBackgroundDialog
 import com.boox.day.ui.dialogs.TableCreationDialog
@@ -317,14 +314,6 @@ fun SharedToolbar(
     taskStats: TaskStats? = null,
     // Canvas height for stroke detection in task export
     canvasHeight: Float = 0f,
-    // Boox Notes scan callback - triggered when permission/toggle changes      
-    onBooxNotesScanNeeded: (() -> Unit)? = null,
-    // Boox Notes enabled state - shared with MainScreen for sync
-    booxNotesEnabled: Boolean = GlobalAppSettings.current.booxNotesEnabled,     
-    onBooxNotesEnabledChanged: ((Boolean) -> Unit)? = null,
-    onBooxOcrSettingsChanged: ((com.boox.day.data.datastore.OcrSettings) -> Unit)? = null,
-    ocrProcessingState: UnifiedOcrIdleProcessor.ProcessingState? = null,
-    ocrRepository: UnifiedOcrRepository? = null,
     // Screen refresh (moved from calendar toolbar to hamburger menu)
     onScreenRefresh: () -> Unit = {}
 ) {
@@ -406,7 +395,6 @@ fun SharedToolbar(
 
 
     // State for Boox Notes settings dialog (shown when B button tapped without permission)
-    var isBooxNotesSettingsDialogOpen by remember { mutableStateOf(false) }
 
     // State for voice input dialog
     var isVoiceInputDialogOpen by remember { mutableStateOf(false) }
@@ -461,7 +449,6 @@ fun SharedToolbar(
                 isTableDialogOpen ||
                 isAttachmentDialogOpen ||
                 isLinkFilePermissionDialogOpen ||
-                isBooxNotesSettingsDialogOpen ||
                 isVoiceInputDialogOpen ||
                 voiceResultText != null ||
                 handwritingRecognitionRequest != null ||
@@ -719,23 +706,6 @@ fun SharedToolbar(
                 toolbarLog.i("Permission granted, opening attachment picker dialog...")
                 isAttachmentDialogOpen = true
             }
-        )
-    }
-
-    // Boox Notes settings dialog (shown when B button tapped without permission)
-    // Uses shared state from MainScreen to stay in sync with other entry points
-    if (isBooxNotesSettingsDialogOpen) {
-        BooxNotesSettingsDialog(
-            onDismiss = { isBooxNotesSettingsDialogOpen = false },
-            booxNotesEnabled = booxNotesEnabled,
-            onBooxNotesEnabledChanged = { enabled ->
-                // Delegate to MainScreen's handler for proper state sync       
-                onBooxNotesEnabledChanged?.invoke(enabled)
-            },
-            onScanNeeded = onBooxNotesScanNeeded,
-            onOcrSettingsChanged = onBooxOcrSettingsChanged,
-            ocrProcessingState = ocrProcessingState,
-            ocrRepository = ocrRepository
         )
     }
 
@@ -1549,28 +1519,12 @@ fun SharedToolbar(
                 // Boox Notes (Oct 2026): shared by the Boox Notes button and its page in the toolbar menu (≡)
                 // Check if we have file access permission
                 val hasBooxPermission = com.boox.day.booxnotes.BooxNotesAccess.has(context)
-                val onBooxNotesPermissionNeeded: () -> Unit = {
-                    toolbarLog.i("Boox Notes permission needed, showing settings dialog...")
-                    isBooxNotesSettingsDialogOpen = true
-                }
-
+                // The "!" follows the Settings gear: only for access that was given and is gone
+                val showBooxAlert = !hasBooxPermission && GlobalAppSettings.current.setupChecklist.booxNotesConfigured
                 val notesTool: @Composable () -> Unit = {
                         NotesButton(
                             modifier = Modifier.size(EInkTheme.Toolbar.buttonSizeMedium * LocalToolbarIconScale.current),  // Enlarged for touch
-                            hasPermission = hasBooxPermission,
-                            onPermissionNeeded = onBooxNotesPermissionNeeded,
-                            isActive = activeButton == "notes",
-                            onActivate = {
-                                activeButton = "notes"
-                                activeState.isDrawing = false  // Disable drawing when Notes is active
-                                activeToolDropdown = "notes"  // Explicitly set dropdown state
-                            },
-                            isOpen = activeToolDropdown == "notes",
-                            onOpenChange = { isOpen ->
-                                activeToolDropdown = if (isOpen) "notes" else null
-                            },
-                            // Only disable drawing when menu opens, don't re-enable when it closes
-                            onMenuOpenChange = { isOpen -> if (isOpen) activeState.isDrawing = false }
+                            showAlert = showBooxAlert
                         )
                 }
 
@@ -2169,7 +2123,7 @@ fun SharedToolbar(
                                 onDailySummary = onDailySummary,
                                 onWeeklySummary = onWeeklySummary,
                                 hasBooxPermission = hasBooxPermission,
-                                onBooxNotesPermissionNeeded = onBooxNotesPermissionNeeded,
+                                showBooxAlert = showBooxAlert,
                                 closeToolbarMenu = closeToolbarMenu
                             )
                         )
@@ -2315,7 +2269,7 @@ private fun toolbarMenuTools(
     onDailySummary: (() -> Unit)?,
     onWeeklySummary: (() -> Unit)?,
     hasBooxPermission: Boolean,
-    onBooxNotesPermissionNeeded: () -> Unit,
+    showBooxAlert: Boolean,
     closeToolbarMenu: () -> Unit
 ): List<ToolbarMenuTool> = buildList {
     if (isCompactToolbar && !compactFit.penSettings && penSetting != null) {
@@ -2450,15 +2404,11 @@ private fun toolbarMenuTools(
         add(ToolbarMenuTool(
             label = "Boox Notes",
             icon = { tint -> MenuIcon(R.drawable.boox_b_letter, tint, size = 18.dp) },
-            badge = !hasBooxPermission,
-            mayOpenPage = {
-                DrawCanvas.toolbarInteraction.tryEmit(Unit)
-                booxNotesMenuMayOpen(context, onPermissionNeeded = {
-                    closeToolbarMenu()
-                    onBooxNotesPermissionNeeded()
-                })
-            },
-            page = { closeMenu -> BooxNotesMenuItems(onDone = closeMenu) }
+            badge = showBooxAlert,
+            onClick = {
+                closeToolbarMenu()
+                openBooxNotes(context)
+            }
         ))
     }
     // Full screen (Oct 2026): here when the compact bar has no room for its button (Go 6), and on the

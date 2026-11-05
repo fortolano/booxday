@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -25,7 +24,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.R
@@ -54,7 +52,7 @@ fun DayQuickViewPopup(
     onNavigateToEvents: () -> Unit,
     onNavigateToTasksDue: () -> Unit,
     onOpenBooxNote: (uniqueId: String, title: String) -> Unit,
-    onManageBooxNote: (noteDate: String) -> Unit,
+    onLinkBooxNote: (noteId: String, noteDate: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     Popup(
@@ -137,7 +135,7 @@ fun DayQuickViewPopup(
                 BooxNotesSection(
                     booxNotes = data.booxNotes,
                     onOpenBooxNote = onOpenBooxNote,
-                    onManageBooxNote = onManageBooxNote
+                    onLinkBooxNote = onLinkBooxNote
                 )
             }
         }
@@ -243,7 +241,7 @@ private fun SummaryRow(
 private fun BooxNotesSection(
     booxNotes: List<BooxNoteWithEvent>,
     onOpenBooxNote: (uniqueId: String, title: String) -> Unit,
-    onManageBooxNote: (noteDate: String) -> Unit
+    onLinkBooxNote: (noteId: String, noteDate: String) -> Unit
 ) {
     Column {
         // Section Header
@@ -293,7 +291,7 @@ private fun BooxNotesSection(
                 items(booxNotes, key = { it.note.uniqueId }) { noteWithEvent ->
                     BooxNoteRow(
                         noteWithEvent = noteWithEvent,
-                        onManageClick = { onManageBooxNote(noteWithEvent.note.originalDate) },
+                        onManageClick = { onLinkBooxNote(noteWithEvent.note.uniqueId, noteWithEvent.note.originalDate) },
                         onOpenClick = { onOpenBooxNote(noteWithEvent.note.uniqueId, noteWithEvent.note.title) }
                     )
                 }
@@ -369,21 +367,22 @@ private fun BooxNoteRow(
                 // Manage button
                 Row(
                     modifier = Modifier
+                        .height(EInkTheme.Global.touchTarget)
                         .noRippleClickable { onManageClick() }
                         .border(1.dp, EInkTheme.Colors.primary, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Tune,
+                        imageVector = Icons.Default.Link,
                         contentDescription = "Link this note to an event",
                         tint = EInkTheme.Colors.primary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = "Link…",
-                        fontSize = EInkTheme.Typography.labelMedium,
+                        fontSize = EInkTheme.Typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = EInkTheme.Colors.primary
                     )
@@ -392,23 +391,24 @@ private fun BooxNoteRow(
                 // Open button
                 Row(
                     modifier = Modifier
+                        .height(EInkTheme.Global.touchTarget)
                         .noRippleClickable { onOpenClick() }
                         .border(1.dp, EInkTheme.Colors.primary, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
                         text = "Open",
-                        fontSize = EInkTheme.Typography.labelMedium,
+                        fontSize = EInkTheme.Typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = EInkTheme.Colors.primary
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = "Open in Boox Notes",
+                        contentDescription = "Open in the Notes app",
                         tint = EInkTheme.Colors.primary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -429,8 +429,8 @@ private fun BooxNoteRow(
                 )
                 Text(
                     text = linkedEventDisplay,
-                    fontSize = 11.sp,  // Slightly larger than labelSmall (10.sp) for readability
-                    color = EInkTheme.Colors.gray,
+                    fontSize = EInkTheme.Typography.bodySmall,
+                    color = EInkTheme.Colors.darkGray,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

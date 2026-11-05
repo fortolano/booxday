@@ -11,17 +11,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Divider
-import androidx.compose.material.Icon
 import androidx.compose.material.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,15 +37,12 @@ import com.boox.day.booxnotes.LinkConfidence
 import com.boox.day.data.db.BooxNoteIndex
 import com.boox.day.data.db.SmartLinkPreflightState
 import com.boox.day.data.db.SmartLinkPreflightStatus
-import com.boox.day.ui.components.DialogCloseButton
 import com.boox.day.ui.components.EinkSecondaryButton
-import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.components.ScrollMoreBar
-import androidx.compose.foundation.lazy.rememberLazyListState
 import com.boox.day.ui.theme.EInkTheme
 
-// Smart Link suggestions of the Boox Notes dialog (Oct 2026), shown in place of the lists (no second
-// popup): this day's notes or all notes, one card per note with its page, the suggested event and why.
+// Suggestions place of the Boox Notes window (Nov 2026). One at a Time: the page large, the event, and
+// one decision, because the page is what the decision rests on. List: every card, in any order.
 
 internal data class SuggestionItem(
     val note: BooxNoteIndex,
@@ -61,7 +54,7 @@ internal sealed interface SuggestionsContent {
     /** Checking that there are calendar events to match against */
     data object Checking : SuggestionsContent
 
-    /** Smart Link can't run: no usable events, or turned off */
+    /** Suggestions can't run: no usable events */
     data class Blocked(val status: SmartLinkPreflightStatus) : SuggestionsContent
 
     data class Finding(val progress: Float, val step: String) : SuggestionsContent
@@ -69,80 +62,68 @@ internal sealed interface SuggestionsContent {
     data object Ready : SuggestionsContent
 }
 
+/** What the place needs from the window, and what it does */
+internal class SuggestionsHost(
+    val content: SuggestionsContent,
+    val items: List<SuggestionItem>,
+    val unlinkedCount: Int,
+    val scopeAll: Boolean,
+    val dayLabel: String,
+    val onScopeChange: (Boolean) -> Unit,
+    val indexingNote: String?,
+    val onBack: () -> Unit,
+    val onClose: () -> Unit,
+    val onLinkLikely: (List<SuggestionItem>) -> Unit,
+    val onLink: (SuggestionItem) -> Unit,
+    val onReject: (SuggestionItem) -> Unit,
+    val onOpenNote: (BooxNoteIndex) -> Unit,
+    val onStop: () -> Unit,
+    val onOpenCalendarAccounts: () -> Unit,
+    val message: BooxNotesMessage?,
+    val onUndo: () -> Unit
+)
+
+/** One at a Time: the note on show comes from the window, so the page loads through its usual path */
 @Composable
 internal fun BooxNotesSuggestionsView(
-    scopeAll: Boolean,
-    dayLabel: String,
-    onScopeChange: (Boolean) -> Unit,
-    content: SuggestionsContent,
-    items: List<SuggestionItem>,
-    unlinkedCount: Int,
-    indexingNote: String?,
-    onBack: () -> Unit,
-    onClose: () -> Unit,
-    onLinkStrong: (List<SuggestionItem>) -> Unit,
-    onLink: (SuggestionItem) -> Unit,
-    onSkip: (SuggestionItem) -> Unit,
-    onOpenNote: (BooxNoteIndex) -> Unit,
-    onStop: () -> Unit,
-    onOpenCalendarAccounts: () -> Unit,
+    host: SuggestionsHost,
+    current: SuggestionItem?,
+    position: Int,
+    total: Int,
+    page: NotePageState,
+    pageIndex: Int,
+    pageCount: Int,
+    onPageChange: (Int) -> Unit,
+    onOpenReader: () -> Unit,
+    onDecideLater: () -> Unit,
+    listView: Boolean,
+    onListViewChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val strongItems = items.filter { it.suggestion.confidence == LinkConfidence.HIGH }
+    val likely = host.items.filter { it.suggestion.confidence == LinkConfidence.HIGH }
     var confirmBulk by remember { mutableStateOf(false) }
+    val ready = host.content == SuggestionsContent.Ready && host.items.isNotEmpty()
+    val title = if (ready && !listView) "Suggestions · $position of $total" else "Suggestions"
 
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)) {
-        // Header: back, title, scope, bulk link, X (Oct 2026: back goes to the notes, X closes)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(EInkTheme.BooxNotes.headerSpacing)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(EInkTheme.Global.touchTarget)
-                    .noRippleClickable(onClick = onBack),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back to notes",
-                    tint = EInkTheme.Colors.primary,
-                    modifier = Modifier.size(EInkTheme.Global.iconSize)
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)) {
+        BooxNotesBar(title = title, onClose = host.onClose, onBack = host.onBack) {
+            if (ready) {
+                EinkSecondaryButton(
+                    text = if (listView) "One at a Time" else "List",
+                    onClick = { onListViewChange(!listView) },
+                    width = if (listView) 136.dp else 100.dp
                 )
             }
-            Text(
-                text = "Smart Link suggestions",
-                fontSize = EInkTheme.BooxNotes.titleFontSize,
-                fontWeight = FontWeight.Bold,
-                color = EInkTheme.Colors.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            DialogCloseButton(onClose = onClose)
-        }
-        // Its own row: on a Go 6 these squeezed the title down to "Smart L…"
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(EInkTheme.BooxNotes.headerSpacing)
-        ) {
-            BooxNotesSegmented(
-                options = listOf(dayLabel, "All notes"),
-                selectedIndex = if (scopeAll) 1 else 0,
-                onSelect = { onScopeChange(it == 1) }
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            if (content == SuggestionsContent.Ready && strongItems.isNotEmpty()) {
-                ActionButton(text = "Link ${strongItems.size} strong…", onClick = { confirmBulk = true })
-            }
         }
 
-        when (content) {
+        when (val content = host.content) {
             SuggestionsContent.Checking -> CenterMessage("Checking your calendar…")
 
-            is SuggestionsContent.Blocked -> SmartLinkBlocked(status = content.status, onBack = onBack, onOpenCalendarAccounts = onOpenCalendarAccounts)
+            is SuggestionsContent.Blocked -> SuggestionsBlocked(
+                status = content.status,
+                onBack = host.onBack,
+                onOpenCalendarAccounts = host.onOpenCalendarAccounts
+            )
 
             is SuggestionsContent.Finding -> Column(
                 modifier = Modifier
@@ -152,44 +133,70 @@ internal fun BooxNotesSuggestionsView(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Finding link suggestions… ${(content.progress * 100).toInt()}%",
+                    text = "Finding suggestions… ${(content.progress * 100).toInt()}%",
                     fontSize = EInkTheme.Typography.bodyLarge,
                     color = EInkTheme.Colors.primary
                 )
                 BooxNotesProgressBar(progress = content.progress, modifier = Modifier.fillMaxWidth(0.7f))
                 Text(text = content.step, fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.darkGray)
-                EinkSecondaryButton(text = "Stop", onClick = onStop)
+                EinkSecondaryButton(text = "Stop", onClick = host.onStop)
             }
 
-            SuggestionsContent.Ready -> {
-                val possible = items.size - strongItems.size
-                val without = (unlinkedCount - items.size).coerceAtLeast(0)
-                Text(
-                    text = listOfNotNull(
-                        plural(strongItems.size, "strong suggestion"),
-                        if (possible > 0) "$possible possible" else null,
-                        if (without > 0) "${plural(without, "note")} without a confident suggestion" else null
-                    ).joinToString(" · "),
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.darkGray
-                )
-                if (indexingNote != null) {
-                    Text(text = indexingNote, fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.darkGray)
-                }
-                if (items.isEmpty()) {
+            SuggestionsContent.Ready -> when {
+                host.items.isEmpty() -> {
+                    ScopeRow(host)
                     CenterMessage(
-                        "No suggestions right now. Smart Link looks for events within " +
-                            "${BooxNoteIndexer.BULK_MODE_SEARCH_DAYS} days of each note; you can still link a note " +
-                            "from its note pane."
+                        "No suggestions right now. BooxDay looks for events within " +
+                            "${BooxNoteIndexer.BULK_MODE_SEARCH_DAYS} days of each note. You can still link a note " +
+                            "yourself: open it and tap Choose Event."
                     )
-                } else {
+                    host.message?.let { BooxNotesMessageBar(it, host.onUndo) }
+                }
+
+                listView -> {
+                    ScopeRow(host)
+                    val maybe = host.items.size - likely.size
+                    val without = (host.unlinkedCount - host.items.size).coerceAtLeast(0)
+                    Text(
+                        text = listOfNotNull(
+                            if (likely.isNotEmpty()) "${likely.size} likely" else null,
+                            if (maybe > 0) "$maybe maybe" else null,
+                            if (without > 0) "${plural(without, "note")} without a suggestion" else null
+                        ).joinToString(" · "),
+                        fontSize = EInkTheme.Typography.bodyMedium,
+                        color = EInkTheme.Colors.darkGray
+                    )
+                    host.indexingNote?.let {
+                        Text(text = it, fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.darkGray)
+                    }
                     SuggestionList(
-                        items = items,
-                        onLink = onLink,
-                        onSkip = onSkip,
-                        onOpenNote = onOpenNote,
-                        modifier = Modifier.weight(1f)
+                        host = host,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
                     )
+                    BulkOrMessageRow(host, likely.size) { confirmBulk = true }
+                }
+
+                current != null -> {
+                    NotePageView(
+                        page = page,
+                        onOpenReader = onOpenReader,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    )
+                    PageRow(pageIndex, pageCount, onPageChange, onOpenInBooxNotes = null)
+                    ReviewZone(
+                        item = current,
+                        onDecideLater = onDecideLater,
+                        onReject = { host.onReject(current) },
+                        onLink = { host.onLink(current) }
+                    )
+                    host.indexingNote?.let {
+                        Text(text = it, fontSize = EInkTheme.Typography.bodySmall, color = EInkTheme.Colors.darkGray, maxLines = 1)
+                    }
+                    BulkOrMessageRow(host, likely.size) { confirmBulk = true }
                 }
             }
         }
@@ -197,13 +204,97 @@ internal fun BooxNotesSuggestionsView(
 
     if (confirmBulk) {
         BulkLinkConfirm(
-            count = strongItems.size,
+            count = likely.size,
             onCancel = { confirmBulk = false },
             onConfirm = {
                 confirmBulk = false
-                onLinkStrong(strongItems)
+                host.onLinkLikely(likely)
             }
         )
+    }
+}
+
+/** Link All takes this row; right after a change, the message and Undo take it for a moment */
+@Composable
+private fun BulkOrMessageRow(host: SuggestionsHost, likelyCount: Int, onLinkAll: () -> Unit) {
+    val message = host.message
+    when {
+        message != null -> BooxNotesMessageBar(message, host.onUndo)
+        likelyCount > 0 -> EinkSecondaryButton(
+            text = if (likelyCount == 1) "Link 1 Likely…" else "Link All $likelyCount Likely…",
+            onClick = onLinkAll,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/** This day or All notes, for the List and for Link All */
+@Composable
+private fun ScopeRow(host: SuggestionsHost) {
+    BooxNotesSegmented(
+        options = listOf(host.dayLabel, "All notes"),
+        selectedIndex = if (host.scopeAll) 1 else 0,
+        onSelect = { host.onScopeChange(it == 1) }
+    )
+}
+
+@Composable
+private fun ReviewZone(
+    item: SuggestionItem,
+    onDecideLater: () -> Unit,
+    onReject: () -> Unit,
+    onLink: () -> Unit
+) {
+    val theme = EInkTheme.BooxNotes
+    val likely = item.suggestion.confidence == LinkConfidence.HIGH
+    val event = item.suggestion.event
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(theme.reviewZoneHeight)
+            .border(
+                width = if (likely) theme.cardStrongBorderWidth else theme.cardBorderWidth,
+                color = EInkTheme.Colors.primary,
+                shape = RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
+            )
+            .padding(theme.linkRowPadding),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = item.note.title.ifBlank { "Untitled note" },
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.darkGray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            ConfidenceTag(item.suggestion.confidence)
+        }
+        Text(
+            text = event.title,
+            fontSize = EInkTheme.Typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            color = EInkTheme.Colors.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = listOf(eventWhen(event, withDay = true), item.reason).joinToString(" · "),
+            fontSize = EInkTheme.Typography.bodyMedium,
+            color = EInkTheme.Colors.primary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Button.spacing)
+        ) {
+            EinkSecondaryButton(text = "Decide Later", onClick = onDecideLater, modifier = Modifier.weight(1.3f))
+            EinkSecondaryButton(text = "Reject", onClick = onReject, modifier = Modifier.weight(1f))
+            ActionButton(text = "Link", onClick = onLink, modifier = Modifier.weight(1f))
+        }
     }
 }
 
@@ -221,16 +312,10 @@ private fun CenterMessage(text: String) {
 }
 
 @Composable
-private fun SuggestionList(
-    items: List<SuggestionItem>,
-    onLink: (SuggestionItem) -> Unit,
-    onSkip: (SuggestionItem) -> Unit,
-    onOpenNote: (BooxNoteIndex) -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun SuggestionList(host: SuggestionsHost, modifier: Modifier = Modifier) {
     // Grouped by the day each note was written, newest first
-    val groups = remember(items) {
-        items.groupBy { it.note.originalDate }.toSortedMap(compareByDescending { it })
+    val groups = remember(host.items) {
+        host.items.groupBy { it.note.originalDate }.toSortedMap(compareByDescending { it })
     }
     val listState = rememberLazyListState()
     Box(modifier = modifier) {
@@ -264,9 +349,9 @@ private fun SuggestionList(
                 items(dayItems, key = { "${it.note.uniqueId}_${it.suggestion.event.id}" }) { item ->
                     SuggestionCard(
                         item = item,
-                        onLink = { onLink(item) },
-                        onSkip = { onSkip(item) },
-                        onOpenNote = { onOpenNote(item.note) }
+                        onLink = { host.onLink(item) },
+                        onReject = { host.onReject(item) },
+                        onOpenNote = { host.onOpenNote(item.note) }
                     )
                 }
             }
@@ -279,17 +364,17 @@ private fun SuggestionList(
 private fun SuggestionCard(
     item: SuggestionItem,
     onLink: () -> Unit,
-    onSkip: () -> Unit,
+    onReject: () -> Unit,
     onOpenNote: () -> Unit
 ) {
     val theme = EInkTheme.BooxNotes
-    val strong = item.suggestion.confidence == LinkConfidence.HIGH
+    val likely = item.suggestion.confidence == LinkConfidence.HIGH
     val event = item.suggestion.event
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .border(
-                width = if (strong) theme.cardStrongBorderWidth else theme.cardBorderWidth,
+                width = if (likely) theme.cardStrongBorderWidth else theme.cardBorderWidth,
                 color = EInkTheme.Colors.primary,
                 shape = RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
             )
@@ -302,26 +387,30 @@ private fun SuggestionCard(
         ) {
             // The page itself: names like "Notebook-27" or a date say little; tap to read it
             NotePageThumbnail(note = item.note, onClick = onOpenNote)
-            CardColumn(
-                label = "Note",
-                title = item.note.title.ifBlank { "Untitled note" },
-                detail = noteMetaLine(item.note, withDay = true),
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = "links to",
-                tint = EInkTheme.Colors.primary,
-                modifier = Modifier
-                    .padding(top = EInkTheme.Global.paddingLarge)
-                    .size(EInkTheme.Global.iconSizeSmall)
-            )
-            CardColumn(
-                label = "Event",
-                title = event.title,
-                detail = eventWhen(event, withDay = true),
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = item.note.title.ifBlank { "Untitled note" },
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    color = EInkTheme.Colors.darkGray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = event.title,
+                    fontSize = EInkTheme.Typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = EInkTheme.Colors.primary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = eventWhen(event, withDay = true),
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    color = EInkTheme.Colors.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -341,40 +430,13 @@ private fun SuggestionCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(EInkTheme.Button.spacing)
         ) {
-            EinkSecondaryButton(text = "Skip", onClick = onSkip, modifier = Modifier.weight(1f))
+            EinkSecondaryButton(text = "Reject", onClick = onReject, modifier = Modifier.weight(1f))
             ActionButton(text = "Link", onClick = onLink, modifier = Modifier.weight(1f))
         }
     }
 }
 
-@Composable
-private fun CardColumn(label: String, title: String, detail: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            text = label,
-            fontSize = EInkTheme.BooxNotes.labelFontSize,
-            fontWeight = FontWeight.Bold,
-            color = EInkTheme.Colors.darkGray
-        )
-        Text(
-            text = title,
-            fontSize = EInkTheme.Typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-            color = EInkTheme.Colors.primary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = detail,
-            fontSize = EInkTheme.Typography.bodyMedium,
-            color = EInkTheme.Colors.darkGray,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-/** "Link 6 notes?" before any bulk change; the dialog then offers Undo */
+/** "Link 6 notes?" before any bulk change; the window then offers Undo */
 @Composable
 private fun BulkLinkConfirm(count: Int, onCancel: () -> Unit, onConfirm: () -> Unit) {
     Popup(
@@ -397,7 +459,7 @@ private fun BulkLinkConfirm(count: Int, onCancel: () -> Unit, onConfirm: () -> U
                 color = EInkTheme.Colors.primary
             )
             Text(
-                text = "Each note is linked to its strong suggestion. You can undo this right after, " +
+                text = "Each note is linked to its likely event. You can undo this right after, " +
                     "or unlink any note later.",
                 fontSize = EInkTheme.Typography.bodyLarge,
                 color = EInkTheme.Colors.primary
@@ -405,34 +467,24 @@ private fun BulkLinkConfirm(count: Int, onCancel: () -> Unit, onConfirm: () -> U
             Row(modifier = Modifier.fillMaxWidth()) {
                 EinkSecondaryButton(text = "Cancel", onClick = onCancel, modifier = Modifier.weight(0.4f))
                 Spacer(modifier = Modifier.weight(0.2f))
-                ActionButton(text = "Link ${plural(count, "note")}", onClick = onConfirm, modifier = Modifier.weight(0.4f))
+                ActionButton(text = "Link ${plural(count, "Note")}", onClick = onConfirm, modifier = Modifier.weight(0.4f))
             }
         }
     }
 }
 
-/** Why Smart Link can't run, and where to fix it (from the calendar check) */
+/** Why suggestions can't run, and where to fix it (from the calendar check) */
 @Composable
-private fun SmartLinkBlocked(status: SmartLinkPreflightStatus, onBack: () -> Unit, onOpenCalendarAccounts: () -> Unit) {
+private fun SuggestionsBlocked(status: SmartLinkPreflightStatus, onBack: () -> Unit, onOpenCalendarAccounts: () -> Unit) {
     val (title, body, hint) = when (status.state) {
-        SmartLinkPreflightState.SERVER_SMART_LINK_DISABLED -> Triple(
-            "Smart Link is turned off",
-            "Smart Link is turned off right now, so it can't suggest links. Your existing links are safe.",
-            "You can still link notes by hand from the note pane."
-        )
-        SmartLinkPreflightState.SERVER_OCR_DISABLED -> Triple(
-            "Note reading is turned off",
-            "Reading Boox notes is turned off right now, so Smart Link can't compare them with events. Your existing links are safe.",
-            "You can still link notes by hand from the note pane."
-        )
         SmartLinkPreflightState.FILTERS_HIDE_ALL_ELIGIBLE_EVENTS -> Triple(
             "Your calendar filters hide every event",
-            "The calendar filters in the events panel hide all the events Smart Link could use.",
+            "The calendar filters in the events panel hide all the events a note could be matched to.",
             "Events panel › turn on a calendar that has events"
         )
         SmartLinkPreflightState.NO_ELIGIBLE_TIMED_EVENTS -> Triple(
             "Only all-day events",
-            "Every event in your calendar is all-day. Smart Link matches notes to events with a start time.",
+            "Every event in your calendar is all-day. Notes are matched to events with a start time.",
             "Add or sync events that have a start time"
         )
         SmartLinkPreflightState.ACCOUNTS_CONNECTED_BUT_NO_SYNCED_EVENTS -> Triple(
@@ -442,7 +494,7 @@ private fun SmartLinkBlocked(status: SmartLinkPreflightStatus, onBack: () -> Uni
         )
         else -> Triple(
             "No calendar events",
-            "Smart Link matches your Boox Notes to calendar events. Connect a calendar account (Google, Outlook, iCloud and more), or add events in BooxDay.",
+            "Suggestions match your Boox Notes to calendar events. Connect a calendar account (Google, Outlook, iCloud and more), or add events in BooxDay.",
             "Open Calendar Accounts and tap Add Account"
         )
     }

@@ -1,12 +1,13 @@
 package com.boox.day.ui.dialogs
 
-import android.os.SystemClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
@@ -25,9 +27,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -40,20 +45,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.booxnotes.BooxNoteIndexer
 import com.boox.day.booxnotes.BooxNotePreviewCoordinator
+import com.boox.day.booxnotes.BooxNotePreviewResult
 import com.boox.day.booxnotes.BooxNotesIntegration
 import com.boox.day.booxnotes.CrossDayLinkSuggestion
 import com.boox.day.booxnotes.MatchReason
 import com.boox.day.booxnotes.SmartLinkDecisionMode
 import com.boox.day.booxnotes.SmartLinkProgress
+import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.db.BooxNoteIndex
 import com.boox.day.data.db.BooxNoteLink
 import com.boox.day.data.db.BooxNoteRepository
-import com.boox.day.search.SearchText
 import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.db.CalendarEventRepository
 import com.boox.day.data.db.SmartLinkEventRepository
@@ -61,28 +66,33 @@ import com.boox.day.data.db.SmartLinkPreflightState
 import com.boox.day.data.db.SmartLinkPreflightStatus
 import com.boox.day.data.db.SmartLinkSourceVisibility
 import com.boox.day.data.db.UnifiedOcrRepository
-import com.boox.day.ocr.model.Domain
-import com.boox.day.ocr.model.Intent
+import com.boox.day.editor.DrawCanvas
 import com.boox.day.ocr.model.OcrSource
+import com.boox.day.search.SearchText
 import com.boox.day.ui.components.DialogCloseButton
+import com.boox.day.ui.components.EinkSecondaryButton
+import com.boox.day.ui.components.ScrollMoreBar
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.state.CalendarSourceFilter
-import com.boox.day.ui.components.ScrollMoreBar
-import androidx.compose.foundation.lazy.rememberLazyListState
 import com.boox.day.ui.theme.EInkTheme
+import com.boox.day.ui.theme.ScreenColour
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 
+/** Notes scored per run: other runs (the note you just opened) get their turn in between */
+private const val SCORE_CHUNK = 12
+
 /**
- * Boox Notes dialog (redesigned Oct 2026): the notes written on a day (Day) or all of them (All notes,
- * with search and filters), and the selected note with its page as the largest element. Linking a note
- * to an event happens in one row of the note pane; Smart Link suggestions come from one engine
- * (BooxNoteIndexer.suggestLinks) and are reviewed in place. Every link change can be undone.
+ * Boox Notes window (redesigned Nov 2026): five places on one surface, each with one job. Notes (a day
+ * or all of them), Note (the page and its link), Choose Event, Suggestions and Filter. From the Go 10.3
+ * up, Notes and Note sit side by side; below that each is a screen of its own, so the page gets the
+ * room. Suggestions come from one engine (BooxNoteIndexer.suggestLinks); every link change can be undone.
  */
 @Composable
 fun BooxNotesDialog(
@@ -95,9 +105,9 @@ fun BooxNotesDialog(
     eventRepository: CalendarEventRepository,
     onDismiss: () -> Unit,
     onLinkChanged: () -> Unit = {},  // A link changed (refreshes the events panel)
-    autoOpenBulkWizard: Boolean = false,  // Open the Smart Link suggestions for all notes right away
     sourceFilter: CalendarSourceFilter = CalendarSourceFilter(),
-    onOpenCalendarAccounts: () -> Unit = {}  // Smart Link found no events: open Calendar Accounts (host closes this dialog)
+    onOpenCalendarAccounts: () -> Unit = {},  // No events to match: open Calendar Accounts (host closes this window)
+    onOpenHelp: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -106,13 +116,21 @@ fun BooxNotesDialog(
     }
     val previewCoordinator = remember { BooxNotePreviewCoordinator() }
     val cache = BooxNotesSuggestionCache
+    val start = remember { BooxNotesPlaces.start }
+    val prefs = remember(context) { context.getSharedPreferences("boox_notes_window", android.content.Context.MODE_PRIVATE) }
 
-    // What is shown
-    var showAll by remember { mutableStateOf(autoOpenBulkWizard) }
-    var showSuggestions by remember { mutableStateOf(autoOpenBulkWizard) }
-    var suggestionsForAll by remember { mutableStateOf(autoOpenBulkWizard) }
+    // Which place is shown
+    var showAll by remember { mutableStateOf(false) }
+    var noteOpen by remember { mutableStateOf(start.noteId != null) }
+    var showSuggestions by remember { mutableStateOf(start.suggestions) }
+    var suggestionsForAll by remember { mutableStateOf(true) }
+    var suggestionListView by remember { mutableStateOf(false) }
+    var filterOpen by remember { mutableStateOf(false) }
     var readerOpen by remember { mutableStateOf(false) }
     var pickerOpen by remember { mutableStateOf(false) }
+    var linkEvent by remember { mutableStateOf(start.linkToEvent) }
+    var twoPane by remember { mutableStateOf(false) }
+    var hintClosed by remember { mutableStateOf(prefs.getBoolean("hint_closed", false)) }
 
     // Notes and links
     var loaded by remember { mutableStateOf(false) }
@@ -120,30 +138,39 @@ fun BooxNotesDialog(
     var allNotes by remember { mutableStateOf<List<BooxNoteIndex>>(emptyList()) }
     var links by remember { mutableStateOf<Map<String, BooxNoteLink>>(emptyMap()) }
     var linkedEvents by remember { mutableStateOf<Map<String, CalendarEvent?>>(emptyMap()) }
-    var currentDate by remember { mutableStateOf(date) }
+    var currentDate by remember { mutableStateOf(start.date ?: date) }
     var dateNotice by remember { mutableStateOf<String?>(null) }
-    var selectedId by remember { mutableStateOf<String?>(null) }
+    var selectedId by remember { mutableStateOf(start.noteId) }
+    var listPage by remember { mutableIntStateOf(0) }
 
     // All notes: search and filters
     var query by remember { mutableStateOf("") }
     var handwritingMatches by remember { mutableStateOf<Set<String>>(emptySet()) }
     var unlinkedOnly by remember { mutableStateOf(false) }
+    var filters by remember { mutableStateOf(NoteFilters()) }
     var semantics by remember { mutableStateOf<NoteSemantics?>(null) }
-    var selectedDomain by remember { mutableStateOf<Domain?>(null) }
-    var selectedIntent by remember { mutableStateOf<Intent?>(null) }
     var showEmptyNotes by remember { mutableStateOf(false) }
 
-    // Smart Link
+    // Suggestions
     var allProgress by remember { mutableStateOf<SmartLinkProgress?>(null) }
     var allJob by remember { mutableStateOf<Job?>(null) }
+    var scoringStopped by remember { mutableStateOf(false) }
     var preflight by remember { mutableStateOf<SmartLinkPreflightStatus?>(null) }
     var preflightChecked by remember { mutableStateOf(false) }
+    // One at a Time: the note on show stays on show while more suggestions come in
+    var reviewNoteId by remember { mutableStateOf<String?>(null) }
+    var deferred by remember { mutableStateOf<List<String>>(emptyList()) }
+    var reviewDone by remember { mutableIntStateOf(0) }
+    var reviewPassed by remember { mutableIntStateOf(0) }
+    var preloaded by remember { mutableStateOf<Pair<String, BooxNotePreviewResult?>?>(null) }
 
     // Selected note
-    var pageIndex by remember { mutableStateOf(0) }
+    var pageIndex by remember { mutableIntStateOf(0) }
     var page by remember { mutableStateOf(NotePageState()) }
-    var pageCount by remember { mutableStateOf(0) }
-    var sameDayEventCount by remember { mutableStateOf(0) }
+    var pageCount by remember { mutableIntStateOf(0) }
+    var sameDayEventCount by remember { mutableIntStateOf(0) }
+    // A note shown before its suggestion came in: the suggestion waits on a line, buttons stay put
+    var heldNoteId by remember { mutableStateOf<String?>(null) }
 
     // Last change, with Undo
     var message by remember { mutableStateOf<BooxNotesMessage?>(null) }
@@ -169,6 +196,14 @@ fun BooxNotesDialog(
         links = newLinks
     }
 
+    /** Page files change only when a note does; a scan rewrites indexedAt on every note */
+    suspend fun checkSuggestionsStillHold() {
+        val signature = withContext(Dispatchers.IO) {
+            "${allNotes.size}:${allNotes.maxOfOrNull { it.shapeFileModified } ?: 0}:${smartLinkEventRepository.getEventCount()}"
+        }
+        cache.resetIfChanged(signature)
+    }
+
     /** Suggestions again for these notes after a change (linked notes have none) */
     suspend fun refreshSuggestionsFor(noteIds: Collection<String>) {
         val notes = allNotes.filter { it.uniqueId in noteIds }
@@ -183,7 +218,7 @@ fun BooxNotesDialog(
      * Applies a link change to [noteIds], then shows [describe] with an Undo that puts every link back
      * exactly as it was. [change] returns false when the change didn't take.
      */
-    fun changeLinks(noteIds: List<String>, describe: String, change: suspend () -> Boolean) {
+    fun changeLinks(noteIds: List<String>, describe: String, afterUndo: () -> Unit = {}, change: suspend () -> Boolean) {
         if (busy) return
         busy = true
         scope.launch {
@@ -194,13 +229,14 @@ fun BooxNotesDialog(
                 refreshSuggestionsFor(noteIds)
                 onLinkChanged()
                 message = if (ok) {
-                    BooxNotesMessage(describe) {
+                    BooxNotesMessage(describe, noteIds.singleOrNull()) {
                         withContext(Dispatchers.IO) {
                             previous.forEach { (id, link) -> booxNoteRepository.restoreLink(id, link) }
                         }
                         loadLinks()
                         refreshSuggestionsFor(noteIds)
                         onLinkChanged()
+                        afterUndo()
                     }
                 } else {
                     BooxNotesMessage("That link could not be saved. Try again.")
@@ -211,12 +247,31 @@ fun BooxNotesDialog(
         }
     }
 
+    fun runUndo() {
+        val undo = message?.undo ?: return
+        if (busy) return
+        busy = true
+        scope.launch {
+            try {
+                undo()
+                message = BooxNotesMessage("Undone")
+            } finally {
+                busy = false
+            }
+        }
+    }
+
     fun shortTitle(note: BooxNoteIndex): String =
         note.title.ifBlank { "Untitled note" }.let { if (it.length > 40) it.take(39) + "…" else it }
 
-    fun linkSuggestion(note: BooxNoteIndex, suggestion: CrossDayLinkSuggestion, mode: SmartLinkDecisionMode) {
+    fun linkSuggestion(
+        note: BooxNoteIndex,
+        suggestion: CrossDayLinkSuggestion,
+        mode: SmartLinkDecisionMode,
+        afterUndo: () -> Unit = {}
+    ) {
         val indexer = booxNoteIndexer ?: return
-        changeLinks(listOf(note.uniqueId), "Linked “${shortTitle(note)}” to ${suggestion.event.title}") {
+        changeLinks(listOf(note.uniqueId), "Linked “${shortTitle(note)}” to ${suggestion.event.title}", afterUndo) {
             indexer.applyCrossDaySuggestion(suggestion, mode, userApproved = true)
             booxNoteRepository.getLinkForNote(note.uniqueId)?.linkedEventId == suggestion.event.id
         }
@@ -239,18 +294,31 @@ fun BooxNotesDialog(
         }
     }
 
-    fun skip(item: SuggestionItem) {
-        changeLinks(listOf(item.note.uniqueId), "Skipped ${item.suggestion.event.title} for “${shortTitle(item.note)}”") {
-            booxNoteRepository.dismissSuggestion(item.note.uniqueId, item.suggestion.event.id)
+    fun reject(note: BooxNoteIndex, suggestion: CrossDayLinkSuggestion, afterUndo: () -> Unit = {}) {
+        changeLinks(listOf(note.uniqueId), "Rejected ${suggestion.event.title} for “${shortTitle(note)}”", afterUndo) {
+            booxNoteRepository.dismissSuggestion(note.uniqueId, suggestion.event.id)
             true
         }
     }
 
-    fun linkStrong(items: List<SuggestionItem>) {
+    fun linkLikely(items: List<SuggestionItem>) {
         val indexer = booxNoteIndexer ?: return
         changeLinks(items.map { it.note.uniqueId }, "Linked ${plural(items.size, "note")}") {
             items.forEach { indexer.applyCrossDaySuggestion(it.suggestion, SmartLinkDecisionMode.CROSS_DAY_BULK_APPLY, userApproved = true) }
             items.all { booxNoteRepository.getLinkForNote(it.note.uniqueId)?.linkedEventId == it.suggestion.event.id }
+        }
+    }
+
+    /** It comes round again, and stays a suggestion the next time Boox Notes opens */
+    fun decideLater(item: SuggestionItem) {
+        val noteId = item.note.uniqueId
+        deferred = deferred - noteId + noteId
+        reviewPassed++
+        reviewNoteId = null
+        message = BooxNotesMessage("“${shortTitle(item.note)}” left for later") {
+            deferred = deferred - noteId
+            reviewPassed--
+            reviewNoteId = noteId
         }
     }
 
@@ -271,29 +339,33 @@ fun BooxNotesDialog(
                 isScanning = false
                 loadNotes()
                 loadLinks()
+                noteOpen = false
                 message = BooxNotesMessage("“${shortTitle(note)}” is no longer in Boox Notes. The list is updated.")
             }
         }
     }
 
-    fun startAllSuggestions() {
+    /**
+     * Scores every note in the background, this day's first, a few at a time, so the note you open never
+     * waits behind all the others. Results stay for the app session.
+     */
+    fun startScoring() {
         val indexer = booxNoteIndexer ?: return
-        if (cache.allScored || allJob?.isActive == true || allNotes.isEmpty()) return
+        if (cache.allScored || scoringStopped || allJob?.isActive == true || allNotes.isEmpty()) return
         allJob = scope.launch {
-            allProgress = SmartLinkProgress(SmartLinkProgress.Step.READING_EVENTS, 0, 0)
             try {
-                val notes = allNotes
-                var shownAt = 0L
-                val results = indexer.suggestLinks(notes) { progress ->
-                    // Each change repaints part of the e-ink panel: a new step shows at once,
-                    // counts at most twice a second
-                    val now = SystemClock.uptimeMillis()
-                    if (progress.step != allProgress?.step || now - shownAt >= PROGRESS_REPAINT_MS) {
-                        shownAt = now
-                        allProgress = progress
-                    }
+                val waiting = allNotes
+                    .sortedBy { if (it.originalDate == currentDate) 0 else 1 }
+                    .filter { it.uniqueId !in cache.scored && !isLinked(it.uniqueId) && it.pageCount > 0 }
+                var done = 0
+                allProgress = SmartLinkProgress(SmartLinkProgress.Step.COMPARING, 0, waiting.size)
+                waiting.chunked(SCORE_CHUNK).forEach { chunk ->
+                    val fresh = chunk.filter { it.uniqueId !in cache.scored }
+                    if (fresh.isNotEmpty()) cache.store(fresh.map { it.uniqueId }, indexer.suggestLinks(fresh))
+                    done += chunk.size
+                    allProgress = SmartLinkProgress(SmartLinkProgress.Step.COMPARING, done, waiting.size)
+                    delay(50)
                 }
-                cache.store(notes.map { it.uniqueId }, results)
                 cache.allScored = true
             } finally {
                 allProgress = null
@@ -302,7 +374,7 @@ fun BooxNotesDialog(
         }
     }
 
-    // Open: scan for new notes, load notes and links, pick the day
+    // Open: scan for new notes, load notes and links, go to where it was opened for
     LaunchedEffect(Unit) {
         if (booxNoteIndexer != null) {
             isScanning = true
@@ -313,24 +385,43 @@ fun BooxNotesDialog(
         }
         loadNotes()
         loadLinks()
-        val signature = withContext(Dispatchers.IO) {
-            "${allNotes.size}:${allNotes.maxOfOrNull { it.indexedAt } ?: 0}:${smartLinkEventRepository.getEventCount()}"
-        }
-        cache.resetIfChanged(signature)
+        checkSuggestionsStillHold()
 
-        val dates = allNotes.map { it.originalDate }.filter { it.isNotBlank() }.distinct()
-        if (dates.isNotEmpty() && date !in dates) {
-            val requested = parseNoteDay(date)
-            val nearest = if (requested == null) dates.max() else dates.minWithOrNull(
-                compareBy<String> { d -> parseNoteDay(d)?.let { abs(ChronoUnit.DAYS.between(requested, it)) } ?: Long.MAX_VALUE }
-                    .thenBy { it }
-            )
-            if (nearest != null) {
-                currentDate = nearest
-                dateNotice = "No notes on ${formatDayShort(date)}. Showing ${formatDayShort(nearest)}."
+        val startNote = start.noteId?.let { id -> allNotes.firstOrNull { it.uniqueId == id } }
+        if (startNote != null) {
+            currentDate = startNote.originalDate
+            if (isFoldedEmpty(startNote)) showEmptyNotes = true
+        } else {
+            if (start.noteId != null) {
+                selectedId = null
+                noteOpen = false
+                message = BooxNotesMessage("That note is no longer in Boox Notes.")
+            }
+            val dates = allNotes.map { it.originalDate }.filter { it.isNotBlank() }.distinct()
+            if (dates.isNotEmpty() && currentDate !in dates) {
+                val requested = parseNoteDay(currentDate)
+                val nearest = if (requested == null) dates.max() else dates.minWithOrNull(
+                    compareBy<String> { d -> parseNoteDay(d)?.let { abs(ChronoUnit.DAYS.between(requested, it)) } ?: Long.MAX_VALUE }
+                        .thenBy { it }
+                )
+                if (nearest != null) {
+                    dateNotice = "No notes on ${formatDayShort(currentDate)}. Showing ${formatDayShort(nearest)}."
+                    currentDate = nearest
+                }
             }
         }
         loaded = true
+    }
+
+    // Check for New Notes finished: read the list again
+    val checkCount = BooxNotesPlaces.checkCount
+    val checkCountAtOpen = remember { checkCount }
+    LaunchedEffect(checkCount) {
+        if (checkCount != checkCountAtOpen) {
+            loadNotes()
+            loadLinks()
+            checkSuggestionsStillHold()
+        }
     }
 
     val datesWithNotes = remember(allNotes) {
@@ -346,7 +437,9 @@ fun BooxNotesDialog(
     val dayEmptyNotes = remember(dayAllNotes, links) {
         dayAllNotes.filter(::isFoldedEmpty).takeIf { it.size < dayAllNotes.size }.orEmpty()
     }
-    val dayNotes = if (showEmptyNotes) dayAllNotes else dayAllNotes - dayEmptyNotes.toSet()
+    val dayNotes = remember(dayAllNotes, dayEmptyNotes, showEmptyNotes) {
+        if (showEmptyNotes) dayAllNotes else dayAllNotes - dayEmptyNotes.toSet()
+    }
 
     // Handwriting search (titles are matched directly)
     LaunchedEffect(query) {
@@ -360,56 +453,64 @@ fun BooxNotesDialog(
             .map { it.sourceId }
             .toSet()
     }
-    val allEmptyCount = remember(allNotes, links) { allNotes.count(::isFoldedEmpty) }
-    val allFiltered = remember(allNotes, query, handwritingMatches, unlinkedOnly, links, semantics, selectedDomain, selectedIntent, showEmptyNotes) {
+
+    fun matchesFilters(note: BooxNoteIndex, f: NoteFilters): Boolean {
         val trimmed = query.trim()
         // Title: every typed word somewhere in it, accents and case ignored (search/SearchText)
         val words = SearchText.queryWords(trimmed)
-        allNotes.filter { note ->
-            (showEmptyNotes || !isFoldedEmpty(note)) &&
-                (trimmed.isEmpty() || SearchText.matchesSubstrings(SearchText.fold(note.title), words) ||
+        return (f.emptyNotes || !isFoldedEmpty(note)) &&
+            (trimmed.isEmpty() || SearchText.matchesSubstrings(SearchText.fold(note.title), words) ||
                 note.uniqueId in handwritingMatches) &&
-                (!unlinkedOnly || links[note.uniqueId]?.linkedEventId == null) &&
-                (selectedDomain == null || semantics?.domains?.get(note.uniqueId) == selectedDomain) &&
-                (selectedIntent == null || semantics?.intents?.get(note.uniqueId)?.contains(selectedIntent) == true)
-        }
+            (!unlinkedOnly || !isLinked(note.uniqueId)) &&
+            (!f.hasSuggestion || (!isLinked(note.uniqueId) && cache.best(note.uniqueId) != null)) &&
+            (f.domain == null || semantics?.domains?.get(note.uniqueId) == f.domain) &&
+            (f.intent == null || semantics?.intents?.get(note.uniqueId)?.contains(f.intent) == true)
+    }
+
+    val allEmptyCount = remember(allNotes, links) { allNotes.count(::isFoldedEmpty) }
+    val allFiltered = remember(allNotes, query, handwritingMatches, unlinkedOnly, links, semantics, filters, cache.revision) {
+        allNotes.filter { matchesFilters(it, filters) }
     }
 
     val listNotes = if (showAll) allFiltered else dayNotes
     val selectedNote = allNotes.firstOrNull { it.uniqueId == selectedId }
 
-    // Keep a selection that is in the list being shown
-    LaunchedEffect(loaded, showAll, listNotes) {
-        if (loaded && listNotes.none { it.uniqueId == selectedId }) {
+    // Keep a selection that is in the list being shown (Suggestions and Link a Note pick their own)
+    LaunchedEffect(loaded, showAll, listNotes, showSuggestions, linkEvent, noteOpen) {
+        if (loaded && !showSuggestions && linkEvent == null && !noteOpen && listNotes.none { it.uniqueId == selectedId }) {
             selectedId = listNotes.firstOrNull()?.uniqueId
         }
     }
 
-    // Category / Purpose (only when All notes is shown, and only with read handwriting)
+    // A new page of the list starts at the top
+    LaunchedEffect(showAll, currentDate, query, unlinkedOnly, filters) { listPage = 0 }
+
+    // Undo waits until the next action
+    LaunchedEffect(selectedId, pageIndex, showAll, currentDate, noteOpen, showSuggestions) {
+        if (!showSuggestions && message?.noteId != selectedId) message = null
+    }
+
+    // Topic / Kind of note (only when All notes is shown, and only with read handwriting)
     LaunchedEffect(loaded, showAll) {
         if (loaded && showAll && semantics == null && ocrRepository != null) {
             semantics = withContext(Dispatchers.IO) { loadNoteSemantics(ocrRepository) }
         }
     }
 
-    // Suggestions: this day's notes right away; all notes once All notes or its suggestions are shown
-    // The all-notes run scores these notes too: never run beside it (two runs slow each other down)
-    val allRunWanted = showAll || (showSuggestions && suggestionsForAll)
-    LaunchedEffect(loaded, currentDate, allNotes, allRunWanted) {
+    LaunchedEffect(loaded, allNotes) {
+        if (loaded) startScoring()
+    }
+    // A day you move to, and the note you open, go ahead of the rest
+    LaunchedEffect(loaded, currentDate) {
         val indexer = booxNoteIndexer ?: return@LaunchedEffect
-        if (allRunWanted && !cache.allScored) return@LaunchedEffect
         val toScore = dayNotes.filter { it.uniqueId !in cache.scored && !isLinked(it.uniqueId) }
         if (loaded && toScore.isNotEmpty()) {
             cache.store(toScore.map { it.uniqueId }, indexer.suggestLinks(toScore))
         }
     }
-    LaunchedEffect(loaded, allRunWanted) {
-        if (loaded && allRunWanted) startAllSuggestions()
-    }
-    LaunchedEffect(loaded, selectedId, allRunWanted) {
+    LaunchedEffect(loaded, selectedId) {
         val note = selectedNote ?: return@LaunchedEffect
         val indexer = booxNoteIndexer ?: return@LaunchedEffect
-        if (allRunWanted && !cache.allScored) return@LaunchedEffect
         if (loaded && note.uniqueId !in cache.scored && !isLinked(note.uniqueId)) {
             cache.store(listOf(note.uniqueId), indexer.suggestLinks(listOf(note)))
         }
@@ -432,35 +533,6 @@ fun BooxNotesDialog(
         }
     }
 
-    // Selected note: its page, and how many events its day has
-    LaunchedEffect(selectedId) {
-        pageIndex = 0
-        val note = selectedNote ?: return@LaunchedEffect
-        sameDayEventCount = withContext(Dispatchers.IO) {
-            smartLinkEventRepository.getEventsForDateSync(note.originalDate).size
-        }
-    }
-    LaunchedEffect(selectedId, pageIndex) {
-        val note = selectedNote ?: return@LaunchedEffect
-        page = NotePageState(loading = true)
-        val result = runCatching { previewCoordinator.loadPreview(note, pageIndex) }.getOrNull()
-        if (selectedId != note.uniqueId) return@LaunchedEffect
-        page = NotePageState(loading = false, result = result)
-        pageCount = result?.totalPages?.takeIf { it > 0 } ?: note.pageCount
-        if (result != null && result.totalPages > 0 && result.currentPageIndex != pageIndex) {
-            pageIndex = result.currentPageIndex
-        }
-    }
-
-    fun rowState(note: BooxNoteIndex): NoteRowState {
-        val eventId = links[note.uniqueId]?.linkedEventId
-        return NoteRowState(
-            linkedEventTitle = eventId?.let { linkedEvents[it]?.title },
-            isLinked = eventId != null,
-            hasSuggestion = eventId == null && cache.best(note.uniqueId) != null
-        )
-    }
-
     fun reasonFor(note: BooxNoteIndex, suggestion: CrossDayLinkSuggestion): String {
         val term = if (MatchReason.TITLE_MATCH in suggestion.matchReasons) {
             booxNoteIndexer?.titleMatchTerm(note, suggestion.event)
@@ -470,22 +542,123 @@ fun BooxNotesDialog(
         return suggestionReason(suggestion, term)
     }
 
+    val suggestionCount = remember(allNotes, links, cache.revision) {
+        allNotes.count { !isLinked(it.uniqueId) && it.pageCount > 0 && cache.best(it.uniqueId) != null }
+    }
+    val unlinkedInScope = remember(allNotes, dayAllNotes, links, suggestionsForAll) {
+        (if (suggestionsForAll) allNotes else dayAllNotes).filter { !isLinked(it.uniqueId) && it.pageCount > 0 }
+    }
+    // This day's first, then back in time; notes left for later come round last
+    val suggestionItems = remember(showSuggestions, unlinkedInScope, cache.revision, deferred, currentDate) {
+        if (!showSuggestions) {
+            emptyList()
+        } else {
+            unlinkedInScope
+                .mapNotNull { n -> cache.best(n.uniqueId)?.let { SuggestionItem(n, it, reasonFor(n, it)) } }
+                .sortedWith(
+                    compareBy<SuggestionItem> { deferred.indexOf(it.note.uniqueId) }
+                        .thenBy { if (it.note.originalDate == currentDate) 0 else 1 }
+                        .thenByDescending { it.note.originalTimestamp }
+                )
+        }
+    }
+    val reviewItem = suggestionItems.firstOrNull { it.note.uniqueId == reviewNoteId } ?: suggestionItems.firstOrNull()
+    val reviewId = reviewItem?.note?.uniqueId
+    val reviewing = showSuggestions && !suggestionListView
+
+    // One at a Time shows its note through the same page loading as Note
+    LaunchedEffect(reviewing, reviewId) {
+        if (reviewing && reviewId != null) {
+            reviewNoteId = reviewId
+            selectedId = reviewId
+        }
+    }
+
+    // Selected note: its page, and how many events its day has
+    LaunchedEffect(selectedId) {
+        pageIndex = 0
+        heldNoteId = selectedId?.takeIf { it !in cache.scored && !isLinked(it) }
+        val note = selectedNote ?: return@LaunchedEffect
+        sameDayEventCount = withContext(Dispatchers.IO) {
+            smartLinkEventRepository.getEventsForDateSync(note.originalDate).size
+        }
+    }
+    // The list has its own thumbnails: a big page is drawn only where it is on show
+    val pageWanted = twoPane || noteOpen || readerOpen || reviewing
+    LaunchedEffect(selectedId, pageIndex, pageWanted) {
+        if (!pageWanted) return@LaunchedEffect
+        val note = selectedNote ?: return@LaunchedEffect
+        val ready = preloaded?.takeIf { it.first == note.uniqueId && pageIndex == 0 }
+        if (ready == null) page = NotePageState(loading = true)
+        val result = if (ready != null) {
+            ready.second
+        } else {
+            runCatching {
+                BooxNoteThumbnails.renderLock.withLock { previewCoordinator.loadPreview(note, pageIndex) }
+            }.getOrNull()
+        }
+        if (selectedId != note.uniqueId) return@LaunchedEffect
+        page = NotePageState(loading = false, result = result)
+        pageCount = result?.totalPages?.takeIf { it > 0 } ?: note.pageCount
+        if (result != null && result.totalPages > 0 && result.currentPageIndex != pageIndex) {
+            pageIndex = result.currentPageIndex
+        }
+    }
+    // One at a Time: the next page is ready before it is asked for
+    LaunchedEffect(reviewing, reviewId, suggestionItems) {
+        if (!reviewing) return@LaunchedEffect
+        val next = suggestionItems.firstOrNull { it.note.uniqueId != reviewId }?.note ?: return@LaunchedEffect
+        if (preloaded?.first == next.uniqueId) return@LaunchedEffect
+        delay(400)
+        val result = runCatching {
+            BooxNoteThumbnails.renderLock.withLock { previewCoordinator.loadPreview(next, 0) }
+        }.getOrNull()
+        preloaded = next.uniqueId to result
+    }
+
+    fun rowState(note: BooxNoteIndex): NoteRowState {
+        val eventId = links[note.uniqueId]?.linkedEventId
+        val event = eventId?.let { linkedEvents[it] }
+        val suggested = if (eventId == null) cache.best(note.uniqueId)?.event else null
+        return NoteRowState(
+            linkedLine = event?.let { "${it.title} · ${eventWhen(it, withDay = it.dayId != note.originalDate)}" },
+            isLinked = eventId != null,
+            suggestedLine = suggested?.let { if (it.dayId == note.originalDate) it.title else "${it.title} · ${formatDayShort(it.dayId)}" },
+            stripe = ScreenColour.calendarStripe(event?.colorHex)
+        )
+    }
+
+    val best = selectedNote?.let { cache.best(it.uniqueId) }
+    val held = selectedNote != null && heldNoteId == selectedNote.uniqueId
     val linkUi: NoteLinkUi = selectedNote?.let { note ->
         val link = links[note.uniqueId]
-        val best = cache.best(note.uniqueId)
         when {
             link?.linkedEventId != null -> NoteLinkUi.Linked(linkedEvents[link.linkedEventId], byUser = link.isManualLink)
-            best != null -> NoteLinkUi.Suggested(best, reasonFor(note, best))
-            booxNoteIndexer != null && note.uniqueId !in cache.scored -> NoteLinkUi.Checking
+            best != null && !held -> NoteLinkUi.Suggested(best, reasonFor(note, best))
+            booxNoteIndexer != null && cache.revision >= 0 && note.uniqueId !in cache.scored -> NoteLinkUi.Checking
             else -> NoteLinkUi.NotLinked(sameDayEventCount)
         }
     } ?: NoteLinkUi.Checking
 
+    fun openSuggestions() {
+        scoringStopped = false
+        startScoring()
+        reviewNoteId = null
+        reviewDone = 0
+        reviewPassed = 0
+        deferred = emptyList()
+        suggestionListView = false
+        showSuggestions = true
+    }
+
     val closeOrBack: () -> Unit = {
         when {
+            filterOpen -> filterOpen = false
             pickerOpen -> pickerOpen = false
             readerOpen -> readerOpen = false
             showSuggestions -> showSuggestions = false
+            linkEvent != null -> if (start.linkToEvent != null) onDismiss() else linkEvent = null
+            noteOpen && !twoPane -> noteOpen = false
             else -> onDismiss()
         }
     }
@@ -498,7 +671,7 @@ fun BooxNotesDialog(
     ) {
         val theme = EInkTheme.BooxNotes
         Box(modifier = Modifier.fillMaxSize()) {
-            Column(
+            BoxWithConstraints(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = theme.surfaceTopInset, bottom = theme.surfaceBottomInset)
@@ -506,11 +679,42 @@ fun BooxNotesDialog(
                     .fillMaxHeight()
                     .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                     .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                    .padding(theme.surfacePadding),
-                verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
+                    .padding(theme.surfacePadding)
             ) {
+                val wide = maxWidth >= theme.twoPaneMinWidth
+                SideEffect { twoPane = wide }
+                val placeModifier = Modifier.fillMaxSize()
                 val note = selectedNote
+
                 when {
+                    filterOpen -> BooxNotesFilterScreen(
+                        filters = filters,
+                        semantics = semantics,
+                        matchCount = { draft -> allNotes.count { matchesFilters(it, draft) } },
+                        onShow = {
+                            filters = it
+                            filterOpen = false
+                        },
+                        onCancel = { filterOpen = false },
+                        modifier = placeModifier
+                    )
+
+                    pickerOpen && note != null -> BooxNoteEventPicker(
+                        note = note,
+                        linkedEventId = links[note.uniqueId]?.linkedEventId,
+                        suggestedEventId = cache.best(note.uniqueId)?.event?.id,
+                        loadEventsInRange = { from, to ->
+                            withContext(Dispatchers.IO) { smartLinkEventRepository.getEventsInRange(from, to) }
+                        },
+                        onPick = { event ->
+                            pickerOpen = false
+                            linkToEvent(note, event)
+                        },
+                        onBack = { pickerOpen = false },
+                        onClose = onDismiss,
+                        modifier = placeModifier
+                    )
+
                     readerOpen && note != null -> BooxNoteReader(
                         note = note,
                         page = page,
@@ -520,219 +724,276 @@ fun BooxNotesDialog(
                         onBack = { readerOpen = false },
                         onClose = onDismiss,
                         onOpenInBooxNotes = { openInBooxNotes(note) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
+                        modifier = placeModifier
                     )
 
                     showSuggestions -> {
-                        val scopeNotes = if (suggestionsForAll) allNotes else dayAllNotes
-                        val unlinked = scopeNotes.filter { !isLinked(it.uniqueId) && it.pageCount > 0 }
-                        val items = unlinked.mapNotNull { n ->
-                            cache.best(n.uniqueId)?.let { SuggestionItem(n, it, reasonFor(n, it)) }
-                        }
                         val blocked = preflight?.state in setOf(
-                            SmartLinkPreflightState.SERVER_SMART_LINK_DISABLED,
-                            SmartLinkPreflightState.SERVER_OCR_DISABLED,
                             SmartLinkPreflightState.FILTERS_HIDE_ALL_ELIGIBLE_EVENTS,
                             SmartLinkPreflightState.NO_ELIGIBLE_TIMED_EVENTS,
                             SmartLinkPreflightState.NO_ACCOUNTS_NO_EVENTS,
                             SmartLinkPreflightState.ACCOUNTS_CONNECTED_BUT_NO_SYNCED_EVENTS
                         )
+                        val finding = allProgress
                         val content = when {
                             !preflightChecked -> SuggestionsContent.Checking
                             blocked -> SuggestionsContent.Blocked(preflight!!)
-                            suggestionsForAll && !cache.allScored -> SuggestionsContent.Finding(allProgress?.fraction ?: 0f, findingStepText(allProgress, isScanning))
+                            !loaded || (suggestionItems.isEmpty() && finding != null) ->
+                                SuggestionsContent.Finding(finding?.fraction ?: 0f, findingStepText(finding, isScanning))
                             else -> SuggestionsContent.Ready
                         }
+                        val reviewTotal = reviewDone + suggestionItems.size
                         BooxNotesSuggestionsView(
-                            scopeAll = suggestionsForAll,
-                            dayLabel = formatDayShort(currentDate),
-                            onScopeChange = { suggestionsForAll = it },
-                            content = content,
-                            items = items,
-                            unlinkedCount = unlinked.size,
-                            indexingNote = if (isOcrIndexingInProgress) "Handwriting is still being read, so suggestions may change." else null,
-                            onBack = { showSuggestions = false },
+                            host = SuggestionsHost(
+                                content = content,
+                                items = suggestionItems,
+                                unlinkedCount = unlinkedInScope.size,
+                                scopeAll = suggestionsForAll,
+                                dayLabel = formatDayShort(currentDate),
+                                onScopeChange = { suggestionsForAll = it },
+                                indexingNote = if (isOcrIndexingInProgress) "Handwriting is still being read, so suggestions may change." else null,
+                                onBack = { showSuggestions = false },
+                                onClose = onDismiss,
+                                onLinkLikely = { linkLikely(it) },
+                                onLink = {
+                                    reviewDone++
+                                    linkSuggestion(it.note, it.suggestion, SmartLinkDecisionMode.MANUAL_ACCEPT_SUGGESTION, afterUndo = { reviewDone-- })
+                                },
+                                onReject = {
+                                    reviewDone++
+                                    reject(it.note, it.suggestion, afterUndo = { reviewDone-- })
+                                },
+                                onOpenNote = {
+                                    selectedId = it.uniqueId
+                                    readerOpen = true
+                                },
+                                onStop = {
+                                    scoringStopped = true
+                                    allJob?.cancel()
+                                    showSuggestions = false
+                                },
+                                onOpenCalendarAccounts = onOpenCalendarAccounts,
+                                message = message,
+                                onUndo = ::runUndo
+                            ),
+                            current = reviewItem,
+                            position = (reviewDone + reviewPassed % suggestionItems.size.coerceAtLeast(1) + 1).coerceAtMost(reviewTotal.coerceAtLeast(1)),
+                            total = reviewTotal,
+                            page = page,
+                            pageIndex = pageIndex,
+                            pageCount = pageCount,
+                            onPageChange = { pageIndex = it },
+                            onOpenReader = { readerOpen = true },
+                            onDecideLater = { reviewItem?.let { decideLater(it) } },
+                            listView = suggestionListView,
+                            onListViewChange = { suggestionListView = it },
+                            modifier = placeModifier
+                        )
+                    }
+
+                    linkEvent != null -> {
+                        val event = linkEvent!!
+                        BooxNoteNotePicker(
+                            event = event,
+                            notes = allNotes.filter { !isFoldedEmpty(it) },
+                            linkedEventOf = { links[it.uniqueId]?.linkedEventId },
+                            onPick = { picked ->
+                                // Land on the note: it shows the link, with Undo where Unlink goes
+                                linkEvent = null
+                                currentDate = picked.originalDate
+                                selectedId = picked.uniqueId
+                                noteOpen = true
+                                linkToEvent(picked, event)
+                            },
+                            onBack = closeOrBack,
                             onClose = onDismiss,
-                            onLinkStrong = { linkStrong(it) },
-                            onLink = { linkSuggestion(it.note, it.suggestion, SmartLinkDecisionMode.MANUAL_ACCEPT_SUGGESTION) },
-                            onSkip = { skip(it) },
-                            onOpenNote = {
-                                selectedId = it.uniqueId
-                                readerOpen = true
-                            },
-                            onStop = {
-                                allJob?.cancel()
-                                showSuggestions = false
-                            },
-                            onOpenCalendarAccounts = onOpenCalendarAccounts,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
+                            modifier = placeModifier
                         )
                     }
 
                     else -> {
-                        BooxNotesHeader(
-                            showAll = showAll,
-                            onShowAllChange = { showAll = it },
-                            currentDate = currentDate,
-                            datesWithNotes = datesWithNotes,
-                            noteCountByDate = noteCountByDate,
-                            onDateChange = {
-                                currentDate = it
-                                dateNotice = null
-                            },
-                            onClose = onDismiss
+                        val undoHere = message?.takeIf { it.undo != null && it.noteId == note?.uniqueId }
+                        val noteActions = NoteLinkActions(
+                            onLink = { s -> note?.let { linkSuggestion(it, s, SmartLinkDecisionMode.MANUAL_ACCEPT_SUGGESTION) } },
+                            onReject = { s -> note?.let { reject(it, s) } },
+                            onChooseEvent = { pickerOpen = true },
+                            onUnlink = { note?.let { unlink(it) } },
+                            // Two panes have the bar under the list; a single screen has no room for one
+                            undo = if (!wide && undoHere != null) ::runUndo else null,
+                            lateSuggestion = if (held) best?.event?.title else null,
+                            onShowLate = { heldNoteId = null }
                         )
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                        ) {
-                            when {
-                                !loaded -> CenteredText(if (isScanning) "Checking for new notes…" else "Loading notes…")
-                                allNotes.isEmpty() -> CenteredText(
-                                    "No Boox Notes yet. Notes you write in the Boox Notes app show up here on the days you wrote them."
-                                )
-                                else -> Row(modifier = Modifier.fillMaxSize()) {
-                                    val listModifier = Modifier
-                                        .weight(theme.listPaneFraction)
-                                        .fillMaxHeight()
-                                    if (showAll) {
-                                        val linkedTotal = allNotes.count { isLinked(it.uniqueId) }
-                                        val shownTotal = allNotes.size - if (showEmptyNotes) 0 else allEmptyCount
-                                        val filtering = allFiltered.size != shownTotal
-                                        BooxNotesAllList(
-                                            notes = allFiltered,
-                                            caption = when {
-                                                isScanning -> "Checking for new notes…"
-                                                filtering -> "${allFiltered.size} of ${plural(shownTotal, "note")}"
-                                                else -> "${plural(shownTotal, "note")} · $linkedTotal linked"
-                                            },
-                                            emptyCount = allEmptyCount,
-                                            showEmpty = showEmptyNotes,
-                                            onShowEmptyChange = { showEmptyNotes = it },
-                                            selectedId = selectedId,
-                                            rowState = ::rowState,
-                                            query = query,
-                                            onQueryChange = { query = it },
-                                            searchesHandwriting = ocrRepository != null,
-                                            unlinkedOnly = unlinkedOnly,
-                                            onUnlinkedOnlyChange = { unlinkedOnly = it },
-                                            semantics = semantics,
-                                            selectedDomain = selectedDomain,
-                                            onDomainChange = { selectedDomain = it },
-                                            selectedIntent = selectedIntent,
-                                            onIntentChange = { selectedIntent = it },
-                                            suggestionsStatus = when {
-                                                allProgress != null -> AllSuggestionsStatus.Finding(allProgress?.fraction ?: 0f, findingStepText(allProgress, isScanning))
-                                                cache.allScored -> AllSuggestionsStatus.Ready(
-                                                    allNotes.count { !isLinked(it.uniqueId) && cache.best(it.uniqueId) != null }
-                                                )
-                                                else -> AllSuggestionsStatus.Idle
-                                            },
-                                            onSelect = { selectedId = it.uniqueId },
-                                            onReviewSuggestions = {
-                                                suggestionsForAll = true
-                                                showSuggestions = true
-                                            },
-                                            modifier = listModifier
+
+                        if (!wide && noteOpen) {
+                            BooxNotePane(
+                                note = note,
+                                link = linkUi,
+                                page = page,
+                                pageIndex = pageIndex,
+                                pageCount = pageCount,
+                                onPageChange = { pageIndex = it },
+                                actions = noteActions,
+                                onOpenReader = { readerOpen = true },
+                                onOpenInBooxNotes = { note?.let { openInBooxNotes(it) } },
+                                modifier = placeModifier,
+                                bar = {
+                                    BooxNotesBar(
+                                        title = note?.title?.ifBlank { "Untitled note" }.orEmpty(),
+                                        onClose = onDismiss,
+                                        onBack = { noteOpen = false }
+                                    )
+                                }
+                            )
+                        } else {
+                            Column(
+                                modifier = placeModifier,
+                                verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
+                            ) {
+                                BooxNotesHeader(
+                                    showAll = showAll,
+                                    onShowAllChange = { showAll = it },
+                                    currentDate = currentDate,
+                                    datesWithNotes = datesWithNotes,
+                                    noteCountByDate = noteCountByDate,
+                                    onDateChange = {
+                                        currentDate = it
+                                        dateNotice = null
+                                    },
+                                    onClose = onDismiss,
+                                    wide = wide,
+                                    menu = {
+                                        NotesMoreMenu(
+                                            onReview = ::openSuggestions,
+                                            onCheck = { DrawCanvas.refreshBooxNotes.tryEmit(Unit) },
+                                            onSetup = { BooxNotesPlaces.openSetup() },
+                                            onHelp = onOpenHelp
                                         )
-                                    } else {
-                                        val linkedCount = dayNotes.count { isLinked(it.uniqueId) }
-                                        BooxNotesDayList(
-                                            notes = dayNotes,
-                                            selectedId = selectedId,
-                                            rowState = ::rowState,
-                                            caption = when {
-                                                isScanning -> "Checking for new notes…"
-                                                linkedCount == 0 && dayNotes.size == 1 -> "1 note · not linked"
-                                                linkedCount == 0 -> "${plural(dayNotes.size, "note")} · none linked"
-                                                else -> "${plural(dayNotes.size, "note")} · $linkedCount linked"
-                                            },
-                                            notice = dateNotice,
-                                            emptyCount = dayEmptyNotes.size,
-                                            showEmpty = showEmptyNotes,
-                                            onShowEmptyChange = { showEmptyNotes = it },
-                                            suggestionCount = dayNotes.count { !isLinked(it.uniqueId) && cache.best(it.uniqueId) != null },
-                                            onSelect = { selectedId = it.uniqueId },
-                                            onReviewSuggestions = {
-                                                suggestionsForAll = false
-                                                showSuggestions = true
-                                            },
-                                            modifier = listModifier
+                                    },
+                                    allControls = {
+                                        ToggleChip("Not Linked", unlinkedOnly) { unlinkedOnly = it }
+                                        EinkSecondaryButton(
+                                            text = filters.activeCount.let { if (it > 0) "Filter ($it)" else "Filter" },
+                                            onClick = { filterOpen = true }
                                         )
                                     }
-                                    Spacer(modifier = Modifier.width(theme.paneGap))
-                                    BooxNotePane(
-                                        note = selectedNote,
-                                        link = linkUi,
-                                        page = page,
-                                        pageIndex = pageIndex,
-                                        pageCount = pageCount,
-                                        onPageChange = { pageIndex = it },
-                                        onLinkSuggestion = { suggestion ->
-                                            selectedNote?.let { linkSuggestion(it, suggestion, SmartLinkDecisionMode.MANUAL_ACCEPT_SUGGESTION) }
-                                        },
-                                        onChooseEvent = { pickerOpen = true },
-                                        onUnlink = { selectedNote?.let { unlink(it) } },
-                                        onOpenReader = { readerOpen = true },
-                                        onOpenInBooxNotes = { selectedNote?.let { openInBooxNotes(it) } },
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth()
+                                ) {
+                                    Column(
                                         modifier = Modifier
-                                            .weight(1f - theme.listPaneFraction)
-                                            .fillMaxHeight()
-                                    )
+                                            .weight(if (wide) theme.listPaneFraction else 1f)
+                                            .fillMaxHeight(),
+                                        verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
+                                    ) {
+                                        if (showAll) {
+                                            NotesSearchField(
+                                                query = query,
+                                                onQueryChange = { query = it },
+                                                hint = if (ocrRepository != null) "Search titles and handwriting" else "Search titles"
+                                            )
+                                        }
+                                        if (!hintClosed && allNotes.isNotEmpty()) {
+                                            NotesFirstUseHint(onClose = {
+                                                hintClosed = true
+                                                prefs.edit().putBoolean("hint_closed", true).apply()
+                                            })
+                                        }
+                                        val caption = notesCaption(
+                                            scanning = isScanning || GlobalAppSettings.isBooxNotesScanning,
+                                            notice = if (showAll) null else dateNotice,
+                                            listed = listNotes.size,
+                                            shownTotal = if (showAll) allNotes.size - if (filters.emptyNotes) 0 else allEmptyCount else listNotes.size,
+                                            linked = listNotes.count { isLinked(it.uniqueId) }
+                                        )
+                                        NotesCaptionRow(
+                                            caption = caption,
+                                            reviewCount = suggestionCount,
+                                            shortLabel = wide,
+                                            onReview = ::openSuggestions
+                                        )
+                                        val entries = remember(showAll, allFiltered, dayNotes, dayEmptyNotes, showEmptyNotes) {
+                                            if (showAll) {
+                                                allNotesEntries(allFiltered)
+                                            } else {
+                                                dayNotes.map { NoteListEntry.Note(it) } + if (dayEmptyNotes.isEmpty()) {
+                                                    emptyList()
+                                                } else {
+                                                    listOf(NoteListEntry.EmptyNotes(dayEmptyNotes.size, showEmptyNotes))
+                                                }
+                                            }
+                                        }
+                                        val listModifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth()
+                                        when {
+                                            !loaded -> CenteredText(if (isScanning) "Checking for new notes…" else "Loading notes…", listModifier)
+                                            allNotes.isEmpty() -> CenteredText(
+                                                "No Boox Notes yet. Notes you write in the Notes app show up here on the days you wrote them.",
+                                                listModifier
+                                            )
+                                            entries.isEmpty() -> CenteredText("No notes match.", listModifier)
+                                            else -> PagedNoteList(
+                                                entries = entries,
+                                                pageIndex = listPage,
+                                                onPageChange = { listPage = it },
+                                                selectedId = if (wide || noteOpen) selectedId else null,
+                                                showDay = showAll,
+                                                rowState = ::rowState,
+                                                linkButtons = !wide,
+                                                onSelect = {
+                                                    selectedId = it.uniqueId
+                                                    if (!wide) noteOpen = true
+                                                },
+                                                onLink = { n ->
+                                                    cache.best(n.uniqueId)?.let { linkSuggestion(n, it, SmartLinkDecisionMode.MANUAL_ACCEPT_SUGGESTION) }
+                                                },
+                                                onShowEmptyChange = { showEmptyNotes = it },
+                                                modifier = listModifier
+                                            )
+                                        }
+                                        message?.let { BooxNotesMessageBar(it, ::runUndo) }
+                                    }
+                                    if (wide) {
+                                        Spacer(modifier = Modifier.width(theme.paneGap))
+                                        BooxNotePane(
+                                            note = note,
+                                            link = linkUi,
+                                            page = page,
+                                            pageIndex = pageIndex,
+                                            pageCount = pageCount,
+                                            onPageChange = { pageIndex = it },
+                                            actions = noteActions,
+                                            onOpenReader = { readerOpen = true },
+                                            onOpenInBooxNotes = { note?.let { openInBooxNotes(it) } },
+                                            modifier = Modifier
+                                                .weight(1f - theme.listPaneFraction)
+                                                .fillMaxHeight()
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-
-                message?.let { current ->
-                    BooxNotesMessageBar(
-                        message = current,
-                        onUndo = {
-                            val undo = current.undo ?: return@BooxNotesMessageBar
-                            if (busy) return@BooxNotesMessageBar
-                            busy = true
-                            scope.launch {
-                                try {
-                                    undo()
-                                    message = BooxNotesMessage("Undone")
-                                } finally {
-                                    busy = false
-                                }
-                            }
-                        }
-                    )
-                }
             }
-        }
-
-        val pickerNote = selectedNote
-        if (pickerOpen && pickerNote != null) {
-            BooxNoteEventPicker(
-                note = pickerNote,
-                linkedEventId = links[pickerNote.uniqueId]?.linkedEventId,
-                suggestedEventId = cache.best(pickerNote.uniqueId)?.event?.id,
-                loadEventsInRange = { from, to ->
-                    withContext(Dispatchers.IO) { smartLinkEventRepository.getEventsInRange(from, to) }
-                },
-                onPick = { event ->
-                    pickerOpen = false
-                    linkToEvent(pickerNote, event)
-                },
-                onDismiss = { pickerOpen = false }
-            )
         }
     }
 }
 
+/** The line above the list: what is listed, or what is going on */
+private fun notesCaption(scanning: Boolean, notice: String?, listed: Int, shownTotal: Int, linked: Int): String = when {
+    scanning -> "Checking for new notes…"
+    notice != null -> notice
+    listed != shownTotal -> "$listed of ${plural(shownTotal, "note")}"
+    else -> "${plural(listed, "note")} · $linked linked"
+}
+
 @Composable
-private fun CenteredText(text: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+private fun CenteredText(text: String, modifier: Modifier = Modifier) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Text(
             text = text,
             fontSize = EInkTheme.Typography.bodyLarge,
@@ -743,7 +1004,84 @@ private fun CenteredText(text: String) {
     }
 }
 
-/** Title, Day | All notes, the day (Day only) and close */
+/** Two lines the first time; Close removes them for good */
+@Composable
+private fun NotesFirstUseHint(onClose: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+            .padding(EInkTheme.Global.paddingMedium),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Your Boox notes, on the days you wrote them",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = EInkTheme.Colors.primary
+            )
+            Text(
+                text = "Link a note to an event and you can open it from your calendar.",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.primary
+            )
+        }
+        EinkSecondaryButton(text = "Close", onClick = onClose)
+    }
+}
+
+/** ⋮: everything that isn't a note */
+@Composable
+private fun NotesMoreMenu(onReview: () -> Unit, onCheck: () -> Unit, onSetup: () -> Unit, onHelp: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val menuOffsetY = with(LocalDensity.current) { EInkTheme.Global.touchTarget.roundToPx() }
+    Box {
+        Box(
+            modifier = Modifier
+                .size(EInkTheme.Global.touchTarget)
+                .noRippleClickable { open = true },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = "More",
+                tint = EInkTheme.Colors.primary,
+                modifier = Modifier.size(EInkTheme.Global.iconSize)
+            )
+        }
+        if (open) {
+            Popup(
+                alignment = Alignment.TopEnd,
+                offset = IntOffset(0, menuOffsetY),
+                onDismissRequest = { open = false },
+                properties = PopupProperties(focusable = true)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .width(EInkTheme.PopupMenu.width)
+                        .background(EInkTheme.PopupMenu.background)
+                        .border(EInkTheme.PopupMenu.borderWidth, EInkTheme.PopupMenu.borderColor)
+                ) {
+                    listOf(
+                        "Review Suggestions" to onReview,
+                        "Check for New Notes" to onCheck,
+                        "Boox Notes Setup" to onSetup,
+                        "Help" to onHelp
+                    ).forEach { (label, action) ->
+                        FilterMenuItem(text = label, selected = false) {
+                            open = false
+                            action()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Title, ⋮ and X; Day | All notes; the day, or what narrows All notes. One row when there is room. */
 @Composable
 internal fun BooxNotesHeader(
     showAll: Boolean,
@@ -753,13 +1091,13 @@ internal fun BooxNotesHeader(
     noteCountByDate: Map<String, Int>,
     onDateChange: (String) -> Unit,
     onClose: () -> Unit,
-    closeModifier: Modifier = Modifier
+    closeModifier: Modifier = Modifier,
+    wide: Boolean = false,
+    menu: @Composable () -> Unit = {},
+    allControls: @Composable RowScope.() -> Unit = {}
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(EInkTheme.BooxNotes.headerSpacing)
-    ) {
+    val spacing = EInkTheme.BooxNotes.headerSpacing
+    val title: @Composable () -> Unit = {
         Text(
             text = "Boox Notes",
             fontSize = EInkTheme.BooxNotes.titleFontSize,
@@ -767,15 +1105,24 @@ internal fun BooxNotesHeader(
             color = EInkTheme.Colors.primary,
             maxLines = 1
         )
+    }
+    val segmented: @Composable () -> Unit = {
         BooxNotesSegmented(
             options = listOf("Day", "All notes"),
             selectedIndex = if (showAll) 1 else 0,
             onSelect = { onShowAllChange(it == 1) }
         )
-        // The date takes what is left, so the X always keeps its full size (it used to be squeezed
-        // out on a Go 6 and Go 7)
-        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            if (!showAll && datesWithNotes.isNotEmpty()) {
+    }
+    // The controls take what is left, so the X always keeps its full size
+    val controls: @Composable RowScope.() -> Unit = {
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(spacing, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (showAll) {
+                allControls()
+            } else if (datesWithNotes.isNotEmpty()) {
                 BooxNotesDateControl(
                     currentDate = currentDate,
                     datesWithNotes = datesWithNotes,
@@ -784,7 +1131,35 @@ internal fun BooxNotesHeader(
                 )
             }
         }
-        DialogCloseButton(onClose = onClose, modifier = closeModifier)
+    }
+    if (wide) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing)
+        ) {
+            title()
+            segmented()
+            controls()
+            menu()
+            DialogCloseButton(onClose = onClose, modifier = closeModifier)
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.weight(1f)) { title() }
+                menu()
+                DialogCloseButton(onClose = onClose, modifier = closeModifier)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing)
+            ) {
+                segmented()
+                controls()
+            }
+        }
     }
 }
 

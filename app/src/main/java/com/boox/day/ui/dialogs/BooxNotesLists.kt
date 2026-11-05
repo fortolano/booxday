@@ -1,21 +1,21 @@
 package com.boox.day.ui.dialogs
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -24,6 +24,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Check
@@ -35,16 +37,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
@@ -59,86 +64,153 @@ import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.components.formatDomainLabel
 import com.boox.day.ui.components.formatIntentLabel
 import com.boox.day.ui.noRippleClickable
-import com.boox.day.ui.components.ScrollMoreBar
-import androidx.compose.foundation.layout.fillMaxSize
 import com.boox.day.ui.theme.EInkTheme
+import com.boox.day.ui.theme.ScreenColour
 import kotlinx.serialization.json.Json
 
-// Note lists of the Boox Notes dialog (Oct 2026): the Day list and the All notes list. A row shows the
-// title, one line of when / how long, and a state line only when there is something to act on (the
-// linked event, or a Smart Link suggestion). Filters live in All notes only.
+// Notes place of the Boox Notes window (Nov 2026): a list of note cards, by day or all of them. A card
+// answers three things at a glance: what it looks like, when it was written, and which event it belongs
+// to. Lists turn over in pages: calmer than scrolling on e-ink, and thumbnails load a page at a time.
 
-/** What a row shows besides title and time */
+/** What a card shows besides the note itself */
 internal data class NoteRowState(
-    /** Title of the linked event; null when the note is not linked (or the event is gone) */
-    val linkedEventTitle: String?,
+    /** "Team sync · 1:30 PM"; null when the note isn't linked */
+    val linkedLine: String?,
     val isLinked: Boolean,
-    val hasSuggestion: Boolean
+    /** The suggested event's title; null when there is no suggestion */
+    val suggestedLine: String?,
+    /** On a colour screen, the linked event's calendar */
+    val stripe: Color? = null
 )
 
+/** One row of a page */
+internal sealed interface NoteListEntry {
+    data class Month(val label: String) : NoteListEntry
+    data class Note(val note: BooxNoteIndex) : NoteListEntry
+
+    /** "2 empty notes" */
+    data class EmptyNotes(val count: Int, val showing: Boolean) : NoteListEntry
+}
+
+/**
+ * Splits [entries] into pages that fit [height]. A month heading never ends a page, and a page that
+ * continues a month starts with its heading again, so you always see where you are.
+ */
+internal fun paginateNotes(
+    entries: List<NoteListEntry>,
+    height: Dp,
+    noteHeight: Dp = EInkTheme.BooxNotes.noteCardHeight,
+    monthHeight: Dp = EInkTheme.BooxNotes.monthRowHeight,
+    otherHeight: Dp = EInkTheme.Global.touchTarget,
+    gap: Dp = EInkTheme.BooxNotes.noteCardGap
+): List<List<NoteListEntry>> {
+    if (entries.isEmpty()) return listOf(emptyList())
+    fun heightOf(entry: NoteListEntry): Dp = when (entry) {
+        is NoteListEntry.Month -> monthHeight
+        is NoteListEntry.Note -> noteHeight
+        is NoteListEntry.EmptyNotes -> otherHeight
+    } + gap
+
+    val pages = mutableListOf<List<NoteListEntry>>()
+    var page = mutableListOf<NoteListEntry>()
+    var used = 0.dp
+    var month: NoteListEntry.Month? = null
+
+    fun startPage() {
+        // Don't leave a heading alone at the bottom
+        val lastHeading = page.lastOrNull() as? NoteListEntry.Month
+        if (lastHeading != null) page.removeAt(page.lastIndex)
+        if (page.isNotEmpty()) pages += page
+        page = mutableListOf()
+        used = 0.dp
+        (lastHeading ?: month)?.let {
+            page += it
+            used += heightOf(it)
+        }
+    }
+
+    for (entry in entries) {
+        if (entry is NoteListEntry.Month) month = entry
+        if (page.isNotEmpty() && used + heightOf(entry) > height) {
+            if (entry is NoteListEntry.Month) {
+                // The heading goes on the new page by itself, not twice
+                val before = month
+                month = null
+                startPage()
+                month = before
+            } else {
+                startPage()
+            }
+        }
+        page += entry
+        used += heightOf(entry)
+    }
+    if (page.isNotEmpty()) pages += page
+    return pages
+}
+
 @Composable
-internal fun BooxNoteRow(
+internal fun BooxNoteCard(
     note: BooxNoteIndex,
     selected: Boolean,
     showDay: Boolean,
     state: NoteRowState,
-    onClick: () -> Unit
+    thumbnail: Bitmap?,
+    onClick: () -> Unit,
+    onLink: (() -> Unit)?
 ) {
     val theme = EInkTheme.BooxNotes
-    Column(
+    val shape = RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                width = if (selected) theme.rowSelectedBorderWidth else theme.rowBorderWidth,
-                color = if (selected) theme.rowSelectedBorderColor else theme.rowBorderColor,
-                shape = RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
-            )
+            .height(theme.noteCardHeight)
+            .border(if (selected) theme.rowSelectedBorderWidth else theme.rowBorderWidth, EInkTheme.Colors.primary, shape)
+            .calendarStripe(state.stripe)
             .noRippleClickable(onClick = onClick)
-            .padding(theme.rowPadding),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+            .padding(start = cardStartPadding, end = EInkTheme.Global.paddingSmall),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(
-            text = note.title.ifBlank { "Untitled note" },
-            fontSize = theme.rowTitleFontSize,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = EInkTheme.Colors.primary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = noteMetaLine(note, withDay = showDay),
-            fontSize = theme.rowMetaFontSize,
-            color = theme.rowMetaColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        when {
-            state.isLinked -> RowStateLine(
-                icon = Icons.Default.Link,
-                text = state.linkedEventTitle ?: "Linked event",
-                bold = false
+        NoteThumbnailSheet(thumbnail, "First page of ${note.title}")
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(
+                text = note.title.ifBlank { "Untitled note" },
+                fontSize = theme.rowTitleFontSize,
+                fontWeight = FontWeight.Bold,
+                color = EInkTheme.Colors.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            state.hasSuggestion -> RowStateLine(icon = Icons.Default.Star, text = "Suggestion", bold = true)
+            Text(
+                text = noteMetaLine(note, withDay = showDay && !titleIsItsDate(note)),
+                fontSize = theme.rowMetaFontSize,
+                color = theme.rowMetaColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            when {
+                state.isLinked -> CardStateLine(Icons.Default.Link, EInkTheme.Colors.primary, state.linkedLine ?: "Linked event", bold = false)
+                state.suggestedLine != null -> CardStateLine(Icons.Default.Star, ScreenColour.starTint, "Suggested: ${state.suggestedLine}", bold = true)
+                else -> Text(text = "Not linked", fontSize = theme.rowMetaFontSize, color = theme.rowMetaColor, maxLines = 1)
+            }
+        }
+        if (onLink != null) {
+            ActionButton(text = "Link", onClick = onLink, modifier = Modifier.width(72.dp))
         }
     }
 }
 
 @Composable
-private fun RowStateLine(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, bold: Boolean) {
-    val theme = EInkTheme.BooxNotes
+private fun CardStateLine(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, text: String, bold: Boolean) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = EInkTheme.Colors.primary,
-            modifier = Modifier.size(theme.rowStateIconSize)
-        )
+        Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
         Text(
             text = text,
-            fontSize = theme.rowStateFontSize,
+            fontSize = EInkTheme.BooxNotes.rowMetaFontSize,
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
             color = EInkTheme.Colors.primary,
             maxLines = 1,
@@ -172,269 +244,238 @@ private fun EmptyNotesRow(count: Int, showing: Boolean, onChange: (Boolean) -> U
     }
 }
 
+/**
+ * The count of what's listed, and the way into Suggestions. One row that is always there: a Review
+ * button that arrives late takes empty space and moves nothing.
+ */
 @Composable
-private fun ListCaption(text: String) {
-    Text(
-        text = text,
-        fontSize = EInkTheme.Typography.bodyMedium,
-        fontWeight = FontWeight.SemiBold,
-        color = EInkTheme.Colors.darkGray,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis
-    )
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// DAY LIST
-// ═══════════════════════════════════════════════════════════════════════════
-
-@Composable
-internal fun BooxNotesDayList(
-    notes: List<BooxNoteIndex>,
-    selectedId: String?,
-    rowState: (BooxNoteIndex) -> NoteRowState,
-    caption: String,
-    notice: String?,
-    emptyCount: Int,
-    showEmpty: Boolean,
-    onShowEmptyChange: (Boolean) -> Unit,
-    suggestionCount: Int,
-    onSelect: (BooxNoteIndex) -> Unit,
-    onReviewSuggestions: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val theme = EInkTheme.BooxNotes
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(theme.rowSpacing)) {
-        ListCaption(caption)
-        if (notice != null) {
-            Text(
-                text = notice,
-                fontSize = EInkTheme.Typography.bodyMedium,
-                color = EInkTheme.Colors.primary
-            )
-        }
-        val dayListState = rememberLazyListState()
-        Box(modifier = Modifier.weight(1f)) {
-            LazyColumn(
-                state = dayListState,
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(theme.rowSpacing)
-            ) {
-                items(notes, key = { it.uniqueId }) { note ->
-                    BooxNoteRow(
-                        note = note,
-                        selected = note.uniqueId == selectedId,
-                        showDay = false,
-                        state = rowState(note),
-                        onClick = { onSelect(note) }
-                    )
-                }
-                if (emptyCount > 0) {
-                    item(key = "empty_notes") { EmptyNotesRow(emptyCount, showEmpty, onShowEmptyChange) }
-                }
-            }
-            ScrollMoreBar(dayListState)
-        }
-        if (suggestionCount > 0) {
-            EinkSecondaryButton(
-                text = "Review ${plural(suggestionCount, "suggestion")}",
-                onClick = onReviewSuggestions,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// ALL NOTES LIST
-// ═══════════════════════════════════════════════════════════════════════════
-
-/** Smart Link status for all notes, shown under the All notes list */
-internal sealed interface AllSuggestionsStatus {
-    data object Idle : AllSuggestionsStatus
-    data class Finding(val progress: Float, val step: String) : AllSuggestionsStatus
-    data class Ready(val count: Int) : AllSuggestionsStatus
-}
-
-private sealed interface AllNotesEntry {
-    data class Month(val label: String) : AllNotesEntry
-    data class Note(val note: BooxNoteIndex) : AllNotesEntry
-}
-
-@Composable
-internal fun BooxNotesAllList(
-    notes: List<BooxNoteIndex>,
-    caption: String,
-    emptyCount: Int,
-    showEmpty: Boolean,
-    onShowEmptyChange: (Boolean) -> Unit,
-    selectedId: String?,
-    rowState: (BooxNoteIndex) -> NoteRowState,
-    query: String,
-    onQueryChange: (String) -> Unit,
-    searchesHandwriting: Boolean,
-    unlinkedOnly: Boolean,
-    onUnlinkedOnlyChange: (Boolean) -> Unit,
-    semantics: NoteSemantics?,
-    selectedDomain: Domain?,
-    onDomainChange: (Domain?) -> Unit,
-    selectedIntent: Intent?,
-    onIntentChange: (Intent?) -> Unit,
-    suggestionsStatus: AllSuggestionsStatus,
-    onSelect: (BooxNoteIndex) -> Unit,
-    onReviewSuggestions: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val theme = EInkTheme.BooxNotes
-    // Month headers between groups (the list is newest first)
-    val entries = remember(notes) {
-        buildList {
-            var lastMonth: String? = null
-            notes.forEach { note ->
-                val month = formatMonth(note.originalDate)
-                if (month != lastMonth) {
-                    add(AllNotesEntry.Month(month))
-                    lastMonth = month
-                }
-                add(AllNotesEntry.Note(note))
-            }
-        }
-    }
-    val listState = rememberLazyListState()
-    // Keep the selected note in view (it can come from another view or a search)
-    LaunchedEffect(selectedId, entries) {
-        val index = entries.indexOfFirst { it is AllNotesEntry.Note && it.note.uniqueId == selectedId }
-        if (index >= 0 && listState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
-            listState.scrollToItem(index)
-        }
-    }
-
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(theme.rowSpacing)) {
-        NotesSearchField(
-            query = query,
-            onQueryChange = onQueryChange,
-            hint = if (searchesHandwriting) "Search notes" else "Search titles"
+internal fun NotesCaptionRow(caption: String, reviewCount: Int, shortLabel: Boolean, onReview: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(EInkTheme.Global.touchTarget),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
+    ) {
+        Text(
+            text = caption,
+            fontSize = EInkTheme.Typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = EInkTheme.Colors.darkGray,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
-        ToggleChip(label = "Unlinked only", checked = unlinkedOnly, onCheckedChange = onUnlinkedOnlyChange)
-        // Category and Purpose need read handwriting; hidden until any note has one
-        val showDomains = semantics != null && semantics.domainCounts.isNotEmpty()
-        val showIntents = semantics != null && semantics.intentCounts.isNotEmpty()
-        if (showDomains || showIntents) Row(
-            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (semantics != null && semantics.domainCounts.isNotEmpty()) {
-                FilterMenu(
-                    label = selectedDomain?.let { formatDomainLabel(it) } ?: "Category",
-                    allLabel = "All categories",
-                    options = semantics.domainCounts.entries
-                        .sortedByDescending { it.value }
-                        .map { (domain, count) -> domain to "${formatDomainLabel(domain)} ($count)" },
-                    selected = selectedDomain,
-                    onSelect = onDomainChange,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            if (semantics != null && semantics.intentCounts.isNotEmpty()) {
-                FilterMenu(
-                    label = selectedIntent?.let { formatIntentLabel(it) } ?: "Purpose",
-                    allLabel = "All purposes",
-                    options = semantics.intentCounts.entries
-                        .sortedByDescending { it.value }
-                        .map { (intent, count) -> intent to "${formatIntentLabel(intent)} ($count)" },
-                    selected = selectedIntent,
-                    onSelect = onIntentChange,
-                    modifier = Modifier.weight(1f)
+        if (reviewCount > 0) {
+            val shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
+            Row(
+                modifier = Modifier
+                    .height(EInkTheme.Button.height)
+                    .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, shape)
+                    .noRippleClickable(onClick = onReview)
+                    .padding(horizontal = EInkTheme.Global.paddingMedium),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
+            ) {
+                Icon(Icons.Default.Star, contentDescription = null, tint = ScreenColour.starTint, modifier = Modifier.size(18.dp))
+                Text(
+                    text = if (shortLabel) "Review $reviewCount" else "Review ${plural(reviewCount, "Suggestion")}",
+                    fontSize = EInkTheme.Button.fontSize,
+                    fontWeight = FontWeight.Bold,
+                    color = EInkTheme.Colors.primary,
+                    maxLines = 1
                 )
             }
         }
-        ListCaption(caption)
+    }
+}
 
-        if (notes.isEmpty()) {
-            Box(
+/**
+ * Note cards in pages, with arrows when there is more than one. Thumbnails of a page load together and
+ * paint at once, then the next page's load quietly: one repaint, not one per card.
+ */
+@Composable
+internal fun PagedNoteList(
+    entries: List<NoteListEntry>,
+    pageIndex: Int,
+    onPageChange: (Int) -> Unit,
+    selectedId: String?,
+    showDay: Boolean,
+    rowState: (BooxNoteIndex) -> NoteRowState,
+    linkButtons: Boolean,
+    onSelect: (BooxNoteIndex) -> Unit,
+    onLink: (BooxNoteIndex) -> Unit,
+    onShowEmptyChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val theme = EInkTheme.BooxNotes
+    BoxWithConstraints(modifier = modifier) {
+        val full = maxHeight
+        val pagerHeight = EInkTheme.Global.touchTarget + theme.noteCardGap
+        val pages = remember(entries, full) {
+            val all = paginateNotes(entries, full)
+            if (all.size == 1) all else paginateNotes(entries, full - pagerHeight)
+        }
+        val current = pageIndex.coerceIn(0, pages.lastIndex)
+
+        // Follow a selection made elsewhere, such as a note opened from an event
+        LaunchedEffect(selectedId, pages) {
+            val onPage = pages.indexOfFirst { p -> p.any { it is NoteListEntry.Note && it.note.uniqueId == selectedId } }
+            if (onPage >= 0 && onPage != current) onPageChange(onPage)
+        }
+
+        val widthPx = with(LocalDensity.current) { theme.cardThumbWidth.roundToPx() }
+        val pageNotes = remember(pages, current) { pages[current].filterIsInstance<NoteListEntry.Note>().map { it.note } }
+        val nextNotes = remember(pages, current) {
+            pages.getOrNull(current + 1).orEmpty().filterIsInstance<NoteListEntry.Note>().map { it.note }
+        }
+        val thumbnails by produceState(BooxNoteThumbnails.cached(pageNotes, widthPx), pageNotes, widthPx) {
+            val loaded = value.toMutableMap()
+            pageNotes.filter { it.pageCount > 0 && it.uniqueId !in loaded }.forEach { note ->
+                BooxNoteThumbnails.load(note, widthPx)?.let { loaded[note.uniqueId] = it }
+            }
+            value = loaded.toMap()
+            nextNotes.filter { it.pageCount > 0 }.forEach { BooxNoteThumbnails.load(it, widthPx) }
+        }
+
+        Column(modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(theme.noteCardGap)) {
+            pages[current].forEach { entry ->
+                when (entry) {
+                    is NoteListEntry.Month -> Text(
+                        text = entry.label,
+                        fontSize = theme.monthHeaderFontSize,
+                        fontWeight = FontWeight.Bold,
+                        color = EInkTheme.Colors.primary,
+                        modifier = Modifier.height(theme.monthRowHeight)
+                    )
+                    is NoteListEntry.Note -> {
+                        val state = rowState(entry.note)
+                        BooxNoteCard(
+                            note = entry.note,
+                            selected = entry.note.uniqueId == selectedId,
+                            showDay = showDay,
+                            state = state,
+                            thumbnail = thumbnails[entry.note.uniqueId],
+                            onClick = { onSelect(entry.note) },
+                            onLink = if (linkButtons && state.suggestedLine != null) ({ onLink(entry.note) }) else null
+                        )
+                    }
+                    is NoteListEntry.EmptyNotes -> EmptyNotesRow(entry.count, entry.showing, onShowEmptyChange)
+                }
+            }
+            if (pages.size > 1) {
+                Spacer(modifier = Modifier.weight(1f))
+                NotesPager(pages, current, onPageChange)
+            }
+        }
+    }
+}
+
+/** ‹ 1–4 of 142 ▾ ›: the middle opens a list of months, to jump */
+@Composable
+private fun NotesPager(pages: List<List<NoteListEntry>>, current: Int, onPageChange: (Int) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val noteCounts = remember(pages) { pages.map { p -> p.count { it is NoteListEntry.Note } } }
+    val total = noteCounts.sum()
+    val first = noteCounts.take(current).sum() + 1
+    val last = first + noteCounts[current] - 1
+    // Where each month starts
+    val months = remember(pages) {
+        buildList {
+            val seen = mutableSetOf<String>()
+            pages.forEachIndexed { index, page ->
+                page.forEach { entry ->
+                    if (entry is NoteListEntry.Month && seen.add(entry.label)) add(entry.label to index)
+                }
+            }
+        }
+    }
+    val menuOffsetY = with(LocalDensity.current) { EInkTheme.Global.touchTarget.roundToPx() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(EInkTheme.Global.touchTarget),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        PagerArrow(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous notes", current > 0) { onPageChange(current - 1) }
+        Box {
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.TopCenter
+                    .height(EInkTheme.Global.touchTarget)
+                    .then(if (months.size > 1) Modifier.noRippleClickable { open = true } else Modifier)
+                    .padding(horizontal = EInkTheme.Global.paddingSmall),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "No notes match",
-                    fontSize = EInkTheme.Typography.bodyLarge,
-                    color = EInkTheme.Colors.darkGray,
-                    modifier = Modifier.padding(top = EInkTheme.Global.paddingLarge)
+                    text = if (first == last) "$first of $total" else "$first–$last of $total",
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    color = EInkTheme.Colors.primary,
+                    maxLines = 1
                 )
+                if (months.size > 1) Icon(Icons.Default.ArrowDropDown, contentDescription = "Jump to a month", tint = EInkTheme.Colors.primary)
             }
-        } else {
-            Box(modifier = Modifier.weight(1f)) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(theme.rowSpacing)
+            if (open) {
+                Popup(
+                    alignment = Alignment.BottomCenter,
+                    offset = IntOffset(0, -menuOffsetY),
+                    onDismissRequest = { open = false },
+                    properties = PopupProperties(focusable = true)
                 ) {
-                    items(
-                        items = entries,
-                        key = { entry ->
-                            when (entry) {
-                                is AllNotesEntry.Month -> "month_${entry.label}"
-                                is AllNotesEntry.Note -> entry.note.uniqueId
+                    Column(
+                        modifier = Modifier
+                            .width(EInkTheme.PopupMenu.width)
+                            .heightIn(max = EInkTheme.PopupPanel.maxHeight)
+                            .background(EInkTheme.PopupMenu.background)
+                            .border(EInkTheme.PopupMenu.borderWidth, EInkTheme.PopupMenu.borderColor)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        months.forEach { (label, page) ->
+                            FilterMenuItem(text = label, selected = page == current) {
+                                open = false
+                                onPageChange(page)
                             }
                         }
-                    ) { entry ->
-                        when (entry) {
-                            is AllNotesEntry.Month -> Text(
-                                text = entry.label,
-                                fontSize = theme.monthHeaderFontSize,
-                                fontWeight = FontWeight.Bold,
-                                color = EInkTheme.Colors.primary,
-                                modifier = Modifier.padding(top = EInkTheme.Global.paddingSmall)
-                            )
-                            is AllNotesEntry.Note -> BooxNoteRow(
-                                note = entry.note,
-                                selected = entry.note.uniqueId == selectedId,
-                                showDay = true,
-                                state = rowState(entry.note),
-                                onClick = { onSelect(entry.note) }
-                            )
-                        }
-                    }
-                    if (emptyCount > 0) {
-                        item(key = "empty_notes") { EmptyNotesRow(emptyCount, showEmpty, onShowEmptyChange) }
                     }
                 }
-                ScrollMoreBar(listState)
             }
         }
-
-        when (suggestionsStatus) {
-            is AllSuggestionsStatus.Finding -> Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)) {
-                Text(
-                    text = "Finding link suggestions… ${(suggestionsStatus.progress * 100).toInt()}%",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.darkGray
-                )
-                BooxNotesProgressBar(progress = suggestionsStatus.progress, modifier = Modifier.fillMaxWidth())
-                Text(text = suggestionsStatus.step, fontSize = EInkTheme.Typography.bodySmall, color = EInkTheme.Colors.darkGray)
-            }
-            is AllSuggestionsStatus.Ready -> if (suggestionsStatus.count > 0) {
-                EinkSecondaryButton(
-                    text = "Review ${plural(suggestionsStatus.count, "suggestion")}",
-                    onClick = onReviewSuggestions,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            } else {
-                Text(
-                    text = "No link suggestions right now",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.darkGray
-                )
-            }
-            AllSuggestionsStatus.Idle -> Unit
-        }
+        PagerArrow(Icons.AutoMirrored.Filled.KeyboardArrowRight, "More notes", current < pages.lastIndex) { onPageChange(current + 1) }
     }
 }
 
 @Composable
-private fun NotesSearchField(
+private fun PagerArrow(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(EInkTheme.Global.touchTarget)
+            .then(if (enabled) Modifier.noRippleClickable(onClick = onClick) else Modifier),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = if (enabled) EInkTheme.Colors.primary else EInkTheme.Colors.lightGray,
+            modifier = Modifier.size(EInkTheme.Global.iconSize)
+        )
+    }
+}
+
+/** Day and All notes entries: month headings between groups (the list is newest first) */
+internal fun allNotesEntries(notes: List<BooxNoteIndex>): List<NoteListEntry> = buildList {
+    var lastMonth: String? = null
+    notes.forEach { note ->
+        val month = formatMonth(note.originalDate)
+        if (month != lastMonth) {
+            add(NoteListEntry.Month(month))
+            lastMonth = month
+        }
+        add(NoteListEntry.Note(note))
+    }
+}
+
+@Composable
+internal fun NotesSearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     hint: String
@@ -470,7 +511,7 @@ private fun NotesSearchField(
                         Text(
                             text = hint,
                             fontSize = EInkTheme.Typography.bodyLarge,
-                            color = EInkTheme.Colors.gray,
+                            color = EInkTheme.Colors.darkGray,
                             maxLines = 1
                         )
                     }
@@ -496,8 +537,9 @@ private fun NotesSearchField(
     }
 }
 
+/** A button that stays on: black when active (Not Linked) */
 @Composable
-private fun ToggleChip(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+internal fun ToggleChip(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     val shape = RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
     Row(
         modifier = Modifier
@@ -520,7 +562,7 @@ private fun ToggleChip(label: String, checked: Boolean, onCheckedChange: (Boolea
         Text(
             text = label,
             fontSize = EInkTheme.Typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.Bold,
             color = if (checked) EInkTheme.Colors.background else EInkTheme.Colors.primary,
             maxLines = 1
         )
@@ -598,7 +640,7 @@ private fun <T> FilterMenu(
 }
 
 @Composable
-private fun FilterMenuItem(text: String, selected: Boolean, onClick: () -> Unit) {
+internal fun FilterMenuItem(text: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -619,10 +661,125 @@ private fun FilterMenuItem(text: String, selected: Boolean, onClick: () -> Unit)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CATEGORY / PURPOSE DATA
+// FILTER
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Category and purposes per note, from read handwriting (empty without an OpenRouter key) */
+/** What All notes is narrowed to, besides search and Not Linked */
+internal data class NoteFilters(
+    val hasSuggestion: Boolean = false,
+    val emptyNotes: Boolean = false,
+    val domain: Domain? = null,
+    val intent: Intent? = null
+) {
+    val activeCount: Int
+        get() = listOf(hasSuggestion, emptyNotes, domain != null, intent != null).count { it }
+}
+
+/** Its own place: filters need room, and most days nobody opens it. Empty groups stay hidden. */
+@Composable
+internal fun BooxNotesFilterScreen(
+    filters: NoteFilters,
+    semantics: NoteSemantics?,
+    matchCount: (NoteFilters) -> Int,
+    onShow: (NoteFilters) -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var draft by remember { mutableStateOf(filters) }
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)) {
+        Text(
+            text = "Filter Notes",
+            fontSize = EInkTheme.BooxNotes.titleFontSize,
+            fontWeight = FontWeight.Bold,
+            color = EInkTheme.Colors.primary,
+            modifier = Modifier.padding(vertical = EInkTheme.Global.paddingSmall)
+        )
+        FilterHeading("Show")
+        FilterCheck("Has a suggestion", draft.hasSuggestion) { draft = draft.copy(hasSuggestion = it) }
+        FilterCheck("Empty notes", draft.emptyNotes) { draft = draft.copy(emptyNotes = it) }
+        if (semantics != null && semantics.domainCounts.isNotEmpty()) {
+            FilterHeading("Topic")
+            FilterMenu(
+                label = draft.domain?.let { formatDomainLabel(it) } ?: "All topics",
+                allLabel = "All topics",
+                options = semantics.domainCounts.entries
+                    .sortedByDescending { it.value }
+                    .map { (domain, count) -> domain to "${formatDomainLabel(domain)} ($count)" },
+                selected = draft.domain,
+                onSelect = { draft = draft.copy(domain = it) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        if (semantics != null && semantics.intentCounts.isNotEmpty()) {
+            FilterHeading("Kind of note")
+            FilterMenu(
+                label = draft.intent?.let { formatIntentLabel(it) } ?: "All kinds",
+                allLabel = "All kinds",
+                options = semantics.intentCounts.entries
+                    .sortedByDescending { it.value }
+                    .map { (intent, count) -> intent to "${formatIntentLabel(intent)} ($count)" },
+                selected = draft.intent,
+                onSelect = { draft = draft.copy(intent = it) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Button.spacing)
+        ) {
+            EinkSecondaryButton(text = "Cancel", onClick = onCancel, modifier = Modifier.weight(1f))
+            EinkSecondaryButton(text = "Clear", onClick = { draft = NoteFilters() }, modifier = Modifier.weight(1f))
+            ActionButton(
+                text = "Show ${plural(matchCount(draft), "Note")}",
+                onClick = { onShow(draft) },
+                modifier = Modifier.weight(1.4f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun FilterHeading(text: String) {
+    Text(
+        text = text,
+        fontSize = EInkTheme.Typography.bodyMedium,
+        fontWeight = FontWeight.Bold,
+        color = EInkTheme.Colors.primary,
+        modifier = Modifier.padding(top = EInkTheme.Global.paddingSmall)
+    )
+}
+
+@Composable
+private fun FilterCheck(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(EInkTheme.Global.touchTarget)
+            .noRippleClickable { onChange(!checked) },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .background(if (checked) EInkTheme.Colors.primary else EInkTheme.Colors.background)
+                .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary),
+            contentAlignment = Alignment.Center
+        ) {
+            if (checked) {
+                Icon(Icons.Default.Check, contentDescription = null, tint = EInkTheme.Colors.background, modifier = Modifier.size(20.dp))
+            }
+        }
+        Text(text = label, fontSize = EInkTheme.Typography.bodyLarge, color = EInkTheme.Colors.primary)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TOPIC / KIND DATA
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Topic and kinds per note, from read handwriting (empty without an OpenRouter key) */
 internal class NoteSemantics(
     val domains: Map<String, Domain>,
     val intents: Map<String, List<Intent>>
@@ -632,8 +789,8 @@ internal class NoteSemantics(
 }
 
 /**
- * Builds [NoteSemantics] from indexed Boox note pages: each page's category votes with its confidence
- * (the note gets the strongest), and a note keeps its two most confident purposes (confidence ≥ 0.3).
+ * Builds [NoteSemantics] from indexed Boox note pages: each page's topic votes with its confidence
+ * (the note gets the strongest), and a note keeps its two most confident kinds (confidence ≥ 0.3).
  */
 internal suspend fun loadNoteSemantics(ocrRepository: UnifiedOcrRepository): NoteSemantics {
     val json = Json { ignoreUnknownKeys = true }

@@ -353,7 +353,7 @@ internal fun ExportDialogContent(modifier: Modifier, ui: ExportDialogUi, actions
                 )
             }
             Spacer(Modifier.width(EInkTheme.Global.spacing))
-            EinkSecondaryButton(text = "Change", onClick = actions.changeFolder, emphasized = true)
+            EinkSecondaryButton(text = "Change", onClick = actions.changeFolder)
         }
         if (choices.kind == ExportKind.MARKDOWN) {
             // Save only: a note and its pictures belong together in a folder
@@ -367,7 +367,7 @@ internal fun ExportDialogContent(modifier: Modifier, ui: ExportDialogUi, actions
                 EinkSecondaryButton(text = "Cancel", onClick = actions.cancel, modifier = Modifier.weight(1f))
                 EinkSecondaryButton(
                     text = "Share", onClick = actions.share, modifier = Modifier.weight(1f),
-                    enabled = ui.canExport, emphasized = true
+                    enabled = ui.canExport
                 )
                 ActionButton(text = "Save", modifier = Modifier.weight(1f), enabled = ui.canExport, onClick = actions.save)
             }

@@ -339,7 +339,7 @@ private fun QuickStartContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Settings")
-    BodyText("The Settings menu has Preferences, Calendar & Sync, Calendar Accounts, AI Settings, Voice-to-Text, Data & Backup, Boox Notes, Help and About. A dot next to an item marks a setting worth a look first.")
+    BodyText("The Settings menu has Preferences, Calendar & Sync, Calendar Accounts, AI Settings, Voice-to-Text, Data & Backup, Boox Notes, Handwriting Search, Help and About. A dot next to an item marks a setting worth a look first.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 }
@@ -662,7 +662,7 @@ private fun SearchContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("What It Finds")
-    BulletItem("Memos and Boox Notes", "The words read from your handwriting, once the pages are indexed (see Smart Link).")
+    BulletItem("Memos and Boox Notes", "The words read from your handwriting, once the pages are read (see Smart Link).")
     BulletItem("Tasks", "Typed text, and handwriting read on the tablet.")
     BulletItem("Events", "From your calendar accounts, and the tablet's own events.")
     BodyText("The filters All, Memos, Tasks, Events and Notes narrow the results.")
@@ -677,7 +677,7 @@ private fun SearchContent() {
     SectionSubheader("Results")
     BulletPoint("Up to 50, best matches first, then the newest.")
     BulletPoint("Memo and Boox Notes results show their topic and word count.")
-    BulletPoint("Tap a result to go to its day. A task opens; a Boox Notes result opens in the Boox Notes app.")
+    BulletPoint("Tap a result to go to its day. A task opens; a Boox Notes result opens the note.")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -741,16 +741,18 @@ private fun SmartLinkContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Setting Up (Settings → Boox Notes)")
-    BulletPoint("Turn on Enable Indexing to make memos and tasks searchable. Allow file access once (Open Permission Settings) to include Boox Notes pages.")
-    BulletPoint("Reading pages needs an OpenRouter key and AI Features on; up to 1,000 pages a month are read. Linking notes by hand works without them.")
+    BulletPoint("Boox Notes Setup has three steps: let BooxDay see your notes (Open Android Settings), connect a calendar, and, if you like, read your handwriting.")
+    BulletPoint("Settings → Handwriting Search reads memos, tasks and Boox Notes so you can search them. It needs an OpenRouter key and AI Features on; up to 1,000 pages a month are read. Linking notes by hand works without them.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Using It")
-    BulletPoint("Open Boox Notes with the B in the day header, or from the Notes button in the Memos toolbar.")
-    BulletPoint("Pick a note to see its pages, link it to an event, or open it in Boox Notes.")
-    BulletPoint("Review suggestions lists the likely matches: link them one by one, or all strong ones with Link strong….")
-    BulletPoint("An event's details show its linked notes.")
+    BulletPoint("Open Boox Notes with the B in the day header, or with the B on the Memos toolbar.")
+    BulletPoint("Tap a note to see its pages and link it to an event. Open in Notes App takes you to BOOX's own app.")
+    BulletPoint("Review Suggestions shows each note with its likely event, one at a time: Link it, Reject it, or Decide Later. List shows them all, and Link All Likely… links the likely ones at once. Every change can be undone.")
+    BulletPoint("New notes may link themselves when the match is strong. The note then says Linked automatically.")
+    BulletPoint("The ⋮ menu has Check for New Notes and Boox Notes Setup.")
+    BulletPoint("An event's details show its notes, with Link a Note… and Write a New Note.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
@@ -762,7 +764,7 @@ private fun SmartLinkContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Privacy")
-    BodyText("Finding topics and linking notes to events run on the tablet. Only reading the pages uses AI: while AI Features and Settings → Boox Notes → Enable Indexing are on, memo and Boox Notes pages are sent to OpenRouter, on your own account, and only to providers that keep no copy. With either off, no pages are sent.")
+    BodyText("Finding topics and linking notes to events run on the tablet. Only reading the pages uses AI: while AI Features and Settings → Handwriting Search → Read my handwriting are on, memo and Boox Notes pages are sent to OpenRouter, on your own account, and only to providers that keep no copy. With either off, no pages are sent.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 }
@@ -1128,7 +1130,7 @@ private fun KeyLegendsContent() {
     SectionSubheader("Boox Notes")
     LegendItem("Link icon", "Linked; the event's title follows")
     LegendItem("Star", "A suggested link")
-    LegendItem("Unlinked only", "In All notes: shows notes without a link")
+    LegendItem("Not Linked", "In All notes: shows notes without a link")
 }
 
 @Composable

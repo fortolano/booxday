@@ -1,11 +1,11 @@
 package com.boox.day.ui.dialogs
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -29,21 +29,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.unit.dp
 import com.boox.day.booxnotes.BooxNoteIndexer
 import com.boox.day.data.db.BooxNoteIndex
 import com.boox.day.data.db.CalendarEvent
 import com.boox.day.editor.ui.TaskDatePickerContent
-import com.boox.day.ui.components.EinkSecondaryButton
-import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.components.ScrollMoreBar
+import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 
-// Event picker of the Boox Notes dialog (Oct 2026): pick the event a note belongs to. Same-day events
-// come first (timed ones nearest to when the note was written), then the days around it, then any day.
+// Choose Event and Link a Note (Nov 2026): the same place from either side, on the window's own surface
+// (no popup on a popup). Same day first, then the days around it, then any day.
 
 private sealed interface PickerStep {
     data object Nearby : PickerStep
@@ -58,7 +56,9 @@ internal fun BooxNoteEventPicker(
     suggestedEventId: String?,
     loadEventsInRange: suspend (from: String, to: String) -> List<CalendarEvent>,
     onPick: (CalendarEvent) -> Unit,
-    onDismiss: () -> Unit
+    onBack: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val searchDays = BooxNoteIndexer.DAY_MODE_SEARCH_DAYS.toLong()
     var step by remember { mutableStateOf<PickerStep>(PickerStep.Nearby) }
@@ -84,107 +84,204 @@ internal fun BooxNoteEventPicker(
         }
     }
 
-    Popup(
-        alignment = Alignment.Center,
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true)
+    PickerSurface(
+        title = "Choose Event",
+        onBack = { if (currentStep == PickerStep.Nearby) onBack() else step = PickerStep.Nearby },
+        onClose = onClose,
+        header = {
+            NoteThumbnailRow(note)
+        },
+        modifier = modifier
     ) {
-        Column(
-            modifier = Modifier
-                .width(EInkTheme.PopupOverlay.width)
-                .heightIn(max = EInkTheme.BooxNotes.pickerMaxHeight)
-                .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                .padding(EInkTheme.Global.padding),
-            verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
-        ) {
-            Text(
-                text = "Link to an event",
-                fontSize = EInkTheme.Typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = EInkTheme.Colors.primary
+        when (currentStep) {
+            PickerStep.Nearby -> {
+                val events = nearby
+                if (events == null) {
+                    PickerNote("Loading events…")
+                } else {
+                    val sameDay = events
+                        .filter { it.dayId == note.originalDate }
+                        .sortedWith(
+                            compareBy<CalendarEvent> { it.isAllDay }
+                                .thenBy { abs(it.startTime - note.originalTimestamp) }
+                        )
+                    val around = events
+                        .filter { it.dayId != note.originalDate }
+                        .sortedWith(compareBy<CalendarEvent> { it.dayId }.thenBy { it.isAllDay }.thenBy { it.startTime })
+                    PickerSection("Same day · ${formatDayShort(note.originalDate)}")
+                    if (sameDay.isEmpty()) PickerNote("No events on this day")
+                    sameDay.forEach { event ->
+                        PickerEventRow(note, event, showDay = false, linkedEventId, suggestedEventId) { onPick(event) }
+                    }
+                    PickerSection("Within ${BooxNoteIndexer.DAY_MODE_SEARCH_DAYS} days")
+                    if (around.isEmpty()) PickerNote("No events in the days around it")
+                    around.forEach { event ->
+                        PickerEventRow(note, event, showDay = true, linkedEventId, suggestedEventId) { onPick(event) }
+                    }
+                    PickAnotherDayRow { step = PickerStep.Calendar }
+                }
+            }
+
+            PickerStep.Calendar -> TaskDatePickerContent(
+                currentDate = note.originalDate,
+                selectedDate = null,
+                onDateSelected = { step = PickerStep.Day(it) }
             )
+
+            is PickerStep.Day -> {
+                PickerSection("Events on ${formatDayShort(currentStep.date)}")
+                val events = dayEvents
+                when {
+                    events == null -> PickerNote("Loading events…")
+                    events.isEmpty() -> PickerNote("No events on this day")
+                    else -> events
+                        .sortedWith(compareBy<CalendarEvent> { it.isAllDay }.thenBy { it.startTime })
+                        .forEach { event ->
+                            PickerEventRow(note, event, showDay = false, linkedEventId, suggestedEventId) { onPick(event) }
+                        }
+                }
+                PickAnotherDayRow { step = PickerStep.Calendar }
+            }
+        }
+    }
+}
+
+/** Link a Note: the same place from the event's side, notes in plain time order */
+@Composable
+internal fun BooxNoteNotePicker(
+    event: CalendarEvent,
+    notes: List<BooxNoteIndex>,
+    linkedEventOf: (BooxNoteIndex) -> String?,
+    onPick: (BooxNoteIndex) -> Unit,
+    onBack: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val searchDays = BooxNoteIndexer.DAY_MODE_SEARCH_DAYS.toLong()
+    var step by remember { mutableStateOf<PickerStep>(PickerStep.Nearby) }
+    val eventDay = remember(event.dayId) { parseNoteDay(event.dayId) }
+    val currentStep = step
+    val byTime = compareBy<BooxNoteIndex> { it.originalTimestamp }
+
+    PickerSurface(
+        title = "Link a Note",
+        onBack = { if (currentStep == PickerStep.Nearby) onBack() else step = PickerStep.Nearby },
+        onClose = onClose,
+        header = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = event.title,
+                    fontSize = EInkTheme.Typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = EInkTheme.Colors.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = eventWhen(event, withDay = true),
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    color = EInkTheme.Colors.darkGray,
+                    maxLines = 1
+                )
+            }
+        },
+        modifier = modifier
+    ) {
+        when (currentStep) {
+            PickerStep.Nearby -> {
+                val sameDay = notes.filter { it.originalDate == event.dayId }.sortedWith(byTime)
+                val around = notes.filter { note ->
+                    val day = parseNoteDay(note.originalDate)
+                    note.originalDate != event.dayId && day != null && eventDay != null &&
+                        abs(java.time.temporal.ChronoUnit.DAYS.between(eventDay, day)) <= searchDays
+                }.sortedWith(byTime)
+                PickerSection("Same day · ${formatDayShort(event.dayId)}")
+                if (sameDay.isEmpty()) PickerNote("No notes on this day")
+                sameDay.forEach { note ->
+                    PickerNoteRow(note, showDay = false, linkedHere = linkedEventOf(note) == event.id) { onPick(note) }
+                }
+                PickerSection("Within ${BooxNoteIndexer.DAY_MODE_SEARCH_DAYS} days")
+                if (around.isEmpty()) PickerNote("No notes in the days around it")
+                around.forEach { note ->
+                    PickerNoteRow(note, showDay = true, linkedHere = linkedEventOf(note) == event.id) { onPick(note) }
+                }
+                PickAnotherDayRow { step = PickerStep.Calendar }
+            }
+
+            PickerStep.Calendar -> TaskDatePickerContent(
+                currentDate = event.dayId,
+                selectedDate = null,
+                onDateSelected = { step = PickerStep.Day(it) }
+            )
+
+            is PickerStep.Day -> {
+                PickerSection("Notes on ${formatDayShort(currentStep.date)}")
+                val dayNotes = notes.filter { it.originalDate == currentStep.date }.sortedWith(byTime)
+                if (dayNotes.isEmpty()) PickerNote("No notes on this day")
+                dayNotes.forEach { note ->
+                    PickerNoteRow(note, showDay = false, linkedHere = linkedEventOf(note) == event.id) { onPick(note) }
+                }
+                PickAnotherDayRow { step = PickerStep.Calendar }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PickerSurface(
+    title: String,
+    onBack: () -> Unit,
+    onClose: () -> Unit,
+    header: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)) {
+        BooxNotesBar(title = title, onClose = onClose, onBack = onBack)
+        header()
+        Divider(color = EInkTheme.Colors.primary, thickness = EInkTheme.Global.borderWidth)
+        val pickerScroll = rememberScrollState()
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(pickerScroll)
+            ) {
+                content()
+            }
+            ScrollMoreBar(pickerScroll)
+        }
+    }
+}
+
+/** Thumbnail and title: which note this is about */
+@Composable
+private fun NoteThumbnailRow(note: BooxNoteIndex) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
+    ) {
+        NotePageThumbnail(note = note)
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "${note.title.ifBlank { "Untitled note" }} · ${noteMetaLine(note, withDay = true)}",
-                fontSize = EInkTheme.Typography.bodyMedium,
-                color = EInkTheme.Colors.darkGray,
+                text = note.title.ifBlank { "Untitled note" },
+                fontSize = EInkTheme.Typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                color = EInkTheme.Colors.primary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Divider(color = EInkTheme.Colors.primary, thickness = EInkTheme.Global.borderWidth)
-
-            val pickerScroll = rememberScrollState()
-            Box(modifier = Modifier.weight(1f, fill = false)) {
-                Column(
-                    modifier = Modifier.verticalScroll(pickerScroll)
-                ) {
-                    when (currentStep) {
-                        PickerStep.Nearby -> {
-                            val events = nearby
-                            if (events == null) {
-                                PickerNote("Loading events…")
-                            } else {
-                                val sameDay = events
-                                    .filter { it.dayId == note.originalDate }
-                                    .sortedWith(
-                                        compareBy<CalendarEvent> { it.isAllDay }
-                                            .thenBy { abs(it.startTime - note.originalTimestamp) }
-                                    )
-                                val around = events
-                                    .filter { it.dayId != note.originalDate }
-                                    .sortedWith(compareBy<CalendarEvent> { it.dayId }.thenBy { it.isAllDay }.thenBy { it.startTime })
-                                PickerSection("Same day · ${formatDayShort(note.originalDate)}")
-                                if (sameDay.isEmpty()) PickerNote("No events on this day")
-                                sameDay.forEach { event ->
-                                    PickerEventRow(note, event, showDay = false, linkedEventId, suggestedEventId) { onPick(event) }
-                                }
-                                PickerSection("Within ${BooxNoteIndexer.DAY_MODE_SEARCH_DAYS} days")
-                                if (around.isEmpty()) PickerNote("No events in the days around it")
-                                around.forEach { event ->
-                                    PickerEventRow(note, event, showDay = true, linkedEventId, suggestedEventId) { onPick(event) }
-                                }
-                                PickAnotherDayRow { step = PickerStep.Calendar }
-                            }
-                        }
-
-                        PickerStep.Calendar -> TaskDatePickerContent(
-                            currentDate = note.originalDate,
-                            selectedDate = null,
-                            onDateSelected = { step = PickerStep.Day(it) }
-                        )
-
-                        is PickerStep.Day -> {
-                            PickerSection("Events on ${formatDayShort(currentStep.date)}")
-                            val events = dayEvents
-                            when {
-                                events == null -> PickerNote("Loading events…")
-                                events.isEmpty() -> PickerNote("No events on this day")
-                                else -> events
-                                    .sortedWith(compareBy<CalendarEvent> { it.isAllDay }.thenBy { it.startTime })
-                                    .forEach { event ->
-                                        PickerEventRow(note, event, showDay = false, linkedEventId, suggestedEventId) { onPick(event) }
-                                    }
-                            }
-                            PickAnotherDayRow { step = PickerStep.Calendar }
-                        }
-                    }
-                }
-                ScrollMoreBar(pickerScroll)
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Button.spacing)
-            ) {
-                EinkSecondaryButton(text = "Cancel", onClick = onDismiss, modifier = Modifier.weight(1f))
-                if (currentStep != PickerStep.Nearby) {
-                    EinkSecondaryButton(
-                        text = "Back",
-                        onClick = { step = PickerStep.Nearby },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
+            Text(
+                text = noteMetaLine(note, withDay = true),
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.darkGray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -291,6 +388,43 @@ private fun PickerEventRow(
 }
 
 @Composable
+private fun PickerNoteRow(note: BooxNoteIndex, showDay: Boolean, linkedHere: Boolean, onClick: () -> Unit) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .noRippleClickable(onClick = onClick)
+                .padding(vertical = EInkTheme.Global.paddingSmall),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
+        ) {
+            NotePageThumbnail(note = note)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = note.title.ifBlank { "Untitled note" },
+                    fontSize = EInkTheme.Typography.bodyLarge,
+                    fontWeight = if (linkedHere) FontWeight.Bold else FontWeight.Normal,
+                    color = EInkTheme.Colors.primary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = listOfNotNull(
+                        if (linkedHere) "Linked now" else null,
+                        noteMetaLine(note, withDay = showDay)
+                    ).joinToString(" · "),
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    color = EInkTheme.Colors.darkGray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Divider(color = EInkTheme.Colors.dividerHairline, thickness = EInkTheme.Global.borderWidth)
+    }
+}
+
+@Composable
 private fun PickAnotherDayRow(onClick: () -> Unit) {
     Row(
         modifier = Modifier
@@ -310,7 +444,7 @@ private fun PickAnotherDayRow(onClick: () -> Unit) {
             )
         }
         Text(
-            text = "Pick another day…",
+            text = "Pick Another Day…",
             fontSize = EInkTheme.Typography.bodyLarge,
             fontWeight = FontWeight.Medium,
             color = EInkTheme.Colors.primary

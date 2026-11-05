@@ -330,12 +330,12 @@ object TipsRepository {
         ),
         Tip(
             id = "boox_notes_suggestions",
-            message = "Review suggestions in Boox Notes lists the events your notes likely belong to. Link strong… links them all.",
+            message = "Review Suggestions in Boox Notes shows the events your notes likely belong to, one note at a time.",
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
             id = "boox_notes_unlinked",
-            message = "Turn on Unlinked only in Boox Notes → All notes to find notes without an event.",
+            message = "Tap Not Linked in Boox Notes → All notes to find notes without an event.",
             contexts = setOf(TipContext.EVENTS)
         ),
         Tip(
@@ -345,12 +345,12 @@ object TipsRepository {
         ),
         Tip(
             id = "boox_notes_titles",
-            message = "Names and topics in a note's title help Smart Link match it to the right event.",
+            message = "Names and topics in a note's title help match it to the right event.",
             contexts = setOf(TipContext.MEMOS)
         ),
         Tip(
             id = "boox_notes_indexing",
-            message = "Enable Indexing in Settings → Boox Notes makes your handwritten memos and notebooks searchable.",
+            message = "Settings → Handwriting Search makes your handwritten memos and notebooks searchable.",
             contexts = setOf(TipContext.MEMOS, TipContext.EVENTS)
         ),
         Tip(

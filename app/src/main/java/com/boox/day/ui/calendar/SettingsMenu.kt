@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Mic
@@ -175,8 +176,16 @@ fun SettingsMenu(
                 label = "Boox Notes",
                 icon = painterResource(R.drawable.boox_b_letter),  // Boox "B", as on the Memos toolbar
                 reason = attention.reasonFor(SettingsPlace.BOOX_NOTES),
-                onClick = { onBooxNotesSettings() }
+                onClick = {
+                    com.boox.day.ui.dialogs.BooxNotesPlaces.settingsPage = com.boox.day.ui.dialogs.BooxNotesPlaces.SettingsPage.SETUP
+                    onBooxNotesSettings()
+                }
             )
+            // Reads memos and tasks too, so it has its own row (it used to sit inside Boox Notes)
+            SettingsMenuItemWithIcon("Handwriting Search", Icons.Default.Search) {
+                com.boox.day.ui.dialogs.BooxNotesPlaces.settingsPage = com.boox.day.ui.dialogs.BooxNotesPlaces.SettingsPage.HANDWRITING
+                onBooxNotesSettings()
+            }
 
             MenuDivider()
 

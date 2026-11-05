@@ -13,7 +13,7 @@ class TipsRepositoryTest {
     /** Items of the Settings menu (ui/calendar/SettingsMenu.kt); a tip naming another one is stale. */
     private val settingsMenu = setOf(
         "Preferences", "Calendar & Sync", "Calendar Accounts", "AI Settings", "Voice-to-Text",
-        "Data & Backup", "Boox Notes", "Help", "About"
+        "Data & Backup", "Boox Notes", "Handwriting Search", "Help", "About"
     )
 
     @Test
