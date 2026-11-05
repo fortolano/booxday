@@ -27,7 +27,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
@@ -36,7 +35,6 @@ import com.boox.day.data.db.KvProxy
 import com.boox.day.ui.components.EInkToggle
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.components.SettingCard
-import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -101,21 +99,18 @@ fun SleepAgendaSetting() {
                     color = EInkTheme.Colors.darkGray
                 )
             }
-            Text(
+            EinkSecondaryButton(
                 text = if (loadingPreview) "Preparing preview…" else "Preview",
-                fontSize = EInkTheme.Typography.bodyMedium,
-                color = EInkTheme.Colors.primary,
-                textDecoration = TextDecoration.Underline,
-                modifier = Modifier
-                    .heightIn(min = EInkTheme.Global.touchTarget)
-                    .noRippleClickable {
-                        if (loadingPreview) return@noRippleClickable
+                width = 190.dp,
+                onClick = {
+                    if (!loadingPreview) {
                         loadingPreview = true
                         scope.launch {
                             preview = withContext(Dispatchers.Default) { SleepScreenPublisher.preview(context) }
                             loadingPreview = false
                         }
                     }
+                }
             )
             if (enabled) ContentChoices()
         }
