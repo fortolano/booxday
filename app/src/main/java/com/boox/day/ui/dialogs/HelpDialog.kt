@@ -606,6 +606,11 @@ private fun CalendarSyncContent() {
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
+    SectionSubheader("Week View")
+    BodyText("Tap Week in the day header to see the whole week and what's overdue. Tap a day to tick tasks, move them, add an event or open that day. A task due on another day shows on both days, marked Due. To write a task by hand, open the day.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
     SectionSubheader("Calendar Mode (Settings → Calendar & Sync)")
     BulletItem("Private Mode", "Everything stays on the tablet. No account needed.")
     BulletItem("Cloud Sync", "Also shows your Google, Outlook, iCloud and other calendars.")

@@ -237,6 +237,11 @@ object TipsRepository {
             contexts = setOf(TipContext.CALENDAR)
         ),
         Tip(
+            id = "calendar_week",
+            message = "Tap Week beside the date to plan the whole week, and place what's overdue.",
+            contexts = setOf(TipContext.CALENDAR)
+        ),
+        Tip(
             id = "calendar_preview",
             message = "Long-press a date for a short preview of that day.",
             contexts = setOf(TipContext.CALENDAR)

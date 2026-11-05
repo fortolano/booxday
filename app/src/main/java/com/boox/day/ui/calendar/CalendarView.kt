@@ -919,7 +919,8 @@ fun DayHeader(
     onBooxNotesClick: () -> Unit,
     onMemoClick: () -> Unit,
     onTasksClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onWeekClick: (() -> Unit)? = null
 ) {
     val date = remember(selectedDate) {
         try { LocalDate.parse(selectedDate) } catch (e: Exception) { null }
@@ -1003,6 +1004,30 @@ fun DayHeader(
                 )
             }
         }
+        onWeekClick?.let { WeekWordButton(it) }
+    }
+}
+
+/** Opens the Week page (Nov 2026, owner's decision D8): a word, because no icon says "week". */
+@Composable
+internal fun WeekWordButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .height(42.dp)
+            .padding(start = 6.dp)
+            .noRippleClickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Week",
+            fontSize = EInkTheme.Typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = EInkTheme.Colors.primary,
+            maxLines = 1,
+            modifier = Modifier
+                .border(1.dp, EInkTheme.Colors.primary, RoundedCornerShape(4.dp))
+                .padding(horizontal = 10.dp, vertical = 5.dp)
+        )
     }
 }
 

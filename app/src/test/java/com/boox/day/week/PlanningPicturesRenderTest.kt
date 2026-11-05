@@ -20,7 +20,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.Icon
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Notes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -34,6 +39,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.boox.day.proposals.ProposalCardUi
 import com.boox.day.proposals.ProposalNothingCard
 import com.boox.day.proposals.ProposalReadingCard
@@ -178,6 +184,70 @@ class PlanningPicturesRenderTest {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /** D8: the Week button with every mark on, at the header's width on each tablet. */
+    @Test
+    fun weekButton() {
+        for ((d, width) in devices.zip(listOf(337, 397, 457, 588))) {
+            render("header-${d.name}", d) {
+                // DayHeader's own sizes; its drawables don't load in this test, so stand-in icons
+                val small = d.density < 2f
+                Row(
+                    Modifier.width(width.dp).height(if (small) 42.dp else 50.dp).background(Color.White).padding(start = 8.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("25", fontSize = 32.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Box(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Wednesday", fontSize = EInkTheme.Typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        if (!small) Text("25 Nov 2026", fontSize = EInkTheme.Typography.bodyMedium, maxLines = 1)
+                    }
+                    listOf(Icons.Default.Circle, Icons.Default.Notes, Icons.Default.Check).forEach {
+                        Box(Modifier.size(40.dp, 42.dp), contentAlignment = Alignment.Center) {
+                            Icon(it, contentDescription = null, modifier = Modifier.size(22.dp))
+                        }
+                    }
+                    com.boox.day.ui.calendar.WeekWordButton {}
+                }
+            }
+        }
+    }
+
+    /** What "+7 more" opens: the busy day, as pages of 6 rows, or as many rows as the screen holds. */
+    @Test
+    fun moreSheets() {
+        val busy = listOf(
+            WeekSheetRow("School holiday", time = "All day"),
+            WeekSheetRow("Dentist", time = "8:15 – 9:00 AM"),
+            WeekSheetRow("Design review with the team", time = "10:00 – 11:00 AM"),
+            WeekSheetRow("Budget planning", time = "1:00 – 2:00 PM"),
+            WeekSheetRow("Client call", time = "3:30 – 4:00 PM"),
+            WeekSheetRow("Send report to finance"),
+            WeekSheetRow("Handwritten task"),
+            WeekSheetRow("Book train tickets"),
+            WeekSheetRow("Order printer paper"),
+            WeekSheetRow("Reply to Maria"),
+            WeekSheetRow("Tidy the shared folder"),
+            WeekSheetRow("Plan the offsite")
+        )
+        for (d in devices.filter { it.name == "go6" || it.name == "go10" }) {
+            val spec = WeekLayoutSpec.of(d.width, d.height)
+            val fits = ((d.height * 0.82f - 130f) / 48f).toInt()
+            render("more-${d.name}-paged", d) {
+                WeekPage(busyWeek(), spec)
+                WeekDaySheetCard("Tuesday, Nov 3", busy.take(6), 1, 2)
+            }
+            render("more-${d.name}-paged2", d) {
+                WeekPage(busyWeek(), spec)
+                WeekDaySheetCard("Tuesday, Nov 3", busy.drop(6), 2, 2)
+            }
+            val pages = (busy.size + fits - 1) / fits
+            render("more-${d.name}-tall", d) {
+                WeekPage(busyWeek(), spec)
+                WeekDaySheetCard("Tuesday, Nov 3", busy.take(fits), 1, pages)
             }
         }
     }

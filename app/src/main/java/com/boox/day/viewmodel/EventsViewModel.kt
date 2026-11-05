@@ -270,6 +270,20 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
+    /** A day's events as the calendar shows them: [getEventsForDateSync] with the source filter too. */
+    suspend fun shownEventsForDay(dayId: String): List<CalendarEvent> = withContext(Dispatchers.IO) {
+        val filter = _sourceFilter.value
+        val cloud = eventRepository.getEventsForDateSync(dayId)
+        val local = if (filter.showLocal) {
+            com.boox.day.today.ShownEvents.tabletOnly(cloud, localEventRepository.getEventsForDay(dayId)).map { it.toCalendarEvent() }
+        } else {
+            emptyList()
+        }
+        (cloudShown(cloud, filter) + local).sortedWith(
+            compareByDescending<CalendarEvent> { it.isAllDay }.thenBy { it.startTime }
+        )
+    }
+
     /**
      * Get a single event by ID
      */

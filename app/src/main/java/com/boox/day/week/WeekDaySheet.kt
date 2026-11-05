@@ -31,7 +31,14 @@ import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 
 /** One 48 dp row of the Day sheet: an event when [time] is set, otherwise a task. */
-data class WeekSheetRow(val text: String, val time: String? = null, val ticked: Boolean = false, val note: String? = null)
+data class WeekSheetRow(
+    val text: String,
+    val time: String? = null,
+    val ticked: Boolean = false,
+    val note: String? = null,
+    /** False for a repeat with no row yet, and a task just moved away. */
+    val canAct: Boolean = true
+)
 
 private val Ink = EInkTheme.Colors.primary
 
@@ -43,6 +50,7 @@ fun WeekDaySheetCard(
     page: Int,
     pages: Int,
     showDayButtons: Boolean = true,
+    message: String? = null,
     onRow: (Int) -> Unit = {},
     onMove: (Int) -> Unit = {},
     onPage: (Int) -> Unit = {},
@@ -71,6 +79,7 @@ fun WeekDaySheetCard(
                 }
             }
         }
+        message?.let { Text(text = it, fontSize = EInkTheme.Typography.bodyMedium, fontWeight = FontWeight.Bold, color = Ink) }
         Spacer(Modifier.height(EInkTheme.Global.spacingSmall))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing), verticalAlignment = Alignment.CenterVertically) {
             EinkSecondaryButton(text = "Close", onClick = onClose)
@@ -92,7 +101,7 @@ private fun SheetRow(row: WeekSheetRow, onTap: () -> Unit, onMove: () -> Unit) {
     ) {
         if (row.time != null) {
             Row(Modifier.weight(1f).noRippleClickable(onClick = onTap), verticalAlignment = Alignment.CenterVertically) {
-                Text(text = row.time, fontSize = EInkTheme.Typography.bodyMedium, color = Ink, maxLines = 1, modifier = Modifier.width(150.dp))
+                Text(text = row.time, fontSize = EInkTheme.Typography.bodyMedium, color = Ink, maxLines = 1, modifier = Modifier.width(166.dp))
                 Text(text = row.text, fontSize = EInkTheme.Typography.bodyLarge, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             }
             Icon(Icons.Default.ChevronRight, contentDescription = "Event details", tint = Ink)
@@ -104,9 +113,11 @@ private fun SheetRow(row: WeekSheetRow, onTap: () -> Unit, onMove: () -> Unit) {
             }
             Text(text = row.text, fontSize = EInkTheme.Typography.bodyLarge, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             row.note?.let { Text(text = it, fontSize = EInkTheme.Typography.bodySmall, color = Ink, maxLines = 1) }
-            Row(Modifier.height(44.dp).noRippleClickable(onClick = onMove), verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "Move", fontSize = EInkTheme.Typography.bodyMedium, fontWeight = FontWeight.Bold, color = Ink)
-                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Ink)
+            if (row.canAct) {
+                Row(Modifier.height(44.dp).noRippleClickable(onClick = onMove), verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "Move", fontSize = EInkTheme.Typography.bodyMedium, fontWeight = FontWeight.Bold, color = Ink)
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Ink)
+                }
             }
         }
     }

@@ -1448,6 +1448,7 @@ fun MainScreen(
                 com.boox.day.diagnostics.CrashReportGate.isOpen ||
                 com.boox.day.ui.CalendarAiNotice.isOpen ||
                 com.boox.day.ui.dialogs.BooxFreezeTip.isOpen ||
+                com.boox.day.ui.AppOverlays.isOpen ||
                 com.boox.day.ui.FullScreenState.transitioning ||
                 onboardingDismissedAt == 0L
         }
@@ -2102,6 +2103,33 @@ fun MainScreen(
     com.boox.day.ui.dialogs.BooxFreezeTipHost()
     // "BooxDay closed unexpectedly" after a crash (Oct 2026, diagnostics/CrashReportGate)
     com.boox.day.ui.dialogs.CrashReportHost()
+    // Week view and later overlays (Nov 2026): new ones go in AppOverlays, not here
+    com.boox.day.ui.AppOverlaysHost()
+    LaunchedEffect(showAddEventDialog) { if (!showAddEventDialog) compactAddEventDate = null }
+    com.boox.day.ui.MainScreenRequestsCollector { request ->
+        when (request) {
+            is com.boox.day.ui.MainScreenRequest.ShowDay -> {
+                selectedDate = request.date
+                val day = LocalDate.parse(request.date)
+                if (day.year != viewingCalendar.get(Calendar.YEAR) || day.monthValue - 1 != viewingCalendar.get(Calendar.MONTH)) {
+                    showCompactMonth(day.year, day.monthValue - 1)
+                }
+            }
+            is com.boox.day.ui.MainScreenRequest.ShowEvent -> {
+                selectedEventForDetails = request.event
+                showEventDetailsDialog = true
+            }
+            is com.boox.day.ui.MainScreenRequest.NewEvent -> {
+                editingEvent = null
+                parsedEventData = null
+                compactAddEventDate = request.date
+                showAddEventDialog = true
+            }
+            com.boox.day.ui.MainScreenRequest.ReloadTasks -> scope.launch {
+                loadTasksPage(selectedDate, currentTaskPageInfo?.currentIndex ?: 0)
+            }
+        }
+    }
     // "AI and your calendar", once before the first AI feature that sends events (Oct 2026, ui/CalendarAiNotice)
     com.boox.day.ui.dialogs.CalendarAiNoticeHost(onOpenAiSettings = { showAiSettingsDialog = true })
     // Full screen (Oct 2026, ui/FullScreenState): Back, tidy-up before a switch, full redraw after it
@@ -3826,7 +3854,8 @@ fun MainScreen(
             SearchDialog(
                 ocrRepository = ocrRepository,
                 onNavigateToDate = { date ->
-                    selectedDate = date
+                    // Through ShowDay, so the month grid follows a day in another month
+                    com.boox.day.ui.MainScreenRequests.request(com.boox.day.ui.MainScreenRequest.ShowDay(date))
                     showSearchDialog = false
                 },
                 onOpenTask = { taskId, date ->
@@ -7506,7 +7535,8 @@ private fun SelectedDayHeader(
         onTasksClick = {
             DrawCanvas.toolbarInteraction.tryEmit(Unit)  // Close expanded events panel (like the toolbar tab)
             tabManager.switchToTasks(selectedDate, tasksPageId)
-        }
+        },
+        onWeekClick = { com.boox.day.week.WeekUi.open(selectedDate) }
     )
 }
 

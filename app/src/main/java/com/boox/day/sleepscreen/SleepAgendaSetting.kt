@@ -34,16 +34,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.db.KvProxy
+import com.boox.day.ui.ScreenCentre
 import com.boox.day.ui.components.EInkToggle
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.components.SettingCard
@@ -199,15 +195,6 @@ fun SleepAgendaSetting() {
             bitmap.recycle()
         }
     }
-}
-
-/**
- * The middle of the screen. Alignment.Center means the middle of the card, which sits low in Preferences
- * and put these popups at the bottom of the screen.
- */
-private object ScreenCentre : PopupPositionProvider {
-    override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize) =
-        IntOffset((windowSize.width - popupContentSize.width) / 2, (windowSize.height - popupContentSize.height) / 2)
 }
 
 private fun turnedOffMessage(handedBack: Boolean?): String = when (handedBack) {
