@@ -340,7 +340,7 @@ Answers go in the "Decision" column. Until then a decision is open, and the reco
 | D11 | Where does a saved recap live? | **A.** A typed page in the meeting's notes (editable, searchable, backed up, exported, no database change / not structured). **B.** A new table (structured / a migration). | A | 6 | **A (owner, 4 Nov 2026).** |
 | D12 | Meeting Prep | **A.** Local sheet, with "Brief Me" as an optional AI step (free, offline / less "magic"). **B.** AI brief on open (richer / cost and data sent each time). | A | 7 | **A (owner, 4 Nov 2026).** |
 | D13 | What can be shared in? | **A.** Text, links and images. **B.** Also PDFs (more complete / a new import path). **C.** Text and links only. | A | 8 | **A (owner, 4 Nov 2026).** |
-| D14 | Privacy policy changes | Prep and Share need new wording on the policy, Help and notice before release, Recap possibly. **A.** Show exact old and new lines at each phase. | A | 6, 7, 8 | **A (owner, 4 Nov 2026).** |
+| D14 | Privacy policy changes | Prep and Share need new wording on the policy, Help and notice before release, Recap possibly. **A.** Show exact old and new lines at each phase. | A | 6, 7, 8 | **A (owner, 4 Nov 2026).** Lines approved 5 Nov 2026 (in the repo copy of the privacy page; the live page goes with the release). Brief Me sends the description as it is, join details included, and says so (owner, 5 Nov). The AI notice stays once per install (owner, 5 Nov). |
 | D15 | Community replies | **A.** Approve the drafts now, since their answers help Phases 1 and 2. **B.** Reply after the fixes ship. | A | 0 | **A (owner, 4 Nov 2026):** reply now. The exact text of each reply still needs the owner's OK before it is posted. |
 | D16 | This file is in a public repo | **A.** Commit all of it (draft replies public before they are posted). **B.** Keep it out of git (private / worktree sessions don't get it). **C.** Commit it, with the draft replies in a local file. | C | 0 | **C (owner, 4 Nov 2026).** Plan committed; drafts in `COMMUNITY_REPLIES.md`. |
 | D17 | Export redesign | **A.** Phase 1B as written: PDF, Images and Markdown; Save, Change folder and Share; preview; JPG leaves the dialog. No PowerPoint, Word, direct service links, or AI in normal export. | A | 1B | **A (owner, 4 Nov 2026).** |
@@ -1369,6 +1369,8 @@ Judge the screen the user ends on, never "a model answered" (the 1.0.56 lesson).
 | Has notes | [Open Notes], then [Recap] [Action Items] [Export] |
 
 Prep adds [Prepare] in Phase 7. Action Items stays: it's free, works offline and is on-tablet.
+
+**Changed (owner, 5 Nov 2026):** the card's Export saves the PDF straight to `Documents/BooxDay/Meetings`; there is no "This meeting" in the Export dialog.
 
 **Also:** the Memos AI menu shows **Meeting Recap** when the open page belongs to a meeting. It doesn't appear otherwise, so the menu stays short.
 
