@@ -36,7 +36,7 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 | 0 | Decisions and first replies | Small, no code | In progress: decisions done; replies and baselines left |
 | 1A | Export you can trust | Medium | Shipped in 1.0.61 (5 Nov 2026). Three tablet checks not done, by the owner's choice: see the phase's checklist |
 | 1B | Export redesign | Medium | Shipped in 1.0.62 (5 Nov 2026). Saving to a picked folder and the Go 6 not checked, by the owner's choice: see the phase's checklist |
-| 2 | Pen, compatibility and the Ukrainian PR | Small to medium | In progress on `next-release`: PR #5 merged there and the language screen rebuilt; eraser, issue #1 and SupportPopup left |
+| 2 | Pen, compatibility and the Ukrainian PR | Small to medium | In progress on `next-release`: PR #5 merged there and the language screen rebuilt; SupportPopup checked, no bug; left: the eraser (reproduce with the real pen first) and issue #1 (waits on the reporter; the reply needs the owner's OK) |
 | 3 | Sleep screen choices | Small to medium | Built on `next-release`, pictures approved; tablet checks left |
 | 4 | Week view | Large | Built on `next-release`, checked on the Go 10.3 (5 Nov 2026). A busy day opens whole in one sheet, not pages of 6 (owner). Left: handwriting pictures, the pen after closing, the Go 6, a tick reaching Google Tasks, first open 795 ms |
 | 5 | Write It, Schedule It | Large | Built on `next-release`, works on the Go 10.3 with real ink (5 Nov 2026). Live check 20 of 20 on typed notes. Left: 20 samples in the owner's own handwriting, an event reaching Google and iCloud, offline and no-key on a tablet, the Go 6 |
@@ -858,6 +858,8 @@ Chips and ticks are 44 dp tall. No scrolling at font scale 1.0. No animation.
 
 Protected code. The owner opened the erase row for this work (D3), on one condition: **nothing from this area ships until the owner has passed the tablet checks with the real pen.** No automated test can see the panel, and pen input can't be faked. Earlier work here failed four or five builds in a row for that reason. Read the erase row in `CLAUDE.md` and the sources it names before starting.
 
+**A second report (5 Nov 2026, rickeames on issue #3):** the same on a Note Air 6C with a Noris Digital Jumbo: grey banding after the eraser, and the writing is there after switching to Tasks and back. That fits the hypothesis (the stroke is saved, only the live ink is wrong), but it isn't proof.
+
 **Working hypothesis (not proven): one cause, two symptoms.** If the eraser's style stays on after it lifts, Stroke Eraser gives dashed ink (DASH), and Standard Eraser gives almost invisible ink (SOFT_ERASER). Invisible ink would look like a delay until BooxDay redraws the page. So one fix might solve both of the reporter's symptoms.
 
 1. **Reproduce first** on the Go 10.3, with both eraser styles, by the eraser end. The deciding test: erase, wait 2 seconds, then write.
@@ -915,6 +917,8 @@ Owner's standing rule: no startup or pen code for this until the cause is proven
 
 `SupportPopup` isn't in the pen-blocking list. On the Go 6, open it from the Settings menu and try writing through it. If the pen writes, it's a confirmed bug: add it to the list.
 
+**Checked by log on the Go 10.3 (5 Nov 2026): not a bug, no change.** The Settings menu turns drawing off, and it stays off until the popup closes: "ENABLING raw drawing" comes only after Not Now. The About and Help routes open it over dialogs that are in the list (read in the code, not run). Not tried with a real pen or on the Go 6.
+
 **Automated tests:** a check that `uk` is in all three language lists, a render check of the language popup at the Go 6 size, and `EraseRedrawAreaTest`.
 
 **Risks**
@@ -937,7 +941,7 @@ Owner's standing rule: no startup or pen code for this until the cause is proven
 - [ ] PR #5 built and fit-checked (done); merged on `next-release`, reaches `main` with the one release
 - [ ] Eraser reproduced, fixed (if leak proven), hardware list passed by the owner before shipping
 - [ ] Issue #1 version known; diagnostic only if needed
-- [ ] `SupportPopup` checked
+- [x] `SupportPopup` checked (by log on the Go 10.3: the pen is off under it)
 - [ ] Replies drafted for approval
 
 ---
