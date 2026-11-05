@@ -62,6 +62,9 @@ data class SleepAgendaStyle(
  */
 object SleepAgendaLayout {
 
+    /** How much of the body the month takes when it's all that's shown. */
+    private const val MONTH_ALONE_SHARE = 0.6f
+
     /** Heights in pixels, measured by the renderer from its fonts. */
     data class Metrics(
         val sectionHeader: Float,
@@ -105,18 +108,47 @@ object SleepAgendaLayout {
         val memoHeight: Float,
         /** A month calendar at the bottom, on days light enough to leave room for it. */
         val showMonth: Boolean = false,
+        val showSchedule: Boolean = true,
+        val showTasks: Boolean = true,
+        /** The user asked for the month: full width, and never given up. */
+        val monthPinned: Boolean = false,
+        /** Height of the month when it's pinned. */
+        val monthHeight: Float = 0f,
     )
 
     /**
      * [bodyHeight] is the space between header and footer. Two columns (medium, large) share it
      * side by side, with the memo panel and the next days strip under them; compact stacks the
-     * schedule over the tasks.
+     * schedule over the tasks. [choice] is what the user wants shown; the default gives today's layout.
      */
-    fun plan(sizeClass: SleepSizeClass, content: Content, m: Metrics, bodyHeight: Float): Plan {
+    fun plan(
+        sizeClass: SleepSizeClass,
+        content: Content,
+        m: Metrics,
+        bodyHeight: Float,
+        choice: SleepScreenContent = SleepScreenContent(),
+    ): Plan {
         val twoColumns = sizeClass != SleepSizeClass.COMPACT
+        val memoShown = content.hasMemo && twoColumns && choice.memo
+        val pinned = choice.month == true
+        if (pinned && !choice.events && !choice.tasks && !memoShown) {
+            // The month alone: larger, up to 60% of the body
+            return Plan(
+                showNextDays = false, showMemo = false, showLocations = false, collapseDone = false, collapsePast = false,
+                hideSubtasks = false, eventRows = null, taskRows = null, memoHeight = 0f, showMonth = true,
+                showSchedule = false, showTasks = false, monthPinned = true, monthHeight = bodyHeight * MONTH_ALONE_SHARE,
+            )
+        }
+        // A month the user asked for takes its room first; the lists work with what's left
+        val body = if (pinned) bodyHeight - m.monthPanel - m.gap else bodyHeight
         var plan = Plan(
-            showNextDays = content.hasNextDays && sizeClass == SleepSizeClass.LARGE,
-            showMemo = content.hasMemo && twoColumns,
+            showNextDays = content.hasNextDays && sizeClass == SleepSizeClass.LARGE && choice.events,
+            showMemo = memoShown,
+            showSchedule = choice.events,
+            showTasks = choice.tasks,
+            monthPinned = pinned,
+            monthHeight = if (pinned) m.monthPanel else 0f,
+            showMonth = pinned,
             showLocations = true,
             collapseDone = false,
             collapsePast = false,
@@ -135,9 +167,12 @@ object SleepAgendaLayout {
         )
         var step = 0
         while (true) {
-            if (fits(sizeClass, content, m, bodyHeight, plan)) break
-            if (step == steps.size) return trim(sizeClass, content, m, bodyHeight, plan)
+            if (fits(sizeClass, content, m, body, plan)) break
+            if (step == steps.size) return trim(sizeClass, content, m, body, plan)
             plan = steps[step++](plan)
+        }
+        if (choice.month != null) {
+            return plan.copy(memoHeight = if (plan.showMemo) memoHeight(content, m, body, plan) else 0f)
         }
         // The month calendar only takes room nothing else needs: the memo panel at its smallest stays
         val showMonth = freeHeight(sizeClass, content, m, bodyHeight, plan) >= m.monthPanel + m.gap
@@ -149,15 +184,23 @@ object SleepAgendaLayout {
     }
 
     private fun fits(sizeClass: SleepSizeClass, c: Content, m: Metrics, body: Float, p: Plan): Boolean {
-        val schedule = scheduleHeight(c, m, p, eventRows = null)
-        val tasks = tasksHeight(c, m, p, taskRows = null)
+        val schedule = shownSchedule(c, m, p, null)
+        val tasks = shownTasks(c, m, p, null)
         return if (sizeClass == SleepSizeClass.COMPACT) {
-            schedule + m.gap + tasks <= body
+            stacked(m, p, schedule, tasks) <= body
         } else {
             val below = belowColumns(m, p, c, body)
             max(schedule, tasks) <= body - below
         }
     }
+
+    private fun shownSchedule(c: Content, m: Metrics, p: Plan, rows: Int?) = if (p.showSchedule) scheduleHeight(c, m, p, rows) else 0f
+
+    private fun shownTasks(c: Content, m: Metrics, p: Plan, rows: Int?) = if (p.showTasks) tasksHeight(c, m, p, rows) else 0f
+
+    /** The two lists one over the other, with a gap only when both are there. */
+    private fun stacked(m: Metrics, p: Plan, schedule: Float, tasks: Float) =
+        schedule + tasks + if (p.showSchedule && p.showTasks) m.gap else 0f
 
     /** Space under the two columns: next days strip, and the memo panel at its smallest. */
     private fun belowColumns(m: Metrics, p: Plan, c: Content, body: Float): Float {
@@ -169,15 +212,15 @@ object SleepAgendaLayout {
 
     /** Height left over when everything planned is drawn at its smallest. */
     private fun freeHeight(sizeClass: SleepSizeClass, c: Content, m: Metrics, body: Float, p: Plan): Float {
-        val schedule = scheduleHeight(c, m, p, null)
-        val tasks = tasksHeight(c, m, p, null)
-        return if (sizeClass == SleepSizeClass.COMPACT) body - schedule - m.gap - tasks
+        val schedule = shownSchedule(c, m, p, null)
+        val tasks = shownTasks(c, m, p, null)
+        return if (sizeClass == SleepSizeClass.COMPACT) body - stacked(m, p, schedule, tasks)
         else body - max(schedule, tasks) - belowColumns(m, p, c, body)
     }
 
     /** The memo panel takes what the columns leave, from its minimum up to 45% of the body. */
     private fun memoHeight(c: Content, m: Metrics, body: Float, p: Plan): Float {
-        val columns = max(scheduleHeight(c, m, p, null), tasksHeight(c, m, p, null))
+        val columns = max(shownSchedule(c, m, p, null), shownTasks(c, m, p, null))
         val nextDays = if (p.showNextDays) m.nextDaysPanel + m.gap else 0f
         val free = body - columns - nextDays - m.gap
         return min(max(free, m.memoPanelMin), body * 0.45f)
@@ -189,11 +232,11 @@ object SleepAgendaLayout {
         val taskTotal = taskRowsTotal(c, p)
         var events = eventTotal
         var tasks = taskTotal
-        fun schedule() = scheduleHeight(c, m, p, events)
-        fun taskList() = tasksHeight(c, m, p, tasks)
-        if (sizeClass == SleepSizeClass.COMPACT) {
+        fun schedule() = shownSchedule(c, m, p, events)
+        fun taskList() = shownTasks(c, m, p, tasks)
+        if (sizeClass == SleepSizeClass.COMPACT && p.showSchedule && p.showTasks) {
             // Take a row from the longer list until both fit stacked
-            while (schedule() + m.gap + taskList() > body && (events > 1 || tasks > 1)) {
+            while (stacked(m, p, schedule(), taskList()) > body && (events > 1 || tasks > 1)) {
                 if (events >= tasks && events > 1) events-- else if (tasks > 1) tasks-- else events--
             }
         } else {

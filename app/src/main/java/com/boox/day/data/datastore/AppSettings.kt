@@ -207,6 +207,9 @@ data class AppSettings(
     /** A Markdown note for each day, written by itself (Oct 2026, export/DailyNotes). Off until turned on. */
     val dailyNotesEnabled: Boolean = false,
 
+    // What the sleep screen shows
+    val sleepScreenContent: com.boox.day.sleepscreen.SleepScreenContent = com.boox.day.sleepscreen.SleepScreenContent(),
+
     // The Export dialog's last choices
     val exportChoices: com.boox.day.io.ExportChoices = com.boox.day.io.ExportChoices(),
 

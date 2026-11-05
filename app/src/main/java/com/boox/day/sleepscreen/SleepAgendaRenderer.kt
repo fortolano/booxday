@@ -44,6 +44,8 @@ class SleepAgendaRenderer(private val spec: SleepAgendaStyle) {
         val locale: Locale = Locale.getDefault(),
         /** The month grid's first column: the app's week start setting, else the locale's (Oct 2026). */
         val firstDayOfWeek: java.time.DayOfWeek? = null,
+        /** What the user wants shown. */
+        val choice: SleepScreenContent = SleepScreenContent(),
     )
 
     // ── Paints ────────────────────────────────────────────────────────────────────────────────
@@ -158,10 +160,11 @@ class SleepAgendaRenderer(private val spec: SleepAgendaStyle) {
         // Left: progress and streak. Right: when it was drawn. Narrow screens drop the
         // app name, then the streak, so the two sides never meet.
         val digest = input.digest
-        val done = if (digest.topLevelCount > 0) "${digest.doneCount} of ${digest.topLevelCount} done" else null
+        val showProgress = input.choice.tasks
+        val done = if (showProgress && digest.topLevelCount > 0) "${digest.doneCount} of ${digest.topLevelCount} done" else null
         val barW = spec.mm(if (spec.sizeClass == SleepSizeClass.COMPACT) 12f else 24f)
         val barSpace = barW + spec.mm(2.5f)
-        val streak = if (digest.streakDays > 1) "${digest.streakDays}-day streak" else null
+        val streak = if (showProgress && digest.streakDays > 1) "${digest.streakDays}-day streak" else null
         fun leftWidth(withStreak: Boolean): Float {
             var lw = if (done != null) barSpace + secondaryStrongPaint.measureText(done) else 0f
             if (withStreak && streak != null) lw += secondaryPaint.measureText((if (done != null) "  ·  " else "") + streak)
@@ -200,12 +203,16 @@ class SleepAgendaRenderer(private val spec: SleepAgendaStyle) {
     private fun drawBody(canvas: Canvas, input: Input, left: Float, top: Float, right: Float, bottom: Float) {
         val digest = input.digest
         val nowMs = input.nowMs
-        if (digest.events.isEmpty() && digest.tasks.isEmpty() && input.memo == null) {
+        val choice = input.choice
+        val noEvents = !choice.events || digest.events.isEmpty()
+        val noTasks = !choice.tasks || digest.tasks.isEmpty()
+        val listsWanted = choice.events || choice.tasks
+        if (noEvents && noTasks && input.memo == null && (listsWanted || choice.month != true)) {
             val message = "Nothing planned today."
             val y = top + (bottom - top) * 0.3f
             canvas.drawText(message, (left + right) / 2f - weekdayPaint.measureText(message) / 2f, y, weekdayPaint)
-            if (bottom - y - metrics.gap * 2 >= metrics.monthPanel) {
-                drawMonth(canvas, input, left, bottom - metrics.monthPanel, right)
+            if (choice.month != false && bottom - y - metrics.gap * 2 >= metrics.monthPanel) {
+                drawMonth(canvas, input, left, bottom - metrics.monthPanel, right, wide = choice.month == true)
             }
             return
         }
@@ -225,31 +232,47 @@ class SleepAgendaRenderer(private val spec: SleepAgendaStyle) {
             hasMemo = input.memo != null,
             hasNextDays = digest.nextDays.isNotEmpty(),
         )
-        val plan = SleepAgendaLayout.plan(spec.sizeClass, content, metrics, bottom - top)
+        val plan = SleepAgendaLayout.plan(spec.sizeClass, content, metrics, bottom - top, choice)
+        val monthHeight = if (plan.monthPinned) plan.monthHeight else metrics.monthPanel
 
-        if (spec.sizeClass == SleepSizeClass.COMPACT) {
-            val scheduleH = SleepAgendaLayout.scheduleHeight(content, metrics, plan, plan.eventRows)
-            drawSchedule(canvas, input, plan, left, top, right, allDay, past, coming)
-            drawTasks(canvas, input, plan, left, top + scheduleH + metrics.gap, right)
-            if (plan.showMonth) drawMonth(canvas, input, left, bottom - metrics.monthPanel, right)
+        // The month alone sits right under the header
+        if (!plan.showSchedule && !plan.showTasks && !plan.showMemo) {
+            drawMonth(canvas, input, left, top, right, monthHeight, wide = true)
             return
         }
 
-        val split = left + (right - left) * 0.54f
-        val columnGap = spec.mm(spec.gapMm * 1.2f)
-        drawSchedule(canvas, input, plan, left, top, split - columnGap / 2f, allDay, past, coming)
-        drawTasks(canvas, input, plan, split + columnGap / 2f, top, right)
-        // A hairline between the columns, over the height they use
-        val columnsH = max(
-            SleepAgendaLayout.scheduleHeight(content, metrics, plan, plan.eventRows),
-            SleepAgendaLayout.tasksHeight(content, metrics, plan, plan.taskRows)
-        )
-        canvas.drawLine(split, top + metrics.sectionHeader, split, top + columnsH, hair)
+        if (spec.sizeClass == SleepSizeClass.COMPACT) {
+            var y = top
+            if (plan.showSchedule) {
+                drawSchedule(canvas, input, plan, left, y, right, allDay, past, coming)
+                y += SleepAgendaLayout.scheduleHeight(content, metrics, plan, plan.eventRows) + metrics.gap
+            }
+            if (plan.showTasks) drawTasks(canvas, input, plan, left, y, right)
+            if (plan.showMonth) drawMonth(canvas, input, left, bottom - monthHeight, right, monthHeight, plan.monthPinned)
+            return
+        }
+
+        if (plan.showSchedule && plan.showTasks) {
+            val split = left + (right - left) * 0.54f
+            val columnGap = spec.mm(spec.gapMm * 1.2f)
+            drawSchedule(canvas, input, plan, left, top, split - columnGap / 2f, allDay, past, coming)
+            drawTasks(canvas, input, plan, split + columnGap / 2f, top, right)
+            // A hairline between the columns, over the height they use
+            val columnsH = max(
+                SleepAgendaLayout.scheduleHeight(content, metrics, plan, plan.eventRows),
+                SleepAgendaLayout.tasksHeight(content, metrics, plan, plan.taskRows)
+            )
+            canvas.drawLine(split, top + metrics.sectionHeader, split, top + columnsH, hair)
+        } else if (plan.showSchedule) {
+            drawSchedule(canvas, input, plan, left, top, right, allDay, past, coming)
+        } else if (plan.showTasks) {
+            drawTasks(canvas, input, plan, left, top, right)
+        }
 
         var panelBottom = bottom
         if (plan.showMonth) {
-            val panelTop = bottom - metrics.monthPanel
-            drawMonth(canvas, input, left, panelTop, right)
+            val panelTop = bottom - monthHeight
+            drawMonth(canvas, input, left, panelTop, right, monthHeight, plan.monthPinned)
             panelBottom = panelTop - metrics.gap
         }
         if (plan.showNextDays) {
@@ -298,6 +321,8 @@ class SleepAgendaRenderer(private val spec: SleepAgendaStyle) {
         }
         coming.forEach { rows += Row(it, null) }
         val limit = plan.eventRows
+        // Beside a month the user asked for there may be room for very few rows: what's coming goes first
+        if (plan.monthPinned && limit != null && coming.isNotEmpty()) rows.removeAll { it.event == null }
         val shown = if (limit != null && limit < rows.size) rows.take(limit - 1) + Row(null, "+${rows.size - limit + 1} more") else rows
         if (shown.isEmpty()) return
 
@@ -517,18 +542,25 @@ class SleepAgendaRenderer(private val spec: SleepAgendaStyle) {
     }
 
     // ── Month calendar (when there is room) ───────────────────────────────────────────────────
-    /** This month as a small grid, today in an inverted circle; weeks start on the locale's first day. */
-    private fun drawMonth(canvas: Canvas, input: Input, left: Float, top: Float, right: Float) {
+    /**
+     * This month as a grid, today in an inverted circle; weeks start on the locale's first day.
+     * [wide]: the user asked for it, so it takes the full width; [height] above the usual makes it larger.
+     */
+    private fun drawMonth(
+        canvas: Canvas, input: Input, left: Float, top: Float, right: Float,
+        height: Float = metrics.monthPanel, wide: Boolean = false,
+    ) {
         val date = input.digest.date
         val label = date.month.getDisplayName(TextStyle.FULL, input.locale) + " " + date.year
-        val gridW = min(right - left, spec.mm(if (spec.sizeClass == SleepSizeClass.COMPACT) 80f else 110f))
+        val gridW = if (wide) right - left else min(right - left, spec.mm(if (spec.sizeClass == SleepSizeClass.COMPACT) 80f else 110f))
         val y = sectionHeader(canvas, label, null, left, top, left + gridW)
         val firstDay = input.firstDayOfWeek ?: java.time.temporal.WeekFields.of(input.locale).firstDayOfWeek
         val cellW = gridW / 7f
-        val cellH = monthCell()
+        val cellH = (height - metrics.sectionHeader) / 7f
+        val grow = cellH / monthCell()
         val centre = { col: Int -> left + cellW * (col + 0.5f) }
-        val numberPaint = TextPaint(secondaryPaint).apply { textAlign = Paint.Align.CENTER }
-        val headPaint = TextPaint(secondaryStrongPaint).apply { textAlign = Paint.Align.CENTER }
+        val numberPaint = TextPaint(secondaryPaint).apply { textAlign = Paint.Align.CENTER; textSize *= grow }
+        val headPaint = TextPaint(secondaryStrongPaint).apply { textAlign = Paint.Align.CENTER; textSize *= grow }
         for (col in 0 until 7) {
             val day = firstDay.plus(col.toLong())
             canvas.drawText(day.getDisplayName(TextStyle.NARROW, input.locale), centre(col), y + baselineIn(cellH, headPaint), headPaint)
@@ -543,7 +575,7 @@ class SleepAgendaRenderer(private val spec: SleepAgendaStyle) {
             val cy = rowTop + cellH / 2f
             if (dayOfMonth == date.dayOfMonth) {
                 canvas.drawCircle(cx, cy, cellH * 0.42f, fill)
-                val todayPaint = TextPaint(secondaryStrongPaint).apply { textAlign = Paint.Align.CENTER; color = Color.WHITE }
+                val todayPaint = TextPaint(secondaryStrongPaint).apply { textAlign = Paint.Align.CENTER; color = Color.WHITE; textSize *= grow }
                 canvas.drawText(dayOfMonth.toString(), cx, rowTop + baselineIn(cellH, todayPaint), todayPaint)
             } else {
                 canvas.drawText(dayOfMonth.toString(), cx, rowTop + baselineIn(cellH, numberPaint), numberPaint)

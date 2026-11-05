@@ -62,8 +62,9 @@ object SleepScreenPublisher {
             val sizeClass = SleepSizeClass.of(minOf(width, height), ppi)
             val loader = DayDigestLoader(app)
             val digest = loader.load(today, nextDays = if (sizeClass == SleepSizeClass.LARGE) 3 else 0)
-            val memo = if (sizeClass != SleepSizeClass.COMPACT) memoBitmap(app, loader, today) else null
-            val fingerprint = fingerprint(digest, nowMs, sizeClass, memo)
+            val choice = settings(app).sleepScreenContent
+            val memo = if (sizeClass != SleepSizeClass.COMPACT && choice.memo) memoBitmap(app, loader, today) else null
+            val fingerprint = fingerprint(digest, nowMs, sizeClass, memo, choice)
             if (!force && fingerprint == prefs(app).getString(KEY_FINGERPRINT, null)) {
                 memo?.recycle()
                 lastWrite.succeeded(app)  // still up to date
@@ -76,6 +77,7 @@ object SleepScreenPublisher {
                     use24Hour = settings(app).timeFormat == AppSettings.TimeFormat.TwentyFourHour,
                     memo = memo,
                     firstDayOfWeek = settings(app).firstDayOfWeek.dayOfWeek,
+                    choice = choice,
                 )
             )
             memo?.recycle()
@@ -110,12 +112,14 @@ object SleepScreenPublisher {
         val loader = DayDigestLoader(app)
         val today = LocalDate.now()
         val digest = loader.load(today, nextDays = if (sizeClass == SleepSizeClass.LARGE) 3 else 0)
-        val memo = if (sizeClass != SleepSizeClass.COMPACT) memoBitmap(app, loader, today) else null
+        val choice = settings(app).sleepScreenContent
+        val memo = if (sizeClass != SleepSizeClass.COMPACT && choice.memo) memoBitmap(app, loader, today) else null
         SleepAgendaRenderer(SleepAgendaStyle.forClass(sizeClass, ppi)).render(
             SleepAgendaRenderer.Input(
                 digest = digest, widthPx = width, heightPx = height, nowMs = System.currentTimeMillis(),
                 use24Hour = settings(app).timeFormat == AppSettings.TimeFormat.TwentyFourHour, memo = memo,
                 firstDayOfWeek = settings(app).firstDayOfWeek.dayOfWeek,
+                choice = choice,
             )
         ).also { memo?.recycle() }
     } catch (t: Throwable) {
@@ -159,9 +163,10 @@ object SleepScreenPublisher {
 
     /**
      * What the image depends on: the day's content, which events are over or on (that changes
-     * with the clock, not with the data), the size class, and a sample of the memo page's pixels.
+     * with the clock, not with the data), the size class, a sample of the memo page's pixels, and
+     * what the user chose to show.
      */
-    private fun fingerprint(digest: DayDigest, nowMs: Long, sizeClass: SleepSizeClass, memo: Bitmap?): String {
+    internal fun fingerprint(digest: DayDigest, nowMs: Long, sizeClass: SleepSizeClass, memo: Bitmap?, choice: SleepScreenContent): String {
         val timed = digest.events.filter { !it.allDay }
         val over = timed.count { (it.endMs ?: it.startMs) <= nowMs }
         val on = timed.filter { it.startMs <= nowMs && (it.endMs ?: it.startMs) > nowMs }.map { it.id }
@@ -173,7 +178,7 @@ object SleepScreenPublisher {
                 memoHash = 31 * memoHash + memo.getPixel(x, y)
             }
         }
-        return listOf(digest.hashCode(), over, on, sizeClass, memoHash).joinToString("|")
+        return listOf(digest.hashCode(), over, on, sizeClass, memoHash, choice).joinToString("|")
     }
 
     private fun write(bitmap: Bitmap, name: String): File {

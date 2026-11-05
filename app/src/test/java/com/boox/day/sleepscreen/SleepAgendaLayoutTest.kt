@@ -82,6 +82,67 @@ class SleepAgendaLayoutTest {
         assertFalse("done tasks stay listed while there is room", plan.collapseDone)
     }
 
+    private val mWithMonth = m.copy(monthPanel = 300f)
+    private val heavyDay = content(coming = 12, open = 9)
+
+    @Test
+    fun theDefaultChoiceChangesNothing() {
+        val days = listOf(heavyDay, content(coming = 3, withLocation = 3, open = 3, done = 1, memo = true, nextDays = true), content())
+        for (size in SleepSizeClass.entries) for (day in days) for (body in listOf(400f, 900f, 2000f)) {
+            val before = SleepAgendaLayout.plan(size, day, mWithMonth, body)
+            val after = SleepAgendaLayout.plan(size, day, mWithMonth, body, SleepScreenContent())
+            assertEquals(before, after)
+            assertFalse("a month when there's room isn't pinned", after.monthPinned)
+        }
+    }
+
+    @Test
+    fun aMonthTheUserAskedForIsNeverGivenUpTheListsTrimInstead() {
+        val choice = SleepScreenContent(tasks = false, memo = false, month = true)
+        for (size in SleepSizeClass.entries) {
+            val plan = SleepAgendaLayout.plan(size, heavyDay, mWithMonth, 700f, choice)
+            assertTrue(plan.showMonth)
+            assertTrue(plan.monthPinned)
+            assertEquals(300f, plan.monthHeight, 0f)
+            assertTrue("events cut to what's left", plan.eventRows != null)
+            assertTrue(SleepAgendaLayout.scheduleHeight(heavyDay, mWithMonth, plan, plan.eventRows) <= 700f - 300f - mWithMonth.gap)
+        }
+    }
+
+    @Test
+    fun theMonthAloneGrowsToSixtyPercent() {
+        val plan = SleepAgendaLayout.plan(SleepSizeClass.MEDIUM, heavyDay, mWithMonth, 1000f, SleepScreenContent(events = false, tasks = false, memo = false, month = true))
+        assertFalse(plan.showSchedule)
+        assertFalse(plan.showTasks)
+        assertEquals(600f, plan.monthHeight, 0.01f)
+    }
+
+    @Test
+    fun whatIsOffIsNotPlanned() {
+        val day = content(coming = 2, open = 2, memo = true, nextDays = true)
+        val noMemo = SleepAgendaLayout.plan(SleepSizeClass.LARGE, day, mWithMonth, 2000f, SleepScreenContent(memo = false))
+        assertFalse(noMemo.showMemo)
+        assertEquals(0f, noMemo.memoHeight, 0f)
+
+        val noEvents = SleepAgendaLayout.plan(SleepSizeClass.LARGE, day, mWithMonth, 2000f, SleepScreenContent(events = false))
+        assertFalse(noEvents.showSchedule)
+        assertFalse("next days are part of events", noEvents.showNextDays)
+
+        val noTasks = SleepAgendaLayout.plan(SleepSizeClass.COMPACT, heavyDay, mWithMonth, 480f, SleepScreenContent(tasks = false))
+        assertFalse(noTasks.showTasks)
+        assertTrue("one list has the height to itself", (noTasks.eventRows ?: 12) >= 10)
+
+        val noMonth = SleepAgendaLayout.plan(SleepSizeClass.MEDIUM, content(coming = 1), mWithMonth, 3000f, SleepScreenContent(month = false))
+        assertFalse(noMonth.showMonth)
+    }
+
+    @Test
+    fun theLastSwitchOnIsCounted() {
+        assertEquals(3, SleepScreenContent().switchedOn(withMemo = true))
+        assertEquals(2, SleepScreenContent().switchedOn(withMemo = false))
+        assertEquals(1, SleepScreenContent(events = false, tasks = false, memo = false, month = true).switchedOn(withMemo = true))
+    }
+
     @Test
     fun emptyListsTakeANoteRow() {
         val c = content()

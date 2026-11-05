@@ -74,6 +74,45 @@ class SleepAgendaPreviewTest {
         }
     }
 
+    /** Every choice on every size: amiguel's month and events first (Nov 2026). */
+    @Test
+    fun rendersEveryChoiceOnEveryDevice() {
+        val out = File("build/sleep-agenda-previews/choices").apply { mkdirs() }
+        val choices = mapOf(
+            "a-month-events" to SleepScreenContent(tasks = false, memo = false, month = true),
+            "b-month-only" to SleepScreenContent(events = false, tasks = false, memo = false, month = true),
+            "c-events-only" to SleepScreenContent(tasks = false, memo = false, month = false),
+            "d-tasks-only" to SleepScreenContent(events = false, memo = false, month = false),
+            "e-events-tasks" to SleepScreenContent(memo = false, month = false),
+            "f-all-month" to SleepScreenContent(month = true),
+            "g-memo-only" to SleepScreenContent(events = false, tasks = false, month = false),
+        )
+        for (device in devices) {
+            val sizeClass = SleepSizeClass.of(minOf(device.width, device.height), device.ppi)
+            val renderer = SleepAgendaRenderer(SleepAgendaStyle.forClass(sizeClass, device.ppi))
+            for ((name, choice) in choices) for ((day, digest) in mapOf("busy" to busyDay(), "overloaded" to overloadedDay(), "empty" to DayDigest(today, emptyList(), emptyList(), streakDays = 3))) {
+                val bitmap = renderer.render(
+                    SleepAgendaRenderer.Input(
+                        digest = digest, widthPx = device.width, heightPx = device.height, nowMs = now, zone = zone,
+                        memo = if (choice.memo && sizeClass != SleepSizeClass.COMPACT) fakeMemo() else null,
+                        locale = Locale.US, choice = choice
+                    )
+                )
+                assertPureBlackAndWhite(bitmap)
+                assertMarginsBlank(bitmap, SleepAgendaStyle.forClass(sizeClass, device.ppi))
+                File(out, "${device.name}-$name-$day.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            }
+        }
+    }
+
+    @Test
+    fun changingAChoiceChangesTheFingerprint() {
+        val digest = lightDay()
+        val before = SleepScreenPublisher.fingerprint(digest, now, SleepSizeClass.MEDIUM, null, SleepScreenContent())
+        val after = SleepScreenPublisher.fingerprint(digest, now, SleepSizeClass.MEDIUM, null, SleepScreenContent(tasks = false))
+        assertTrue(before != after)
+    }
+
     @Test
     fun sizeClassesFollowThePanelsShortSide() {
         assertEquals(SleepSizeClass.COMPACT, SleepSizeClass.of(1072, 300))

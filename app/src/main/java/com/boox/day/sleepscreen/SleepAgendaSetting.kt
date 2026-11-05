@@ -117,6 +117,7 @@ fun SleepAgendaSetting() {
                         }
                     }
             )
+            if (enabled) ContentChoices()
         }
     }
 
@@ -125,6 +126,61 @@ fun SleepAgendaSetting() {
             preview = null
             bitmap.recycle()
         }
+    }
+}
+
+/** What to show, one switch each; the last one on can't be turned off. Saved at once, and the image follows. */
+@Composable
+private fun ContentChoices() {
+    val context = LocalContext.current
+    var choice by remember { mutableStateOf(GlobalAppSettings.current.sleepScreenContent) }
+    val withMemo = !com.boox.day.ui.theme.LayoutProfiles.isSmallTablet  // 6 and 7 inch: no room for it
+    SleepContentRows(choice, withMemo) { changed ->
+        choice = changed
+        KvProxy(context).setAppSettings(GlobalAppSettings.current.copy(sleepScreenContent = changed))
+        SleepAgenda.requestRefresh(context, force = true)
+    }
+}
+
+@Composable
+internal fun SleepContentRows(choice: SleepScreenContent, withMemo: Boolean, onChange: (SleepScreenContent) -> Unit) {
+    val lastOne = choice.switchedOn(withMemo) == 1
+    Column {
+        Text(
+            text = "What to show",
+            fontSize = EInkTheme.Typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = EInkTheme.Colors.primary
+        )
+        ContentRow(
+            "Month calendar", choice.month == true, lastOne,
+            note = if (choice.month == null) "Now shown when there's room" else null
+        ) { onChange(choice.copy(month = it)) }
+        ContentRow("Events", choice.events, lastOne) { onChange(choice.copy(events = it)) }
+        ContentRow("Tasks", choice.tasks, lastOne) { onChange(choice.copy(tasks = it)) }
+        if (withMemo) ContentRow("Memo page", choice.memo, lastOne) { onChange(choice.copy(memo = it)) }
+        if (lastOne) {
+            Text(
+                text = "Keep at least one.",
+                fontSize = EInkTheme.Typography.bodySmall,
+                color = EInkTheme.Colors.darkGray
+            )
+        }
+    }
+}
+
+@Composable
+private fun ContentRow(label: String, on: Boolean, lastOne: Boolean, note: String? = null, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = EInkTheme.Global.touchTarget),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(text = label, fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.primary)
+            note?.let { Text(text = it, fontSize = EInkTheme.Typography.bodySmall, color = EInkTheme.Colors.darkGray) }
+        }
+        EInkToggle(checked = on, onCheckedChange = onChange, enabled = !(on && lastOne))
     }
 }
 
