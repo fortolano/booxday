@@ -76,6 +76,10 @@ fun SleepAgendaSetting() {
                     onCheckedChange = { on ->
                         enabled = on
                         justTurnedOff = !on
+                        if (!on) {
+                            preview?.recycle()
+                            preview = null
+                        }
                         KvProxy(context).setAppSettings(GlobalAppSettings.current.copy(sleepScreenAgendaEnabled = on))
                         SleepAgenda.setEnabled(context, on)
                     }
@@ -91,6 +95,22 @@ fun SleepAgendaSetting() {
                     fontSize = EInkTheme.Typography.bodySmall,
                     color = EInkTheme.Colors.primary
                 )
+                // Off means nothing to preview (owner, 5 Nov 2026)
+                EinkSecondaryButton(
+                    text = if (loadingPreview) "Preparing preview…" else "Preview",
+                    width = 190.dp,
+                    onClick = {
+                        if (!loadingPreview) {
+                            loadingPreview = true
+                            scope.launch {
+                                val made = withContext(Dispatchers.Default) { SleepScreenPublisher.preview(context) }
+                                if (enabled) preview = made else made?.recycle()
+                                loadingPreview = false
+                            }
+                        }
+                    }
+                )
+                ContentChoices()
             }
             if (justTurnedOff) {
                 Text(
@@ -99,20 +119,6 @@ fun SleepAgendaSetting() {
                     color = EInkTheme.Colors.darkGray
                 )
             }
-            EinkSecondaryButton(
-                text = if (loadingPreview) "Preparing preview…" else "Preview",
-                width = 190.dp,
-                onClick = {
-                    if (!loadingPreview) {
-                        loadingPreview = true
-                        scope.launch {
-                            preview = withContext(Dispatchers.Default) { SleepScreenPublisher.preview(context) }
-                            loadingPreview = false
-                        }
-                    }
-                }
-            )
-            if (enabled) ContentChoices()
         }
     }
 
