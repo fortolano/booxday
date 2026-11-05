@@ -59,6 +59,8 @@ class BooxNoteCreationTimesTest {
             val times = BooxNoteCreationTimes(workDir, ksync.path).load()
 
             assertEquals(mapOf("easter" to 1_774_832_200_000L), times)
+            // The name, for notes the native scan finds none for
+            assertEquals("x", BooxNoteCreationTimes(workDir, ksync.path).loadNotes()["no-date"]?.title)
             assertEquals(before, source.length() to source.lastModified())
         }
         assertFalse(File(workDir, "boox_note_tree_copy").exists())

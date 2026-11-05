@@ -9,9 +9,16 @@ import org.json.JSONObject
 internal object BooxNoteIntents {
     private const val PACKAGE = "com.onyx.android.note"
 
-    fun direct(documentId: String): Intent {
+    /**
+     * [title]: the note's own name. BOOX's app shows the name it is handed, not the one it has stored:
+     * without it the name field stays on its "Create notebook" placeholder. It also saves that name
+     * over the stored one, so pass only a name BOOX gave us, never one BooxDay made up
+     * (BooxNoteIndex.nameInBoox).
+     */
+    fun direct(documentId: String, title: String? = null): Intent {
         require(documentId.isNotBlank()) { "A note document id is required" }
         val bean = JSONObject().put("documentId", documentId).put("pageIndex", -1)
+        if (!title.isNullOrBlank()) bean.put("title", title)
         return Intent().apply {
             component = ComponentName(PACKAGE, "com.onyx.android.note.note.ui.ScribbleActivity")
             putExtras(Bundle().apply { putString("OPEN_NOTE_BEAN", bean.toString()) })

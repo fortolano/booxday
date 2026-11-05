@@ -51,7 +51,7 @@ fun DayQuickViewPopup(
     data: DayQuickViewData,
     onNavigateToEvents: () -> Unit,
     onNavigateToTasksDue: () -> Unit,
-    onOpenBooxNote: (uniqueId: String, title: String) -> Unit,
+    onOpenBooxNote: (uniqueId: String, title: String?) -> Unit,
     onLinkBooxNote: (noteId: String, noteDate: String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -240,7 +240,7 @@ private fun SummaryRow(
 @Composable
 private fun BooxNotesSection(
     booxNotes: List<BooxNoteWithEvent>,
-    onOpenBooxNote: (uniqueId: String, title: String) -> Unit,
+    onOpenBooxNote: (uniqueId: String, title: String?) -> Unit,
     onLinkBooxNote: (noteId: String, noteDate: String) -> Unit
 ) {
     Column {
@@ -292,7 +292,7 @@ private fun BooxNotesSection(
                     BooxNoteRow(
                         noteWithEvent = noteWithEvent,
                         onManageClick = { onLinkBooxNote(noteWithEvent.note.uniqueId, noteWithEvent.note.originalDate) },
-                        onOpenClick = { onOpenBooxNote(noteWithEvent.note.uniqueId, noteWithEvent.note.title) }
+                        onOpenClick = { onOpenBooxNote(noteWithEvent.note.uniqueId, noteWithEvent.note.nameInBoox) }
                     )
                 }
             }

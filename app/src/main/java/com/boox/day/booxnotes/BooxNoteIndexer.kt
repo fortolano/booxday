@@ -690,7 +690,8 @@ class BooxNoteIndexer(
             val relinkDates = mutableSetOf<String>()
             var missingTitleRecovered = 0
             // Read only when a note has no page files (resolveNoteTime)
-            val booxCreationTimes by lazy { BooxNoteCreationTimes(workDir = context.cacheDir).load() }
+            val booxTree by lazy { BooxNoteCreationTimes(workDir = context.cacheDir).loadNotes() }
+            val booxCreationTimes by lazy { booxTree.mapNotNull { (id, note) -> note.createdAt?.let { id to it } }.toMap() }
 
             // Process discovered notes
             for (discovered in discovery.notes) {
@@ -704,9 +705,10 @@ class BooxNoteIndexer(
                 val noteTime = resolveNoteTime(uniqueId, discovered.modifiedTimestampMs) { booxCreationTimes }
 
                 // Determine original date (priority: title > note time)
+                val booxName = discovered.nativeTitle ?: discovered.providerTitle ?: booxTree[uniqueId]?.title
                 val resolvedDate = extractOriginalDate(
                     uniqueId = uniqueId,
-                    title = discovered.nativeTitle ?: discovered.providerTitle,
+                    title = booxName,
                     shapeTimestamp = noteTime.timestampMs,
                     timestampSource = noteTime.source
                 )
@@ -719,7 +721,7 @@ class BooxNoteIndexer(
                 val resolvedTitle = resolveTitle(
                     uniqueId = uniqueId,
                     nativeTitle = discovered.nativeTitle,
-                    providerTitle = discovered.providerTitle,
+                    providerTitle = booxName,
                     originalDate = resolvedDate.originalDate
                 )
                 if (resolvedTitle.source != "native") {
@@ -1082,7 +1084,8 @@ class BooxNoteIndexer(
             val newNoteIds = mutableListOf<String>()
             val relinkDates = mutableSetOf<String>()
             // Read only when a note has no page files (resolveNoteTime)
-            val booxCreationTimes by lazy { BooxNoteCreationTimes(workDir = context.cacheDir).load() }
+            val booxTree by lazy { BooxNoteCreationTimes(workDir = context.cacheDir).loadNotes() }
+            val booxCreationTimes by lazy { booxTree.mapNotNull { (id, note) -> note.createdAt?.let { id to it } }.toMap() }
 
             // Process only new notes or notes modified in the last 24 hours
             for (discovered in discovery.notes) {
@@ -1097,9 +1100,10 @@ class BooxNoteIndexer(
 
                 // Extract original date
                 val noteTime = resolveNoteTime(uniqueId, modifiedTimestamp) { booxCreationTimes }
+                val booxName = discovered.nativeTitle ?: discovered.providerTitle ?: booxTree[uniqueId]?.title
                 val resolvedDate = extractOriginalDate(
                     uniqueId = uniqueId,
-                    title = discovered.nativeTitle ?: discovered.providerTitle,
+                    title = booxName,
                     shapeTimestamp = noteTime.timestampMs,
                     timestampSource = noteTime.source
                 )
@@ -1111,7 +1115,7 @@ class BooxNoteIndexer(
                 val resolvedTitle = resolveTitle(
                     uniqueId = uniqueId,
                     nativeTitle = discovered.nativeTitle,
-                    providerTitle = discovered.providerTitle,
+                    providerTitle = booxName,
                     originalDate = resolvedDate.originalDate
                 )
                 if (resolvedTitle.source != "native") {

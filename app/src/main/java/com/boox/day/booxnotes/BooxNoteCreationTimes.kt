@@ -4,8 +4,13 @@ import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import java.io.File
 
+/** What Boox's own note list says about a note */
+internal data class BooxTreeNote(val createdAt: Long?, val title: String?)
+
 /**
- * When Boox created each note (`createdAt` in its NOTE_TREE database), by note id.
+ * When Boox created each note (`createdAt` in its NOTE_TREE database) and what it is called, by note id.
+ * The name is for notes the native scan finds none for: it missed some (Nov 2026: "latency trace test"
+ * showed as "Oct 19, 2026", and BOOX's app couldn't be handed its name).
  *
  * For a note with no page files on the tablet this is the only real time. The old fallback, the note
  * folder's last change, moves whenever Boox rewrites the folder (Oct 2026: one Boox sync put notes
@@ -18,7 +23,10 @@ internal class BooxNoteCreationTimes(
     private val workDir: File,
     private val ksyncBase: String = BooxNative.KSYNC_BASE_PATH
 ) {
-    fun load(): Map<String, Long> {
+    fun load(): Map<String, Long> =
+        loadNotes().mapNotNull { (id, note) -> note.createdAt?.let { id to it } }.toMap()
+
+    fun loadNotes(): Map<String, BooxTreeNote> {
         val source = findNoteTreeDatabase() ?: return emptyMap()
         val copyDir = File(workDir, COPY_DIR)
         return try {
@@ -28,7 +36,7 @@ internal class BooxNoteCreationTimes(
             // WAL first: if Boox checkpoints in between, the database copy already holds those pages
             File(source.path + "-wal").takeIf { it.isFile }?.copyTo(File(copy.path + "-wal"))
             source.copyTo(copy)
-            readCreationTimes(copy)
+            readNotes(copy)
         } catch (e: Exception) {
             Log.w(TAG, "Could not read Boox note creation dates: ${e.message}")
             emptyMap()
@@ -44,7 +52,7 @@ internal class BooxNoteCreationTimes(
             ?.let { File(it, "db.sqlite3") }
             ?.takeIf { it.isFile }
 
-    private fun readCreationTimes(database: File): Map<String, Long> =
+    private fun readNotes(database: File): Map<String, BooxTreeNote> =
         SQLiteDatabase.openDatabase(
             database.path,
             null,
@@ -54,16 +62,17 @@ internal class BooxNoteCreationTimes(
                 if (cursor.moveToFirst()) FleeceReader.read(cursor.getBlob(0)) as? List<*> else null
             }?.map { it as? String ?: "" }.orEmpty()
 
-            val times = HashMap<String, Long>()
+            val notes = HashMap<String, BooxTreeNote>()
             db.rawQuery("SELECT key, body FROM kv_default", null).use { cursor ->
                 while (cursor.moveToNext()) {
                     val body = cursor.getBlob(1) ?: continue
                     val note = FleeceReader.read(body, sharedKeys) as? Map<*, *> ?: continue
-                    val createdAt = (note["createdAt"] as? Number)?.toLong() ?: continue
-                    if (createdAt in PLAUSIBLE_TIMES) times[cursor.getString(0)] = createdAt
+                    val createdAt = (note["createdAt"] as? Number)?.toLong()?.takeIf { it in PLAUSIBLE_TIMES }
+                    val title = (note["title"] as? String)?.trim()?.takeIf { it.isNotEmpty() }
+                    if (createdAt != null || title != null) notes[cursor.getString(0)] = BooxTreeNote(createdAt, title)
                 }
             }
-            times
+            notes
         }
 
     companion object {
