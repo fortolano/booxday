@@ -1027,6 +1027,8 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
                             )
                             localEventRepository.updateEvent(upgradedEvent)
                             semanticGeniusService.handleEventPromotion(existingEvent.id, cloudEvent.id)
+                            // Shown by the service's id from now on (toCalendarEvent): its meeting notes follow
+                            com.boox.day.data.db.AppDatabase.getDatabase(getApplication()).pageDao().relinkEvent(existingEvent.id, cloudEvent.id)
                             Log.i(TAG, "LocalEvent upgraded to ${providerId.displayName}: ${upgradedEvent.id} -> ${cloudEvent.id}")
                         }
                     }

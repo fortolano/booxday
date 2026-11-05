@@ -104,6 +104,10 @@ interface PageDao {
     @Query("SELECT linkedEventId FROM page WHERE linkedEventId IS NOT NULL")
     suspend fun getAllLinkedEventIds(): List<String>
 
+    /** An event took a new id (a tablet event pushed to a service): its notes follow it. */
+    @Query("UPDATE page SET linkedEventId = :newId WHERE linkedEventId = :oldId")
+    suspend fun relinkEvent(oldId: String, newId: String)
+
     @Query("UPDATE page SET linkedEventId = :eventId WHERE id = :pageId")
     suspend fun setLinkedEventId(pageId: String, eventId: String)
 
