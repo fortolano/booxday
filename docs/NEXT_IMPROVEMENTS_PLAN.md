@@ -1,6 +1,6 @@
 # BooxDay: Next Improvements Plan
 
-**Status:** under the owner's review. D3, D7 and D16 are decided (4 Nov 2026); the other decisions are open. Nothing in this plan is built yet.
+**Status:** approved by the owner on 4 Nov 2026, with every decision taken (section 4). Nothing in this plan is built yet.
 **Baseline:** `main` at `d8df4cc` (version 1.0.60, database v34).
 **Scope source:** the owner's brief of 4 Nov 2026, based on Reddit feedback, GitHub issues and a code review.
 
@@ -33,7 +33,7 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 
 | Phase | Name | Size (estimate) | Status |
 |---|---|---|---|
-| 0 | Decisions and first replies | Small, no code | Not started |
+| 0 | Decisions and first replies | Small, no code | In progress: decisions done; replies and baselines left |
 | 1 | Export you can trust | Medium | Not started |
 | 2 | Pen, compatibility and the Ukrainian PR | Small to medium | Not started |
 | 3 | Sleep screen choices | Small to medium | Not started |
@@ -300,21 +300,21 @@ Answers go in the "Decision" column. Until then a decision is open, and the reco
 
 | ID | Question | Options (gain / cost) | Recommendation | Blocks | Decision |
 |---|---|---|---|---|---|
-| D1 | Is the order right? | **A.** Reliability, Sleep, Week, Write It, Recap, Prep, Share (section 5). **B.** Move a feature earlier. | A | All | Open |
-| D2 | A file with the same name exists | **A.** New numbered copy, `...-2.pdf` (never destroys anything / more files). **B.** Replace it, as today (tidy / an older export is lost). | A | 1 | Open |
+| D1 | Is the order right? | **A.** Reliability, Sleep, Week, Write It, Recap, Prep, Share (section 5). **B.** Move a feature earlier. | A | All | **A (owner, 4 Nov 2026).** |
+| D2 | A file with the same name exists | **A.** New numbered copy, `...-2.pdf` (never destroys anything / more files). **B.** Replace it, as today (tidy / an older export is lost). | A | 1 | **A (owner, 4 Nov 2026).** |
 | D3 | May Phase 2 touch the protected erase code? | **A.** Only reapply the pen style just before ink resumes; timing untouched (small, matches BOOX Notes / needs tablet checks). **B.** Also resume ink mid-stroke (fixes the delay fully / risks erased ink flashing back). **C.** Leave it. | A, then decide on B after testing | 2 | **A (owner, 4 Nov 2026).** The erase row is open. Condition: nothing from this area ships until the owner has passed the tablet checks with the real pen. Option B needs a new decision. |
-| D4 | If the reporter confirms issue #1 on the latest version | **A.** Publish a diagnostics APK as a GitHub pre-release; never offered in-app (real evidence / extra build). **B.** Wait for more reports. **C.** Also install an Android 11 emulator on the PC (catches plain Android 11 faults, not BOOX ones / a new install on your PC). | A; C only if you want it | 2 | Open |
-| D5 | Merge PR #5? | **A.** Yes, after a build and the Go 6 fit check. **B.** Ask the author for changes first. | A | 2 | Open |
-| D6 | Sleep screen: what does the Month switch mean? | **A.** Existing users keep today's "when there's room" until they change the switch; after that it's always on or off (no change for anyone until they choose / one hidden state). **B.** Always on or off for everyone from now (simple / changes some sleep screens on update). | A | 3 | Open |
+| D4 | If the reporter confirms issue #1 on the latest version | **A.** Publish a diagnostics APK as a GitHub pre-release; never offered in-app (real evidence / extra build). **B.** Wait for more reports. **C.** Also install an Android 11 emulator on the PC (catches plain Android 11 faults, not BOOX ones / a new install on your PC). | A; C only if you want it | 2 | **A (owner, 4 Nov 2026).** No emulator. |
+| D5 | Merge PR #5? | **A.** Yes, after a build and the Go 6 fit check. **B.** Ask the author for changes first. | A | 2 | **A (owner, 4 Nov 2026).** |
+| D6 | Sleep screen: what does the Month switch mean? | **A.** Existing users keep today's "when there's room" until they change the switch; after that it's always on or off (no change for anyone until they choose / one hidden state). **B.** Always on or off for everyone from now (simple / changes some sleep screens on update). | A | 3 | **A (owner, 4 Nov 2026).** |
 | D7 | Week view on 6-inch screens | **A.** Seven stacked rows (about 3 lines a day, titles to about 55 characters / an exception to "one layout"). **B.** The same two-column grid, with density adapted (about 5 lines a day, one layout, less code / titles end at about 28 characters). **C.** Two pages of four days (roomy / never a whole-week view). | B | 4 | **B (owner, 4 Nov 2026).** Pictures of A and B with real titles come first in Phase 4. |
-| D8 | How do people open Week view? | **A.** A "Week" word button in the day header (visible, fits every size / uses that spot). **B.** An icon in the top bar (familiar / no room on Go 6 and Go 7). **C.** A menu item (no space problem / hard to find). | A | 4 | Open |
-| D9 | A task due Friday, written on Monday | **A.** Show on both days, marked "Due" on Friday (nothing hidden / seen twice). **B.** Only on its due day. **C.** Only on its row day. | A | 4 | Open |
-| D10 | Selection bar button | **A.** A new seventh icon, Convert to Tasks unchanged (no risk to a recently fixed feature / two AI icons). **B.** One merged "Turn into…" button (fewer icons / changes a known workflow). | A | 5 | Open |
-| D11 | Where does a saved recap live? | **A.** A typed page in the meeting's notes (editable, searchable, backed up, exported, no database change / not structured). **B.** A new table (structured / a migration). | A | 6 | Open |
-| D12 | Meeting Prep | **A.** Local sheet, with "Brief Me" as an optional AI step (free, offline / less "magic"). **B.** AI brief on open (richer / cost and data sent each time). | A | 7 | Open |
-| D13 | What can be shared in? | **A.** Text, links and images. **B.** Also PDFs (more complete / a new import path). **C.** Text and links only. | A | 8 | Open |
-| D14 | Privacy policy changes | Prep and Share need new wording on the policy, Help and notice before release, Recap possibly. **A.** Show exact old and new lines at each phase. | A | 6, 7, 8 | Open |
-| D15 | Community replies | **A.** Approve the drafts now, since their answers help Phases 1 and 2. **B.** Reply after the fixes ship. | A | 0 | Open |
+| D8 | How do people open Week view? | **A.** A "Week" word button in the day header (visible, fits every size / uses that spot). **B.** An icon in the top bar (familiar / no room on Go 6 and Go 7). **C.** A menu item (no space problem / hard to find). | A | 4 | **A (owner, 4 Nov 2026).** |
+| D9 | A task due Friday, written on Monday | **A.** Show on both days, marked "Due" on Friday (nothing hidden / seen twice). **B.** Only on its due day. **C.** Only on its row day. | A | 4 | **A (owner, 4 Nov 2026).** |
+| D10 | Selection bar button | **A.** A new seventh icon, Convert to Tasks unchanged (no risk to a recently fixed feature / two AI icons). **B.** One merged "Turn into…" button (fewer icons / changes a known workflow). | A | 5 | **A (owner, 4 Nov 2026).** |
+| D11 | Where does a saved recap live? | **A.** A typed page in the meeting's notes (editable, searchable, backed up, exported, no database change / not structured). **B.** A new table (structured / a migration). | A | 6 | **A (owner, 4 Nov 2026).** |
+| D12 | Meeting Prep | **A.** Local sheet, with "Brief Me" as an optional AI step (free, offline / less "magic"). **B.** AI brief on open (richer / cost and data sent each time). | A | 7 | **A (owner, 4 Nov 2026).** |
+| D13 | What can be shared in? | **A.** Text, links and images. **B.** Also PDFs (more complete / a new import path). **C.** Text and links only. | A | 8 | **A (owner, 4 Nov 2026).** |
+| D14 | Privacy policy changes | Prep and Share need new wording on the policy, Help and notice before release, Recap possibly. **A.** Show exact old and new lines at each phase. | A | 6, 7, 8 | **A (owner, 4 Nov 2026).** |
+| D15 | Community replies | **A.** Approve the drafts now, since their answers help Phases 1 and 2. **B.** Reply after the fixes ship. | A | 0 | **A (owner, 4 Nov 2026):** reply now. The exact text of each reply still needs the owner's OK before it is posted. |
 | D16 | This file is in a public repo | **A.** Commit all of it (draft replies public before they are posted). **B.** Keep it out of git (private / worktree sessions don't get it). **C.** Commit it, with the draft replies in a local file. | C | 0 | **C (owner, 4 Nov 2026).** Plan committed; drafts in `COMMUNITY_REPLIES.md`. |
 
 ---
@@ -530,7 +530,7 @@ Every phase from 1 on also follows the **Definition of Done** at the end of this
 
 **Checklist**
 
-- [ ] D1 to D16 answered
+- [x] D1 to D16 answered (4 Nov 2026)
 - [ ] Replies approved and posted
 - [ ] Baselines recorded
 
