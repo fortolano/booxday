@@ -34,7 +34,7 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 | Phase | Name | Size (estimate) | Status |
 |---|---|---|---|
 | 0 | Decisions and first replies | Small, no code | In progress: decisions done; replies and baselines left |
-| 1A | Export you can trust | Medium | Not started |
+| 1A | Export you can trust | Medium | Built on branch `export-fixes-1a`, tests pass; tablet checks and release left |
 | 1B | Export redesign | Medium | Not started |
 | 2 | Pen, compatibility and the Ukrainian PR | Small to medium | Not started |
 | 3 | Sleep screen choices | Small to medium | Not started |
@@ -366,7 +366,7 @@ Build each one in the phase shown. Later phases must reuse it, not copy it.
 | ID | Component | New file | Built in | Used by |
 |---|---|---|---|---|
 | S1 | Memo page renderer | `io/MemoPageRenderer.kt` | 1A | Exports, export preview, `MemoPageContent.render`, meeting PDF |
-| S2 | Export result and file sharing | `io/ExportOutcome.kt`, `io/FileShare.kt` | 1A | Exports, export dialog, meeting PDF |
+| S2 | Export result, saving and file sharing | `io/ExportOutcome.kt`, `io/ExportFiles.kt`, `io/FileShare.kt` | 1A | Exports, export dialog, meeting PDF |
 | S3 | Shown events merge | `today/ShownEvents.kt` | 1B | `EventsViewModel`, `DayDigestLoader` |
 | S4 | Overlay host | `ui/overlays/AppOverlays.kt` | 4 | Week, Review, Recap, Prep, Share |
 | S5 | Main screen requests | `ui/MainScreenRequests.kt` | 4 | Week, Review, Recap, Prep, Share, Search |
@@ -397,11 +397,11 @@ fun contentBounds(page: MemoPageContent.Page): RectF   // strokes, images, attac
 ```kotlin
 sealed interface ExportOutcome {
     val message: String                    // what the user reads
-    data class Saved(val files: List<File>, override val message: String) : ExportOutcome
-    data class Nothing(override val message: String) : ExportOutcome
+    data class Saved(val uris: List<Uri>, val mimeType: String, override val message: String) : ExportOutcome
+    data class Empty(override val message: String) : ExportOutcome
     data class Failed(override val message: String) : ExportOutcome
 }
-object FileShare { fun share(context: Context, files: List<File>, mimeType: String) }
+object FileShare { fun share(context: Context, uris: List<Uri>, mimeType: String) }
 ```
 
 `FileShare` uses `com.boox.day.provider`, `FLAG_GRANT_READ_URI_PERMISSION` and a chooser. The Tasks export's `ExportResult` is a different type; leave it.
@@ -534,6 +534,8 @@ Every phase from 1 on also follows the **Definition of Done** at the end of this
    - APK size
    - Pen-ready time after a day switch on the Go 10.3
 
+   Recorded at `f3a21f4`: `MainScreen` 15,943 units, its root lambda 7,194, `SharedToolbar` 13,055, debug APK 146.8 MB. Pen-ready time still needs a tablet.
+
 **Done when:** decisions are recorded in section 4, approved replies are posted, and baselines are noted in this file.
 
 **Checklist**
@@ -576,7 +578,7 @@ Every phase from 1 on also follows the **Definition of Done** at the end of this
 7. Compact memory: measure first with no bitmaps, pack, then render one block at a time and recycle in `finally`.
 8. Compact tall blocks: split across pages at the page edge, with the date header on each continuation. Never cut.
 9. Add S2. `export()` returns `ExportOutcome`. Honour every `saveBytes` result. If some pages of a day failed, say how many.
-10. Safe writing: render to a temp file in the same folder, then rename. On a name clash follow D2.
+10. Safe writing: render to a temp file in app storage, then copy it to the folder under an unused name (`ExportFiles`). On a name clash follow D2.
 11. Catch everything at the top of `export()`, including `OutOfMemoryError` (export only), and return `Failed`. Nothing may reach the handler-less scope in `ToolbarMenu`.
 12. Stop export replacing the clipboard: `ToolbarMenu` passes `copyToClipboard = false`.
 13. Check the magenta edge line on a real PDF. If it's there, stop `resolveForExport` drawing `marginPaint` in exports.

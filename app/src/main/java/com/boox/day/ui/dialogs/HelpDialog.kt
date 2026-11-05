@@ -517,7 +517,7 @@ private fun WritingMemosContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Page Actions (≡)")
-    BulletItem("Export Pages", "This page or all pages of the day, as PDF, PNG or JPG, saved in Documents/BooxDay.")
+    BulletItem("Export Pages", "This page or all pages of the day, as PDF, PNG or JPG, with their text boxes. Saved in Documents/BooxDay; Share in the message sends the file to another app.")
     BulletItem("Clear This Page", "Empties the page and keeps it.")
     BulletItem("Delete Page", "Removes the page.")
     BulletItem("Clear This Day's Memos", "Empties every memo page of the day on screen. It can't be undone.")
@@ -890,6 +890,11 @@ private fun TroubleshootingContent() {
     TroubleshootingItem(
         problem = "Reminders missing, or nothing syncs while BooxDay is closed?",
         solution = "BOOX freezes apps it thinks you're done with, and a frozen BooxDay can't remind you or sync. Open Apps, tap the snowflake at the top and switch BooxDay off. Leave BooxDay with Home, not the ✕ in Recents. While the tablet sleeps, BOOX turns Wi-Fi off, so syncing waits until it wakes."
+    )
+
+    TroubleshootingItem(
+        problem = "Can't find an export?",
+        solution = "Look in Documents/BooxDay/Calendar, in the folder of that month. The message after an export names the folder, and its Share button sends the file to another app."
     )
 
     TroubleshootingItem(
