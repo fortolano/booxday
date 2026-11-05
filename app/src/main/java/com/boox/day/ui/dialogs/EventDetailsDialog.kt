@@ -25,6 +25,7 @@ import androidx.compose.material.Text
 import androidx.compose.ui.res.painterResource
 import com.boox.day.R
 import com.boox.day.ui.components.EInkToggle
+import com.boox.day.ui.components.EinkSecondaryButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +62,8 @@ fun EventDetailsDialog(
     // Boox Notes linked to this event
     linkedBooxNotes: List<BooxNoteIndex> = emptyList(),
     onBooxNoteClick: ((BooxNoteIndex) -> Unit)? = null,
+    onViewBooxNote: ((BooxNoteIndex) -> Unit)? = null,
+    onLinkANote: (() -> Unit)? = null,
     onCreateBooxNote: (() -> Unit)? = null,
     // Sync mode and status (for hybrid/standalone mode)
     syncMode: AppSettings.SyncMode = AppSettings.SyncMode.STANDALONE,
@@ -498,87 +501,59 @@ fun EventDetailsDialog(
                         }
                     }
 
-                    // Linked Boox Notes Section - Each note has explicit "Open" button
-                    if (linkedBooxNotes.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-                        Text(
-                            text = "Linked Boox Notes (${linkedBooxNotes.size})",
-                            fontSize = EInkTheme.Typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = EInkTheme.Colors.secondary
-                        )
-                        Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
-                        Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)) {
-                            linkedBooxNotes.forEach { note ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .border(1.dp, EInkTheme.Colors.darkGray, RoundedCornerShape(EInkTheme.ModernDialog.OptionCard.cornerRadius))
-                                        .padding(EInkTheme.Global.paddingSmall),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
-                                ) {
-                                    // Note info (left side)
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = note.title,
-                                            fontSize = EInkTheme.Typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            color = EInkTheme.Colors.primary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        // Timestamp and page count inline
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = formatNoteTime(note.originalTimestamp),
-                                                fontSize = EInkTheme.Typography.bodySmall,
-                                                color = EInkTheme.Colors.gray
-                                            )
-                                            Text(
-                                                text = "•",
-                                                fontSize = EInkTheme.Typography.bodySmall,
-                                                color = EInkTheme.Colors.gray
-                                            )
-                                            Text(
-                                                text = "${note.pageCount} page${if (note.pageCount != 1) "s" else ""}",
-                                                fontSize = EInkTheme.Typography.bodySmall,
-                                                color = EInkTheme.Colors.gray
-                                            )
-                                        }
-                                    }
-                                    // "Open" button (right side) - explicit action, 48dp touch target
-                                    if (onBooxNoteClick != null) {
-                                        OutlinedButton(
-                                            onClick = { onBooxNoteClick(note) },
-                                            modifier = Modifier.height(EInkTheme.Global.touchTarget),
-                                            contentPadding = PaddingValues(horizontal = EInkTheme.Global.paddingMedium),
-                                            colors = ButtonDefaults.outlinedButtonColors(
-                                                contentColor = EInkTheme.Colors.primary
-                                            ),
-                                            border = BorderStroke(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary),
-                                            shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.boox_notes_40px),
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp),
-                                                    tint = EInkTheme.Colors.primary
-                                                )
-                                                Text(
-                                                    text = "Open",
-                                                    fontSize = EInkTheme.Typography.bodySmall
-                                                )
-                                            }
-                                        }
-                                    }
+                    // Notes (Nov 2026): on every event, so a note can be linked from either side
+                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+                    Text(
+                        text = if (linkedBooxNotes.isEmpty()) "Notes" else "Notes (${linkedBooxNotes.size})",
+                        fontSize = EInkTheme.Typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = EInkTheme.Colors.primary
+                    )
+                    Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
+                    Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)) {
+                        linkedBooxNotes.forEach { note ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(1.dp, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.OptionCard.cornerRadius))
+                                    .then(if (onViewBooxNote != null) Modifier.noRippleClickable { onViewBooxNote(note) } else Modifier)
+                                    .padding(EInkTheme.Global.paddingSmall),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
+                            ) {
+                                NotePageThumbnail(note = note)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = note.title,
+                                        fontSize = EInkTheme.Typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = EInkTheme.Colors.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = noteMetaLine(note, withDay = true),
+                                        fontSize = EInkTheme.Typography.bodyMedium,
+                                        color = EInkTheme.Colors.darkGray,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                if (onBooxNoteClick != null) {
+                                    EinkSecondaryButton(text = "Open", onClick = { onBooxNoteClick(note) })
+                                }
+                            }
+                        }
+                        if (onLinkANote != null || onCreateBooxNote != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Button.spacing)
+                            ) {
+                                if (onLinkANote != null) {
+                                    EinkSecondaryButton(text = "Link a Note…", onClick = onLinkANote, modifier = Modifier.weight(1f))
+                                }
+                                if (onCreateBooxNote != null) {
+                                    EinkSecondaryButton(text = "Write a New Note", onClick = onCreateBooxNote, modifier = Modifier.weight(1f))
                                 }
                             }
                         }
@@ -722,37 +697,6 @@ fun EventDetailsDialog(
                             }
                         }
 
-                        // Create Boox Note button - only show for current/future events
-                        if (onCreateBooxNote != null && !isEventInPast) {
-                            Button(
-                                onClick = { onCreateBooxNote.invoke() },
-                                modifier = Modifier.height(EInkTheme.Global.touchTarget),
-                                enabled = !isLoading,
-                                colors = ButtonDefaults.buttonColors(
-                                    backgroundColor = EInkTheme.Colors.primary,
-                                    contentColor = EInkTheme.Colors.background
-                                ),
-                                shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius),
-                                elevation = ButtonDefaults.elevation(0.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.edit_square_40px),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp),
-                                        tint = EInkTheme.Colors.background
-                                    )
-                                    Text(
-                                        text = "Create Boox Note of this event",
-                                        fontSize = EInkTheme.Typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
 
                         Spacer(modifier = Modifier.weight(1f))
 

@@ -535,7 +535,6 @@ class DrawCanvas(
 
         // Signals for Boox Notes integration
         val viewBooxNotes = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-        val openBulkSmartLink = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
         // OPTION C: Active canvas control - ensures only one canvas's TouchHelper receives input
         // When multiple canvases exist (Memos/Tasks), only the active one should have raw drawing enabled

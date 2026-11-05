@@ -14,6 +14,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
@@ -33,6 +35,7 @@ import androidx.compose.material.Icon
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
@@ -44,6 +47,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,13 +55,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
-import com.boox.day.R
+import com.boox.day.data.db.BooxNoteRepository
+import com.boox.day.data.db.CalendarEventRepository
+import com.boox.day.data.db.SmartLinkEventRepository
+import com.boox.day.data.db.SmartLinkPreflightState
+import com.boox.day.data.db.SmartLinkPreflightStatus
 import com.boox.day.data.db.UnifiedOcrRepository
 import com.boox.day.data.db.UnifiedOcrStatistics
 import com.boox.day.data.datastore.GlobalAppSettings
@@ -72,29 +79,25 @@ import kotlinx.coroutines.withContext
 import com.boox.day.ui.components.EInkToggle
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.noRippleClickable
-import androidx.compose.material.icons.filled.Close
 import com.boox.day.ui.components.SettingCard
-import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.components.ScrollMoreBar
 import com.boox.day.ui.theme.EInkTheme
 import kotlinx.coroutines.delay
 
 /**
- * Settings dialog for Boox Notes integration.
- *
- * This feature requires MANAGE_EXTERNAL_STORAGE permission to read
- * the .ksync folder from Boox Notes app.
- *
- * The dialog explains the feature and guides user through permission grant.
+ * Boox Notes Setup and Handwriting Search (Nov 2026): one panel, two pages. Setup is three steps, none
+ * locked behind another. Handwriting Search has its own Settings row because it reads memos and tasks
+ * too, so it never depends on file access.
  *
  * E-Ink optimized: Uses Popup (standard) now that DrawCanvas lifecycle issue is fixed.
  */
 @Composable
 fun BooxNotesSettingsDialog(
     onDismiss: () -> Unit,
-    booxNotesEnabled: Boolean,
-    onBooxNotesEnabledChanged: (Boolean) -> Unit,
+    booxNoteRepository: BooxNoteRepository,
+    eventRepository: CalendarEventRepository,
     onScanNeeded: (() -> Unit)? = null,  // Callback when scan should be triggered
+    onOpenCalendarAccounts: () -> Unit = {},
     onIndexNow: (() -> Unit)? = null,    // Callback to trigger immediate OCR indexing
     onClearIndex: (() -> Unit)? = null,  // Callback to clear all OCR data
     onOcrSettingsChanged: ((OcrSettings) -> Unit)? = null,  // Callback to persist OCR settings changes
@@ -102,6 +105,8 @@ fun BooxNotesSettingsDialog(
     ocrRepository: UnifiedOcrRepository? = null  // Repository for loading OCR stats
 ) {
     val localContext = LocalContext.current
+    val startedOn = remember { BooxNotesPlaces.settingsPage }
+    val settingsPage = BooxNotesPlaces.settingsPage
 
     // Pages are read by AI on the user's own OpenRouter key (Oct 2026); without one indexing waits
     val isStandaloneWithoutOcrKey = !com.boox.day.security.UserOpenRouterKey.hasKey
@@ -110,18 +115,13 @@ fun BooxNotesSettingsDialog(
     var hasPermission by remember {
         mutableStateOf(BooxNotesAccess.has(localContext))
     }
+    // Goes up when BooxDay comes back from Android settings or Calendar Accounts
+    var resumeCount by remember { mutableIntStateOf(0) }
 
     // Oct 2026: the Settings-menu dot clears once file access is given, from Settings or the
     // toolbar (it used to clear on any close, even with nothing set up)
     LaunchedEffect(hasPermission) {
         if (hasPermission) SetupChecklistStore.mark(localContext) { it.copy(booxNotesConfigured = true) }
-    }
-
-    // Boox Notes integration is now baseline-on for all users.
-    LaunchedEffect(booxNotesEnabled) {
-        if (!booxNotesEnabled) {
-            onBooxNotesEnabledChanged(true)
-        }
     }
 
     // ActivityResult launcher for storage permission settings
@@ -167,6 +167,7 @@ fun BooxNotesSettingsDialog(
                 val granted = BooxNotesAccess.has(localContext)
                 if (granted && !hasPermission && !GlobalAppSettings.isBooxNotesReady) onScanNeeded?.invoke()
                 hasPermission = granted
+                resumeCount++
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -216,118 +217,234 @@ fun BooxNotesSettingsDialog(
                         .verticalScroll(settingsScroll)
                         .padding(EInkTheme.PopupOverlay.padding)
                 ) {
-                    // Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.boox_b_letter),
-                                contentDescription = "Boox Notes",
-                                modifier = Modifier.size(24.dp),
-                                tint = EInkTheme.Colors.primary
-                            )
-                            Text(
-                                text = "Boox Notes Integration",
-                                fontSize = EInkTheme.PopupOverlay.titleFontSize,
-                                fontWeight = FontWeight.Bold,
-                                color = EInkTheme.PopupOverlay.titleColor
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(EInkTheme.Global.touchTarget)
-                                .noRippleClickable(onClick = onDismiss),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                modifier = Modifier.size(28.dp),
-                                tint = EInkTheme.Colors.primary
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                    // Description
-                    Text(
-                        text = "Link your Boox Notes to calendar events. View and access notes directly from BooxDay.",
-                        fontSize = EInkTheme.Typography.bodyMedium,
-                        color = EInkTheme.Colors.darkGray
-                    )
-
-                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                    // Boox Notes (Oct 2026, plan B2): without access, one step with one button (it was a status
-                    // card with Grant Access plus a three-step card with a second button); with access, one
-                    // status line and Scan Now (the spinner card and "Permission granted" card are gone)
-                    if (!hasPermission) {
-                        com.boox.day.ui.components.SetupStep(
-                            title = "Allow file access for Boox Notes",
-                            why = if (BooxNotesAccess.usesRuntimePermission) {
-                                "BooxDay reads your Boox notes from the tablet's storage, so they show on the days you wrote them. Allow storage access when Android asks."
-                            } else {
-                                "BooxDay reads your Boox notes from the tablet's storage, so they show on the days you wrote them. On the next screen, turn on Allow access to manage all files, then come back."
+                    if (settingsPage == BooxNotesPlaces.SettingsPage.SETUP) {
+                        BooxNotesBar(title = "Boox Notes Setup", onClose = onDismiss)
+                        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
+                        BooxNotesSetupSteps(
+                            hasPermission = hasPermission,
+                            resumeCount = resumeCount,
+                            booxNoteRepository = booxNoteRepository,
+                            eventRepository = eventRepository,
+                            onRequestAccess = requestAccess,
+                            onCheckNow = { onScanNeeded?.invoke() },
+                            onOpenCalendarAccounts = onOpenCalendarAccounts,
+                            onTurnOnReading = {
+                                val current = GlobalAppSettings.current
+                                val newOcrSettings = current.ocrSettings.copy(enabled = true)
+                                GlobalAppSettings.update(current.copy(ocrSettings = newOcrSettings))
+                                onOcrSettingsChanged?.invoke(newOcrSettings)
                             },
-                            buttonText = if (BooxNotesAccess.usesRuntimePermission) "Allow Access" else "Open Android Settings",
-                            onClick = requestAccess
+                            onSeeNotes = {
+                                onDismiss()
+                                if (!BooxNotesPlaces.notesOpen) BooxNotesPlaces.openNotes()
+                            }
                         )
                     } else {
-                        SettingCard(
-                            title = "Boox Notes",
-                            description = "Your Boox notes show up on the days you wrote them"
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = when {
-                                        GlobalAppSettings.isBooxNotesScanning -> "Scanning your notes…"
-                                        GlobalAppSettings.isBooxNotesReady -> "Active"
-                                        else -> "Ready: tap Scan Now to load your notes"
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    fontSize = EInkTheme.Typography.bodyMedium,
-                                    color = EInkTheme.Colors.darkGray
-                                )
-                                EinkSecondaryButton(
-                                    text = "Scan Now",
-                                    onClick = { onScanNeeded?.invoke() },
-                                    enabled = !GlobalAppSettings.isBooxNotesScanning
-                                )
+                        BooxNotesBar(
+                            title = "Handwriting Search",
+                            onClose = onDismiss,
+                            onBack = if (startedOn == BooxNotesPlaces.SettingsPage.SETUP) {
+                                { BooxNotesPlaces.settingsPage = BooxNotesPlaces.SettingsPage.SETUP }
+                            } else {
+                                null
                             }
-                        }
+                        )
+                        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
+                        OcrSettingsSection(
+                            onIndexNow = onIndexNow,
+                            onClearIndex = onClearIndex,
+                            onOcrSettingsChanged = onOcrSettingsChanged,
+                            processingState = ocrProcessingState,
+                            ocrRepository = ocrRepository,
+                            // Oct 2026: memos and tasks are read without Boox file access, so indexing
+                            // is never locked behind it (only Boox Notes pages need it)
+                            indexingControlsEnabled = true,
+                            hasBooxAccess = hasPermission,
+                            isStandaloneWithoutOcrKey = isStandaloneWithoutOcrKey
+                        )
                     }
-
-                    // Handwriting reading (pages read by AI on the user's OpenRouter key)
-                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-                    OcrSettingsSection(
-                        onIndexNow = onIndexNow,
-                        onClearIndex = onClearIndex,
-                        onOcrSettingsChanged = onOcrSettingsChanged,
-                        processingState = ocrProcessingState,
-                        ocrRepository = ocrRepository,
-                        // Oct 2026: memos and tasks are read without Boox file access, so indexing
-                        // is never locked behind it (only Boox Notes pages need it)
-                        indexingControlsEnabled = true,
-                        hasBooxAccess = hasPermission,
-                        isStandaloneWithoutOcrKey = isStandaloneWithoutOcrKey
-                    )
                 }
                 ScrollMoreBar(settingsScroll)
             }
         }
     }
+}
+
+/** Three steps with their real state. Each works on its own; only See My Notes needs the first. */
+@Composable
+private fun BooxNotesSetupSteps(
+    hasPermission: Boolean,
+    resumeCount: Int,
+    booxNoteRepository: BooxNoteRepository,
+    eventRepository: CalendarEventRepository,
+    onRequestAccess: () -> Unit,
+    onCheckNow: () -> Unit,
+    onOpenCalendarAccounts: () -> Unit,
+    onTurnOnReading: () -> Unit,
+    onSeeNotes: () -> Unit
+) {
+    val context = LocalContext.current
+    val settings = GlobalAppSettings.current
+    val scanning = GlobalAppSettings.isBooxNotesScanning
+    val checkCount = BooxNotesPlaces.checkCount
+
+    var noteCount by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(hasPermission, scanning, checkCount) {
+        if (hasPermission) noteCount = withContext(Dispatchers.IO) { booxNoteRepository.getAllNotes().count { it.pageCount > 0 } }
+    }
+    var calendar by remember { mutableStateOf<SmartLinkPreflightStatus?>(null) }
+    LaunchedEffect(resumeCount) {
+        calendar = withContext(Dispatchers.IO) {
+            SmartLinkEventRepository(context, eventRepository).getPreflightStatus()
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)) {
+        SetupPlaceStep(number = 1, done = hasPermission, title = "Let BooxDay see your notes") {
+            if (hasPermission) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
+                ) {
+                    SetupStepText(
+                        text = when {
+                            scanning -> "Checking for notes…"
+                            noteCount == null -> ""
+                            !GlobalAppSettings.isBooxNotesReady -> "Ready. Tap Check Now to load your notes."
+                            else -> "${plural(noteCount!!, "note")} found."
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    EinkSecondaryButton(text = "Check Now", onClick = onCheckNow, enabled = !scanning)
+                }
+            } else {
+                SetupStepText(
+                    if (BooxNotesAccess.usesRuntimePermission) {
+                        "BooxDay reads your Boox notes from the tablet's storage, so they show on the days you wrote them. Allow storage access when Android asks."
+                    } else {
+                        "BooxDay reads your Boox notes from the tablet's storage, so they show on the days you wrote them. On the next screen, turn on Allow access to manage all files, then come back."
+                    }
+                )
+                ActionButton(
+                    text = if (BooxNotesAccess.usesRuntimePermission) "Allow Access" else "Open Android Settings",
+                    onClick = onRequestAccess,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        val calendarState = calendar?.state
+        val calendarReady = calendarState == SmartLinkPreflightState.READY || calendarState == SmartLinkPreflightState.LOCAL_ONLY_READY
+        SetupPlaceStep(number = 2, done = calendarReady, title = "Connect a calendar") {
+            SetupStepText(
+                when (calendarState) {
+                    null -> ""
+                    SmartLinkPreflightState.READY, SmartLinkPreflightState.LOCAL_ONLY_READY ->
+                        "Your events are ready to match. New notes may link themselves when the match is strong."
+                    SmartLinkPreflightState.ACCOUNTS_CONNECTED_BUT_NO_SYNCED_EVENTS -> "Your account is connected, but no events have synced yet."
+                    SmartLinkPreflightState.NO_ELIGIBLE_TIMED_EVENTS -> "Every event is all-day. Notes are matched to events with a start time."
+                    else -> "Notes are matched to calendar events. You can still read your notes without one."
+                }
+            )
+            if (calendarState != null && !calendarReady) {
+                EinkSecondaryButton(
+                    text = "Open Calendar Accounts",
+                    onClick = onOpenCalendarAccounts,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        val ocrOn = settings.ocrSettings.enabled
+        val hasKey = com.boox.day.security.UserOpenRouterKey.hasKey
+        SetupPlaceStep(number = 3, done = ocrOn, title = "Read my handwriting (optional)") {
+            SetupStepText(
+                when {
+                    ocrOn && !settings.aiEnabled -> "On, paused: AI Features is off."
+                    ocrOn && !hasKey -> "On, waiting for a key."
+                    ocrOn -> "On. Pages are read while the tablet is idle."
+                    else -> "Search the words in your notes and get better suggestions. Pages are read by AI on your OpenRouter account."
+                }
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Button.spacing)
+            ) {
+                EinkSecondaryButton(
+                    text = "Details",
+                    onClick = { BooxNotesPlaces.settingsPage = BooxNotesPlaces.SettingsPage.HANDWRITING },
+                    modifier = Modifier.weight(1f)
+                )
+                if (!ocrOn) {
+                    EinkSecondaryButton(
+                        text = "Turn On…",
+                        onClick = { com.boox.day.ui.AiKeyGate.withKey(onTurnOnReading) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        ActionButton(
+            text = "See My Notes",
+            onClick = onSeeNotes,
+            enabled = hasPermission,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun SetupPlaceStep(
+    number: Int,
+    done: Boolean,
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+            .padding(EInkTheme.Global.paddingMedium),
+        verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(if (done) EInkTheme.Colors.primary else EInkTheme.Colors.background, CircleShape)
+                    .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (done) {
+                    Icon(Icons.Default.Check, contentDescription = "Done", tint = EInkTheme.Colors.background, modifier = Modifier.size(20.dp))
+                } else {
+                    Text(text = "$number", fontSize = EInkTheme.Typography.bodyMedium, fontWeight = FontWeight.Bold, color = EInkTheme.Colors.primary)
+                }
+            }
+            Text(
+                text = title,
+                fontSize = EInkTheme.Typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                color = EInkTheme.Colors.primary
+            )
+        }
+        content()
+    }
+}
+
+@Composable
+private fun SetupStepText(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        fontSize = EInkTheme.Typography.bodyMedium,
+        color = EInkTheme.Colors.primary,
+        modifier = modifier
+    )
 }
 
 /**
@@ -382,30 +499,8 @@ private fun OcrSettingsSection(
         }
     }
 
-    // Header
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Search,
-            contentDescription = "Search",
-            modifier = Modifier.size(20.dp),
-            tint = EInkTheme.Colors.primary
-        )
-        Text(
-            text = "Handwriting reading",
-            fontSize = EInkTheme.Preferences.sectionHeaderFontSize,
-            fontWeight = FontWeight.SemiBold,
-            color = EInkTheme.Colors.primary
-        )
-    }
-
-    Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
-
     Text(
-        text = "BooxDay reads your handwritten pages with AI, so you can search them and Smart Link can match notes by what they say.",
+        text = "BooxDay reads your handwritten pages with AI, so you can search them and notes can be matched to events by what they say.",
         fontSize = EInkTheme.Preferences.explanationFontSize,
         color = EInkTheme.Colors.darkGray
     )
@@ -443,7 +538,7 @@ private fun OcrSettingsSection(
                 }
                 Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
                 Text(
-                    text = "Pages are read by AI on your own OpenRouter key. Add one in AI Settings to index new pages. Pages already indexed stay searchable, and basic note linking still works.",
+                    text = "Pages are read by AI on your own OpenRouter key. Add one in AI Settings to read new pages. Pages already read stay searchable, and suggestions still work.",
                     fontSize = EInkTheme.Preferences.explanationFontSize,
                     color = EInkTheme.Colors.gray
                 )
@@ -456,9 +551,9 @@ private fun OcrSettingsSection(
     // Show warning when indexing is disabled (safety net for edge cases)
     if (!ocrSettings.enabled) {
         val warningText = if (hasBooxAccess) {
-            "Turn on indexing to make your memos, tasks and Boox Notes searchable."
+            "Turn this on to search your memos, tasks and Boox Notes."
         } else {
-            "Turn on indexing to make your memos and tasks searchable. Boox Notes pages are included once file access is allowed."
+            "Turn this on to search your memos and tasks. Boox Notes pages are included once file access is allowed."
         }
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -490,11 +585,11 @@ private fun OcrSettingsSection(
 
     // OCR Enable toggle
     SettingCard(
-        title = "Enable Indexing",
+        title = "Read my handwriting",
         description = if (isStandaloneWithoutOcrKey) {
             "Reads pages with AI on your OpenRouter key, while AI Features is on: add a key in AI Settings"
         } else {
-            "Process notes, memos, and tasks during idle time"
+            "Reads notes, memos and tasks while the tablet is idle"
         }
     ) {
         Row(
@@ -508,8 +603,8 @@ private fun OcrSettingsSection(
                     ocrSettings.enabled && !GlobalAppSettings.current.aiEnabled -> "On, paused: AI Features is off"
                     isStandaloneWithoutOcrKey && ocrSettings.enabled -> "On, waiting for a key"
                     isStandaloneWithoutOcrKey -> "Off, needs a key"
-                    ocrSettings.enabled -> "Enabled"
-                    else -> "Disabled"
+                    ocrSettings.enabled -> "On"
+                    else -> "Off"
                 },
                 fontSize = EInkTheme.Typography.bodyMedium,
                 color = EInkTheme.Colors.darkGray
@@ -702,7 +797,7 @@ private fun OcrSettingsSection(
             // Index Now button
             if (onIndexNow != null) {
                 EinkSecondaryButton(
-                    text = if (isProcessing) "Indexing…" else "Index Now",
+                    text = if (isProcessing) "Reading…" else "Read Now",
                     onClick = { if (!isProcessing) onIndexNow() },
                     enabled = !isProcessing && indexingControlsEnabled,
                     modifier = Modifier.weight(1f)
@@ -712,7 +807,7 @@ private fun OcrSettingsSection(
             // Clear Index button (asks first)
             if (onClearIndex != null) {
                 EinkSecondaryButton(
-                    text = "Clear Index",
+                    text = "Clear Read Text",
                     onClick = { if (!isProcessing) showClearIndexConfirmation = true },
                     enabled = !isProcessing && indexingControlsEnabled,
                     modifier = Modifier.weight(1f)
@@ -743,7 +838,7 @@ private fun OcrSettingsSection(
                 }
                 ocrStats != null && ocrStats!!.totalPending == 0 && ocrStats!!.totalIndexed > 0 -> {
                     // Index is complete - show friendly message
-                    "Index up to date • New content will be indexed during idle time"
+                    "All pages read • New pages are read while the tablet is idle"
                 }
                 indexingWaitsFor != null && ocrStats != null && ocrStats!!.totalPending > 0 -> {
                     // Pages wait for internet, OpenRouter, a key or credit (Oct 2026)
@@ -751,9 +846,9 @@ private fun OcrSettingsSection(
                 }
                 ocrStats != null && ocrStats!!.totalPending > 0 -> {
                     // Items pending
-                    "${ocrStats!!.totalPending} items pending • Processing during idle time"
+                    "${ocrStats!!.totalPending} items waiting • Read while the tablet is idle"
                 }
-                else -> "Processing happens during idle time only"
+                else -> "Pages are read while the tablet is idle"
             },
             fontSize = EInkTheme.Preferences.infoLabelFontSize,
             color = EInkTheme.Colors.gray
@@ -808,7 +903,7 @@ private fun ClearIndexConfirmationPopup(
                 Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
                 Text(
-                    text = "Clear Smart Search Index?",
+                    text = "Clear Read Text?",
                     fontSize = EInkTheme.Typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = EInkTheme.Colors.primary,
@@ -818,7 +913,7 @@ private fun ClearIndexConfirmationPopup(
                 Spacer(modifier = Modifier.height(EInkTheme.Global.spacingLarge))
 
                 Text(
-                    text = "This will remove all the smart search data that BooxDay has carefully built from your handwritten notes:\n\n" +
+                    text = "This removes what BooxDay has read from your handwritten pages:\n\n" +
                             "• Recognized text from your handwriting\n" +
                             "• Discovered keywords and topics\n" +
                             "• Smart summaries and insights",
@@ -831,7 +926,7 @@ private fun ClearIndexConfirmationPopup(
                 Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
                 Text(
-                    text = "Your original notes and drawings are safe — only the search index is cleared. You can rebuild it anytime with \"Index Now\".",
+                    text = "Your notes and drawings are safe. Only the read text is cleared, and you can read the pages again with Read Now.",
                     fontSize = EInkTheme.Preferences.explanationFontSize,
                     color = EInkTheme.Colors.darkGray,
                     textAlign = TextAlign.Center
@@ -846,7 +941,7 @@ private fun ClearIndexConfirmationPopup(
                 ) {
                     EinkSecondaryButton(text = "Cancel", onClick = onDismiss, modifier = Modifier.weight(1f))
                     // The confirmation's only action, so it may sit on the right (DIALOG_RULEBOOK rule 5)
-                    ActionButton(text = "Clear Index", onClick = onConfirm, modifier = Modifier.weight(1f))
+                    ActionButton(text = "Clear Read Text", onClick = onConfirm, modifier = Modifier.weight(1f))
                 }
             }
         }

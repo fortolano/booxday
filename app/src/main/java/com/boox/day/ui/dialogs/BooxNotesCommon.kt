@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,19 +17,29 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Icon
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.boox.day.booxnotes.BooxNotePreviewCoordinator
 import com.boox.day.booxnotes.BooxNotePreviewResult
@@ -38,9 +49,11 @@ import com.boox.day.booxnotes.MatchReason
 import com.boox.day.booxnotes.SmartLinkProgress
 import com.boox.day.data.db.BooxNoteIndex
 import com.boox.day.data.db.CalendarEvent
+import com.boox.day.ui.components.DialogCloseButton
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
+import com.boox.day.ui.theme.ScreenColour
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
@@ -64,6 +77,7 @@ private val dayShortFormat = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.US
 private val dayShortYearFormat = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy", Locale.US)
 private val monthFormat = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US)
 private val clockFormat = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
+private val titleDateFormat = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
 
 internal fun parseNoteDay(date: String): LocalDate? = runCatching { LocalDate.parse(date) }.getOrNull()
 
@@ -129,15 +143,15 @@ internal fun eventRelationToNote(note: BooxNoteIndex, event: CalendarEvent): Str
     val noteTime = note.originalTimestamp
     val end = event.endTime ?: event.startTime
     return when {
-        noteTime in event.startTime..end -> "the note was written during it"
+        noteTime in event.startTime..end -> "written during it"
         end < noteTime -> "ended ${durationText((noteTime - end) / 60_000)} before the note"
         else -> "starts ${durationText((event.startTime - noteTime) / 60_000)} after the note"
     }
 }
 
-/** "Strong" or "Possible" (the only levels suggestions show) */
+/** "Likely" or "Maybe" (the only levels suggestions show) */
 internal fun confidenceWord(confidence: LinkConfidence): String =
-    if (confidence == LinkConfidence.HIGH) "Strong" else "Possible"
+    if (confidence == LinkConfidence.HIGH) "Likely" else "Maybe"
 
 /**
  * Why Smart Link suggests this event, in words that match what the user can see: when the note was
@@ -145,10 +159,9 @@ internal fun confidenceWord(confidence: LinkConfidence): String =
  */
 internal fun suggestionReason(suggestion: CrossDayLinkSuggestion, titleTerm: String?): String {
     val reasons = suggestion.matchReasons
-    val parts = mutableListOf<String>()
     val days = abs(suggestion.dayOffset)
     val span = if (days == 1) "1 day" else "$days days"
-    parts += when {
+    val timing = when {
         // dayOffset > 0: the event is after the note's day
         suggestion.dayOffset > 0 -> "Written $span before the event"
         suggestion.dayOffset < 0 -> "Written $span after the event"
@@ -157,14 +170,27 @@ internal fun suggestionReason(suggestion: CrossDayLinkSuggestion, titleTerm: Str
         MatchReason.SHORTLY_BEFORE_EVENT in reasons -> "Written shortly before the event"
         else -> "Same day"
     }
-    if (titleTerm != null) parts += "shares “$titleTerm” with the event"
-    when {
-        MatchReason.SEMANTIC_CONTEXT_MATCH in reasons -> parts += "similar content"
-        MatchReason.SEMANTIC_GROUP_MATCH in reasons -> parts += "similar topic words"
+    return (listOf(timing) + suggestionSignals(suggestion, titleTerm)).take(3).joinToString(" · ")
+}
+
+/** The reasons beyond timing, for where the note's time beside the event already says that */
+internal fun suggestionSignals(suggestion: CrossDayLinkSuggestion, titleTerm: String?): List<String> {
+    val reasons = suggestion.matchReasons
+    return buildList {
+        if (titleTerm != null) add("both mention “$titleTerm”")
+        when {
+            MatchReason.SEMANTIC_CONTEXT_MATCH in reasons -> add("similar content")
+            MatchReason.SEMANTIC_GROUP_MATCH in reasons -> add("similar topic words")
+        }
+        if (MatchReason.SPARSE_CONTEXT in reasons) add("few other events nearby")
+        if (MatchReason.WEEKDAY_PATTERN in reasons) add("same weekday")
     }
-    if (MatchReason.SPARSE_CONTEXT in reasons) parts += "few other events nearby"
-    if (MatchReason.WEEKDAY_PATTERN in reasons) parts += "same weekday"
-    return parts.take(3).joinToString(" · ")
+}
+
+/** A note's day when its title only repeats it: "Nov 4, 2026" needs no "Wed, Nov 4" under it */
+internal fun titleIsItsDate(note: BooxNoteIndex): Boolean {
+    val day = parseNoteDay(note.originalDate) ?: return false
+    return note.title.trim().equals(day.format(titleDateFormat), ignoreCase = true)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -186,6 +212,10 @@ internal object BooxNotesSuggestionCache {
     /** True once every note has been scored */
     var allScored = false
 
+    /** Goes up with every store: a note scored with no suggestion changes [byNote] not at all */
+    var revision by mutableIntStateOf(0)
+        private set
+
     var signature: String? = null
 
     fun resetIfChanged(newSignature: String) {
@@ -194,6 +224,7 @@ internal object BooxNotesSuggestionCache {
             scored.clear()
             allScored = false
             signature = newSignature
+            revision++
         }
     }
 
@@ -203,6 +234,7 @@ internal object BooxNotesSuggestionCache {
             if (suggestions.isNullOrEmpty()) byNote.remove(id) else byNote[id] = suggestions
             scored.add(id)
         }
+        revision++
     }
 
     fun best(noteId: String): CrossDayLinkSuggestion? = byNote[noteId]?.firstOrNull()
@@ -228,16 +260,22 @@ internal fun findingStepText(progress: SmartLinkProgress?, isScanning: Boolean):
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * First-page thumbnails for suggestion cards: rendered one at a time (native BOOX rendering), scaled
- * down, and kept in a small cache so a long list never holds full-size page bitmaps.
+ * First-page thumbnails: rendered one at a time (native BOOX rendering), scaled down, and kept in a
+ * small cache so a long list never holds full-size page bitmaps. One size everywhere, so one cached
+ * picture serves every list. [renderLock] also guards the big page: the native code has no lock.
  */
 internal object BooxNoteThumbnails {
     private val coordinator = BooxNotePreviewCoordinator()
-    private val renderLock = Mutex()
-    private val cache = LruCache<String, Bitmap>(48)
+    val renderLock = Mutex()
+    private val cache = LruCache<String, Bitmap>(120)
+
+    private fun key(note: BooxNoteIndex, widthPx: Int) = "${note.uniqueId}:${note.shapeFileModified}:$widthPx"
+
+    fun cached(notes: List<BooxNoteIndex>, widthPx: Int): Map<String, Bitmap> =
+        notes.mapNotNull { note -> cache.get(key(note, widthPx))?.let { note.uniqueId to it } }.toMap()
 
     suspend fun load(note: BooxNoteIndex, widthPx: Int): Bitmap? {
-        val key = "${note.uniqueId}:${note.shapeFileModified}:$widthPx"
+        val key = key(note, widthPx)
         cache.get(key)?.let { return it }
         return renderLock.withLock {
             cache.get(key) ?: run {
@@ -253,22 +291,20 @@ internal object BooxNoteThumbnails {
     }
 }
 
-/** A note's first page as a small bordered sheet (empty sheet while loading or when it can't render). */
+/** A page's thumbnail as a small bordered sheet (empty while loading or when it can't render). */
 @Composable
-internal fun NotePageThumbnail(
-    note: BooxNoteIndex,
+internal fun NoteThumbnailSheet(
+    bitmap: Bitmap?,
+    description: String,
     modifier: Modifier = Modifier,
+    width: Dp = EInkTheme.BooxNotes.cardThumbWidth,
+    height: Dp = EInkTheme.BooxNotes.cardThumbHeight,
     onClick: (() -> Unit)? = null
 ) {
-    val theme = EInkTheme.BooxNotes
-    val widthPx = with(LocalDensity.current) { theme.cardThumbWidth.roundToPx() }
-    val bitmap by produceState<Bitmap?>(initialValue = null, note.uniqueId, note.shapeFileModified, widthPx) {
-        value = BooxNoteThumbnails.load(note, widthPx)
-    }
     val imageBitmap = remember(bitmap) { bitmap?.asImageBitmap() }
     Box(
         modifier = modifier
-            .size(theme.cardThumbWidth, theme.cardThumbHeight)
+            .size(width, height)
             .background(EInkTheme.Colors.background)
             .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary)
             .then(if (onClick != null) Modifier.noRippleClickable(onClick = onClick) else Modifier),
@@ -277,7 +313,7 @@ internal fun NotePageThumbnail(
         if (imageBitmap != null) {
             Image(
                 bitmap = imageBitmap,
-                contentDescription = "First page of ${note.title}",
+                contentDescription = description,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
@@ -285,6 +321,22 @@ internal fun NotePageThumbnail(
             )
         }
     }
+}
+
+/** A single note's thumbnail, loaded on its own (cards in a list load a page's worth at once) */
+@Composable
+internal fun NotePageThumbnail(
+    note: BooxNoteIndex,
+    modifier: Modifier = Modifier,
+    width: Dp = EInkTheme.BooxNotes.cardThumbWidth,
+    height: Dp = EInkTheme.BooxNotes.cardThumbHeight,
+    onClick: (() -> Unit)? = null
+) {
+    val widthPx = with(LocalDensity.current) { EInkTheme.BooxNotes.cardThumbWidth.roundToPx() }
+    val bitmap by produceState<Bitmap?>(initialValue = null, note.uniqueId, note.shapeFileModified, widthPx) {
+        value = BooxNoteThumbnails.load(note, widthPx)
+    }
+    NoteThumbnailSheet(bitmap, "First page of ${note.title}", modifier, width, height, onClick)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -336,7 +388,7 @@ internal fun BooxNotesSegmented(
     }
 }
 
-/** "Strong" (filled) or "Possible" (outlined) */
+/** "Likely" (filled) or "Maybe" (outlined) */
 @Composable
 internal fun ConfidenceTag(confidence: LinkConfidence, modifier: Modifier = Modifier) {
     val strong = confidence == LinkConfidence.HIGH
@@ -376,6 +428,8 @@ internal fun BooxNotesProgressBar(progress: Float, modifier: Modifier = Modifier
 /** What the last change did, with a way to undo it (shown at the bottom of the dialog) */
 internal data class BooxNotesMessage(
     val text: String,
+    /** The one note it is about: it stays while that note is on show */
+    val noteId: String? = null,
     val undo: (suspend () -> Unit)? = null
 )
 
@@ -388,8 +442,9 @@ internal fun BooxNotesMessageBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .height(EInkTheme.Button.height)
             .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-            .padding(horizontal = EInkTheme.Global.paddingMedium, vertical = EInkTheme.Global.spacingSmall),
+            .padding(start = EInkTheme.Global.paddingMedium, end = EInkTheme.Global.spacingSmall),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
     ) {
@@ -402,7 +457,61 @@ internal fun BooxNotesMessageBar(
             modifier = Modifier.weight(1f)
         )
         if (message.undo != null) {
-            EinkSecondaryButton(text = "Undo", onClick = onUndo)
+            EinkSecondaryButton(text = "Undo", onClick = onUndo, height = EInkTheme.Button.height - 8.dp)
         }
     }
 }
+
+/** Back (when there is somewhere to go), the place's title, what it needs, and the X */
+@Composable
+internal fun BooxNotesBar(
+    title: String,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
+    closeModifier: Modifier = Modifier,
+    trailing: @Composable RowScope.() -> Unit = {}
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(EInkTheme.Global.touchTarget),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (onBack != null) {
+            Box(
+                modifier = Modifier
+                    .size(EInkTheme.Global.touchTarget)
+                    .noRippleClickable(onClick = onBack),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = EInkTheme.Colors.primary,
+                    modifier = Modifier.size(EInkTheme.Global.iconSize)
+                )
+            }
+        }
+        Text(
+            text = title,
+            fontSize = EInkTheme.BooxNotes.titleFontSize,
+            fontWeight = FontWeight.Bold,
+            color = EInkTheme.Colors.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        trailing()
+        DialogCloseButton(onClose = onClose, modifier = closeModifier)
+    }
+}
+
+/** A stripe in a calendar's colour down the left edge, on colour screens (see ScreenColour) */
+internal fun Modifier.calendarStripe(color: Color?): Modifier =
+    if (color == null) this else drawBehind {
+        drawRect(color, topLeft = Offset.Zero, size = Size(8.dp.toPx(), size.height))
+    }
+
+/** Left padding that leaves room for the stripe, the same on every card so their edges line up */
+internal val cardStartPadding: Dp get() = if (ScreenColour.isColourScreen) 16.dp else 8.dp

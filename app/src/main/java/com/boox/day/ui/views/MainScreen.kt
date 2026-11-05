@@ -394,9 +394,6 @@ fun MainScreen(
     var showAddEventDialog by remember { mutableStateOf(false) }
     var showEventDetailsDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
-    var showBooxNotesDialog by remember { mutableStateOf(false) }
-    var autoOpenBulkWizard by remember { mutableStateOf(false) }  // When true, opens Bulk Smart Link wizard directly
-    var showBooxNotesSettingsDialog by remember { mutableStateOf(false) }
     var showVoiceEventDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
     // Dec 2025 settings redesign - new dialogs
@@ -1410,8 +1407,8 @@ fun MainScreen(
                 showAddEventDialog ||
                 (showEventDetailsDialog && selectedEventForDetails != null) ||
                 showAboutDialog ||
-                showBooxNotesDialog ||
-                showBooxNotesSettingsDialog ||
+                com.boox.day.ui.dialogs.BooxNotesPlaces.notesOpen ||
+                com.boox.day.ui.dialogs.BooxNotesPlaces.setupOpen ||
                 showVoiceEventDialog ||
                 showHelpDialog ||
                 showPreferencesDialog ||
@@ -1547,7 +1544,7 @@ fun MainScreen(
     }
 
     // Load linked Boox Notes when an event is selected for details
-    LaunchedEffect(selectedEventForDetails) {
+    LaunchedEffect(selectedEventForDetails, noteLinkRefreshTrigger) {
         if (selectedEventForDetails != null) {
             linkedBooxNotesForEvent = withContext(Dispatchers.IO) {
                 booxNoteRepository.getNotesLinkedToEvent(selectedEventForDetails!!.id)
@@ -2051,18 +2048,7 @@ fun MainScreen(
 
     // Listen for Boox Notes signals from toolbar (only when feature is enabled)
     LaunchedEffect(Unit) {
-        DrawCanvas.viewBooxNotes.collect {
-            autoOpenBulkWizard = false
-            showBooxNotesDialog = true
-        }
-    }
-
-    // Listen for Bulk Smart Link signal from toolbar menu
-    LaunchedEffect(Unit) {
-        DrawCanvas.openBulkSmartLink.collect {
-            autoOpenBulkWizard = true
-            showBooxNotesDialog = true
-        }
+        DrawCanvas.viewBooxNotes.collect { com.boox.day.ui.dialogs.BooxNotesPlaces.openNotes() }
     }
 
     LaunchedEffect(Unit) {
@@ -2079,10 +2065,11 @@ fun MainScreen(
             datesWithBooxNotes = dates
             // Show result (on Main thread - correct for UI)
             val message = if (result.error != null) {
-                "Scan failed: ${result.error}"
+                "Could not check for new notes: ${result.error}"
             } else {
-                "Scanned ${result.totalScanned} notes (${result.newNotes} new)"
+                "Checked ${result.totalScanned} notes (${result.newNotes} new)"
             }
+            com.boox.day.ui.dialogs.BooxNotesPlaces.checkCount++
             SnackState.globalSnackFlow.tryEmit(SnackConf(text = message, duration = SnackConf.DURATION_QUICK))
         }
     }
@@ -2285,7 +2272,7 @@ fun MainScreen(
                         showDataBackupDialog = true
                     },
                     onBooxNotesSettings = {
-                        showBooxNotesSettingsDialog = true
+                        com.boox.day.ui.dialogs.BooxNotesPlaces.setupOpen = true
                     },
                     onHelp = {
                         showHelpDialog = true
@@ -3034,27 +3021,6 @@ fun MainScreen(
                     },
                     // Canvas height for stroke detection in task export
                     canvasHeight = actualCanvasHeight,
-                    // Boox Notes scan callback - triggered when permission/toggle changes in dialog
-                    onBooxNotesScanNeeded = triggerBooxNotesScan,
-                    // Boox Notes enabled state - shared for sync between Toolbar and MainScreen dialogs
-                    booxNotesEnabled = booxNotesEnabled,
-                    onBooxNotesEnabledChanged = {
-                        booxNotesEnabled = true
-                        val newSettings = GlobalAppSettings.current.copy(booxNotesEnabled = true)
-                        GlobalAppSettings.update(newSettings)
-                        scope.launch(Dispatchers.IO) {
-                            appRepository.kvProxy.setAppSettings(newSettings)
-                        }
-                    },
-                    onBooxOcrSettingsChanged = { newOcrSettings ->
-                        val newSettings = GlobalAppSettings.current.copy(ocrSettings = newOcrSettings)
-                        GlobalAppSettings.update(newSettings)
-                        scope.launch(Dispatchers.IO) {
-                            appRepository.kvProxy.setAppSettings(newSettings)
-                        }
-                    },
-                    ocrProcessingState = ocrProcessingState,
-                    ocrRepository = ocrRepository,
                     onScreenRefresh = { refreshScreen() }
                 )
 
@@ -3868,7 +3834,8 @@ fun MainScreen(
                     goToTask(taskId, date)
                 },
                 onOpenBooxNote = { uniqueId ->
-                    booxNotesIntegration.openNote(uniqueId)
+                    // Opens the note here first; its Open in Notes App button leaves BooxDay
+                    com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(uniqueId)
                     showSearchDialog = false
                 },
                 onDismiss = { showSearchDialog = false }
@@ -3907,23 +3874,15 @@ fun MainScreen(
 
 
 
-        // Boox Notes Settings Dialog
-        if (showBooxNotesSettingsDialog) {
+        // Boox Notes Set Up and Handwriting Search
+        if (com.boox.day.ui.dialogs.BooxNotesPlaces.setupOpen) {
             com.boox.day.ui.dialogs.BooxNotesSettingsDialog(
                 // Its setup dot clears when file access is given (inside the dialog), not on close
-                onDismiss = { showBooxNotesSettingsDialog = false },
-                booxNotesEnabled = booxNotesEnabled,
-                onBooxNotesEnabledChanged = {
-                    booxNotesEnabled = true
-                    // Update GlobalAppSettings immediately for UI responsiveness
-                    val newSettings = GlobalAppSettings.current.copy(booxNotesEnabled = true)
-                    GlobalAppSettings.update(newSettings)
-                    // Persist to database async to avoid blocking UI (Room DAO is synchronous)
-                    scope.launch(Dispatchers.IO) {
-                        appRepository.kvProxy.setAppSettings(newSettings)
-                    }
-                },
+                onDismiss = { com.boox.day.ui.dialogs.BooxNotesPlaces.setupOpen = false },
+                booxNoteRepository = booxNoteRepository,
+                eventRepository = eventRepository,
                 onScanNeeded = triggerBooxNotesScan,
+                onOpenCalendarAccounts = { showMultiProviderSyncDialog = true },
                 onIndexNow = {
                     scope.launch {
                         ocrIdleProcessor.processNow()
@@ -5906,6 +5865,8 @@ fun MainScreen(
                     // Direct launch: Open Boox Notes app with this note
                     booxNotesIntegration.openNote(note.uniqueId)
                 },
+                onViewBooxNote = { note -> com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(note.uniqueId) },
+                onLinkANote = { selectedEventForDetails?.let { com.boox.day.ui.dialogs.BooxNotesPlaces.openLinkANote(it) } },
                 onCreateBooxNote = {
                     // Launch Boox Notes app to create a new note
                     booxNotesIntegration.createQuickNote()
@@ -5925,31 +5886,29 @@ fun MainScreen(
         }
 
         // Boox Notes Dialog
-        if (showBooxNotesDialog) {
+        if (com.boox.day.ui.dialogs.BooxNotesPlaces.notesOpen) {
             BooxNotesDialog(
                 date = selectedDate,
                 booxNoteRepository = booxNoteRepository,
                 booxNotesIntegration = booxNotesIntegration,
                 booxNoteIndexer = booxNoteIndexer,  // Smart scan on dialog open
-                // Pass OCR repository only if OCR indexing is enabled (search tab appears)
-                // To disable search: set this to null
+                // Handwriting search only while reading is on
                 ocrRepository = if (GlobalAppSettings.current.ocrSettings.enabled) ocrRepository else null,
                 isOcrIndexingInProgress = GlobalAppSettings.isBooxNotesScanning || (ocrProcessingState?.isProcessing == true),
                 eventRepository = eventRepository,
-                onDismiss = {
-                    showBooxNotesDialog = false
-                    autoOpenBulkWizard = false  // Reset for next open
-                },
+                onDismiss = { com.boox.day.ui.dialogs.BooxNotesPlaces.closeNotes() },
                 onLinkChanged = {
                     // Refresh event links when a note-event link changes
                     noteLinkRefreshTrigger++
                 },
-                autoOpenBulkWizard = autoOpenBulkWizard,
                 sourceFilter = sourceFilter,
                 onOpenCalendarAccounts = {
-                    showBooxNotesDialog = false
-                    autoOpenBulkWizard = false
+                    com.boox.day.ui.dialogs.BooxNotesPlaces.closeNotes()
                     showMultiProviderSyncDialog = true
+                },
+                onOpenHelp = {
+                    com.boox.day.ui.dialogs.BooxNotesPlaces.closeNotes()
+                    showHelpDialog = true
                 }
             )
         }
@@ -5968,10 +5927,9 @@ fun MainScreen(
                     booxNotesIntegration.openNote(uniqueId, title)
                     showDayQuickView = false
                 },
-                onManageBooxNote = { noteDate ->
-                    // Open Boox Notes dialog pre-navigated to the note's date
-                    selectedDate = noteDate
-                    showBooxNotesDialog = true
+                onLinkBooxNote = { noteId, noteDate ->
+                    // That note, without moving the day selected in the app
+                    com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(noteId, noteDate)
                     showDayQuickView = false
                 },
                 onDismiss = {
@@ -7391,206 +7349,6 @@ private fun PersistentCanvasHost(
 }
 
 /**
- * Thumbnail preview overlay for a Boox Note.
- * Shows a preview (180x270dp) with pagination and close button.
- * Positioned on the left side of the Events grid.
- */
-@Composable
-private fun NotePreviewOverlay(
-    noteId: String,
-    noteTitle: String?,  // Optional title to display above thumbnail
-    currentPage: Int,
-    onPageChange: (Int) -> Unit,
-    onClose: () -> Unit,
-    onOpenInApp: () -> Unit,
-    booxNoteRepository: BooxNoteRepository,
-    modifier: Modifier = Modifier
-) {
-    // Load note data
-    var noteData by remember { mutableStateOf<com.boox.day.data.db.BooxNoteIndex?>(null) }
-    var pageIds by remember { mutableStateOf<List<String>>(emptyList()) }
-    var thumbnailBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-
-    // Load note info
-    LaunchedEffect(noteId) {
-        isLoading = true
-        noteData = booxNoteRepository.getNoteById(noteId)
-        noteData?.let { note ->
-            // Parse page IDs from JSON
-            try {
-                val array = org.json.JSONArray(note.pageIdsJson)
-                pageIds = (0 until array.length()).map { array.getString(it) }
-            } catch (e: Exception) {
-                pageIds = emptyList()
-            }
-        }
-        isLoading = false
-    }
-
-    // Load thumbnail for current page
-    LaunchedEffect(noteId, currentPage, pageIds) {
-        if (pageIds.isNotEmpty() && currentPage < pageIds.size) {
-            thumbnailBitmap = null
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                try {
-                    val booxBitmap = com.boox.day.booxnotes.BooxNative.renderPageOnDevice(
-                        com.boox.day.booxnotes.BooxNative.KSYNC_BASE_PATH,
-                        noteId,
-                        pageIds[currentPage]
-                    )
-                    if (booxBitmap != null && booxBitmap.isValid()) {
-                        val bitmap = android.graphics.Bitmap.createBitmap(
-                            booxBitmap.width,
-                            booxBitmap.height,
-                            android.graphics.Bitmap.Config.ARGB_8888
-                        )
-                        bitmap.copyPixelsFromBuffer(java.nio.ByteBuffer.wrap(booxBitmap.buffer))
-                        // Scale to preview size (180x216 - reduced 20% height)
-                        val scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, 180, 216, true)
-                        bitmap.recycle()
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            thumbnailBitmap = scaled
-                        }
-                    }
-                } catch (e: Throwable) {
-                    // Failed to load (catch Throwable for UnsatisfiedLinkError)
-                }
-            }
-        }
-    }
-
-    // Overlay box - larger size for better visibility
-    Box(
-        modifier = modifier
-            .width(200.dp)
-            .background(Color.White, RoundedCornerShape(6.dp))
-            .border(1.dp, Color.Black, RoundedCornerShape(6.dp))
-            .padding(10.dp)
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Close button row - larger X for easier tapping
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close preview",
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickable(onClick = onClose),
-                    tint = Color.DarkGray
-                )
-            }
-
-            // Note title (above thumbnail, truncated to fit)
-            if (!noteTitle.isNullOrEmpty()) {
-                Text(
-                    text = noteTitle,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.DarkGray,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 4.dp)
-                )
-            } else {
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            // Thumbnail - 180x216dp (reduced 20% height)
-            Box(
-                modifier = Modifier
-                    .width(180.dp)
-                    .height(216.dp)
-                    .border(1.dp, EInkTheme.Colors.dividerHairline),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(32.dp),
-                        color = Color.Black,
-                        strokeWidth = 3.dp
-                    )
-                } else if (thumbnailBitmap != null) {
-                    Image(
-                        bitmap = thumbnailBitmap!!.asImageBitmap(),
-                        contentDescription = "Note preview",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Text(
-                        text = "No preview",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
-                }
-            }
-
-            // Pagination (if multiple pages)
-            if (pageIds.size > 1) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = "Previous",
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clickable(enabled = currentPage > 0) {
-                                if (currentPage > 0) onPageChange(currentPage - 1)
-                            },
-                        tint = if (currentPage > 0) Color.Black else Color.LightGray
-                    )
-                    Text(
-                        text = "${currentPage + 1}/${pageIds.size}",
-                        fontSize = 14.sp,
-                        color = Color.DarkGray,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Next",
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clickable(enabled = currentPage < pageIds.size - 1) {
-                                if (currentPage < pageIds.size - 1) onPageChange(currentPage + 1)
-                            },
-                        tint = if (currentPage < pageIds.size - 1) Color.Black else Color.LightGray
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Open in Boox Notes button - larger
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Black, RoundedCornerShape(4.dp))
-                    .clickable(onClick = onOpenInApp)
-                    .padding(vertical = 10.dp, horizontal = 16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Open in Boox Notes",
-                    fontSize = 14.sp,
-                    color = Color.White,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-    }
-}
-
-/**
  * Moves the body of a Row out of MainScreen's root lambda into a lambda class of its own, with no
  * behaviour of its own. That root lambda was within 140 bytes of the JVM limit of 64 KB per method
  * (compile error "Method too large"), so adding the calendar's day header needed room. Wrap more
@@ -7877,10 +7635,6 @@ private fun EventsGrid(
     val overdueCount = dueTasksData.overdueTasks.size
 
     // Note preview overlay state
-    var previewNoteId by remember { mutableStateOf<String?>(null) }
-    var previewNoteTitle by remember { mutableStateOf<String?>(null) }  // Title to display in popup
-    var previewPageIndex by remember { mutableStateOf(0) }
-    var previewIconY by remember { mutableStateOf(0f) }  // Y position of clicked icon
 
     // Track Events grid X position for popup horizontal placement
     var eventsGridX by remember { mutableStateOf(0f) }
@@ -7895,8 +7649,6 @@ private fun EventsGrid(
     LaunchedEffect(selectedDate) {
         currentPage = 0
         dueTasksCurrentPage = 0  // Also reset due tasks pagination
-        previewNoteId = null  // Close preview when date changes
-        previewNoteTitle = null
         notesPopupEventId = null  // Close notes popup when date changes
     }
 
@@ -7920,14 +7672,6 @@ private fun EventsGrid(
     LaunchedEffect(dueTasksData.totalCount) {
         if (dueTasksCurrentPage >= dueTasksTotalPages) {
             dueTasksCurrentPage = maxOf(0, dueTasksTotalPages - 1)
-        }
-    }
-
-    // Load note title when preview note changes
-    LaunchedEffect(previewNoteId) {
-        previewNoteId?.let { noteId ->
-            val note = booxNoteRepository.getNoteById(noteId)
-            previewNoteTitle = note?.title
         }
     }
 
@@ -8024,8 +7768,8 @@ private fun EventsGrid(
                                                 notesPopupEventId = event.id
                                                 notesPopupY = yPos
                                             } else {
-                                                // Single note: open directly in Boox Notes app
-                                                booxNotesIntegration.openNote(noteId)
+                                                // Single note: the Note place, which has Open in Notes App
+                                                com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(noteId)
                                             }
                                         }
                                     },
@@ -8281,7 +8025,7 @@ private fun EventsGrid(
                 eventTitle = notesPopupEventTitle ?: "Notes",
                 notes = notesPopupNotes,
                 onNoteClick = { note ->
-                    booxNotesIntegration.openNote(note.uniqueId)
+                    com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(note.uniqueId)
                     notesPopupEventId = null
                 },
                 onClose = { notesPopupEventId = null }
@@ -8289,39 +8033,6 @@ private fun EventsGrid(
         }
     }
 
-    // Note thumbnail preview overlay - use Popup for proper z-ordering and overflow
-    // Position: match expanded mode positioning (fixed offset to the left)
-    if (previewNoteId != null) {
-        val density = LocalDensity.current
-        // Use same positioning as expanded mode for consistency
-        val popupOffsetX = -100
-        val popupOffsetY = (previewIconY - with(density) { 100.dp.toPx() }).toInt().coerceAtLeast(50)
-
-        Popup(
-            alignment = Alignment.TopStart,
-            offset = IntOffset(popupOffsetX, popupOffsetY),
-            onDismissRequest = { previewNoteId = null },
-            properties = PopupProperties(
-                focusable = true,
-                dismissOnBackPress = true,
-                dismissOnClickOutside = true
-            )
-        ) {
-            NotePreviewOverlay(
-                noteId = previewNoteId!!,
-                noteTitle = previewNoteTitle,
-                currentPage = previewPageIndex,
-                onPageChange = { previewPageIndex = it },
-                onClose = { previewNoteId = null },
-                onOpenInApp = {
-                    booxNotesIntegration.openNote(previewNoteId!!)
-                    previewNoteId = null
-                },
-                booxNoteRepository = booxNoteRepository,
-                modifier = Modifier
-            )
-        }
-    }
 }
 
 /**
@@ -8485,10 +8196,6 @@ private fun ExpandedEventsList(
     }
 
     // Note preview overlay state
-    var previewNoteId by remember { mutableStateOf<String?>(null) }
-    var previewNoteTitle by remember { mutableStateOf<String?>(null) }  // Title to display in popup
-    var previewPageIndex by remember { mutableStateOf(0) }
-    var previewIconY by remember { mutableStateOf(0f) }  // Y position of clicked icon
 
     // Mini popup for multiple notes linked to an event
     var notesPopupEventId by remember { mutableStateOf<String?>(null) }
@@ -8498,8 +8205,6 @@ private fun ExpandedEventsList(
 
     // Reset preview and popup when date changes
     LaunchedEffect(selectedDate) {
-        previewNoteId = null
-        previewNoteTitle = null
         notesPopupEventId = null
     }
 
@@ -8510,14 +8215,6 @@ private fun ExpandedEventsList(
             notesPopupEventTitle = event?.title
             val notes = booxNoteRepository.getNotesLinkedToEvent(eventId)
             notesPopupNotes = notes
-        }
-    }
-
-    // Load note title when preview note changes
-    LaunchedEffect(previewNoteId) {
-        previewNoteId?.let { noteId ->
-            val note = booxNoteRepository.getNoteById(noteId)
-            previewNoteTitle = note?.title
         }
     }
 
@@ -8633,8 +8330,8 @@ private fun ExpandedEventsList(
                                                 notesPopupEventId = event.id
                                                 notesPopupY = yPos
                                             } else {
-                                                // Single note: open directly in Boox Notes app
-                                                booxNotesIntegration.openNote(noteId)
+                                                // Single note: the Note place, which has Open in Notes App
+                                                com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(noteId)
                                             }
                                         }
                                     },
@@ -8783,7 +8480,7 @@ private fun ExpandedEventsList(
                 eventTitle = notesPopupEventTitle ?: "Notes",
                 notes = notesPopupNotes,
                 onNoteClick = { note ->
-                    booxNotesIntegration.openNote(note.uniqueId)
+                    com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(note.uniqueId)
                     notesPopupEventId = null
                 },
                 onClose = { notesPopupEventId = null }
@@ -8791,39 +8488,6 @@ private fun ExpandedEventsList(
         }
     }
 
-    // Note thumbnail preview overlay - use Popup for proper z-ordering and overflow
-    // Position: popup to the left of expanded list, Y positioned above the icon
-    if (previewNoteId != null) {
-        val density = LocalDensity.current
-        // Negative X offset moves popup more to the left
-        val popupOffsetX = -100
-        val popupOffsetY = (previewIconY - with(density) { 100.dp.toPx() }).toInt().coerceAtLeast(50)
-
-        Popup(
-            alignment = Alignment.TopStart,
-            offset = IntOffset(popupOffsetX, popupOffsetY),
-            onDismissRequest = { previewNoteId = null },
-            properties = PopupProperties(
-                focusable = true,
-                dismissOnBackPress = true,
-                dismissOnClickOutside = true
-            )
-        ) {
-            NotePreviewOverlay(
-                noteId = previewNoteId!!,
-                noteTitle = previewNoteTitle,
-                currentPage = previewPageIndex,
-                onPageChange = { previewPageIndex = it },
-                onClose = { previewNoteId = null },
-                onOpenInApp = {
-                    booxNotesIntegration.openNote(previewNoteId!!)
-                    previewNoteId = null
-                },
-                booxNoteRepository = booxNoteRepository,
-                modifier = Modifier
-            )
-        }
-    }
 }
 
 @Composable

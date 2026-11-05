@@ -791,7 +791,7 @@ object EInkTheme {
             val textColor = Colors.darkGray
             val textColorSelected = Colors.white
             val background = Colors.background
-            val backgroundSelected = Colors.darkGray  // Dark gray instead of black
+            val backgroundSelected = Colors.primary  // Black, like every other "on" state
             val dividerColor = Colors.dividerHairline
             val dividerWidth = 0.5.dp
         }
@@ -832,7 +832,7 @@ object EInkTheme {
             val heightLarge = 58.dp           // Prominent CTA buttons (subscribe, purchase)
             val cornerRadius = 6.dp           // Rounded corners for modern look
             val fontSize = Typography.bodyLarge
-            val background = Colors.darkGray   // Dark gray instead of black
+            val background = Colors.primary   // Black: grey dithers in fast refresh modes
             val textColor = Colors.white
         }
 
@@ -1349,9 +1349,16 @@ object EInkTheme {
         val headerSpacing: Dp get() = if (LayoutProfiles.isNarrowScreen) Global.paddingSmall else Global.paddingMedium
         val segmentFontSize = Typography.bodyLarge
 
-        // Columns: note list | note pane (narrow screens give the list a little more room)
-        val listPaneFraction: Float get() = if (LayoutProfiles.isNarrowScreen) 0.42f else 0.36f
+        // Columns: list and note side by side from this inner width (Go 10.3 and up); below it the
+        // list and the note are one screen each, so the page gets the room (Go 6, Go 7)
+        val twoPaneMinWidth = 680.dp
+        val listPaneFraction = 0.42f
         val paneGap = Global.padding
+
+        // Note cards: page thumbnail, title, when, and which event. One height, so lists page evenly
+        val noteCardHeight = 90.dp
+        val noteCardGap = 6.dp
+        val monthRowHeight = 22.dp
 
         // Note rows: title, one meta line, state only when there is something to act on
         val rowPadding = 10.dp
@@ -1372,6 +1379,10 @@ object EInkTheme {
         val paneMetaFontSize = Typography.bodyMedium
         val linkRowPadding = Global.paddingMedium
         val pageAspectRatio = 0.75f          // BOOX page, 3:4
+
+        // Link zone: one height in every state, so a state change never moves the page above it
+        val linkZoneHeight = 160.dp
+        val reviewZoneHeight = 172.dp
         val pageBorderWidth = 2.dp
 
         // Page chevrons: a full touch target (was 36 dp; owner OK'd the change, Oct 2026)
