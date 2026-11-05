@@ -1696,7 +1696,7 @@ fun MainScreen(
                     // PERFORMANCE: Invalidate links cache since note data may have changed
                     booxNoteRepository.invalidateLinksCache()
                     // Refresh the dates with Boox Notes for the current month
-                    val dates = booxNoteRepository.getDatesWithNotesForMonth(currentYearMonth)
+                    val dates = booxNoteRepository.getDatesWithNotesForMonth(currentYearMonthState.value)
                     Pair(result, dates)
                 }
                 datesWithBooxNotes = booxNoteDates
@@ -1746,7 +1746,7 @@ fun MainScreen(
                         val (scanResult, booxNoteDates) = withContext(Dispatchers.IO) {
                             val result = booxNoteIndexer.fullScan()
                             booxNoteRepository.invalidateLinksCache()
-                            val dates = booxNoteRepository.getDatesWithNotesForMonth(currentYearMonth)
+                            val dates = booxNoteRepository.getDatesWithNotesForMonth(currentYearMonthState.value)
                             Pair(result, dates)
                         }
                         datesWithBooxNotes = booxNoteDates
@@ -1815,7 +1815,7 @@ fun MainScreen(
                             val (scanResult, booxNoteDates) = withContext(Dispatchers.IO) {
                                 val result = booxNoteIndexer.fullScan()
                                 booxNoteRepository.invalidateLinksCache()
-                                val dates = booxNoteRepository.getDatesWithNotesForMonth(currentYearMonth)
+                                val dates = booxNoteRepository.getDatesWithNotesForMonth(currentYearMonthState.value)
                                 Pair(result, dates)
                             }
                             datesWithBooxNotes = booxNoteDates
@@ -1849,7 +1849,7 @@ fun MainScreen(
                             // Refresh UI if new/updated notes found
                             booxNoteRepository.invalidateLinksCache()
                             datesWithBooxNotes = withContext(Dispatchers.IO) {
-                                booxNoteRepository.getDatesWithNotesForMonth(currentYearMonth)
+                                booxNoteRepository.getDatesWithNotesForMonth(currentYearMonthState.value)
                             }
                             // Trigger refresh for events grid badges
                             noteLinkRefreshTrigger++
@@ -2073,7 +2073,7 @@ fun MainScreen(
                 // Invalidate links cache since note data may have changed
                 booxNoteRepository.invalidateLinksCache()
                 // Refresh the dates with Boox Notes for the current month
-                val booxDates = booxNoteRepository.getDatesWithNotesForMonth(currentYearMonth)
+                val booxDates = booxNoteRepository.getDatesWithNotesForMonth(currentYearMonthState.value)
                 Pair(scanResult, booxDates)
             }
             datesWithBooxNotes = dates
