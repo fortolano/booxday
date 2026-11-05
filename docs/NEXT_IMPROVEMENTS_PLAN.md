@@ -1,6 +1,6 @@
 # BooxDay: Next Improvements Plan
 
-**Status:** approved by the owner on 4 Nov 2026, with every decision taken (section 4). Nothing in this plan is built yet.
+**Status:** approved by the owner on 4 Nov 2026, with every decision taken (section 4). Phase 1A shipped in 1.0.61 on 5 Nov 2026; the phases after it are not built yet.
 **Baseline:** `main` at `d8df4cc` (version 1.0.60, database v34).
 **Scope source:** the owner's brief of 4 Nov 2026, based on Reddit feedback, GitHub issues and a code review.
 
@@ -34,7 +34,7 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 | Phase | Name | Size (estimate) | Status |
 |---|---|---|---|
 | 0 | Decisions and first replies | Small, no code | In progress: decisions done; replies and baselines left |
-| 1A | Export you can trust | Medium | Built on branch `export-fixes-1a`, tests pass; tablet checks and release left |
+| 1A | Export you can trust | Medium | Shipped in 1.0.61 (5 Nov 2026). Three tablet checks not done, by the owner's choice: see the phase's checklist |
 | 1B | Export redesign | Medium | Not started |
 | 2 | Pen, compatibility and the Ukrainian PR | Small to medium | Not started |
 | 3 | Sleep screen choices | Small to medium | Not started |
@@ -636,11 +636,14 @@ Every phase from 1 on also follows the **Definition of Done** at the end of this
 
 **Checklist**
 
-- [ ] S1 and S2 built, and used by both engines
-- [ ] All Phase 1A tests pass
-- [ ] Tablet checks done on Go 10.3 and Go 6, and recorded in the release entry in `CLAUDE.md`
-- [ ] Clipboard, OCR and Tasks export checked
-- [ ] Help and tip updated
+- [x] S1 and S2 built, and used by both engines
+- [x] All Phase 1A tests pass
+- [ ] Tablet checks done on Go 10.3 and Go 6, and recorded in the release entry in `CLAUDE.md`: the Go 10.3 passed the rest; released without these three (owner, 5 Nov 2026):
+  - Every pen other than Ballpen, on PDF. Only Ballpen ink was on the tablet
+  - All Files Access off, including a file left by an old install that the app can't see (`ExportFiles.copyToFolder` may fail on that name instead of trying the next number)
+  - The Go 6: a 15+ page day (memory), the save message with Share on the narrow screen, the page counter's fit, a Go 10.3 memo restored there
+- [x] Clipboard, OCR and Tasks export checked
+- [x] Help and tip updated
 
 ---
 
