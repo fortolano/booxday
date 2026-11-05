@@ -290,7 +290,7 @@ private fun BooxNotesSetupSteps(
 
     var noteCount by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(hasPermission, scanning, checkCount) {
-        if (hasPermission) noteCount = withContext(Dispatchers.IO) { booxNoteRepository.getAllNotes().size }
+        if (hasPermission) noteCount = withContext(Dispatchers.IO) { booxNoteRepository.getAllNotes().count { it.pageCount > 0 } }
     }
     var calendar by remember { mutableStateOf<SmartLinkPreflightStatus?>(null) }
     LaunchedEffect(resumeCount) {

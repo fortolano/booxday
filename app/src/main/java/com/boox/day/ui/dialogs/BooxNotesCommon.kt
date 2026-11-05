@@ -442,8 +442,9 @@ internal fun BooxNotesMessageBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .height(EInkTheme.Button.height)
             .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-            .padding(horizontal = EInkTheme.Global.paddingMedium, vertical = EInkTheme.Global.spacingSmall),
+            .padding(start = EInkTheme.Global.paddingMedium, end = EInkTheme.Global.spacingSmall),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
     ) {
@@ -456,7 +457,7 @@ internal fun BooxNotesMessageBar(
             modifier = Modifier.weight(1f)
         )
         if (message.undo != null) {
-            EinkSecondaryButton(text = "Undo", onClick = onUndo)
+            EinkSecondaryButton(text = "Undo", onClick = onUndo, height = EInkTheme.Button.height - 8.dp)
         }
     }
 }

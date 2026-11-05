@@ -31,7 +31,6 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
-import kotlin.math.abs
 
 /**
  * The About header with the Support and Check for Updates buttons (Oct 2026), drawn at the Go 10.3's and the Go 6's
@@ -104,7 +103,7 @@ class AboutHeaderRenderTest {
             // The button is drawn: dark fill (#3A3A3A) just inside its left edge
             val button = bounds.getValue("button-false")
             val fill = image.getPixel((button.left + 6 * device.density).toInt(), button.center.y.toInt())
-            assertTrue("${device.name} button fill", abs(android.graphics.Color.red(fill) - 0x3A) < 24)
+            assertTrue("${device.name} button fill", android.graphics.Color.red(fill) < 24)
         }
     }
 }

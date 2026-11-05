@@ -648,6 +648,7 @@ fun BooxNotesDialog(
         reviewPassed = 0
         deferred = emptyList()
         suggestionListView = false
+        message = null
         showSuggestions = true
     }
 
@@ -757,11 +758,19 @@ fun BooxNotesDialog(
                                 onLinkLikely = { linkLikely(it) },
                                 onLink = {
                                     reviewDone++
-                                    linkSuggestion(it.note, it.suggestion, SmartLinkDecisionMode.MANUAL_ACCEPT_SUGGESTION, afterUndo = { reviewDone-- })
+                                    val noteId = it.note.uniqueId
+                                    linkSuggestion(it.note, it.suggestion, SmartLinkDecisionMode.MANUAL_ACCEPT_SUGGESTION, afterUndo = {
+                                        reviewDone--
+                                        reviewNoteId = noteId
+                                    })
                                 },
                                 onReject = {
                                     reviewDone++
-                                    reject(it.note, it.suggestion, afterUndo = { reviewDone-- })
+                                    val noteId = it.note.uniqueId
+                                    reject(it.note, it.suggestion, afterUndo = {
+                                        reviewDone--
+                                        reviewNoteId = noteId
+                                    })
                                 },
                                 onOpenNote = {
                                     selectedId = it.uniqueId

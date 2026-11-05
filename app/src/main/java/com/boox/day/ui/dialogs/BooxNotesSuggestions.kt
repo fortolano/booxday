@@ -175,7 +175,7 @@ internal fun BooxNotesSuggestionsView(
                             .weight(1f)
                             .fillMaxWidth()
                     )
-                    BulkOrMessageRow(host, likely.size) { confirmBulk = true }
+                    BulkOrMessageRow(host, likely.size, keepRoom = false) { confirmBulk = true }
                 }
 
                 current != null -> {
@@ -196,7 +196,7 @@ internal fun BooxNotesSuggestionsView(
                     host.indexingNote?.let {
                         Text(text = it, fontSize = EInkTheme.Typography.bodySmall, color = EInkTheme.Colors.darkGray, maxLines = 1)
                     }
-                    BulkOrMessageRow(host, likely.size) { confirmBulk = true }
+                    BulkOrMessageRow(host, likely.size, keepRoom = true) { confirmBulk = true }
                 }
             }
         }
@@ -216,7 +216,7 @@ internal fun BooxNotesSuggestionsView(
 
 /** Link All takes this row; right after a change, the message and Undo take it for a moment */
 @Composable
-private fun BulkOrMessageRow(host: SuggestionsHost, likelyCount: Int, onLinkAll: () -> Unit) {
+private fun BulkOrMessageRow(host: SuggestionsHost, likelyCount: Int, keepRoom: Boolean, onLinkAll: () -> Unit) {
     val message = host.message
     when {
         message != null -> BooxNotesMessageBar(message, host.onUndo)
@@ -225,6 +225,7 @@ private fun BulkOrMessageRow(host: SuggestionsHost, likelyCount: Int, onLinkAll:
             onClick = onLinkAll,
             modifier = Modifier.fillMaxWidth()
         )
+        keepRoom -> Spacer(modifier = Modifier.height(EInkTheme.Button.height))
     }
 }
 
