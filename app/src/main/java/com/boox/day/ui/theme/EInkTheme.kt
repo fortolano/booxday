@@ -1404,6 +1404,9 @@ object EInkTheme {
         val pickerTimeColumnWidth = 84.dp
         val pickerMaxHeight = 560.dp
 
+        // Filter panel
+        val filterPanelMaxWidth = 500.dp
+
         // Progress bar: outlined track, black fill (no grey fills on e-ink)
         val progressHeight = 10.dp
     }

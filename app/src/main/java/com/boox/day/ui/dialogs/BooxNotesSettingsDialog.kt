@@ -299,6 +299,39 @@ private fun BooxNotesSetupSteps(
         }
     }
 
+    BooxNotesSetupContent(
+        hasPermission = hasPermission,
+        scanning = scanning,
+        notesReady = GlobalAppSettings.isBooxNotesReady,
+        noteCount = noteCount,
+        calendarState = calendar?.state,
+        ocrOn = settings.ocrSettings.enabled,
+        aiOn = settings.aiEnabled,
+        hasKey = com.boox.day.security.UserOpenRouterKey.hasKey,
+        onRequestAccess = onRequestAccess,
+        onCheckNow = onCheckNow,
+        onOpenCalendarAccounts = onOpenCalendarAccounts,
+        onTurnOnReading = onTurnOnReading,
+        onSeeNotes = onSeeNotes
+    )
+}
+
+@Composable
+internal fun BooxNotesSetupContent(
+    hasPermission: Boolean,
+    scanning: Boolean,
+    notesReady: Boolean,
+    noteCount: Int?,
+    calendarState: SmartLinkPreflightState?,
+    ocrOn: Boolean,
+    aiOn: Boolean,
+    hasKey: Boolean,
+    onRequestAccess: () -> Unit,
+    onCheckNow: () -> Unit,
+    onOpenCalendarAccounts: () -> Unit,
+    onTurnOnReading: () -> Unit,
+    onSeeNotes: () -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)) {
         SetupPlaceStep(number = 1, done = hasPermission, title = "Let BooxDay see your notes") {
             if (hasPermission) {
@@ -311,8 +344,8 @@ private fun BooxNotesSetupSteps(
                         text = when {
                             scanning -> "Checking for notes…"
                             noteCount == null -> ""
-                            !GlobalAppSettings.isBooxNotesReady -> "Ready. Tap Check Now to load your notes."
-                            else -> "${plural(noteCount!!, "note")} found."
+                            !notesReady -> "Ready. Tap Check Now to load your notes."
+                            else -> "${plural(noteCount, "note")} found."
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -334,7 +367,6 @@ private fun BooxNotesSetupSteps(
             }
         }
 
-        val calendarState = calendar?.state
         val calendarReady = calendarState == SmartLinkPreflightState.READY || calendarState == SmartLinkPreflightState.LOCAL_ONLY_READY
         SetupPlaceStep(number = 2, done = calendarReady, title = "Connect a calendar") {
             SetupStepText(
@@ -356,12 +388,10 @@ private fun BooxNotesSetupSteps(
             }
         }
 
-        val ocrOn = settings.ocrSettings.enabled
-        val hasKey = com.boox.day.security.UserOpenRouterKey.hasKey
         SetupPlaceStep(number = 3, done = ocrOn, title = "Read my handwriting (optional)") {
             SetupStepText(
                 when {
-                    ocrOn && !settings.aiEnabled -> "On, paused: AI Features is off."
+                    ocrOn && !aiOn -> "On, paused: AI Features is off."
                     ocrOn && !hasKey -> "On, waiting for a key."
                     ocrOn -> "On. Pages are read while the tablet is idle."
                     else -> "Search the words in your notes and get better suggestions. Pages are read by AI on your OpenRouter account."
@@ -452,7 +482,7 @@ private fun SetupStepText(text: String, modifier: Modifier = Modifier) {
  * Pages are read by AI on the user's own OpenRouter key (Oct 2026; was Cloud Vision).
  */
 @Composable
-private fun OcrSettingsSection(
+internal fun OcrSettingsSection(
     onIndexNow: (() -> Unit)? = null,
     onClearIndex: (() -> Unit)? = null,
     onOcrSettingsChanged: ((OcrSettings) -> Unit)? = null,  // Callback to persist OCR settings changes

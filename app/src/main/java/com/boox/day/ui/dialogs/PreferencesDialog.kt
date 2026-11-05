@@ -867,7 +867,7 @@ private fun HandwritingRecognitionSection() {
 
     SettingCard(
         title = "Task Handwriting",
-        description = "Recognizes handwritten text on Task pages for search and Smart Link"
+        description = "Recognizes handwritten text on Task pages for search and suggestions"
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)
