@@ -18,6 +18,14 @@ data class WeekLayoutSpec(
         private const val COMPACT_BELOW_WIDTH_DP = 640
         private const val CELLS_DOWN = 4
         private const val CELL_PADDING_DP = 8
+        private const val SHEET_ROW_DP = 48
+        /** The sheet's title, buttons and padding. */
+        private const val SHEET_FRAME_DP = 130
+        /** As high as other popups may go. */
+        private const val SHEET_SCREEN_SHARE = 0.82f
+
+        /** Rows the Day sheet holds, so a busy day opens whole where the screen allows (owner, 5 Nov 2026). */
+        fun sheetRows(heightDp: Int): Int = ((heightDp * SHEET_SCREEN_SHARE - SHEET_FRAME_DP) / SHEET_ROW_DP).toInt()
 
         fun of(widthDp: Int, heightDp: Int): WeekLayoutSpec {
             val compact = widthDp < COMPACT_BELOW_WIDTH_DP

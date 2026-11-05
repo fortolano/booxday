@@ -16,6 +16,12 @@ class WeekLayoutSpecTest {
     }
 
     @Test
+    fun aBusyDayOpensWholeWhereTheScreenAllows() {
+        assertEquals(10, WeekLayoutSpec.sheetRows(772))
+        assertEquals(14, WeekLayoutSpec.sheetRows(1031))
+    }
+
+    @Test
     fun timesFollowTheSettingAndTheSize() {
         assertEquals("9:00 AM", WeekLayoutSpec.timeText(540, use24Hour = false, compact = false))
         assertEquals("9a", WeekLayoutSpec.timeText(540, use24Hour = false, compact = true))

@@ -49,6 +49,7 @@ import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 import com.boox.day.ui.theme.InkaTheme
+import com.boox.day.ui.theme.LayoutProfiles
 import com.boox.day.viewmodel.EventsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -73,7 +74,6 @@ object WeekUi {
     }
 }
 
-private const val ROWS_PER_SHEET = 6
 private const val OVERDUE = 7
 /** Handwriting pictures stop here, and the rest say "Handwritten task": the page opens on time. */
 private const val INK_BUDGET_MS = 350L
@@ -196,14 +196,15 @@ private fun WeekSheet(
                 day.finished.map { SheetItem.Todo(it, done = true) }
         }
     }
-    val pages = maxOf(1, (items.size + ROWS_PER_SHEET - 1) / ROWS_PER_SHEET)
+    val rowsPerPage = remember { WeekLayoutSpec.sheetRows(LayoutProfiles.screenHeightDp.toInt()) }
+    val pages = maxOf(1, (items.size + rowsPerPage - 1) / rowsPerPage)
     var page by remember { mutableIntStateOf(1) }
     val ticked = remember { mutableStateMapOf<String, Boolean>() }
     val moved = remember { mutableStateMapOf<String, String>() }
     var moving by remember { mutableStateOf<Task?>(null) }
     var pickDate by remember { mutableStateOf<Task?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
-    val shown = items.drop((page - 1) * ROWS_PER_SHEET).take(ROWS_PER_SHEET)
+    val shown = items.drop((page - 1) * rowsPerPage).take(rowsPerPage)
     val use24 = GlobalAppSettings.current.timeFormat == AppSettings.TimeFormat.TwentyFourHour
 
     fun moveTo(task: Task, target: String) {
