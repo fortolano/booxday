@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
@@ -130,6 +131,7 @@ fun BooxNotesDialog(
     var semantics by remember { mutableStateOf<NoteSemantics?>(null) }
     var selectedDomain by remember { mutableStateOf<Domain?>(null) }
     var selectedIntent by remember { mutableStateOf<Intent?>(null) }
+    var showEmptyNotes by remember { mutableStateOf(false) }
 
     // Smart Link
     var allProgress by remember { mutableStateOf<SmartLinkProgress?>(null) }
@@ -148,6 +150,9 @@ fun BooxNotesDialog(
     var busy by remember { mutableStateOf(false) }
 
     fun isLinked(noteId: String): Boolean = links[noteId]?.linkedEventId != null
+
+    /** No pages and no link. The stored count is not proof a note is empty, so these fold away, never vanish. */
+    fun isFoldedEmpty(note: BooxNoteIndex): Boolean = note.pageCount == 0 && !isLinked(note.uniqueId)
 
     suspend fun loadNotes() {
         allNotes = withContext(Dispatchers.IO) { booxNoteRepository.getAllNotes() }
@@ -331,8 +336,17 @@ fun BooxNotesDialog(
     val datesWithNotes = remember(allNotes) {
         allNotes.map { it.originalDate }.filter { it.isNotBlank() }.distinct().sortedDescending()
     }
-    val noteCountByDate = remember(allNotes) { allNotes.groupingBy { it.originalDate }.eachCount() }
-    val dayNotes = remember(allNotes, currentDate) { allNotes.filter { it.originalDate == currentDate } }
+    // A day counts its notes with pages; a day with only empty notes counts those, so its B leads somewhere
+    val noteCountByDate = remember(allNotes, links) {
+        allNotes.groupBy { it.originalDate }.mapValues { (_, notes) ->
+            notes.count { !isFoldedEmpty(it) }.takeIf { it > 0 } ?: notes.size
+        }
+    }
+    val dayAllNotes = remember(allNotes, currentDate) { allNotes.filter { it.originalDate == currentDate } }
+    val dayEmptyNotes = remember(dayAllNotes, links) {
+        dayAllNotes.filter(::isFoldedEmpty).takeIf { it.size < dayAllNotes.size }.orEmpty()
+    }
+    val dayNotes = if (showEmptyNotes) dayAllNotes else dayAllNotes - dayEmptyNotes.toSet()
 
     // Handwriting search (titles are matched directly)
     LaunchedEffect(query) {
@@ -346,12 +360,14 @@ fun BooxNotesDialog(
             .map { it.sourceId }
             .toSet()
     }
-    val allFiltered = remember(allNotes, query, handwritingMatches, unlinkedOnly, links, semantics, selectedDomain, selectedIntent) {
+    val allEmptyCount = remember(allNotes, links) { allNotes.count(::isFoldedEmpty) }
+    val allFiltered = remember(allNotes, query, handwritingMatches, unlinkedOnly, links, semantics, selectedDomain, selectedIntent, showEmptyNotes) {
         val trimmed = query.trim()
         // Title: every typed word somewhere in it, accents and case ignored (search/SearchText)
         val words = SearchText.queryWords(trimmed)
         allNotes.filter { note ->
-            (trimmed.isEmpty() || SearchText.matchesSubstrings(SearchText.fold(note.title), words) ||
+            (showEmptyNotes || !isFoldedEmpty(note)) &&
+                (trimmed.isEmpty() || SearchText.matchesSubstrings(SearchText.fold(note.title), words) ||
                 note.uniqueId in handwritingMatches) &&
                 (!unlinkedOnly || links[note.uniqueId]?.linkedEventId == null) &&
                 (selectedDomain == null || semantics?.domains?.get(note.uniqueId) == selectedDomain) &&
@@ -510,8 +526,8 @@ fun BooxNotesDialog(
                     )
 
                     showSuggestions -> {
-                        val scopeNotes = if (suggestionsForAll) allNotes else dayNotes
-                        val unlinked = scopeNotes.filter { !isLinked(it.uniqueId) }
+                        val scopeNotes = if (suggestionsForAll) allNotes else dayAllNotes
+                        val unlinked = scopeNotes.filter { !isLinked(it.uniqueId) && it.pageCount > 0 }
                         val items = unlinked.mapNotNull { n ->
                             cache.best(n.uniqueId)?.let { SuggestionItem(n, it, reasonFor(n, it)) }
                         }
@@ -561,7 +577,6 @@ fun BooxNotesDialog(
                         BooxNotesHeader(
                             showAll = showAll,
                             onShowAllChange = { showAll = it },
-                            isScanning = isScanning,
                             currentDate = currentDate,
                             datesWithNotes = datesWithNotes,
                             noteCountByDate = noteCountByDate,
@@ -577,7 +592,7 @@ fun BooxNotesDialog(
                                 .fillMaxWidth()
                         ) {
                             when {
-                                !loaded -> CenteredText("Loading notes…")
+                                !loaded -> CenteredText(if (isScanning) "Checking for new notes…" else "Loading notes…")
                                 allNotes.isEmpty() -> CenteredText(
                                     "No Boox Notes yet. Notes you write in the Boox Notes app show up here on the days you wrote them."
                                 )
@@ -587,11 +602,18 @@ fun BooxNotesDialog(
                                         .fillMaxHeight()
                                     if (showAll) {
                                         val linkedTotal = allNotes.count { isLinked(it.uniqueId) }
-                                        val filtering = allFiltered.size != allNotes.size
+                                        val shownTotal = allNotes.size - if (showEmptyNotes) 0 else allEmptyCount
+                                        val filtering = allFiltered.size != shownTotal
                                         BooxNotesAllList(
                                             notes = allFiltered,
-                                            caption = if (filtering) "${allFiltered.size} of ${plural(allNotes.size, "note")}"
-                                                else "${plural(allNotes.size, "note")} · $linkedTotal linked",
+                                            caption = when {
+                                                isScanning -> "Checking for new notes…"
+                                                filtering -> "${allFiltered.size} of ${plural(shownTotal, "note")}"
+                                                else -> "${plural(shownTotal, "note")} · $linkedTotal linked"
+                                            },
+                                            emptyCount = allEmptyCount,
+                                            showEmpty = showEmptyNotes,
+                                            onShowEmptyChange = { showEmptyNotes = it },
                                             selectedId = selectedId,
                                             rowState = ::rowState,
                                             query = query,
@@ -625,11 +647,15 @@ fun BooxNotesDialog(
                                             selectedId = selectedId,
                                             rowState = ::rowState,
                                             caption = when {
+                                                isScanning -> "Checking for new notes…"
                                                 linkedCount == 0 && dayNotes.size == 1 -> "1 note · not linked"
                                                 linkedCount == 0 -> "${plural(dayNotes.size, "note")} · none linked"
                                                 else -> "${plural(dayNotes.size, "note")} · $linkedCount linked"
                                             },
                                             notice = dateNotice,
+                                            emptyCount = dayEmptyNotes.size,
+                                            showEmpty = showEmptyNotes,
+                                            onShowEmptyChange = { showEmptyNotes = it },
                                             suggestionCount = dayNotes.count { !isLinked(it.uniqueId) && cache.best(it.uniqueId) != null },
                                             onSelect = { selectedId = it.uniqueId },
                                             onReviewSuggestions = {
@@ -719,15 +745,15 @@ private fun CenteredText(text: String) {
 
 /** Title, Day | All notes, the day (Day only) and close */
 @Composable
-private fun BooxNotesHeader(
+internal fun BooxNotesHeader(
     showAll: Boolean,
     onShowAllChange: (Boolean) -> Unit,
-    isScanning: Boolean,
     currentDate: String,
     datesWithNotes: List<String>,
     noteCountByDate: Map<String, Int>,
     onDateChange: (String) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    closeModifier: Modifier = Modifier
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -746,24 +772,19 @@ private fun BooxNotesHeader(
             selectedIndex = if (showAll) 1 else 0,
             onSelect = { onShowAllChange(it == 1) }
         )
-        if (isScanning) {
-            Text(
-                text = "Checking for new notes…",
-                fontSize = EInkTheme.Typography.bodySmall,
-                color = EInkTheme.Colors.darkGray,
-                maxLines = 1
-            )
+        // The date takes what is left, so the X always keeps its full size (it used to be squeezed
+        // out on a Go 6 and Go 7)
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            if (!showAll && datesWithNotes.isNotEmpty()) {
+                BooxNotesDateControl(
+                    currentDate = currentDate,
+                    datesWithNotes = datesWithNotes,
+                    noteCountByDate = noteCountByDate,
+                    onDateChange = onDateChange
+                )
+            }
         }
-        Spacer(modifier = Modifier.weight(1f))
-        if (!showAll && datesWithNotes.isNotEmpty()) {
-            BooxNotesDateControl(
-                currentDate = currentDate,
-                datesWithNotes = datesWithNotes,
-                noteCountByDate = noteCountByDate,
-                onDateChange = onDateChange
-            )
-        }
-        DialogCloseButton(onClose = onClose)
+        DialogCloseButton(onClose = onClose, modifier = closeModifier)
     }
 }
 
@@ -797,6 +818,7 @@ private fun BooxNotesDateControl(
             )
             Row(
                 modifier = Modifier
+                    .weight(1f, fill = false)
                     .fillMaxHeight()
                     .noRippleClickable { open = true }
                     .padding(horizontal = EInkTheme.Global.spacingSmall),
@@ -807,7 +829,9 @@ private fun BooxNotesDateControl(
                     fontSize = EInkTheme.Typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     color = EInkTheme.Colors.primary,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
                 Icon(
                     imageVector = Icons.Default.ArrowDropDown,
