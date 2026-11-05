@@ -94,7 +94,8 @@
 
     <string name="export_pages">Eksportuj strony</string>
     <string name="export_page_to">Eksportuj stronę do %1$s</string>
-    <string name="exporting_the_page_to">Eksportowanie strony do %1$s…</string>
+    <string name="exporting_this_page">Eksportowanie tej strony…</string>
+    <string name="exporting_this_day">Eksportowanie tego dnia…</string>
 
     <string name="export_book_to">Eksportuj zeszyt do %1$s</string>
     <string name="exporting_the_book_to">Eksportowanie zeszytu do %1$s…</string>

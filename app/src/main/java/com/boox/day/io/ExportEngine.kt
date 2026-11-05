@@ -3,7 +3,6 @@ package com.boox.day.io
 import android.content.ClipData
 import android.content.ClipboardManager
 import com.boox.day.BuildConfig
-import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -13,35 +12,26 @@ import android.os.Environment
 import androidx.compose.ui.geometry.Offset
 import androidx.core.graphics.createBitmap
 import androidx.core.net.toUri
-import com.boox.day.SCREEN_HEIGHT
-import com.boox.day.SCREEN_WIDTH
 import com.boox.day.TAG
+import com.boox.day.ai.MemoPageContent
 import com.boox.day.data.AppRepository
 import com.boox.day.data.datastore.A4_HEIGHT
 import com.boox.day.data.datastore.A4_WIDTH
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.db.BookRepository
 import com.boox.day.data.db.DayPageRepository
-import com.boox.day.data.db.Image
 import com.boox.day.data.db.Page
 import com.boox.day.data.db.PageRepository
-import com.boox.day.data.db.Stroke
 import com.boox.day.data.db.getBackgroundType
 import com.boox.day.editor.drawing.drawBg
-import com.boox.day.editor.drawing.drawImage
-import com.boox.day.editor.drawing.drawStroke
 import com.boox.day.ui.SnackState.Companion.logAndShowError
 import com.boox.day.ui.components.getFolderList
 import com.boox.day.utils.ensureNotMainThread
 import android.util.Log
 import com.boox.day.utils.TaggedLog
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
+import kotlin.coroutines.cancellation.CancellationException
 import java.io.IOException
-import java.io.OutputStream
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
@@ -76,14 +66,22 @@ class ExportEngine(
 ) {
     private val log = TaggedLog("ExportEngine")
 
+    private companion object {
+        const val PDF_MIME_TYPE = "application/pdf"
+    }
+
+    /**
+     * Exports [target]. Never throws, because callers run it in a scope with nothing to catch an
+     * exception (one used to close the app): whatever goes wrong comes back as [ExportOutcome.Failed].
+     */
     suspend fun export(
         target: ExportTarget, format: ExportFormat, options: ExportOptions = ExportOptions()
-    ): String {
+    ): ExportOutcome = try {
         // prepare file name and folder
         val (folderUri, baseFileName) = createFileNameAndFolder(target, format, options)
         // TODO: Retrieve all necessary data from the target, so that specific format exporter does not need to handle reading from db.
         //       For book it should be done page by page.
-        return when (format) {
+        when (format) {
             ExportFormat.PDF -> exportAsPdf(target, folderUri, baseFileName, options)
             ExportFormat.PNG, ExportFormat.JPEG -> exportAsImages(
                 target, folderUri, baseFileName, format, options
@@ -91,6 +89,14 @@ class ExportEngine(
 
             ExportFormat.XOPP -> exportAsXopp(target, folderUri, baseFileName, options)
         }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: OutOfMemoryError) {
+        log.e("Export ran out of memory", e)
+        ExportOutcome.Failed(ExportOutcome.TOO_BIG_MESSAGE)
+    } catch (e: Exception) {
+        log.e("Export failed: ${e.message}", e)
+        ExportOutcome.Failed(ExportOutcome.FAILED_MESSAGE)
     }
 
 
@@ -98,7 +104,7 @@ class ExportEngine(
 
     private suspend fun exportAsPdf(
         target: ExportTarget, folderUri: Uri, baseFileName: String, options: ExportOptions
-    ): String {
+    ): ExportOutcome {
         // Use CompactExportEngine for COMPACT layout with DayPages or single Page
         if (options.layout == ExportLayout.COMPACT) {
             when (target) {
@@ -133,51 +139,27 @@ class ExportEngine(
             }
         }
 
-        val writeAction: suspend (OutputStream) -> Unit
-        when (target) {
-            is ExportTarget.Book -> {
-                val book = bookRepo.getById(target.bookId) ?: return "Book ID not found"
-                writeAction = { out ->
-                    PdfDocument().use { doc ->
-                        book.pageIds.forEachIndexed { index, pageId ->
-                            writePageToPdfDocument(doc, pageId, pageNumber = index + 1)
-                        }
-                        doc.writeTo(out)
-                    }
-                }
-            }
+        // Empty pages are left out, as in the compact layout; a book keeps all of its pages
+        val pageIds = when (target) {
+            is ExportTarget.Book -> pagesOf(target)
+            else -> pagesOf(target).filter { hasContent(it) }
+        }
+        if (pageIds.isEmpty()) return emptyOutcome(target)
 
-            is ExportTarget.Page -> {
-                writeAction = { out ->
-                    PdfDocument().use { doc ->
-                        writePageToPdfDocument(doc, target.pageId, pageNumber = 1)
-                        doc.writeTo(out)
-                    }
-                }
-                if (options.copyToClipboard) copyPagePngLink(
-                    context, target.pageId
-                ) // You may want a separate PDF variant
-            }
-
-            is ExportTarget.DayPages -> {
-                writeAction = { out ->
-                    PdfDocument().use { doc ->
-                        target.pageIds.forEachIndexed { index, pageId ->
-                            writePageToPdfDocument(doc, pageId, pageNumber = index + 1)
-                        }
-                        doc.writeTo(out)
-                    }
-                }
+        val saved = ExportFiles.save(context, folderUri, "$baseFileName.pdf", PDF_MIME_TYPE, options.overwrite) { out ->
+            PdfDocument().use { doc ->
+                var nextPageNumber = 1
+                pageIds.forEach { pageId -> nextPageNumber = writePageToPdfDocument(doc, pageId, nextPageNumber) }
+                doc.writeTo(out)
             }
         }
+        if (options.copyToClipboard && target is ExportTarget.Page) copyPagePngLink(
+            context, target.pageId
+        ) // You may want a separate PDF variant
 
-        return saveStream(
-            folderUri = folderUri,
-            fileName = baseFileName,
-            extension = "pdf",
-            mimeType = "application/pdf",
-            writer = writeAction,
-            overwrite = options.overwrite
+        return ExportOutcome.Saved(
+            listOf(saved.uri), PDF_MIME_TYPE,
+            ExportFolderLabel.savedMessage(saved.displayName, ExportFolderLabel.of(folderUri))
         )
     }
 
@@ -189,61 +171,62 @@ class ExportEngine(
         baseFileName: String,
         format: ExportFormat,
         options: ExportOptions
-    ): String {
+    ): ExportOutcome {
         val (ext, mime, compressFormat) = when (format) {
             ExportFormat.PNG -> Triple("png", "image/png", Bitmap.CompressFormat.PNG)
             ExportFormat.JPEG -> Triple("jpg", "image/jpeg", Bitmap.CompressFormat.JPEG)
             else -> error("Unsupported image format")
         }
 
-        when (target) {
-            is ExportTarget.Page -> {
-                val pageId = target.pageId
-                val bitmap = renderBitmapForPage(pageId)
-                bitmap.useAndRecycle { bmp ->
-                    val bytes = bmp.toBytes(compressFormat)
-                    saveBytes(
-                        folderUri, baseFileName,
-                        ext, mime, options.overwrite, bytes
-                    )
+        val saved = mutableListOf<ExportFiles.Saved>()
+        var failed = 0
+        pagesOf(target).forEachIndexed { index, pageId ->
+            val bitmap = renderBitmapForPage(pageId) ?: return@forEachIndexed
+            // Each page separately, with numbered file names, except a single page
+            val fileName = if (target is ExportTarget.Page) baseFileName else "$baseFileName-p${index + 1}"
+            try {
+                saved += ExportFiles.save(context, folderUri, "$fileName.$ext", mime, options.overwrite) { out ->
+                    if (!bitmap.compress(compressFormat, 100, out)) throw IOException("Image not written")
                 }
-                if (options.copyToClipboard && format == ExportFormat.PNG) {
-                    copyPagePngLink(context, pageId)
-                }
-                return "Page exported: $baseFileName.$ext"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failed++
+                log.e("Page image not saved: ${e.message}", e)
+            } finally {
+                bitmap.recycle()
             }
+        }
 
-            is ExportTarget.Book -> {
-                val book = bookRepo.getById(target.bookId) ?: return "Book ID not found"
-                // Export each page separately (same folder = book title)
-                book.pageIds.forEachIndexed { index, pageId ->
-                    val fileName = "$baseFileName-p${index + 1}"
-                    val bitmap = renderBitmapForPage(pageId)
-                    bitmap.useAndRecycle { bmp ->
-                        val bytes = bmp.toBytes(compressFormat)
-                        saveBytes(folderUri, fileName, ext, mime, options.overwrite, bytes)
-                    }
+        return when {
+            saved.isEmpty() && failed == 0 -> emptyOutcome(target)
+            saved.isEmpty() -> ExportOutcome.Failed(ExportOutcome.FAILED_MESSAGE)
+            else -> {
+                if (options.copyToClipboard && format == ExportFormat.PNG && target is ExportTarget.Page) {
+                    copyPagePngLink(context, target.pageId)
                 }
-                if (options.copyToClipboard) {
-                    Log.w(TAG, "Can't copy book links or images to clipboard -- batch export.")
-                }
-                return "Book exported: ${book.title} (${book.pageIds.size} pages)"
-            }
-
-            is ExportTarget.DayPages -> {
-                // Export each page separately with numbered filenames
-                target.pageIds.forEachIndexed { index, pageId ->
-                    val fileName = "$baseFileName-p${index + 1}"
-                    val bitmap = renderBitmapForPage(pageId)
-                    bitmap.useAndRecycle { bmp ->
-                        val bytes = bmp.toBytes(compressFormat)
-                        saveBytes(folderUri, fileName, ext, mime, options.overwrite, bytes)
-                    }
-                }
-                return "Day exported: ${target.date} (${target.pageIds.size} pages)"
+                ExportOutcome.Saved(
+                    saved.map { it.uri }, mime,
+                    ExportFolderLabel.savedPagesMessage(saved.map { it.displayName }, failed, ExportFolderLabel.of(folderUri))
+                )
             }
         }
     }
+
+    /** The pages of [target], in order. */
+    private fun pagesOf(target: ExportTarget): List<String> = when (target) {
+        is ExportTarget.Book -> bookRepo.getById(target.bookId)?.pageIds ?: throw IOException("Book ID not found")
+        is ExportTarget.Page -> listOf(target.pageId)
+        is ExportTarget.DayPages -> target.pageIds
+    }
+
+    private suspend fun hasContent(pageId: String): Boolean =
+        MemoPageRenderer.hasContent(MemoPageContent.load(context, pageId))
+
+    private fun emptyOutcome(target: ExportTarget) = ExportOutcome.Empty(
+        if (target is ExportTarget.Page) ExportOutcome.EMPTY_PAGE_MESSAGE else ExportOutcome.EMPTY_PAGES_MESSAGE
+    )
+
     /* -------------------- XOPP export -------------------- */
 
     private suspend fun exportAsXopp(
@@ -251,16 +234,15 @@ class ExportEngine(
         folderUri: Uri,
         baseFileName: String,
         options: ExportOptions
-    ): String {
-        return saveStream(
-            extension = "xopp",
-            folderUri = folderUri,
-            fileName = baseFileName,
-            mimeType = "application/x-xopp",
-            overwrite = options.overwrite
-        ) { out ->
+    ): ExportOutcome {
+        val mime = "application/x-xopp"
+        val saved = ExportFiles.save(context, folderUri, "$baseFileName.xopp", mime, options.overwrite) { out ->
             XoppFile(context).writeToXoppStream(target, out)
         }
+        return ExportOutcome.Saved(
+            listOf(saved.uri), mime,
+            ExportFolderLabel.savedMessage(saved.displayName, ExportFolderLabel.of(folderUri))
+        )
     }
 
     /* -------------------- File naming and folder path -------------------- */
@@ -450,69 +432,81 @@ class ExportEngine(
 
     /* -------------------- Shared Drawing & PDF Helpers -------------------- */
 
-    private fun writePageToPdfDocument(doc: PdfDocument, pageId: String, pageNumber: Int) {
+    /** Writes a page from PDF page [firstPageNumber] on, and returns the number after its last. */
+    private suspend fun writePageToPdfDocument(doc: PdfDocument, pageId: String, firstPageNumber: Int): Int {
         ensureNotMainThread("ExportPdf")
         val data = fetchPageData(pageId)
-        val (_, contentHeightPx) = computeContentDimensions(data)
+        val frame = MemoPageRenderer.frame(data.content)
 
-        val scaleFactor = A4_WIDTH.toFloat() / SCREEN_WIDTH.toFloat()
-        val scaledHeight = (contentHeightPx * scaleFactor).toInt()
+        val scaleFactor = A4_WIDTH.toFloat() / frame.width
+        val scaledHeight = (frame.height * scaleFactor).toInt()
+        var pageNumber = firstPageNumber
 
         if (GlobalAppSettings.current.paginatePdf) {
             var currentTop = 0
-            var logicalPageNumber = pageNumber
             while (currentTop < scaledHeight) {
                 val pageInfo =
-                    PdfDocument.PageInfo.Builder(A4_WIDTH, A4_HEIGHT, logicalPageNumber).create()
+                    PdfDocument.PageInfo.Builder(A4_WIDTH, A4_HEIGHT, pageNumber).create()
                 val page = doc.startPage(pageInfo)
                 drawPage(
                     canvas = page.canvas,
                     data = data,
+                    frame = frame,
                     scroll = Offset(0f, currentTop.toFloat()),
                     scaleFactor = scaleFactor
                 )
                 doc.finishPage(page)
                 currentTop += A4_HEIGHT
-                logicalPageNumber++
+                pageNumber++
             }
         } else {
             val pageInfo = PdfDocument.PageInfo.Builder(A4_WIDTH, scaledHeight, pageNumber).create()
             val page = doc.startPage(pageInfo)
             drawPage(
-                canvas = page.canvas, data = data, scroll = Offset.Zero, scaleFactor = scaleFactor
+                canvas = page.canvas, data = data, frame = frame, scroll = Offset.Zero, scaleFactor = scaleFactor
             )
             doc.finishPage(page)
+            pageNumber++
         }
+        return pageNumber
     }
 
-    private fun renderBitmapForPage(pageId: String): Bitmap {
+    /** The whole page at its own size, or null when there is nothing to draw. */
+    internal suspend fun renderBitmapForPage(pageId: String, withTextBoxes: Boolean = true): Bitmap? {
         ensureNotMainThread("ExportBitmap")
         val data = fetchPageData(pageId)
-        val (contentWidth, contentHeight) = computeContentDimensions(data)
+        val content = if (withTextBoxes) data.content
+            else data.content.copy(textAnnotations = emptyList(), attachments = emptyList())
+        if (!MemoPageRenderer.hasContent(content)) return null
 
-        val bitmap = createBitmap(contentWidth, contentHeight)
-        val canvas = Canvas(bitmap)
-
-        // Scale = 1f (bitmap is native logical size)
-        drawBg(context, canvas, data.page.getBackgroundType(), data.page.background)
-        data.images.forEach { drawImage(context, canvas, it, Offset.Zero) }
-        data.strokes.forEach { drawStroke(canvas, it, Offset.Zero) }
-
+        val frame = MemoPageRenderer.frame(content)
+        val bitmap = createBitmap(frame.width, frame.height)
+        try {
+            val canvas = Canvas(bitmap)
+            // Scale = 1f (bitmap is native logical size)
+            drawBg(context, canvas, data.page.getBackgroundType(), data.page.background, frame.corner, showMargin = false)
+            MemoPageRenderer.drawMemoPage(context, canvas, content, frame.corner)
+        } catch (e: Throwable) {
+            bitmap.recycle()
+            throw e
+        }
         return bitmap
     }
 
     /**
-     * Public wrapper for rendering a page bitmap from database.
-     * Used by canvas conversion feature for non-current pages.
+     * The page's ink and images, for reading it for search. Text boxes stay out: search gets them
+     * as typed, from [com.boox.day.ocr.TextAnnotationIndexer].
      *
      * MUST be called from background thread.
      *
      * @param pageId The page ID to render
      * @return Bitmap of the page content, or null if page not found
      */
-    fun renderBitmapForPagePublic(pageId: String): Bitmap? {
+    suspend fun renderBitmapForPagePublic(pageId: String): Bitmap? {
         return try {
-            renderBitmapForPage(pageId)
+            renderBitmapForPage(pageId, withTextBoxes = false)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("ExportEngine", "Failed to render bitmap for page $pageId", e)
             null
@@ -520,155 +514,32 @@ class ExportEngine(
     }
 
     private fun drawPage(
-        canvas: Canvas, data: PageData, scroll: Offset, scaleFactor: Float
+        canvas: Canvas, data: PageData, frame: MemoPageRenderer.Frame, scroll: Offset, scaleFactor: Float
     ) {
         canvas.scale(scaleFactor, scaleFactor)
-        val scaledScroll = scroll / scaleFactor
+        val corner = frame.corner + scroll / scaleFactor
         drawBg(
             context,
             canvas,
             data.page.getBackgroundType()
                 .resolveForExport(getPageNumber(data.page.notebookId, data.page.id)),
             data.page.background,
-            scaledScroll,
-            scaleFactor
+            corner,
+            scaleFactor,
+            showMargin = false
         )
-        data.images.forEach { drawImage(context, canvas, it, -scaledScroll) }
-        data.strokes.forEach { drawStroke(canvas, it, -scaledScroll) }
+        MemoPageRenderer.drawMemoPage(context, canvas, data.content, corner)
     }
 
-    /* -------------------- Data Fetch / Dimension Calculation -------------------- */
+    /* -------------------- Data Fetch -------------------- */
 
-    private data class PageData(
-        val page: Page, val strokes: List<Stroke>, val images: List<Image>
-    )
+    private data class PageData(val page: Page, val content: MemoPageContent.Page)
 
-    private fun fetchPageData(pageId: String): PageData {
-        val (page, strokes) = pageRepo.getWithStrokeById(pageId)
-        val (_, images) = pageRepo.getWithImageById(pageId)
-        return PageData(page, strokes, images)
+    /** The page as it is now: what's on screen and not saved yet included. */
+    private suspend fun fetchPageData(pageId: String): PageData {
+        val page = pageRepo.getById(pageId) ?: throw IOException("Page not found")
+        return PageData(page, MemoPageContent.load(context, pageId))
     }
-
-    // Returns (width, height)
-    private fun computeContentDimensions(data: PageData): Pair<Int, Int> {
-        if (data.strokes.isEmpty() && data.images.isEmpty()) {
-            return SCREEN_WIDTH to SCREEN_HEIGHT
-        }
-        val strokeBottom = data.strokes.maxOfOrNull { it.bottom.toInt() } ?: 0
-        val strokeRight = data.strokes.maxOfOrNull { it.right.toInt() } ?: 0
-        val imageBottom = data.images.maxOfOrNull { (it.y + it.height) } ?: 0
-        val imageRight = data.images.maxOfOrNull { (it.x + it.width) } ?: 0
-
-        val rawHeight = maxOf(
-            strokeBottom, imageBottom
-        ) + if (GlobalAppSettings.current.visualizePdfPagination) 0 else 50
-        val rawWidth = maxOf(strokeRight, imageRight) + 50
-
-        val height = rawHeight.coerceAtLeast(SCREEN_HEIGHT)
-        val width = rawWidth.coerceAtLeast(SCREEN_WIDTH)
-        return width to height
-    }
-
-    /* -------------------- Saving Helpers -------------------- */
-
-    /**
-     * A convenience wrapper around [saveInternal] to save a raw [ByteArray] to a file.
-     *
-     * @param folderUri The URI of the directory where the file will be saved.
-     *                  Can be a `file://` URI or a Storage Access Framework (SAF) tree/document URI.
-     * @param fileName The name of the file, without the extension.
-     * @param extension The file extension (e.g., "png", "jpg").
-     * @param mimeType The MIME type of the file (e.g., "image/png").
-     * @param overwrite If `true`, any existing file with the same name will be replaced.
-     * @param bytes The raw byte data to write to the file.
-     * @return A [String] indicating the result of the save operation, typically a success or error message.
-     */
-    private suspend fun saveBytes(
-        folderUri: Uri,
-        fileName: String,
-        extension: String,
-        mimeType: String,
-        overwrite: Boolean,
-        bytes: ByteArray
-    ): String = saveInternal(
-        folderUri = folderUri,
-        fileName = fileName,
-        extension = extension,
-        mimeType = mimeType,
-        overwrite = overwrite
-    ) { out -> out.write(bytes) }
-
-    /**
-     * A convenience wrapper around [saveInternal] that accepts a suspendable [writer] lambda
-     * to write content to an [OutputStream].
-     *
-     * @param folderUri The URI of the directory where the file will be saved.
-     *                  Can be a `file://` URI or a Storage Access Framework (SAF) tree/document URI.
-     * @param fileName The base name of the file, without the extension.
-     * @param extension The file extension (e.g., "pdf", "png").
-     * @param mimeType The MIME type of the file (e.g., "application/pdf").
-     * @param overwrite If `true`, any existing file with the same name will be replaced.
-     * @param writer A suspendable lambda that receives an [OutputStream] to write the file content into.
-     * @return A user-facing message indicating the result of the save operation (e.g., "Saved file.pdf" or "Error saving...").
-     */
-    private suspend fun saveStream(
-        folderUri: Uri,
-        fileName: String,
-        extension: String,
-        mimeType: String,
-        overwrite: Boolean,
-        writer: suspend (OutputStream) -> Unit
-    ): String = saveInternal(
-        folderUri = folderUri,
-        fileName = fileName,
-        extension = extension,
-        mimeType = mimeType,
-        overwrite = overwrite,
-        writer = writer
-    )
-
-    /**
-     * Central writer that handles directory types:
-     * - SAF directory Uris (tree/document) via DocumentsContract
-     * - file:// directory Uris via java.io.File
-     */
-    private suspend fun saveInternal(
-        folderUri: Uri,
-        fileName: String,
-        extension: String,
-        mimeType: String,
-        overwrite: Boolean,
-        writer: suspend (OutputStream) -> Unit
-    ): String = withContext(Dispatchers.IO) {
-        val displayName = if (extension.isBlank()) fileName else "$fileName.$extension"
-        try {
-            val dest = createOrGetFileInDir(folderUri, displayName, mimeType, overwrite)
-                ?: throw IOException(
-                    "Unable to create or access destination file in target directory, $folderUri, file: $displayName"
-                )
-
-            when (dest.scheme) {
-                ContentResolver.SCHEME_CONTENT -> {
-                    val resolver = context.contentResolver
-                    resolver.openOutputStream(dest, "w")?.use { out -> writer(out) }
-                        ?: throw IOException("Failed to open output stream for $displayName")
-                }
-
-                "file" -> {
-                    val file = File(requireNotNull(dest.path) { "Missing file path" })
-                    FileOutputStream(file, false).use { out -> writer(out) }
-                }
-
-                else -> throw IOException("Unsupported Uri scheme: ${dest.scheme}")
-            }
-
-            ExportFolderLabel.savedMessage(displayName, ExportFolderLabel.of(folderUri))
-        } catch (e: Exception) {
-            Log.e(TAG, "Save error: ${e.message}")
-            "Error saving $displayName"
-        }
-    }
-
 
     /* -------------------- Clipboard Helpers -------------------- */
 
@@ -733,147 +604,6 @@ class ExportEngine(
         if (uri.scheme != "file") return false
         val path = uri.path ?: return false
         return File(path).isDirectory
-    }
-
-    /**
-     * Create or get a file inside a directory Uri.
-     * - For SAF directories: uses DocumentsContract and returns a content:// document Uri
-     * - For file directories: creates a java.io.File and returns file:// Uri
-     */
-    private fun createOrGetFileInDir(
-        dirUri: Uri, displayName: String, mimeType: String, overwrite: Boolean
-    ): Uri? {
-        return when {
-            // SAF tree/doc directory
-            android.provider.DocumentsContract.isTreeUri(dirUri) || android.provider.DocumentsContract.isDocumentUri(
-                context,
-                dirUri
-            ) -> {
-                createOrGetSafChild(dirUri, displayName, mimeType, overwrite)
-            }
-
-            // file:// directory
-            isFileDirectory(dirUri) -> {
-                val parent = File(requireNotNull(dirUri.path))
-                if (!parent.exists()) parent.mkdirs()
-                val target = File(parent, displayName)
-                if (target.exists()) {
-                    if (overwrite) {
-                        if (!target.delete()) {
-                            log.w("Failed to delete existing file for overwrite: ${target.absolutePath}")
-                        }
-                    } else {
-                        return target.toUri()
-                    }
-                }
-                try {
-                    if (target.parentFile?.exists() != true) target.parentFile?.mkdirs()
-                    if (!target.exists()) target.createNewFile()
-                    target.toUri()
-                } catch (e: Exception) {
-                    log.e("File create failed: ${e.message}")
-                    null
-                }
-            }
-
-            else -> null
-        }
-    }
-
-    private fun createOrGetSafChild(
-        dirUri: Uri, displayName: String, mimeType: String, overwrite: Boolean
-    ): Uri? {
-        val resolver = context.contentResolver
-
-        val parentDocUri: Uri
-        val childrenUri: Uri
-        val buildChildDocUri: (String) -> Uri
-
-        if (android.provider.DocumentsContract.isTreeUri(dirUri)) {
-            val treeDocId = android.provider.DocumentsContract.getTreeDocumentId(dirUri)
-            parentDocUri =
-                android.provider.DocumentsContract.buildDocumentUriUsingTree(dirUri, treeDocId)
-            childrenUri =
-                android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(
-                    dirUri,
-                    treeDocId
-                )
-            buildChildDocUri = { docId ->
-                android.provider.DocumentsContract.buildDocumentUriUsingTree(dirUri, docId)
-            }
-        } else {
-            val docId = android.provider.DocumentsContract.getDocumentId(dirUri)
-            parentDocUri = dirUri
-            childrenUri =
-                android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(dirUri, docId)
-            buildChildDocUri = { childDocId ->
-                android.provider.DocumentsContract.buildDocumentUriUsingTree(dirUri, childDocId)
-            }
-        }
-
-        var existingChildUri: Uri? = null
-        resolver.query(
-            childrenUri,
-            arrayOf(
-                android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME
-            ),
-            null, null, null
-        )?.use { cursor ->
-            val idIdx =
-                cursor.getColumnIndexOrThrow(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID)
-            val nameIdx =
-                cursor.getColumnIndexOrThrow(android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME)
-            while (cursor.moveToNext()) {
-                val name = cursor.getString(nameIdx)
-                if (name == displayName) {
-                    val childDocId = cursor.getString(idIdx)
-                    existingChildUri = buildChildDocUri(childDocId)
-                    break
-                }
-            }
-        }
-
-        if (existingChildUri != null) {
-            if (overwrite) {
-                try {
-                    android.provider.DocumentsContract.deleteDocument(resolver, existingChildUri)
-                } catch (e: Exception) {
-                    log.w("Failed to delete existing document before overwrite: ${e.message}")
-                }
-            } else {
-                return existingChildUri
-            }
-        }
-
-        return try {
-            android.provider.DocumentsContract.createDocument(
-                resolver,
-                parentDocUri,
-                mimeType,
-                displayName
-            )
-        } catch (e: Exception) {
-            log.e("createDocument failed: ${e.message}")
-            null
-        }
-    }
-
-    private fun Bitmap.toBytes(format: Bitmap.CompressFormat, quality: Int = 100): ByteArray {
-        val bos = ByteArrayOutputStream()
-        this.compress(format, quality, bos)
-        return bos.toByteArray()
-    }
-
-    private inline fun Bitmap.useAndRecycle(block: (Bitmap) -> Unit) {
-        try {
-            block(this)
-        } finally {
-            try {
-                recycle()
-            } catch (_: Exception) {
-            }
-        }
     }
 
     // Simple PdfDocument.use extension

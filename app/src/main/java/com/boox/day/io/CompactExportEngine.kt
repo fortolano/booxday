@@ -11,27 +11,23 @@ import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import androidx.compose.ui.geometry.Offset
 import androidx.core.graphics.createBitmap
-import com.boox.day.SCREEN_WIDTH
+import com.boox.day.ai.MemoPageContent
 import com.boox.day.data.datastore.A4_HEIGHT
 import com.boox.day.data.datastore.A4_WIDTH
 import com.boox.day.data.db.DayPageRepository
-import com.boox.day.data.db.Image
-import com.boox.day.data.db.Page
 import com.boox.day.data.db.PageRepository
-import com.boox.day.data.db.Stroke
 import com.boox.day.data.db.getBackgroundType
 import com.boox.day.editor.drawing.drawBg
-import com.boox.day.editor.drawing.drawImage
-import com.boox.day.editor.drawing.drawStroke
 import com.boox.day.utils.ensureNotMainThread
 import com.boox.day.utils.TaggedLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
+import java.io.IOException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  * Compact Export Engine for intelligent PDF export.
@@ -71,6 +67,9 @@ class CompactExportEngine(
         private const val INTER_PAGE_SPACING = 4
         private const val CONTENT_PADDING = 5
 
+        // The tallest block that fits a PDF page under its date header
+        private val MAX_BLOCK_HEIGHT = A4_CONTENT_HEIGHT - DATE_HEADER_HEIGHT - INTER_PAGE_SPACING
+
         // Reference width for scale factor calculation
         // Use this to ensure consistent PDF output across different screen sizes
         // Larger value = smaller content in PDF = more memos fit per page
@@ -85,24 +84,34 @@ class CompactExportEngine(
 
     /* ---------------------------- Data Classes ---------------------------- */
 
-    /**
-     * Content measurement result for a single memo page.
-     */
-    private data class ContentBlock(
+    /** How far a memo page's content reaches, in page pixels. */
+    internal data class MeasuredPage(
         val date: String,              // "2025-12-15"
         val pageId: String,
         val pageIndexInDay: Int,       // 0, 1, 2... (which page within that day)
         val totalPagesInDay: Int,      // Total pages for this day
-        val contentTop: Int,           // Top of actual content (pixels, unscaled)
-        val contentBottom: Int,        // Bottom of actual content (pixels, unscaled)
-        val contentHeight: Int,        // Scaled height for PDF layout
-        val bitmap: Bitmap             // Pre-rendered content bitmap
+        val left: Int,                 // Left edge of the picture
+        val width: Int,                // Width of the picture
+        val contentTop: Int,           // Top of actual content
+        val contentBottom: Int         // Bottom of actual content
     )
+
+    /** A memo page, or a part of one too tall for a PDF page. Drawn when its PDF page is. */
+    internal data class ContentBlock(
+        val page: MeasuredPage,
+        val top: Int,                  // Top of this block (page pixels)
+        val bottom: Int,               // Bottom of this block (page pixels)
+        val contentHeight: Int         // Scaled height for PDF layout
+    ) {
+        val date: String get() = page.date
+        val pageIndexInDay: Int get() = page.pageIndexInDay
+        val totalPagesInDay: Int get() = page.totalPagesInDay
+    }
 
     /**
      * Output page containing multiple content blocks.
      */
-    private data class OutputPage(
+    internal data class OutputPage(
         val blocks: MutableList<ContentBlock> = mutableListOf(),
         var usedHeight: Int = 0
     ) {
@@ -125,159 +134,106 @@ class CompactExportEngine(
         folderUri: Uri,
         baseFileName: String,
         options: ExportOptions
-    ): String = withContext(Dispatchers.IO) {
+    ): ExportOutcome = withContext(Dispatchers.IO) {
         ensureNotMainThread("CompactExportPdf")
 
         log.i("Starting compact PDF export for date: ${target.date}, pages: ${target.pageIds.size}")
 
-        // Phase 1: Measure all content blocks
-        // Use the larger of actual screen width or reference width to ensure 2 memos fit per page
-        val effectiveWidth = maxOf(SCREEN_WIDTH, REFERENCE_WIDTH)
-        val scaleFactor = A4_CONTENT_WIDTH.toFloat() / effectiveWidth.toFloat()
-        log.d("Scale factor: $scaleFactor (effectiveWidth=$effectiveWidth, screenWidth=$SCREEN_WIDTH)")
-        val contentBlocks = measureAllContent(target.date, target.pageIds, scaleFactor)
+        // Phase 1: Measure all content (no pictures yet: a whole day of them would not fit in memory)
+        val measured = measureAllContent(target.date, target.pageIds)
 
-        if (contentBlocks.isEmpty()) {
-            return@withContext "No content to export"
+        if (measured.isEmpty()) {
+            return@withContext ExportOutcome.Empty(
+                if (target.pageIds.size == 1) ExportOutcome.EMPTY_PAGE_MESSAGE else ExportOutcome.EMPTY_PAGES_MESSAGE
+            )
         }
 
         // Phase 2: Pack content blocks into output pages
-        val outputPages = packContentBlocks(contentBlocks, scaleFactor)
+        val scaleFactor = scaleFactorFor(measured)
+        log.d("Scale factor: $scaleFactor")
+        val outputPages = packContentBlocks(contentBlocks(measured, scaleFactor))
 
-        log.i("Packed ${contentBlocks.size} memo pages into ${outputPages.size} PDF pages")
+        log.i("Packed ${measured.size} memo pages into ${outputPages.size} PDF pages")
 
-        // Phase 3: Render PDF document
-        val pdfDocument = PdfDocument()
-        try {
-            outputPages.forEachIndexed { index, outputPage ->
-                renderOutputPage(pdfDocument, outputPage, index + 1, scaleFactor)
+        // Phase 3: Render PDF document, one picture at a time
+        val saved = ExportFiles.save(context, folderUri, "$baseFileName.pdf", "application/pdf", options.overwrite) { out ->
+            val pdfDocument = PdfDocument()
+            try {
+                outputPages.forEachIndexed { index, outputPage ->
+                    renderOutputPage(pdfDocument, outputPage, index + 1, scaleFactor)
+                }
+                pdfDocument.writeTo(out)
+            } finally {
+                pdfDocument.close()
             }
-
-            // Save PDF
-            val result = savePdfDocument(pdfDocument, folderUri, baseFileName, options)
-
-            // Recycle bitmaps
-            contentBlocks.forEach { it.bitmap.recycle() }
-
-            result
-        } finally {
-            pdfDocument.close()
         }
+        ExportOutcome.Saved(
+            listOf(saved.uri), "application/pdf",
+            ExportFolderLabel.savedMessage(saved.displayName, ExportFolderLabel.of(folderUri))
+        )
     }
 
     /* ---------------------------- Content Measurement ---------------------------- */
 
     /**
-     * Measure all content blocks for the given pages.
+     * Measure the given pages. Empty ones are skipped. Text boxes and file chips count: a page of
+     * typed text alone used to be left out, and a meeting's title was cropped off above its notes.
      */
-    private fun measureAllContent(
-        date: String,
-        pageIds: List<String>,
-        scaleFactor: Float
-    ): List<ContentBlock> {
-        val blocks = mutableListOf<ContentBlock>()
-        val totalPages = pageIds.size
-
+    internal suspend fun measureAllContent(date: String, pageIds: List<String>): List<MeasuredPage> {
+        val measured = mutableListOf<MeasuredPage>()
         pageIds.forEachIndexed { index, pageId ->
-            val block = measureContentBlock(
-                pageId = pageId,
+            val page = MemoPageContent.load(context, pageId)
+            val bounds = MemoPageRenderer.contentBounds(page)
+            if (bounds == null) {
+                log.d("Skipping empty page: $pageId")
+                return@forEachIndexed
+            }
+            val frame = MemoPageRenderer.frame(page)
+            measured += MeasuredPage(
                 date = date,
+                pageId = pageId,
                 pageIndexInDay = index,
-                totalPagesInDay = totalPages,
-                scaleFactor = scaleFactor
+                totalPagesInDay = pageIds.size,
+                left = floor(frame.left).toInt(),
+                width = frame.width,
+                contentTop = floor(bounds.top).toInt() - CONTENT_PADDING,
+                contentBottom = ceil(bounds.bottom).toInt() + CONTENT_PADDING
             )
-            if (block != null) {
-                blocks.add(block)
+        }
+        return measured
+    }
+
+    /** Fits the widest page. At least [REFERENCE_WIDTH], so 2 memos fit per page. */
+    internal fun scaleFactorFor(pages: List<MeasuredPage>): Float =
+        A4_CONTENT_WIDTH.toFloat() / maxOf(REFERENCE_WIDTH, pages.maxOf { it.width })
+
+    /** Each page as one block, or several when it is too tall for a PDF page. Ink is never cut off. */
+    internal fun contentBlocks(pages: List<MeasuredPage>, scaleFactor: Float): List<ContentBlock> {
+        val tallestBlock = floor(MAX_BLOCK_HEIGHT / scaleFactor).toInt()
+        return pages.flatMap { page ->
+            (page.contentTop until page.contentBottom step tallestBlock).map { top ->
+                val bottom = minOf(top + tallestBlock, page.contentBottom)
+                ContentBlock(page, top, bottom, ceil((bottom - top) * scaleFactor).toInt())
             }
         }
-
-        return blocks
     }
 
-    /**
-     * Measure a single content block.
-     */
-    private fun measureContentBlock(
-        pageId: String,
-        date: String,
-        pageIndexInDay: Int,
-        totalPagesInDay: Int,
-        scaleFactor: Float
-    ): ContentBlock? {
-        // Fetch page data
-        val (page, strokes) = pageRepo.getWithStrokeById(pageId)
-        val (_, images) = pageRepo.getWithImageById(pageId)
-
-        // Skip empty pages
-        if (strokes.isEmpty() && images.isEmpty()) {
-            log.d("Skipping empty page: $pageId")
-            return null
+    /** One block as a picture, on the page's background. The caller recycles it. */
+    internal suspend fun renderBlock(block: ContentBlock): Bitmap {
+        val content = MemoPageContent.load(context, block.page.pageId)
+        val row = pageRepo.getById(block.page.pageId) ?: throw IOException("Page not found")
+        val bitmap = createBitmap(block.page.width, (block.bottom - block.top).coerceAtLeast(1))
+        try {
+            val canvas = Canvas(bitmap)
+            // White background
+            canvas.drawColor(Color.WHITE)
+            val corner = Offset(block.page.left.toFloat(), block.top.toFloat())
+            drawBg(context, canvas, row.getBackgroundType(), row.background, corner, showMargin = false)
+            MemoPageRenderer.drawMemoPage(context, canvas, content, corner)
+        } catch (e: Throwable) {
+            bitmap.recycle()
+            throw e
         }
-
-        // Find actual content bounds
-        val contentTop = findContentTop(strokes, images)
-        val contentBottom = findContentBottom(strokes, images)
-
-        // Render the page content to bitmap
-        val bitmap = renderPageBitmap(page, strokes, images, contentTop, contentBottom)
-
-        // Calculate scaled height for PDF layout
-        val rawHeight = contentBottom - contentTop + CONTENT_PADDING * 2
-        val scaledHeight = (rawHeight * scaleFactor).toInt()
-
-        return ContentBlock(
-            date = date,
-            pageId = pageId,
-            pageIndexInDay = pageIndexInDay,
-            totalPagesInDay = totalPagesInDay,
-            contentTop = contentTop,
-            contentBottom = contentBottom,
-            contentHeight = scaledHeight,
-            bitmap = bitmap
-        )
-    }
-
-    private fun findContentTop(strokes: List<Stroke>, images: List<Image>): Int {
-        val strokeTop = strokes.minOfOrNull { it.top.toInt() } ?: Int.MAX_VALUE
-        val imageTop = images.minOfOrNull { it.y } ?: Int.MAX_VALUE
-        val minTop = minOf(strokeTop, imageTop)
-        return if (minTop == Int.MAX_VALUE) 0 else (minTop - CONTENT_PADDING).coerceAtLeast(0)
-    }
-
-    private fun findContentBottom(strokes: List<Stroke>, images: List<Image>): Int {
-        val strokeBottom = strokes.maxOfOrNull { it.bottom.toInt() } ?: 0
-        val imageBottom = images.maxOfOrNull { it.y + it.height } ?: 0
-        return maxOf(strokeBottom, imageBottom) + CONTENT_PADDING
-    }
-
-    /**
-     * Render a page to a cropped bitmap (only the content area).
-     */
-    private fun renderPageBitmap(
-        page: Page,
-        strokes: List<Stroke>,
-        images: List<Image>,
-        contentTop: Int,
-        contentBottom: Int
-    ): Bitmap {
-        val contentHeight = contentBottom - contentTop
-        val bitmap = createBitmap(SCREEN_WIDTH, contentHeight.coerceAtLeast(100))
-        val canvas = Canvas(bitmap)
-
-        // White background
-        canvas.drawColor(Color.WHITE)
-
-        // Draw background pattern (offset by contentTop)
-        val bgOffset = Offset(0f, contentTop.toFloat())
-        drawBg(context, canvas, page.getBackgroundType(), page.background, bgOffset)
-
-        // Draw images (offset by contentTop)
-        val contentOffset = Offset(0f, -contentTop.toFloat())
-        images.forEach { drawImage(context, canvas, it, contentOffset) }
-
-        // Draw strokes (offset by contentTop)
-        strokes.forEach { drawStroke(canvas, it, contentOffset) }
-
         return bitmap
     }
 
@@ -289,10 +245,7 @@ class CompactExportEngine(
      * Handles the case where a single day has more content than fits on one A4 page
      * by splitting across multiple pages with continued date headers.
      */
-    private fun packContentBlocks(
-        blocks: List<ContentBlock>,
-        scaleFactor: Float
-    ): List<OutputPage> {
+    internal fun packContentBlocks(blocks: List<ContentBlock>): List<OutputPage> {
         val pages = mutableListOf<OutputPage>()
 
         // Group by date, maintaining chronological order
@@ -312,7 +265,7 @@ class CompactExportEngine(
                 val blockHeight = calculateSingleBlockHeight(block, isFirstBlockOfDay)
 
                 // Check if this block fits on current page
-                if (currentPage.remainingHeight < blockHeight) {
+                if (currentPage.blocks.isNotEmpty() && currentPage.remainingHeight < blockHeight) {
                     // Current page is full, start a new PDF page
                     currentPage = OutputPage()
                     pages.add(currentPage)
@@ -375,7 +328,7 @@ class CompactExportEngine(
     /**
      * Render an output page to the PDF document.
      */
-    private fun renderOutputPage(
+    private suspend fun renderOutputPage(
         pdfDocument: PdfDocument,
         page: OutputPage,
         pageNumber: Int,
@@ -406,7 +359,12 @@ class CompactExportEngine(
             // The date header is sufficient to identify content
 
             // Draw cropped content bitmap
-            currentY = drawContentBitmap(canvas, block, currentY, scaleFactor)
+            val bitmap = renderBlock(block)
+            try {
+                currentY = drawContentBitmap(canvas, bitmap, currentY, scaleFactor)
+            } finally {
+                bitmap.recycle()
+            }
 
             // Add spacing between pages
             currentY += INTER_PAGE_SPACING
@@ -483,12 +441,10 @@ class CompactExportEngine(
      */
     private fun drawContentBitmap(
         canvas: Canvas,
-        block: ContentBlock,
+        bitmap: Bitmap,
         y: Float,
         scaleFactor: Float
     ): Float {
-        val bitmap = block.bitmap
-
         // Source rect (full bitmap)
         val srcRect = Rect(0, 0, bitmap.width, bitmap.height)
 
@@ -534,75 +490,6 @@ class CompactExportEngine(
         } catch (e: Exception) {
             log.w("Failed to parse date: $dateString")
             dateString
-        }
-    }
-
-    /* ---------------------------- File Saving ---------------------------- */
-
-    /**
-     * Save PDF document to the target folder.
-     */
-    private fun savePdfDocument(
-        pdfDocument: PdfDocument,
-        folderUri: Uri,
-        baseFileName: String,
-        options: ExportOptions
-    ): String {
-        val fileName = "$baseFileName.pdf"
-
-        return try {
-            when (folderUri.scheme) {
-                "file" -> {
-                    val folder = File(requireNotNull(folderUri.path))
-                    if (!folder.exists()) folder.mkdirs()
-                    val file = File(folder, fileName)
-                    FileOutputStream(file).use { out ->
-                        pdfDocument.writeTo(out)
-                    }
-                    log.i("Saved compact PDF: ${file.absolutePath}")
-                    ExportFolderLabel.savedMessage(fileName, ExportFolderLabel.of(folderUri))
-                }
-                else -> {
-                    // For content:// URIs, use ContentResolver
-                    val resolver = context.contentResolver
-                    val destUri = createFileInDirectory(folderUri, fileName, "application/pdf")
-                    if (destUri != null) {
-                        resolver.openOutputStream(destUri)?.use { out ->
-                            pdfDocument.writeTo(out)
-                        }
-                        log.i("Saved compact PDF via ContentResolver")
-                        ExportFolderLabel.savedMessage(fileName, ExportFolderLabel.of(folderUri))
-                    } else {
-                        "Error: Could not create file"
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            log.e("Failed to save PDF: ${e.message}", e)
-            "Error saving PDF: ${e.message}"
-        }
-    }
-
-    /**
-     * Create a file in a directory URI (for SAF directories).
-     */
-    private fun createFileInDirectory(dirUri: Uri, fileName: String, mimeType: String): Uri? {
-        return try {
-            if (android.provider.DocumentsContract.isTreeUri(dirUri)) {
-                val treeDocId = android.provider.DocumentsContract.getTreeDocumentId(dirUri)
-                val parentDocUri = android.provider.DocumentsContract.buildDocumentUriUsingTree(dirUri, treeDocId)
-                android.provider.DocumentsContract.createDocument(
-                    context.contentResolver,
-                    parentDocUri,
-                    mimeType,
-                    fileName
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            log.e("Failed to create file in directory: ${e.message}")
-            null
         }
     }
 }

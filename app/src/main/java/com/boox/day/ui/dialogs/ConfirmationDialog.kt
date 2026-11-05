@@ -185,7 +185,7 @@ fun ShowExportDialog(
                                             options = ExportOptions(
                                                 copyToClipboard = false,
                                             )
-                                        )
+                                        ).message
                                     }
                                 }
                             } else {
@@ -196,7 +196,7 @@ fun ShowExportDialog(
                                         ExportEngine(context).export(
                                             target = ExportTarget.Book(bookId = bookId),
                                             format = ExportFormat.XOPP,
-                                        )
+                                        ).message
                                     }
                                 }
                             }

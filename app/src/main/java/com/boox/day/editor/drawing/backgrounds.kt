@@ -349,7 +349,8 @@ fun drawBg(
     scroll: Offset = Offset.Zero,
     scale: Float = 1f, // When exporting, we change scale of canvas. therefore canvas.width/height is scaled
     page: PageView? = null,
-    clipRect: Rect? = null // before the scaling
+    clipRect: Rect? = null, // before the scaling
+    showMargin: Boolean = true // Exports leave it out: it is a guide for the screen, and came out as a magenta line
 ) {
     clipRect?.let {
         canvas.save()
@@ -398,7 +399,7 @@ fun drawBg(
             }
         }
     }
-    drawMargin(canvas, scroll, scale)
+    if (showMargin) drawMargin(canvas, scroll, scale)
 
     if (GlobalAppSettings.current.visualizePdfPagination) {
         drawPaginationLine(canvas, scroll, scale)

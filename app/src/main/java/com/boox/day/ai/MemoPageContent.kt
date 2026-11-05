@@ -11,13 +11,13 @@ import com.boox.day.SCREEN_WIDTH
 import com.boox.day.data.AppRepository
 import com.boox.day.data.PageDataManager
 import com.boox.day.data.PagePersistenceWriter
+import com.boox.day.data.db.Attachment
 import com.boox.day.data.db.Image
 import com.boox.day.data.db.Stroke
 import com.boox.day.data.db.TextAnnotation
 import com.boox.day.data.db.isUndecodable
-import com.boox.day.editor.drawing.drawImage
 import com.boox.day.editor.drawing.drawStroke
-import com.boox.day.editor.drawing.drawTextAnnotation
+import com.boox.day.io.MemoPageRenderer
 import com.boox.day.utils.TaggedLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -28,7 +28,7 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
- * Everything on a memo page, for the AI features (Oct 2026). A page open this session comes from
+ * Everything on a memo page, for the AI features and exports (Oct 2026). A page open this session comes from
  * memory (it may hold strokes not saved yet); any other page from the database, after the page
  * writes queued so far. Never the canvas image or a saved preview: both hold only the part of a
  * page that was on screen (ink written low in full screen, or moved out of view, was left out),
@@ -47,8 +47,10 @@ object MemoPageContent {
         val pageId: String,
         val strokes: List<Stroke>,
         val images: List<Image>,
-        val textAnnotations: List<TextAnnotation>
+        val textAnnotations: List<TextAnnotation>,
+        val attachments: List<Attachment> = emptyList()
     ) {
+        /** Ink, images or text: what the AI can read. File chips don't count, see [MemoPageRenderer.hasContent]. */
         val isEmpty: Boolean get() = strokes.isEmpty() && images.isEmpty() && textAnnotations.isEmpty()
     }
 
@@ -58,7 +60,8 @@ object MemoPageContent {
                 pageId,
                 PageDataManager.getStrokes(pageId),
                 PageDataManager.getImages(pageId).toList(),
-                PageDataManager.getTextAnnotations(pageId).toList()
+                PageDataManager.getTextAnnotations(pageId).toList(),
+                PageDataManager.getAttachments(pageId).toList()
             )
         }
         // The writer runs page writes in order: once this empty one has run, every earlier one has
@@ -70,7 +73,8 @@ object MemoPageContent {
                 // Strokes whose points can't be decoded are left out, as when the page is shown
                 repository.pageRepository.getWithStrokeByIdSuspend(pageId).strokes.filter { !it.isUndecodable },
                 repository.pageRepository.getWithImageById(pageId).images,
-                repository.textAnnotationRepository.getByPageId(pageId)
+                repository.textAnnotationRepository.getByPageId(pageId),
+                repository.attachmentRepository.getByPageId(pageId)
             )
         } catch (e: CancellationException) {
             throw e
@@ -97,7 +101,7 @@ object MemoPageContent {
      */
     fun renderSelection(strokes: List<Stroke>): Bitmap? {
         if (strokes.isEmpty()) return null
-        val content = contentBounds(Page("selection", strokes, emptyList(), emptyList())) ?: return null
+        val content = MemoPageRenderer.contentBounds(Page("selection", strokes, emptyList(), emptyList())) ?: return null
         val left = content.left - PADDING
         val top = content.top - PADDING
         val width = content.width() + 2 * PADDING
@@ -120,10 +124,11 @@ object MemoPageContent {
      * The whole page as one picture: from the page corner (or content above or left of it) to its
      * lowest and rightmost content, at least a screen wide, on white. Images, ink and text boxes as
      * the canvas draws them, markers in their own grey (the e-ink dots are for the panel only).
-     * Off the main thread.
+     * File chips stay out: they aren't the user's writing. Off the main thread.
      */
     fun render(context: Context, page: Page): Bitmap {
-        val content = contentBounds(page) ?: RectF(0f, 0f, 1f, 1f)
+        val drawn = page.copy(attachments = emptyList())
+        val content = MemoPageRenderer.contentBounds(drawn) ?: RectF(0f, 0f, 1f, 1f)
         val left = min(0f, content.left - PADDING)
         val top = min(0f, content.top - PADDING)
         val right = max(SCREEN_WIDTH.toFloat(), content.right + PADDING)
@@ -137,22 +142,8 @@ object MemoPageContent {
         canvas.drawColor(Color.WHITE)
         canvas.scale(scale, scale)
         // Content above or left of the page corner moves into the picture
-        val shift = Offset(-left, -top)
-        page.images.forEach { drawImage(context, canvas, it, shift) }
-        page.strokes.forEach { drawStroke(canvas, it, shift) }
-        page.textAnnotations.forEach { drawTextAnnotation(canvas, it, -shift) }  // takes the view's corner
+        MemoPageRenderer.drawMemoPage(context, canvas, drawn, Offset(left, top))
         log.d("Memo page ${page.pageId} as ${bitmap.width}x${bitmap.height} (${page.strokes.size} strokes, ${page.textAnnotations.size} text boxes)")
         return bitmap
-    }
-
-    private fun contentBounds(page: Page): RectF? {
-        var bounds: RectF? = null
-        fun add(left: Float, top: Float, right: Float, bottom: Float) {
-            bounds?.union(left, top, right, bottom) ?: run { bounds = RectF(left, top, right, bottom) }
-        }
-        page.strokes.forEach { add(it.left, it.top, it.right, it.bottom) }
-        page.images.forEach { add(it.x.toFloat(), it.y.toFloat(), (it.x + it.width).toFloat(), (it.y + it.height).toFloat()) }
-        page.textAnnotations.forEach { add(it.x, it.y, it.x + it.width, it.y + it.height) }
-        return bounds
     }
 }

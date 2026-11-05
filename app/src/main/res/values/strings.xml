@@ -140,7 +140,8 @@
 
     <string name="export_pages">Export Pages</string>
     <string name="export_page_to">Export page to %1$s</string>
-    <string name="exporting_the_page_to">Exporting the page to %1$s…</string>
+    <string name="exporting_this_page">Exporting this page…</string>
+    <string name="exporting_this_day">Exporting this day…</string>
 
     <string name="export_book_to">Export book to %1$s</string>
     <string name="exporting_the_book_to">Exporting the book to %1$s…</string>

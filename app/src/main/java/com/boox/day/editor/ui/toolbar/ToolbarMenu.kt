@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -58,9 +59,12 @@ import com.boox.day.io.ExportEngine
 import com.boox.day.io.ExportFormat
 import com.boox.day.io.ExportLayout
 import com.boox.day.io.ExportOptions
+import com.boox.day.io.ExportOutcome
 import com.boox.day.io.ExportTarget
+import com.boox.day.io.FileShare
 import com.boox.day.ui.LocalSnackContext
 import com.boox.day.ui.SnackConf
+import com.boox.day.ui.showHint
 import com.boox.day.ui.convertDpToPixel
 import com.boox.day.data.db.TaskPageInfo
 import com.boox.day.editor.ui.TaskExportAction
@@ -109,6 +113,26 @@ class ToolbarMenuTool(
     val page: (@Composable ColumnScope.(closeMenu: () -> Unit) -> Unit)? = null,
     val pageWrapsContent: Boolean = false
 )
+
+/** The result of a memo export, with a way to send the file on (Nov 2026). */
+private fun exportResultSnack(context: Context, outcome: ExportOutcome): SnackConf = when (outcome) {
+    is ExportOutcome.Saved -> SnackConf(
+        text = outcome.message,
+        duration = EXPORT_SAVED_SNACK_MS,
+        actions = listOf<Pair<String, () -> Unit>>("Share" to {
+            try {
+                FileShare.share(context, outcome.uris, outcome.mimeType)
+            } catch (e: Exception) {
+                showHint("Couldn't open the share screen")
+            }
+        })
+    )
+    is ExportOutcome.Empty -> SnackConf(text = outcome.message, duration = SnackConf.DURATION_STANDARD)
+    is ExportOutcome.Failed -> SnackConf(text = outcome.message, duration = SnackConf.DURATION_ERROR)
+}
+
+/** Long enough to read the folder and reach for Share. */
+private const val EXPORT_SAVED_SNACK_MS = 10_000
 
 /**
  * The toolbar menu (≡), tab-aware; opened from the bar's last button on both tabs (Oct 2026).
@@ -171,19 +195,20 @@ fun ToolbarMenu(
                 showTaskExportDialog = false
                 onClose()
 
-                // Perform export using TaskExportService (with stroke detection)
-                val exportService = TaskExportService(context)
-                val result = exportService.export(
-                    scope = exportScope,
-                    format = format,
-                    action = action,
-                    dayDate = state.dayDate!!,
-                    currentTaskPageIndex = taskPageInfo?.currentIndex ?: 0,
-                    canvasHeight = canvasHeight
-                )
-
-                // Show result snackbar for both clipboard and share
+                val dayDate = state.dayDate!!
+                val taskPageIndex = taskPageInfo?.currentIndex ?: 0
                 scope.launch {
+                    // Perform export using TaskExportService (with stroke detection), off the main thread
+                    val result = TaskExportService(context).export(
+                        scope = exportScope,
+                        format = format,
+                        action = action,
+                        dayDate = dayDate,
+                        currentTaskPageIndex = taskPageIndex,
+                        canvasHeight = canvasHeight
+                    )
+
+                    // Show result snackbar for both clipboard and share
                     snackManager.displaySnack(
                         SnackConf(
                             text = result.message,
@@ -218,21 +243,17 @@ fun ToolbarMenu(
                         ExportTarget.Page(pageId = state.currentPageId)
                     }
 
-                    val formatName = when (format) {
-                        ExportFormat.PDF -> "PDF"
-                        ExportFormat.PNG -> "PNG"
-                        ExportFormat.JPEG -> "JPG"
-                        else -> format.name
-                    }
+                    // Create export options with layout preference; the clipboard stays as the user left it
+                    val options = ExportOptions(copyToClipboard = false, layout = layout)
 
-                    // Create export options with layout preference
-                    val options = ExportOptions(layout = layout)
-
-                    snackManager.runWithSnack(
-                        context.getString(R.string.exporting_the_page_to, formatName)
+                    val outcome = snackManager.showSnackDuring(
+                        context.getString(
+                            if (target is ExportTarget.DayPages) R.string.exporting_this_day else R.string.exporting_this_page
+                        )
                     ) {
                         ExportEngine(context).export(target = target, format = format, options = options)
                     }
+                    snackManager.displaySnack(exportResultSnack(context, outcome))
                 }
             },
             onDismiss = { showExportDialog = false }

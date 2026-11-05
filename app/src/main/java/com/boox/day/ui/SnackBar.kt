@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.Text
@@ -17,6 +18,8 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -27,6 +30,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import com.boox.day.ui.theme.EInkTheme
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
@@ -270,15 +274,24 @@ fun SnackBar(state: SnackState) {
                     contentAlignment = Alignment.Center
                 ) {
                     if (snack.text != null) {
-                        Row {
-                            Text(text = snack.text, color = Color.White)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = snack.text, color = Color.White, modifier = Modifier.weight(1f, fill = false))
                             if (snack.actions != null && snack.actions.isEmpty().not()) {
                                 snack.actions.map {
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = it.first,
-                                        color = Color.White,
-                                        modifier = Modifier.noRippleClickable { it.second() })
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .heightIn(min = EInkTheme.Global.touchTarget)
+                                            .noRippleClickable { it.second() },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = it.first,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            textDecoration = TextDecoration.Underline
+                                        )
+                                    }
                                 }
                             }
                         }

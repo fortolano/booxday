@@ -38,4 +38,12 @@ internal object ExportFolderLabel {
     /** "Saved [fileName]", and where, when the folder can be named. */
     fun savedMessage(fileName: String, folderLabel: String?): String =
         if (folderLabel == null) "Saved $fileName" else "Saved $fileName to $folderLabel"
+
+    /** The result of saving one file per page: [fileNames] were saved, [failed] pages could not be. */
+    fun savedPagesMessage(fileNames: List<String>, failed: Int, folderLabel: String?): String {
+        if (fileNames.size == 1 && failed == 0) return savedMessage(fileNames.first(), folderLabel)
+        val where = folderLabel?.let { " to $it" }.orEmpty()
+        return if (failed == 0) "Saved ${fileNames.size} pages$where"
+        else "Saved ${fileNames.size} of ${fileNames.size + failed} pages$where. The rest couldn't be saved."
+    }
 }
