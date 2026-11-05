@@ -38,8 +38,8 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 | 1B | Export redesign | Medium | Shipped in 1.0.62 (5 Nov 2026). Saving to a picked folder and the Go 6 not checked, by the owner's choice: see the phase's checklist |
 | 2 | Pen, compatibility and the Ukrainian PR | Small to medium | In progress on `next-release`: PR #5 merged there and the language screen rebuilt; eraser, issue #1 and SupportPopup left |
 | 3 | Sleep screen choices | Small to medium | Built on `next-release`, pictures approved; tablet checks left |
-| 4 | Week view | Large | Not started |
-| 5 | Write It, Schedule It | Large | Not started |
+| 4 | Week view | Large | Pictures approved 5 Nov 2026; building on `next-release` |
+| 5 | Write It, Schedule It | Large | Pictures approved 5 Nov 2026 |
 | 6 | Meeting Recap | Medium to large | Not started |
 | 7 | Meeting Prep | Medium | Not started |
 | 8 | Share to BooxDay | Medium | Not started |
@@ -333,7 +333,7 @@ Answers go in the "Decision" column. Until then a decision is open, and the reco
 | D4 | If the reporter confirms issue #1 on the latest version | **A.** Publish a diagnostics APK as a GitHub pre-release; never offered in-app (real evidence / extra build). **B.** Wait for more reports. **C.** Also install an Android 11 emulator on the PC (catches plain Android 11 faults, not BOOX ones / a new install on your PC). | A; C only if you want it | 2 | **A (owner, 4 Nov 2026).** No emulator. |
 | D5 | Merge PR #5? | **A.** Yes, after a build and the Go 6 fit check. **B.** Ask the author for changes first. | A | 2 | **A (owner, 4 Nov 2026).** |
 | D6 | Sleep screen: what does the Month switch mean? | **A.** Existing users keep today's "when there's room" until they change the switch; after that it's always on or off (no change for anyone until they choose / one hidden state). **B.** Always on or off for everyone from now (simple / changes some sleep screens on update). | A | 3 | **A (owner, 4 Nov 2026).** |
-| D7 | Week view on 6-inch screens | **A.** Seven stacked rows (about 3 lines a day, titles to about 55 characters / an exception to "one layout"). **B.** The same two-column grid, with density adapted (about 5 lines a day, one layout, less code / titles end at about 28 characters). **C.** Two pages of four days (roomy / never a whole-week view). | B | 4 | **B (owner, 4 Nov 2026).** Pictures of A and B with real titles come first in Phase 4. |
+| D7 | Week view on 6-inch screens | **A.** Seven stacked rows (about 3 lines a day, titles to about 55 characters / an exception to "one layout"). **B.** The same two-column grid, with density adapted (about 5 lines a day, one layout, less code / titles end at about 28 characters). **C.** Two pages of four days (roomy / never a whole-week view). | B | 4 | **B (owner, 4 Nov 2026), confirmed from the pictures on 5 Nov 2026.** |
 | D8 | How do people open Week view? | **A.** A "Week" word button in the day header (visible, fits every size / uses that spot). **B.** An icon in the top bar (familiar / no room on Go 6 and Go 7). **C.** A menu item (no space problem / hard to find). | A | 4 | **A (owner, 4 Nov 2026).** |
 | D9 | A task due Friday, written on Monday | **A.** Show on both days, marked "Due" on Friday (nothing hidden / seen twice). **B.** Only on its due day. **C.** Only on its row day. | A | 4 | **A (owner, 4 Nov 2026).** |
 | D10 | Selection bar button | **A.** A new seventh icon, Convert to Tasks unchanged (no risk to a recently fixed feature / two AI icons). **B.** One merged "Turn into…" button (fewer icons / changes a known workflow). | A | 5 | **A (owner, 4 Nov 2026).** |
@@ -1191,7 +1191,7 @@ On every size: two columns of four cells, read down then across, like a paper pl
 
 **Checklist**
 
-- [ ] Owner's picture OK
+- [x] Owner's picture OK (5 Nov 2026)
 - [ ] S4, S5, S9 built; `MainScreen` sizes measured
 - [ ] Loader proven read-only
 - [ ] All tests pass at four sizes
@@ -1340,7 +1340,7 @@ Judge the screen the user ends on, never "a model answered" (the 1.0.56 lesson).
 
 **Checklist**
 
-- [ ] Owner's picture OK
+- [x] Owner's picture OK (5 Nov 2026)
 - [ ] Extraction shipped with no behaviour change
 - [ ] S6, S7 built, used only through their public functions
 - [ ] Live check passes both ways
