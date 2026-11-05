@@ -15,8 +15,8 @@ import org.robolectric.annotation.Config
 
 /**
  * Calendar sync saves every fetched event again. A Boox Notes link points at its event
- * (boox_note_links.linkedEventId, foreign key ON DELETE SET NULL), so saving an event must keep its
- * links; only deleting the event may clear them (Oct 2026: every sync emptied all links).
+ * (boox_note_links.linkedEventId, cleared by BooxNoteLinkSchema's trigger), so saving an event must keep
+ * its links; only deleting the event may clear them (Oct 2026: every sync emptied all links).
  *
  * Runs on the JVM (Robolectric) against the real Room database and DAOs.
  */
@@ -31,8 +31,10 @@ class CalendarEventLinkSurvivalTest {
     @Before
     fun setUp() {
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
+            .addCallback(BooxNoteLinkSchema.CALLBACK)
             .allowMainThreadQueries()
             .build()
+        db.openHelper.writableDatabase
         events = db.calendarEventDao()
         links = db.booxNoteLinkDao()
     }

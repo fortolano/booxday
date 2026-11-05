@@ -97,7 +97,7 @@ class Migration31To32Test {
 
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbFile.absolutePath)
-            .addMigrations(MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34)
+            .addMigrations(MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35)
             .addCallback(TaskSyncSchema.CALLBACK)
             .allowMainThreadQueries()
             .build()

@@ -415,7 +415,7 @@ private fun BooxNotesHighlight(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(12.dp))
 
         // Feature bullets
-        HighlightBullet("Smart Link connects your notes to calendar events")
+        HighlightBullet("BooxDay suggests which event each note belongs to")
         Spacer(modifier = Modifier.height(6.dp))
         HighlightBullet("Search finds the words in your handwritten notes")
     }

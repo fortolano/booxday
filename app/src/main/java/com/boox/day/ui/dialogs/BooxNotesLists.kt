@@ -262,7 +262,7 @@ internal fun NotesCaptionRow(caption: String, reviewCount: Int, shortLabel: Bool
             fontSize = EInkTheme.Typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = EInkTheme.Colors.darkGray,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
@@ -319,7 +319,7 @@ internal fun PagedNoteList(
         val current = pageIndex.coerceIn(0, pages.lastIndex)
 
         // Follow a selection made elsewhere, such as a note opened from an event
-        LaunchedEffect(selectedId, pages) {
+        LaunchedEffect(selectedId) {
             val onPage = pages.indexOfFirst { p -> p.any { it is NoteListEntry.Note && it.note.uniqueId == selectedId } }
             if (onPage >= 0 && onPage != current) onPageChange(onPage)
         }
@@ -430,8 +430,10 @@ private fun NotesPager(pages: List<List<NoteListEntry>>, current: Int, onPageCha
                             .border(EInkTheme.PopupMenu.borderWidth, EInkTheme.PopupMenu.borderColor)
                             .verticalScroll(rememberScrollState())
                     ) {
+                        // One mark, though a page can hold the end of one month and the start of the next
+                        val shownMonth = months.lastOrNull { it.second <= current }?.first
                         months.forEach { (label, page) ->
-                            FilterMenuItem(text = label, selected = page == current) {
+                            FilterMenuItem(text = label, selected = label == shownMonth) {
                                 open = false
                                 onPageChange(page)
                             }
@@ -675,7 +677,7 @@ internal data class NoteFilters(
         get() = listOf(hasSuggestion, emptyNotes, domain != null, intent != null).count { it }
 }
 
-/** Its own place: filters need room, and most days nobody opens it. Empty groups stay hidden. */
+/** A panel just big enough for its options, over the notes. Empty groups stay hidden. */
 @Composable
 internal fun BooxNotesFilterScreen(
     filters: NoteFilters,
@@ -686,13 +688,24 @@ internal fun BooxNotesFilterScreen(
     modifier: Modifier = Modifier
 ) {
     var draft by remember { mutableStateOf(filters) }
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)) {
+    val shape = RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
+    Column(
+        modifier = modifier
+            .background(EInkTheme.ModernDialog.background, shape)
+            .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, shape)
+            .padding(EInkTheme.Global.padding),
+        verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
+    ) {
         Text(
             text = "Filter Notes",
             fontSize = EInkTheme.BooxNotes.titleFontSize,
             fontWeight = FontWeight.Bold,
-            color = EInkTheme.Colors.primary,
-            modifier = Modifier.padding(vertical = EInkTheme.Global.paddingSmall)
+            color = EInkTheme.Colors.primary
+        )
+        Text(
+            text = "Choose which notes All notes shows. Each choice narrows the list further.",
+            fontSize = EInkTheme.Typography.bodyMedium,
+            color = EInkTheme.Colors.primary
         )
         FilterHeading("Show")
         FilterCheck("Has a suggestion", draft.hasSuggestion) { draft = draft.copy(hasSuggestion = it) }
@@ -723,9 +736,17 @@ internal fun BooxNotesFilterScreen(
                 modifier = Modifier.fillMaxWidth()
             )
         }
-        Spacer(modifier = Modifier.weight(1f))
+        if (semantics == null || (semantics.domainCounts.isEmpty() && semantics.intentCounts.isEmpty())) {
+            Text(
+                text = "Topic and kind of note appear here once your handwriting is read (Settings → Handwriting Search).",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.darkGray
+            )
+        }
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = EInkTheme.Global.paddingSmall),
             horizontalArrangement = Arrangement.spacedBy(EInkTheme.Button.spacing)
         ) {
             EinkSecondaryButton(text = "Cancel", onClick = onCancel, modifier = Modifier.weight(1f))

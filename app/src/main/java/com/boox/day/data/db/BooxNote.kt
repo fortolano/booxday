@@ -3,7 +3,6 @@ package com.boox.day.data.db
 import android.content.Context
 import androidx.room.Dao
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -45,7 +44,11 @@ data class BooxNoteIndex(
     val previewStatus: String? = null,  // page_ready / shape_only / text_only / unavailable
     val hasTextContent: Boolean = false,
     val warningsJson: String? = null    // Compact JSON array of warning strings
-)
+) {
+    /** The name BOOX has for this note; null when [title] is one BooxDay made up from a date or the id */
+    val nameInBoox: String?
+        get() = title.takeIf { it.isNotBlank() && titleSource != null && titleSource != "derived" && titleSource != "generated" }
+}
 
 /**
  * Links between Boox Notes and Calendar Events.
@@ -64,14 +67,6 @@ data class BooxNoteIndex(
         Index(value = ["linkedEventId"]),
         Index(value = ["linkedDayDate"]),      // NEW: For day-based queries
         Index(value = ["needsAttention"])      // NEW: For attention list queries
-    ],
-    foreignKeys = [
-        ForeignKey(
-            entity = CalendarEvent::class,
-            parentColumns = ["id"],
-            childColumns = ["linkedEventId"],
-            onDelete = ForeignKey.SET_NULL
-        )
     ]
 )
 data class BooxNoteLink(

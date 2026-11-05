@@ -5863,7 +5863,7 @@ fun MainScreen(
                 linkedBooxNotes = linkedBooxNotesForEvent,
                 onBooxNoteClick = { note ->
                     // Direct launch: Open Boox Notes app with this note
-                    booxNotesIntegration.openNote(note.uniqueId)
+                    booxNotesIntegration.openNote(note.uniqueId, note.nameInBoox)
                 },
                 onViewBooxNote = { note -> com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(note.uniqueId) },
                 onLinkANote = { selectedEventForDetails?.let { com.boox.day.ui.dialogs.BooxNotesPlaces.openLinkANote(it) } },
@@ -5923,7 +5923,7 @@ fun MainScreen(
                 onNavigateToEvents = { openQuickViewList("events") },
                 onNavigateToTasksDue = { openQuickViewList("due") },
                 onOpenBooxNote = { uniqueId, title ->
-                    // Open the note in Boox Notes app (pass title for diagnostic logging)
+                    // Open the note in Boox Notes app, with its own name
                     booxNotesIntegration.openNote(uniqueId, title)
                     showDayQuickView = false
                 },

@@ -1,5 +1,6 @@
 package com.boox.day.ui.dialogs
 
+import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -27,8 +29,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -41,12 +43,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsAnimationCompat
+import androidx.core.view.WindowInsetsCompat
 import com.boox.day.booxnotes.BooxNoteIndexer
 import com.boox.day.booxnotes.BooxNotePreviewCoordinator
 import com.boox.day.booxnotes.BooxNotePreviewResult
@@ -328,7 +335,7 @@ fun BooxNotesDialog(
                 booxNoteIndexer?.quickValidation(listOf(note.uniqueId))?.toSet() ?: setOf(note.uniqueId)
             }
             if (note.uniqueId in validIds) {
-                booxNotesIntegration.openNote(note.uniqueId)
+                booxNotesIntegration.openNote(note.uniqueId, note.nameInBoox)
             } else {
                 // Gone from Boox Notes: rescan and show what is left
                 isScanning = true
@@ -478,7 +485,10 @@ fun BooxNotesDialog(
     // Keep a selection that is in the list being shown (Suggestions and Link a Note pick their own)
     LaunchedEffect(loaded, showAll, listNotes, showSuggestions, linkEvent, noteOpen) {
         if (loaded && !showSuggestions && linkEvent == null && !noteOpen && listNotes.none { it.uniqueId == selectedId }) {
-            selectedId = listNotes.firstOrNull()?.uniqueId
+            val next = listNotes.firstOrNull()?.uniqueId
+            // A filter hid the note just changed: that isn't a next action, so its Undo stays
+            if (message?.noteId == selectedId) message = message?.copy(noteId = next)
+            selectedId = next
         }
     }
 
@@ -575,7 +585,8 @@ fun BooxNotesDialog(
     }
 
     // Selected note: its page, and how many events its day has
-    LaunchedEffect(selectedId) {
+    // Also on [loaded]: a note opened from an event or search is selected before the list has arrived
+    LaunchedEffect(selectedId, loaded) {
         pageIndex = 0
         heldNoteId = selectedId?.takeIf { it !in cache.scored && !isLinked(it) }
         val note = selectedNote ?: return@LaunchedEffect
@@ -585,7 +596,7 @@ fun BooxNotesDialog(
     }
     // The list has its own thumbnails: a big page is drawn only where it is on show
     val pageWanted = twoPane || noteOpen || readerOpen || reviewing
-    LaunchedEffect(selectedId, pageIndex, pageWanted) {
+    LaunchedEffect(selectedId, pageIndex, pageWanted, loaded) {
         if (!pageWanted) return@LaunchedEffect
         val note = selectedNote ?: return@LaunchedEffect
         val ready = preloaded?.takeIf { it.first == note.uniqueId && pageIndex == 0 }
@@ -671,6 +682,7 @@ fun BooxNotesDialog(
         properties = PopupProperties(focusable = true)
     ) {
         val theme = EInkTheme.BooxNotes
+        RemeasureAfterKeyboard()
         Box(modifier = Modifier.fillMaxSize()) {
             BoxWithConstraints(
                 modifier = Modifier
@@ -688,18 +700,6 @@ fun BooxNotesDialog(
                 val note = selectedNote
 
                 when {
-                    filterOpen -> BooxNotesFilterScreen(
-                        filters = filters,
-                        semantics = semantics,
-                        matchCount = { draft -> allNotes.count { matchesFilters(it, draft) } },
-                        onShow = {
-                            filters = it
-                            filterOpen = false
-                        },
-                        onCancel = { filterOpen = false },
-                        modifier = placeModifier
-                    )
-
                     pickerOpen && note != null -> BooxNoteEventPicker(
                         note = note,
                         linkedEventId = links[note.uniqueId]?.linkedEventId,
@@ -987,8 +987,55 @@ fun BooxNotesDialog(
                         }
                     }
                 }
+
+                // Over the notes, not instead of them: it needs little room. A tap beside it closes it
+                if (filterOpen) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .noRippleClickable { filterOpen = false },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BooxNotesFilterScreen(
+                            filters = filters,
+                            semantics = semantics,
+                            matchCount = { draft -> allNotes.count { matchesFilters(it, draft) } },
+                            onShow = {
+                                filters = it
+                                filterOpen = false
+                            },
+                            onCancel = { filterOpen = false },
+                            modifier = Modifier
+                                .widthIn(max = EInkTheme.BooxNotes.filterPanelMaxWidth)
+                                .fillMaxWidth()
+                                .noRippleClickable { /* consume clicks */ }
+                        )
+                    }
+                }
             }
         }
+    }
+}
+
+/**
+ * A Popup takes its height from the screen area free of the keyboard when it is measured, and nothing
+ * measures it again when the keyboard goes, so after a search the window stayed short.
+ */
+@Composable
+private fun RemeasureAfterKeyboard() {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val callback = object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
+            override fun onProgress(insets: WindowInsetsCompat, running: MutableList<WindowInsetsAnimationCompat>) = insets
+
+            override fun onEnd(animation: WindowInsetsAnimationCompat) {
+                if (animation.typeMask and WindowInsetsCompat.Type.ime() != 0) {
+                    (view.parent as? View)?.requestLayout()
+                }
+            }
+        }
+        ViewCompat.setWindowInsetsAnimationCallback(view, callback)
+        onDispose { ViewCompat.setWindowInsetsAnimationCallback(view, null) }
     }
 }
 
@@ -1041,25 +1088,13 @@ private fun NotesFirstUseHint(onClose: () -> Unit) {
     }
 }
 
-/** ⋮: everything that isn't a note */
+/** More: everything that isn't a note. A word, because three dots are easy to miss */
 @Composable
-private fun NotesMoreMenu(onReview: () -> Unit, onCheck: () -> Unit, onSetup: () -> Unit, onHelp: () -> Unit) {
+internal fun NotesMoreMenu(onReview: () -> Unit, onCheck: () -> Unit, onSetup: () -> Unit, onHelp: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     val menuOffsetY = with(LocalDensity.current) { EInkTheme.Global.touchTarget.roundToPx() }
     Box {
-        Box(
-            modifier = Modifier
-                .size(EInkTheme.Global.touchTarget)
-                .noRippleClickable { open = true },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "More",
-                tint = EInkTheme.Colors.primary,
-                modifier = Modifier.size(EInkTheme.Global.iconSize)
-            )
-        }
+        EinkSecondaryButton(text = "More", onClick = { open = true }, width = 76.dp)
         if (open) {
             Popup(
                 alignment = Alignment.TopEnd,
@@ -1090,7 +1125,7 @@ private fun NotesMoreMenu(onReview: () -> Unit, onCheck: () -> Unit, onSetup: ()
     }
 }
 
-/** Title, ⋮ and X; Day | All notes; the day, or what narrows All notes. One row when there is room. */
+/** Title, More and X; Day | All notes; the day, or what narrows All notes. One row when there is room. */
 @Composable
 internal fun BooxNotesHeader(
     showAll: Boolean,

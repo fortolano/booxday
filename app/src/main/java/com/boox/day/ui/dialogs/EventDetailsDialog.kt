@@ -502,62 +502,7 @@ fun EventDetailsDialog(
                     }
 
                     // Notes (Nov 2026): on every event, so a note can be linked from either side
-                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-                    Text(
-                        text = if (linkedBooxNotes.isEmpty()) "Notes" else "Notes (${linkedBooxNotes.size})",
-                        fontSize = EInkTheme.Typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = EInkTheme.Colors.primary
-                    )
-                    Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
-                    Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)) {
-                        linkedBooxNotes.forEach { note ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(1.dp, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.OptionCard.cornerRadius))
-                                    .then(if (onViewBooxNote != null) Modifier.noRippleClickable { onViewBooxNote(note) } else Modifier)
-                                    .padding(EInkTheme.Global.paddingSmall),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
-                            ) {
-                                NotePageThumbnail(note = note)
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = note.title,
-                                        fontSize = EInkTheme.Typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = EInkTheme.Colors.primary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = noteMetaLine(note, withDay = true),
-                                        fontSize = EInkTheme.Typography.bodyMedium,
-                                        color = EInkTheme.Colors.darkGray,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                if (onBooxNoteClick != null) {
-                                    EinkSecondaryButton(text = "Open", onClick = { onBooxNoteClick(note) })
-                                }
-                            }
-                        }
-                        if (onLinkANote != null || onCreateBooxNote != null) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Button.spacing)
-                            ) {
-                                if (onLinkANote != null) {
-                                    EinkSecondaryButton(text = "Link a Note…", onClick = onLinkANote, modifier = Modifier.weight(1f))
-                                }
-                                if (onCreateBooxNote != null) {
-                                    EinkSecondaryButton(text = "Write a New Note", onClick = onCreateBooxNote, modifier = Modifier.weight(1f))
-                                }
-                            }
-                        }
-                    }
+                    EventNotesSection(linkedBooxNotes, onBooxNoteClick, onViewBooxNote, onLinkANote, onCreateBooxNote)
 
                     // Sync Status Section (only in Hybrid mode when signed in)
                     // In Standalone mode, we don't show sync status - all events are local
@@ -1258,4 +1203,71 @@ private fun formatNoteTime(timestamp: Long): String {
     val hour = if (time.hour == 0) 12 else if (time.hour > 12) time.hour - 12 else time.hour
     val amPm = if (time.hour < 12) "AM" else "PM"
     return String.format("%d:%02d %s", hour, time.minute, amPm)
+}
+
+/** The event's notes, each opening its Note place, and the ways to add one */
+@Composable
+internal fun EventNotesSection(
+    linkedBooxNotes: List<BooxNoteIndex>,
+    onBooxNoteClick: ((BooxNoteIndex) -> Unit)?,
+    onViewBooxNote: ((BooxNoteIndex) -> Unit)?,
+    onLinkANote: (() -> Unit)?,
+    onCreateBooxNote: (() -> Unit)?
+) {
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+    Text(
+        text = if (linkedBooxNotes.isEmpty()) "Notes" else "Notes (${linkedBooxNotes.size})",
+        fontSize = EInkTheme.Typography.bodyMedium,
+        fontWeight = FontWeight.Bold,
+        color = EInkTheme.Colors.primary
+    )
+    Spacer(modifier = Modifier.height(EInkTheme.Global.spacingSmall))
+    Column(verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacingSmall)) {
+        linkedBooxNotes.forEach { note ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.OptionCard.cornerRadius))
+                    .then(if (onViewBooxNote != null) Modifier.noRippleClickable { onViewBooxNote(note) } else Modifier)
+                    .padding(EInkTheme.Global.paddingSmall),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
+            ) {
+                NotePageThumbnail(note = note)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = note.title,
+                        fontSize = EInkTheme.Typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = EInkTheme.Colors.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = noteMetaLine(note, withDay = true),
+                        fontSize = EInkTheme.Typography.bodyMedium,
+                        color = EInkTheme.Colors.darkGray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (onBooxNoteClick != null) {
+                    EinkSecondaryButton(text = "Open", onClick = { onBooxNoteClick(note) })
+                }
+            }
+        }
+        if (onLinkANote != null || onCreateBooxNote != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Button.spacing)
+            ) {
+                if (onLinkANote != null) {
+                    EinkSecondaryButton(text = "Link a Note…", onClick = onLinkANote, modifier = Modifier.weight(1f))
+                }
+                if (onCreateBooxNote != null) {
+                    EinkSecondaryButton(text = "Write a New Note", onClick = onCreateBooxNote, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
 }

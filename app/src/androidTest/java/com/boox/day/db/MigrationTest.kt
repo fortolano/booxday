@@ -19,7 +19,7 @@ import com.boox.day.data.db.MIGRATION_29_30
 import com.boox.day.data.db.MIGRATION_30_31
 import com.boox.day.data.db.MIGRATION_31_32
 import com.boox.day.data.db.MIGRATION_32_33
-import com.boox.day.data.db.MIGRATION_33_34
+import com.boox.day.data.db.MIGRATION_33_34, MIGRATION_34_35
 import com.boox.day.data.db.TaskSyncSchema
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -435,7 +435,7 @@ class MigrationTest {
             close()
         }
 
-        val migratedDb = helper.runMigrationsAndValidate(dbName, 34, true, MIGRATION_33_34)
+        val migratedDb = helper.runMigrationsAndValidate(dbName, 34, true, MIGRATION_33_34, MIGRATION_34_35)
 
         migratedDb.query("SELECT useCalendars, taskListCount FROM caldav_account WHERE accountId = 'acc-1'").use { c ->
             assertTrue(c.moveToFirst())

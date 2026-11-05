@@ -210,7 +210,7 @@ class BooxNotesIntegration(private val context: Context) {
     fun openNote(uniqueId: String, title: String? = null) {
         Log.i(TAG, "Opening Boox note (title: ${title?.length ?: 0} chars)")
         try {
-            context.startActivity(BooxNoteIntents.direct(uniqueId))
+            context.startActivity(BooxNoteIntents.direct(uniqueId, title))
             return
         } catch (e: Exception) {
             Log.w(TAG, "Direct note route unavailable; trying middleware", e)
