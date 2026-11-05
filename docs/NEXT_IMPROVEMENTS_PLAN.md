@@ -666,6 +666,7 @@ Every phase from 1 on also follows the **Definition of Done** at the end of this
   - The Go 6: a 15+ page day (memory), the save message with Share on the narrow screen, the page counter's fit, a Go 10.3 memo restored there
 - [x] Clipboard, OCR and Tasks export checked
 - [x] Help and tip updated
+- [ ] Way back to the user's own image (owner, 5 Nov 2026): BOOX clears the user's sleep screen when an app sets one and apps can't read it, so turning on warns and asks for an image; BooxDay keeps a copy and hands it back at turn-off. Passed on the Go 10.3 awake (popup, picker, row, hand-off, files). A real sleep showing the image and the Go 6 are left
 
 ---
 
