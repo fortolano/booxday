@@ -59,6 +59,7 @@ import com.boox.day.week.WeekLayoutSpec
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -66,7 +67,10 @@ import java.util.Locale
 /** Write It, Schedule It (Nov 2026): the selection bar's calendar button starts here. */
 object ScheduleUi {
     /** [ready]: items found elsewhere (a recap's action items), to review with no reading. */
-    data class Job(val strokes: List<Stroke>, val memoDay: LocalDate, val ready: ScheduleResult.Found? = null)
+    data class Job(val strokes: List<Stroke>, val memoDay: LocalDate, val ready: ScheduleResult.Found? = null, val shared: Shared? = null)
+
+    /** From another app. [done] once something was kept: until then the share stays in its inbox. */
+    data class Shared(val text: String, val picture: File?, val saveNote: suspend () -> Unit, val done: () -> Unit)
 
     var job by mutableStateOf<Job?>(null)
         private set
@@ -81,6 +85,11 @@ object ScheduleUi {
         }
         val request = Job(strokes, LocalDate.parse(memoDay))
         AiFeature.start(sendsCalendar = false) { job = request }
+    }
+
+    /** Today is the anchor. The caller has been through the AI gates. */
+    fun fromShared(shared: Shared) {
+        job = Job(emptyList(), LocalDate.now(), shared = shared)
     }
 
     fun review(proposals: List<Proposal>, readAs: String, memoDay: String) {
@@ -132,10 +141,14 @@ private fun ScheduleFlow(job: ScheduleUi.Job) {
 
     LaunchedEffect(attempt) {
         screen = Screen.Reading
-        when (val result = job.ready ?: ScheduleItemsService.read(job.strokes, job.memoDay)) {
+        val found = job.ready
+            ?: job.shared?.let { ScheduleItemsService.readShared(it.text, it.picture, job.memoDay) }
+            ?: ScheduleItemsService.read(job.strokes, job.memoDay)
+        when (val result = found) {
             is ScheduleResult.Found -> {
-                result.proposals.forEach { items[it.id] = it }
-                order = result.proposals.map { it.id }
+                val all = if (job.shared != null) result.proposals + Proposal.Note() else result.proposals
+                all.forEach { items[it.id] = it }
+                order = all.map { it.id }
                 screen = Screen.Review(result.readAs)
             }
             is ScheduleResult.NothingDated -> screen = Screen.Nothing(NO_DATE, result.readAs.lineSequence().firstOrNull().orEmpty())
@@ -161,6 +174,7 @@ private fun ScheduleFlow(job: ScheduleUi.Job) {
     }
 
     fun openByHand(title: String) {
+        job.shared?.done?.invoke()
         ScheduleUi.close()
         MainScreenRequests.request(MainScreenRequest.NewEventFrom(ParsedEventData(title = title, date = memoDay, confidence = 1f)))
     }
@@ -179,6 +193,7 @@ private fun ScheduleFlow(job: ScheduleUi.Job) {
                 withContext(Dispatchers.IO) {
                     ProposalApplier.addTasks(TaskRepository(context.applicationContext), tasks, memoDay, GlobalAppSettings.tasksCanvasHeight)
                 }
+                if (kept.any { it is Proposal.Note }) job.shared?.saveNote?.invoke()
                 val first = (kept.first() as? Proposal.Event)?.date ?: (kept.first() as? Proposal.Task)?.day ?: memoDay
                 val label = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()).format(LocalDate.parse(first))
                 SnackState.globalSnackFlow.tryEmit(
@@ -189,6 +204,7 @@ private fun ScheduleFlow(job: ScheduleUi.Job) {
                     )
                 )
                 MainScreenRequests.request(MainScreenRequest.ReloadTasks)
+                job.shared?.done?.invoke()
                 ScheduleUi.close()
             }
         }
@@ -198,7 +214,11 @@ private fun ScheduleFlow(job: ScheduleUi.Job) {
     val frame = Modifier.width(minOf(sheetWidth, 700.dp))
     Popup(popupPositionProvider = ScreenCentre, onDismissRequest = ScheduleUi::close, properties = PopupProperties(focusable = true)) {
         when (val now = screen) {
-            Screen.Reading -> ProposalReadingCard(frame, onCancel = ScheduleUi::close)
+            Screen.Reading -> if (job.shared != null) {
+                ProposalReadingCard(frame, message = "Your AI is reading what you shared…", onCancel = ScheduleUi::close)
+            } else {
+                ProposalReadingCard(frame, onCancel = ScheduleUi::close)
+            }
             is Screen.Nothing -> ProposalNothingCard(now.message, frame, onClose = ScheduleUi::close, onByHand = { openByHand(now.title) })
             is Screen.Failed -> ProposalFailedCard(now.message, frame, onClose = ScheduleUi::close, onRetry = { attempt++ })
             is Screen.Review -> {
@@ -206,15 +226,16 @@ private fun ScheduleFlow(job: ScheduleUi.Job) {
                 val pages = maxOf(1, (all.size + perPage - 1) / perPage)
                 val shown = all.drop((page - 1) * perPage).take(perPage)
                 val kept = all.count { it.accepted }
-                val single = all.singleOrNull()
+                val single = all.filter { it !is Proposal.Note }.singleOrNull()
+                val keepsNote = all.any { it is Proposal.Note && it.accepted }
                 ProposalReviewCard(
                     readAs = now.readAs.replace('\n', ' '),
                     cards = shown.map { cardFor(it, overlaps[it.id], target.label) },
                     page = page,
                     pages = pages,
                     mainLabel = when {
-                        single is Proposal.Event -> "Add Event"
-                        single is Proposal.Task -> "Add Task"
+                        single is Proposal.Event && !keepsNote -> "Add Event"
+                        single is Proposal.Task && !keepsNote -> "Add Task"
                         else -> "Add $kept"
                     },
                     modifier = frame,
@@ -225,15 +246,17 @@ private fun ScheduleFlow(job: ScheduleUi.Job) {
                         items[item.id] = when (item) {
                             is Proposal.Event -> item.copy(accepted = !item.accepted)
                             is Proposal.Task -> item.copy(accepted = !item.accepted)
+                            is Proposal.Note -> item.copy(accepted = !item.accepted)
                         }
                     },
                     onKind = { index -> shown[index].let { items[it.id] = ProposalValidator.toggled(it) } },
-                    onTitle = { index -> editing = shown[index].id },
-                    onWhen = { index -> pickingDate = shown[index].id },
+                    onTitle = { index -> shown[index].takeIf { it !is Proposal.Note }?.let { editing = it.id } },
+                    onWhen = { index -> shown[index].takeIf { it !is Proposal.Note }?.let { pickingDate = it.id } },
                     onPage = { page = it.coerceIn(1, pages) },
                     onCancel = ScheduleUi::close,
                     onMore = {
                         (single as? Proposal.Event)?.let { event ->
+                            job.shared?.done?.invoke()
                             ScheduleUi.close()
                             MainScreenRequests.request(MainScreenRequest.NewEventFrom(parsedFor(event)))
                         }
@@ -262,7 +285,7 @@ private fun ScheduleFlow(job: ScheduleUi.Job) {
                 items[id] = when (item) {
                     is Proposal.Event -> item.copy(date = date, needsCheck = null)
                     is Proposal.Task -> item.copy(day = date, dueDay = item.dueDay?.let { date }, needsCheck = null)
-                    null -> return@TaskDatePickerDialog
+                    is Proposal.Note, null -> return@TaskDatePickerDialog
                 }
                 pickingDate = null
             },
@@ -311,6 +334,7 @@ internal fun cardFor(item: Proposal, overlap: String?, targetLabel: String?): Pr
             check = item.needsCheck,
             ticked = item.accepted
         )
+        is Proposal.Note -> ProposalCardUi(kind = "Note", title = "Everything you shared", whenLine = "In today's Memos", ticked = item.accepted)
     }
 }
 
@@ -356,6 +380,7 @@ private fun ProposalEditPopup(item: Proposal, onDone: (Proposal) -> Unit, onCanc
                                 endMinute = if (item.allDay) null else ProposalValidator.endOf(start, end)
                             )
                             is Proposal.Task -> item.copy(text = title)
+                            is Proposal.Note -> item
                         }
                     )
                 })

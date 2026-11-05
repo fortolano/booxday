@@ -1,5 +1,6 @@
 package com.boox.day.meetings
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -203,6 +205,7 @@ data class PrepUi(
     val people: String? = null,
     val lastTime: String? = null,
     val lastPoints: List<String> = emptyList(),
+    val lastPicture: ImageBitmap? = null,
     val tasks: List<String> = emptyList(),
     val tasksHeading: String = "May be related",
     val notes: List<String> = emptyList(),
@@ -212,7 +215,18 @@ data class PrepUi(
 
 /** Everything here but Brief Me is read on the tablet, with no AI. */
 @Composable
-fun MeetingPrepCard(data: PrepUi, page: Int, pages: Int, modifier: Modifier = Modifier) {
+fun MeetingPrepCard(
+    data: PrepUi,
+    page: Int,
+    pages: Int,
+    modifier: Modifier = Modifier,
+    onClose: () -> Unit = {},
+    onOpenLast: () -> Unit = {},
+    onOpenNote: (Int) -> Unit = {},
+    onPage: (Int) -> Unit = {},
+    onBrief: () -> Unit = {},
+    onTakeNotes: () -> Unit = {}
+) {
     Frame(modifier) {
         Title("Prepare · ${data.title}", data.line)
         data.people?.let { Text(text = it, fontSize = EInkTheme.Typography.bodyMedium, color = Ink) }
@@ -225,10 +239,13 @@ fun MeetingPrepCard(data: PrepUi, page: Int, pages: Int, modifier: Modifier = Mo
             }
         } else {
             data.lastTime?.let {
-                Heading("Last time · $it") { EinkSecondaryButton(text = "Open", onClick = {}, width = 80.dp) }
+                Heading("Last time · $it") { EinkSecondaryButton(text = "Open", onClick = onOpenLast, width = 80.dp) }
                 data.lastPoints.forEach { point -> Bullet(point) }
+                data.lastPicture?.let { picture ->
+                    Image(bitmap = picture, contentDescription = "Top of the last notes", modifier = Modifier.fillMaxWidth().border(1.dp, Ink))
+                }
             }
-            if (data.lastTime == null && data.tasks.isEmpty() && data.notes.isEmpty()) {
+            if (data.lastTime == null && data.tasks.isEmpty() && data.notes.isEmpty() && pages == 1) {
                 Text(text = "No earlier notes for this meeting.", fontSize = EInkTheme.Typography.bodyLarge, color = Ink, modifier = Modifier.padding(vertical = 8.dp))
             }
             if (data.tasks.isNotEmpty()) {
@@ -237,19 +254,19 @@ fun MeetingPrepCard(data: PrepUi, page: Int, pages: Int, modifier: Modifier = Mo
             }
             if (data.notes.isNotEmpty()) {
                 Heading("Related notes")
-                data.notes.forEach { note ->
+                data.notes.forEachIndexed { index, note ->
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(text = note, fontSize = EInkTheme.Typography.bodyLarge, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                        EinkSecondaryButton(text = "Open", onClick = {}, width = 80.dp)
+                        EinkSecondaryButton(text = "Open", onClick = { onOpenNote(index) }, width = 80.dp)
                     }
                 }
             }
         }
-        Pager(page, pages)
+        Pager(page, pages, onPage)
         if (data.brief.isEmpty()) {
             Text(text = "Brief Me uses your AI.", fontSize = EInkTheme.Typography.bodySmall, color = Ink, modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
         }
-        Buttons("Close", if (data.brief.isEmpty()) "Brief Me" else null, "Take Notes", rightWidth = 130)
+        Buttons("Close", if (data.brief.isEmpty()) "Brief Me" else null, "Take Notes", rightWidth = 130, onLeft = onClose, onMiddle = onBrief, onRight = onTakeNotes)
     }
 }
 
@@ -283,7 +300,15 @@ fun MeetingCardActions(hasNotes: Boolean, beforeEnd: Boolean, modifier: Modifier
 
 /** What arrived from another app. AI only runs on the user's tap, and the line says so. */
 @Composable
-fun ShareCard(preview: String, modifier: Modifier = Modifier, picture: (@Composable () -> Unit)? = null, findLabel: String = "Find Events and Tasks") {
+fun ShareCard(
+    preview: String,
+    modifier: Modifier = Modifier,
+    picture: (@Composable () -> Unit)? = null,
+    findLabel: String = "Find Events and Tasks",
+    onCancel: () -> Unit = {},
+    onSave: () -> Unit = {},
+    onFind: () -> Unit = {}
+) {
     Frame(modifier) {
         Title("Add to BooxDay", null)
         Box(Modifier.fillMaxWidth().border(1.dp, Ink, RoundedCornerShape(4.dp)).padding(12.dp)) {
@@ -291,10 +316,10 @@ fun ShareCard(preview: String, modifier: Modifier = Modifier, picture: (@Composa
         }
         Text(text = "$findLabel uses your AI.", fontSize = EInkTheme.Typography.bodyMedium, color = Ink, modifier = Modifier.padding(top = 4.dp))
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing), verticalAlignment = Alignment.CenterVertically) {
-            EinkSecondaryButton(text = "Cancel", onClick = {}, width = 90.dp)
+            EinkSecondaryButton(text = "Cancel", onClick = onCancel, width = 90.dp)
             Spacer(Modifier.weight(1f))
-            EinkSecondaryButton(text = "Save as Note", onClick = {}, width = 130.dp)
-            ActionButton(text = findLabel, modifier = Modifier.width(if (findLabel.length > 12) 210.dp else 130.dp), onClick = {})
+            EinkSecondaryButton(text = "Save as Note", onClick = onSave, width = 130.dp)
+            ActionButton(text = findLabel, modifier = Modifier.width(if (findLabel.length > 12) 210.dp else 130.dp), onClick = onFind)
         }
     }
 }

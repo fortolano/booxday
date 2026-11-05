@@ -34,6 +34,13 @@ sealed interface Proposal {
         override val accepted: Boolean = true,
         override val needsCheck: String? = null
     ) : Proposal
+
+    /** Everything that was shared, kept as a memo. Unticked until the user wants it. */
+    data class Note(
+        override val id: String = "shared-note",
+        override val accepted: Boolean = false,
+        override val needsCheck: String? = null
+    ) : Proposal
 }
 
 /** One item as the AI answers it (`schedule_items`): "" means none. */
@@ -160,5 +167,6 @@ object ProposalValidator {
                 needsCheck = proposal.needsCheck
             )
         }
+        is Proposal.Note -> proposal
     }
 }

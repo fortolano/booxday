@@ -243,6 +243,11 @@ fun MeetingNotesSection(event: CalendarEvent, onDismiss: () -> Unit) {
     var notes by remember(event.id) { mutableStateOf<EventMemoService.LinkedMemo?>(null) }
     var loaded by remember(event.id) { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
+    // An all-day event has no end time: it lasts to the end of its last day
+    val beforeEnd = System.currentTimeMillis() < (
+        event.endTime ?: java.time.LocalDate.parse(event.endDayId.ifBlank { event.dayId }).plusDays(1)
+            .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        )
     LaunchedEffect(event.id) {
         notes = EventMemoService(context.applicationContext).getLinkedMemo(event.id)
         loaded = true
@@ -285,9 +290,15 @@ fun MeetingNotesSection(event: CalendarEvent, onDismiss: () -> Unit) {
         val memo = notes
         if (loaded) {
             if (memo == null) {
-                EinkSecondaryButton(text = "Take Notes", onClick = ::openNotes, enabled = !busy, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    EinkSecondaryButton(text = "Take Notes", onClick = ::openNotes, enabled = !busy, modifier = Modifier.weight(1f))
+                    if (beforeEnd) EinkSecondaryButton(text = "Prepare", onClick = { MeetingPrepUi.open(event, onDismiss) }, modifier = Modifier.weight(1f))
+                }
             } else {
-                EinkSecondaryButton(text = "Open Notes", onClick = ::openNotes, enabled = !busy, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    EinkSecondaryButton(text = "Open Notes", onClick = ::openNotes, enabled = !busy, modifier = Modifier.weight(1f))
+                    if (beforeEnd) EinkSecondaryButton(text = "Prepare", onClick = { MeetingPrepUi.open(event, onDismiss) }, modifier = Modifier.weight(1f))
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     EinkSecondaryButton(text = "Recap", onClick = { MeetingRecapUi.open(event) }, modifier = Modifier.weight(1f))
                     EinkSecondaryButton(

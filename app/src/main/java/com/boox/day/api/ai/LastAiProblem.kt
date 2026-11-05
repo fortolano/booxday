@@ -124,6 +124,7 @@ object LastAiProblem {
         "ocr_text" to "reading handwriting",
         "schedule_items" to "finding dates",
         "meeting_recap" to "meeting recap",
+        "meeting_brief" to "meeting brief",
         "ocr_text_with_language" to "reading handwriting",
         "text_inference" to "clean-up",
         "memo_to_tasks" to "making tasks"

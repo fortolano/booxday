@@ -18,6 +18,7 @@ class StructuredOutputSchemasTest {
         "weekly_summary_insights_v3" to StructuredOutputSchemas.weeklyInsightsSchema,
         "schedule_items" to StructuredOutputSchemas.scheduleItemsSchema,
         "meeting_recap" to StructuredOutputSchemas.meetingRecapSchema,
+        "meeting_brief" to StructuredOutputSchemas.meetingBriefSchema,
         "memo_to_tasks" to StructuredOutputSchemas.memoToTasksSchema,
         "text_inference" to StructuredOutputSchemas.inferenceSchema(trackCorrections = false),
         "text_inference_with_corrections" to StructuredOutputSchemas.inferenceSchema(trackCorrections = true),

@@ -18,8 +18,8 @@ import java.util.UUID
 
 /** A recap as typed pages right after the meeting's notes: editable, searchable, exported, backed up. */
 object MeetingRecapSaver {
-    private const val MARGIN = 50f
-    private const val FONT_SIZE = 37f
+    internal const val MARGIN = 50f
+    internal const val FONT_SIZE = 37f
 
     /** The recap as plain text, the same in the saved page and the PDF. */
     fun text(title: String, recap: MeetingRecap): String = buildString {
@@ -47,16 +47,39 @@ object MeetingRecapSaver {
         val pages = mutableListOf<String>()
         var current = ""
         for (line in text.lines()) {
-            val next = if (current.isEmpty()) line else "$current\n$line"
-            if (fits(next) || current.isEmpty()) {
-                current = next
-            } else {
-                pages += current
-                current = line
+            var rest = line
+            while (true) {
+                val next = if (current.isEmpty()) rest else "$current\n$rest"
+                if (fits(next)) {
+                    current = next
+                    break
+                }
+                if (current.isNotEmpty()) {
+                    pages += current
+                    current = ""
+                    continue
+                }
+                // One line taller than a page, as shared web text can be
+                val cut = cutAt(rest, fits)
+                pages += rest.take(cut).trimEnd()
+                rest = rest.drop(cut).trimStart()
+                if (rest.isEmpty()) break
             }
         }
         if (current.isNotBlank()) pages += current
         return pages
+    }
+
+    /** How much of [line] fits, ending at a word when there is one. */
+    private fun cutAt(line: String, fits: (String) -> Boolean): Int {
+        var low = 1
+        var high = line.length
+        while (low < high) {
+            val middle = (low + high + 1) / 2
+            if (fits(line.take(middle))) low = middle else high = middle - 1
+        }
+        val space = line.lastIndexOf(' ', low)
+        return if (space > 0) space + 1 else low
     }
 
     /** Writes the recap in place of any saved before it. Returns the first page's id. */
@@ -107,7 +130,7 @@ object MeetingRecapSaver {
         ids.first()
     }
 
-    private fun height(text: String, width: Float): Float {
+    internal fun height(text: String, width: Float): Float {
         val paint = TextPaint(TextPaint.ANTI_ALIAS_FLAG).apply { textSize = FONT_SIZE }
         return StaticLayout.Builder.obtain(text, 0, text.length, paint, width.toInt()).setAlignment(Layout.Alignment.ALIGN_NORMAL).build().height.toFloat()
     }

@@ -229,6 +229,15 @@ internal object StructuredOutputSchemas {
         required = listOf("tasks")
     )
 
+    /** Brief Me (Nov 2026). */
+    val meetingBriefSchema: Map<String, Any> = objectSchema(
+        properties = mapOf(
+            "points" to arraySchema(items = stringSchema(minLength = 1, maxLength = 200), minItems = 0, maxItems = 5),
+            "worth_asking" to arraySchema(items = stringSchema(minLength = 1, maxLength = 200), minItems = 0, maxItems = 3)
+        ),
+        required = listOf("points", "worth_asking")
+    )
+
     /** Meeting Recap (Nov 2026): empty lists are fine, nothing may be made up. */
     val meetingRecapSchema: Map<String, Any> = objectSchema(
         properties = mapOf(

@@ -237,6 +237,16 @@ object TipsRepository {
             contexts = setOf(TipContext.CALENDAR)
         ),
         Tip(
+            id = "events_recap",
+            message = "After a meeting, open the event and tap Recap to turn your notes into action items.",
+            contexts = setOf(TipContext.EVENTS)
+        ),
+        Tip(
+            id = "general_share_in",
+            message = "In another app, tap Share, then Add to BooxDay to keep text or a picture here.",
+            contexts = setOf(TipContext.GENERAL)
+        ),
+        Tip(
             id = "memos_schedule",
             message = "Lasso a note like \"Lunch Tue 1pm\" and tap the calendar with a plus to add it to your calendar.",
             contexts = setOf(TipContext.MEMOS)

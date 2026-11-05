@@ -92,6 +92,26 @@
         <!-- Connect OpenRouter (Oct 2026): the return page's button opens
              booxday-connect://openrouter?code=...&state=... Its own scheme and screen, so the
              browser never starts a second MainActivity. -->
+        <!-- Share to BooxDay: no canvas here; it brings the running app forward -->
+        <activity
+            android:name=".ShareReceiverActivity"
+            android:configChanges="orientation|screenSize"
+            android:screenOrientation="portrait"
+            android:exported="true"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:label="Add to BooxDay"
+            android:theme="@style/Theme.Inka">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".OpenRouterConnectActivity"
             android:configChanges="orientation|screenSize"

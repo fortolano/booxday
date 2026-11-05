@@ -144,10 +144,10 @@ private fun Card(card: ProposalCardUi, withTick: Boolean, onTick: () -> Unit, on
 
 /** While the AI reads: one static message, so the panel updates once. */
 @Composable
-fun ProposalReadingCard(modifier: Modifier = Modifier, onCancel: () -> Unit = {}) {
+fun ProposalReadingCard(modifier: Modifier = Modifier, message: String = "Your AI is reading the selected writing…", onCancel: () -> Unit = {}) {
     SheetFrame(modifier) {
         SheetTitle("Add to your calendar")
-        Text(text = "Your AI is reading the selected writing…", fontSize = EInkTheme.Typography.bodyLarge, color = Ink)
+        Text(text = message, fontSize = EInkTheme.Typography.bodyLarge, color = Ink)
         Row(Modifier.fillMaxWidth()) { EinkSecondaryButton(text = "Cancel", onClick = onCancel) }
     }
 }

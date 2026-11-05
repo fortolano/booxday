@@ -107,6 +107,9 @@ interface TextAnnotationDao {
     @Query("SELECT * FROM text_annotations WHERE pageId = :pageId ORDER BY createdAt ASC")
     suspend fun getByPageId(pageId: String): List<TextAnnotation>
 
+    @Query("SELECT * FROM text_annotations WHERE sourceType = :source")
+    fun getBySource(source: String): List<TextAnnotation>
+
     @Query("SELECT * FROM text_annotations WHERE pageId = :pageId ORDER BY createdAt ASC")
     fun getByPageIdFlow(pageId: String): Flow<List<TextAnnotation>>
 

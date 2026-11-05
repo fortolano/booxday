@@ -606,6 +606,16 @@ private fun CalendarSyncContent() {
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
+    SectionSubheader("Meetings")
+    BodyText("Open an event and take notes for it. Recap turns the notes into a summary, decisions and action items, which you can keep after your notes or send as a PDF. Prepare, before a meeting, shows what happened last time; only Brief Me uses your AI.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+    SectionSubheader("Sharing to BooxDay")
+    BodyText("In another app, tap Share, then Add to BooxDay. Keep it as a note in today's Memos, or tap Find Events and Tasks to have your AI look for dates. Nothing goes to your AI unless you tap.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
     SectionSubheader("From Handwriting to the Calendar")
     BodyText("In Memos, lasso what you wrote, such as \"Lunch with Sam Tue 1pm\", and tap the calendar with a plus. Your AI reads it and shows what it found. Check it, change anything, then tap Add. Nothing is added until you do, and your writing stays on the page.")
 
