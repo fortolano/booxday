@@ -34,7 +34,8 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 | Phase | Name | Size (estimate) | Status |
 |---|---|---|---|
 | 0 | Decisions and first replies | Small, no code | In progress: decisions done; replies and baselines left |
-| 1 | Export you can trust | Medium | Not started |
+| 1A | Export you can trust | Medium | Not started |
+| 1B | Export redesign | Medium | Not started |
 | 2 | Pen, compatibility and the Ukrainian PR | Small to medium | Not started |
 | 3 | Sleep screen choices | Small to medium | Not started |
 | 4 | Week view | Large | Not started |
@@ -74,7 +75,7 @@ From `CLAUDE.md` and the owner's brief. The full text wins.
 
 | # | Work | Phase |
 |---|---|---|
-| 1 | Export fixes for PDF, PNG and JPG, plus an audit of other export problems | 1 |
+| 1 | Export fixes for PDF, PNG and JPG, plus an audit of other export problems | 1A |
 | 2 | Compatibility and pen issues (#1, #3), the Ukrainian PR (#5), GitHub and Reddit replies | 0, 2 |
 | 3 | Customizable sleep screen | 3 |
 | 4 | Week view | 4 |
@@ -82,6 +83,7 @@ From `CLAUDE.md` and the owner's brief. The full text wins.
 | 6 | Meeting Recap | 6 |
 | 7 | Meeting Prep | 7 |
 | 8 | Share to BooxDay | 8 |
+| 9 | Export redesign: what to export, formats, where it goes, a new dialog | 1B |
 
 ### Out of scope
 
@@ -89,6 +91,7 @@ From `CLAUDE.md` and the owner's brief. The full text wins.
 - **Landscape.** The app is portrait only (`AndroidManifest.xml`: both activities). The brief says "where supported", so no landscape work and no landscape tests.
 - **Plan my week, Ask BooxDay, meeting audio recording.** Proposed earlier, not in the owner's list.
 - **Microsoft To Do** (owner: later).
+- **PowerPoint and Word export, and direct links to services such as Notion or OneNote** (owner, 4 Nov 2026). Share, Save and Markdown reach those apps with no accounts. AI stays out of normal export.
 - **Clean-ups for their own sake:** dead Layout B code, Book export, XOPP, `autoExport`. Leave them unless a task needs them.
 
 ### Terms used in this plan
@@ -292,6 +295,8 @@ The brief asked for judgment. These are the changes I recommend. Each is in sect
 
 12. **No Go 7 or Note Max is on hand.** "Validated on 7-inch" can only mean render tests at the real size plus community testers. The plan says so plainly and doesn't claim more.
 
+13. **Export grows by fitting real jobs, not by adding file types.** The owner asked whether to add Obsidian, other integrations, and AI slides. Obsidian is in, through Markdown files. AI slides, Word and direct service links are out: they add cost and upkeep, and the same result is reachable through Share, Save and Markdown.
+
 ---
 
 ## 4. Decisions needed from the owner
@@ -301,7 +306,7 @@ Answers go in the "Decision" column. Until then a decision is open, and the reco
 | ID | Question | Options (gain / cost) | Recommendation | Blocks | Decision |
 |---|---|---|---|---|---|
 | D1 | Is the order right? | **A.** Reliability, Sleep, Week, Write It, Recap, Prep, Share (section 5). **B.** Move a feature earlier. | A | All | **A (owner, 4 Nov 2026).** |
-| D2 | A file with the same name exists | **A.** New numbered copy, `...-2.pdf` (never destroys anything / more files). **B.** Replace it, as today (tidy / an older export is lost). | A | 1 | **A (owner, 4 Nov 2026).** |
+| D2 | A file with the same name exists | **A.** New numbered copy, `...-2.pdf` (never destroys anything / more files). **B.** Replace it, as today (tidy / an older export is lost). | A | 1A | **A (owner, 4 Nov 2026).** |
 | D3 | May Phase 2 touch the protected erase code? | **A.** Only reapply the pen style just before ink resumes; timing untouched (small, matches BOOX Notes / needs tablet checks). **B.** Also resume ink mid-stroke (fixes the delay fully / risks erased ink flashing back). **C.** Leave it. | A, then decide on B after testing | 2 | **A (owner, 4 Nov 2026).** The erase row is open. Condition: nothing from this area ships until the owner has passed the tablet checks with the real pen. Option B needs a new decision. |
 | D4 | If the reporter confirms issue #1 on the latest version | **A.** Publish a diagnostics APK as a GitHub pre-release; never offered in-app (real evidence / extra build). **B.** Wait for more reports. **C.** Also install an Android 11 emulator on the PC (catches plain Android 11 faults, not BOOX ones / a new install on your PC). | A; C only if you want it | 2 | **A (owner, 4 Nov 2026).** No emulator. |
 | D5 | Merge PR #5? | **A.** Yes, after a build and the Go 6 fit check. **B.** Ask the author for changes first. | A | 2 | **A (owner, 4 Nov 2026).** |
@@ -316,6 +321,7 @@ Answers go in the "Decision" column. Until then a decision is open, and the reco
 | D14 | Privacy policy changes | Prep and Share need new wording on the policy, Help and notice before release, Recap possibly. **A.** Show exact old and new lines at each phase. | A | 6, 7, 8 | **A (owner, 4 Nov 2026).** |
 | D15 | Community replies | **A.** Approve the drafts now, since their answers help Phases 1 and 2. **B.** Reply after the fixes ship. | A | 0 | **A (owner, 4 Nov 2026):** reply now. The exact text of each reply still needs the owner's OK before it is posted. |
 | D16 | This file is in a public repo | **A.** Commit all of it (draft replies public before they are posted). **B.** Keep it out of git (private / worktree sessions don't get it). **C.** Commit it, with the draft replies in a local file. | C | 0 | **C (owner, 4 Nov 2026).** Plan committed; drafts in `COMMUNITY_REPLIES.md`. |
+| D17 | Export redesign | **A.** Phase 1B as written: PDF, Images and Markdown; Save, Change folder and Share; preview; JPG leaves the dialog. No PowerPoint, Word, direct service links, or AI in normal export. | A | 1B | **A (owner, 4 Nov 2026).** |
 
 ---
 
@@ -323,12 +329,13 @@ Answers go in the "Decision" column. Until then a decision is open, and the reco
 
 ```mermaid
 graph TD
-    P0[0 Decisions and replies] --> P1[1 Export]
+    P0[0 Decisions and replies] --> P1[1A Export fixes]
+    P1 --> P1B[1B Export redesign]
     P0 --> P2[2 Pen, compat, PR]
-    P1 --> P3[3 Sleep screen]
+    P1B --> P3[3 Sleep screen]
     P3 --> P4[4 Week view]
     P4 --> P5[5 Write It, Schedule It]
-    P1 --> P6[6 Meeting Recap]
+    P1B --> P6[6 Meeting Recap]
     P5 --> P6
     P6 --> P7[7 Meeting Prep]
     P4 --> P7
@@ -338,16 +345,17 @@ graph TD
 | Order | Phase | Why here |
 |---|---|---|
 | 0 | Decisions, replies | Costs no code. Reporters' answers take days, so ask first. |
-| 1 | Export | A confirmed bug users hit, and real data is at risk (a failed export destroys the old file). It builds the page renderer (S1) and file sharing (S2) that Recap needs. |
+| 1A | Export fixes | A confirmed bug users hit, and real data is at risk (a failed export destroys the old file). It builds the page renderer (S1) and file sharing (S2) that Recap needs. |
+| 1B | Export redesign | The same code, still fresh. It turns quiet fixes into something people notice, and makes This meeting in Phase 6 a small step. It also brings the event duplicate fix (S3) that Sleep and Week need. |
 | 2 | Pen, compat, PR | Handwriting is the app's core, and reporters are waiting. Small, and independent of everything else. |
-| 3 | Sleep screen | A direct request and a small job. It forces the event duplicate fix (S3), which helps Week. It proves the "preview, then ship" flow on low-risk UI. |
+| 3 | Sleep screen | A direct request, and a small job on low-risk UI. |
 | 4 | Week view | The most valuable user request. It builds the overlay host (S4), the main-screen requests (S5) and paged lists (S9) that everything later uses. |
 | 5 | Write It, Schedule It | Builds the riskiest shared piece, the proposal model and review sheet (S6, S7), on the smallest AI feature first. |
 | 6 | Recap | Needs S1 and S2 (export), S6 and S7. |
 | 7 | Prep | Its best source is saved recaps, so it follows Recap. Week view gives it a natural way in. |
 | 8 | Share | Reuses S6 and S7 almost whole. Lowest demand, no dependants. |
 
-Phases 1 and 2 can run in parallel, because they touch different files. Phase 2's tablet checks need the owner's pen.
+Phase 2 can run alongside Phases 1A and 1B, because it touches different files. Phase 2's tablet checks need the owner's pen.
 
 ---
 
@@ -357,9 +365,9 @@ Build each one in the phase shown. Later phases must reuse it, not copy it.
 
 | ID | Component | New file | Built in | Used by |
 |---|---|---|---|---|
-| S1 | Memo page renderer | `io/MemoPageRenderer.kt` | 1 | Exports, `MemoPageContent.render`, meeting PDF |
-| S2 | Export result and file sharing | `io/ExportOutcome.kt`, `io/FileShare.kt` | 1 | Exports, meeting PDF |
-| S3 | Shown events merge | `today/ShownEvents.kt` | 3 | `EventsViewModel`, `DayDigestLoader` |
+| S1 | Memo page renderer | `io/MemoPageRenderer.kt` | 1A | Exports, export preview, `MemoPageContent.render`, meeting PDF |
+| S2 | Export result and file sharing | `io/ExportOutcome.kt`, `io/FileShare.kt` | 1A | Exports, export dialog, meeting PDF |
+| S3 | Shown events merge | `today/ShownEvents.kt` | 1B | `EventsViewModel`, `DayDigestLoader` |
 | S4 | Overlay host | `ui/overlays/AppOverlays.kt` | 4 | Week, Review, Recap, Prep, Share |
 | S5 | Main screen requests | `ui/MainScreenRequests.kt` | 4 | Week, Review, Recap, Prep, Share, Search |
 | S6 | Proposals and review sheet | `proposals/` | 5 | Write It, Recap, Share |
@@ -536,7 +544,7 @@ Every phase from 1 on also follows the **Definition of Done** at the end of this
 
 ---
 
-### Phase 1: Export you can trust
+### Phase 1A: Export you can trust
 
 **Objective:** what's on the page is what's in the file, every time, and a failed export never loses anything or closes the app.
 
@@ -548,7 +556,7 @@ Every phase from 1 on also follows the **Definition of Done** at the end of this
 
 **UI/UX**
 
-- The dialog stays as it is. Only the messages change:
+- The dialog stays as it is here; Phase 1B redesigns it. Only the messages change:
   - During: "Exporting this page…" or "Exporting this day…"
   - After, one snack: "Saved BooxDay-2026-11-04.pdf to Documents/BooxDay/Calendar/2026-11", with a **Share** action
   - Failure: "Couldn't save the file. Your earlier exports are safe."
@@ -627,10 +635,171 @@ Every phase from 1 on also follows the **Definition of Done** at the end of this
 **Checklist**
 
 - [ ] S1 and S2 built, and used by both engines
-- [ ] All Phase 1 tests pass
+- [ ] All Phase 1A tests pass
 - [ ] Tablet checks done on Go 10.3 and Go 6, and recorded in the release entry in `CLAUDE.md`
 - [ ] Clipboard, OCR and Tasks export checked
 - [ ] Help and tip updated
+
+---
+
+### Phase 1B: Export redesign
+
+**Objective:** make export a finished, professional tool: choose what, choose how, and send it where it's needed, from one clean dialog.
+
+**User benefit:** a week of notes in one PDF, notes in Obsidian with the handwriting included, and files sent straight to another app.
+
+**Technical changes:** a new `ExportDialog`, multi-day export, Markdown export, typed text, preview, folder choice. No database change. S3 moves here from Phase 3, because the day's events appear in exports.
+
+**Dependencies:** Phase 1A, D17.
+
+#### Design
+
+**Built around why people export:**
+
+| Job | What serves it |
+|---|---|
+| Send notes to someone | PDF, Share |
+| File them in a notes system | Markdown with page images, Save to a chosen folder |
+| Keep a record | This week or Choose dates, in one PDF with a contents page |
+| Reuse the words | Typed text under each page |
+
+**The dialog.** Opens from ≡ > Export Pages, as today.
+
+```
+┌────────────────────────────────────────────┐
+│ Export                                     │
+│ What  [This page] [This day] [This week]   │
+│       [Choose dates…]                      │
+│ As    [PDF] [Images] [Markdown]            │
+│ ┌───────┐  4 pages · about 1 MB            │
+│ │preview│  Fit more on each page  ›        │
+│ └───────┘  ☑ Typed text under each page    │
+│            ☑ The day's events and tasks    │
+│ Saves to Documents/BooxDay   Change        │
+│ [ Cancel ]      [ Share ]      [ Save ]    │
+└────────────────────────────────────────────┘
+```
+
+Save is rightmost because it's the main action (`docs/DIALOG_RULEBOOK.md`).
+
+**What shows for each format:**
+
+| As | Options |
+|---|---|
+| PDF | Layout (Fit more on each page, or One memo per page), Typed text, Events and tasks |
+| Images | None: one PNG per page |
+| Markdown | Include page images (on by default). Save only: a note and its images belong in a folder. |
+
+**Behaviour:**
+
+- **What:** This page shows only if the day has more than one page. This week follows the first-day-of-week setting. Choose dates allows up to 31 days. This meeting joins in Phase 6.
+- **Defaults:** the last choices. First time: This day, PDF, Fit more on each page, no ticks.
+- **Change:** opens the Android folder picker, which reaches any folder and any storage app listed there. The choice is remembered. Markdown starts in the Daily notes folder if one is set.
+- **Preview:** the first output page, small, drawn with the same code as the export, so it's truthful. It redraws only when a choice changes.
+- **Page count** is exact. **File size** is an estimate; drop it if tests show it's unreliable.
+- **Long exports:** the dialog closes and the snack shows progress, updating at most every 2 seconds.
+- **Nothing to export:** "No memos in these dates."
+
+**Multi-day PDFs:** a plain contents page (days and page numbers), a date header for each day, and page numbers in the footer. No decorative covers.
+
+**Typed text.** Saved reading exists only when AI page reading is on, which is off by default. So use saved text when it's fresh, otherwise read on the tablet with `MemoPageText.pageLines` and `DigitalInkService`. That is free, offline, and makes no AI call. It's lower quality than AI, so the heading says so, for example "Typed text (may have mistakes)". If the handwriting language pack is missing, the result says those pages have no typed text. The text is real PDF text (`StaticLayout`), so it can be selected and searched.
+
+**Events and tasks:** a short block at the start of each day, from `DayDigestLoader`, which reads without creating anything.
+
+**Markdown:** one `yyyy-MM-dd.md` per day in the Daily notes format, so export and Daily notes update the same note, and text the user added outside BooxDay's markers is kept (`DailyNoteMarkdown.merge`). This is why D2's numbered copies don't apply here. Page images go in `attachments/` and use standard Markdown links, `![Page 1](attachments/2026-11-04-p1.png)`, which Obsidian and other apps read.
+
+**File names:** `BooxDay 2026-11-04.pdf`, `BooxDay 2026-11-02 to 2026-11-08.pdf`. Name clashes follow D2.
+
+**PDF title:** Android's `PdfDocument` can't set one. mupdf, already in the app, has `Document.setMetaData` and `PDFDocument.save`. Set the title after writing, and drop this if it changes the file in any other way.
+
+**Size behaviour:**
+
+| Size | Dialog |
+|---|---|
+| 6-inch | `PanelDialog` width (94%). What wraps to two rows. Preview about 90 dp wide. |
+| 7-inch | Same; What may fit one row. |
+| 10.3-inch | 85% width. One row each. Preview about 130 dp wide. |
+| 13.3-inch | Same, with a width cap so it doesn't stretch. |
+
+Chips and ticks are 44 dp tall. No scrolling at font scale 1.0. No animation.
+
+#### Tasks, in order
+
+1. Pictures: the dialog at four sizes for each format, a multi-day PDF page, the Markdown result. **Owner's OK first.**
+2. Build S3. Test first: `DayDigestLoader` with a tablet copy whose `providerEventId` matches a synced event. If it shows twice, the bug is confirmed. `EventsViewModel` and `DayDigestLoader` then both call S3.
+3. `io/ExportRequest.kt`: scope, format, options. `ExportScope.resolve()` turns a scope into days and pages, one `getByDate` per day. **Read only: it creates no pages.**
+4. A multi-day target in both engines. Compact's `packContentBlocks` already groups by date. One per page gains date headers. Images go in a named subfolder.
+5. Contents page, footers, file names.
+6. `io/ExportText.kt`: typed text as above.
+7. The events and tasks block.
+8. `export/MarkdownExport.kt`: reuse `DailyNoteMarkdown`. `DailyNoteWriter` handles text only, so add binary writing for the images, to a plain folder and to a picked one.
+9. Folder choice: `ACTION_OPEN_DOCUMENT_TREE`, the grant kept in device-only prefs (as `daily_notes` does), never in `AppSettings`. For a picked folder, write to cache first, then copy.
+10. `io/ExportPreview.kt`.
+11. Rewrite `ExportDialog.kt`. Its only caller is `ToolbarMenu`. JPG leaves the dialog; `ExportFormat.JPEG` can stay in the code. Remember choices in `AppSettings` (`exportDefaults`).
+12. PDF title.
+13. Help, tip.
+
+#### Testing
+
+| Test | Pins |
+|---|---|
+| `DayDigestLoaderTest`: tablet copy shown once | The duplicate bug |
+| `ExportScopeTest`: every scope gives the right days and pages, in order; this week follows the setting | Scope |
+| `ExportScopeTest`: resolving creates no pages or days | Read-only rule |
+| `CompactExportTest`: several days pack in order, with a header per day | Multi-day |
+| `ExportTextTest`: fresh saved text wins; a missing language pack is reported, not a crash | Typed text |
+| `MarkdownExportTest`: text outside the markers survives; image links match the files written | No lost notes |
+| Render tests at four sizes, font scale 1.0 and 1.15, each format | Fit |
+
+**On tablets:** Go 10.3 and Go 6:
+- Each scope and format
+- A full week on the Go 6, for memory and time
+- Typed text with and without the language pack
+- Change to a local folder and to a cloud storage app, then restart: still remembered
+- Share to at least two apps
+- Preview against the real output
+
+**On the PC:**
+- Select and search the typed text in a PDF reader
+- Open the Markdown folder in Obsidian: images show, and a second export keeps text added by hand
+
+**Acceptance criteria**
+
+- A 7-day export with 15 pages finishes on the Go 6 with no crash, in under 30 seconds.
+- Using the dialog never creates a memo page or a day.
+- Typed text in a PDF can be selected and found by search.
+- A second Markdown export of the same day keeps everything the user wrote outside the markers.
+- The dialog fits at four sizes, with at most two ticks showing.
+- The preview matches page one of the real file.
+- No AI call and no network use, except to a storage app the user chose.
+
+**Risks**
+
+| Risk | Answer |
+|---|---|
+| The dialog grows into a settings panel | Two ticks at most per format. A new format needs a new decision. |
+| On-tablet reading is slow or wrong | Only when ticked, labelled "may have mistakes", time checked on the Go 6 |
+| Picked folders are slow or fail | Write to cache first; a clear failure message; the file stays in the default folder |
+| Memory on long ranges | 1A's one-block-at-a-time rendering; the 31-day cap |
+| Duplicate Markdown after a user renames a file | Same as Daily notes: a new file; acceptable |
+
+**Documentation and release**
+
+- Help: "Writing & Memos": the dialog, Markdown for Obsidian, one example.
+- Tip: extend the export tip.
+- Website: Memos list and What's new; a picture with made-up data.
+- README: features.
+- Privacy: no change, nothing new leaves the tablet.
+- Credit amiguel's report in the release note (approved reply).
+
+**Checklist**
+
+- [ ] Owner's picture OK
+- [ ] S3 built, duplicate bug proved or disproved
+- [ ] Scope proven read-only
+- [ ] Every format and scope checked on Go 10.3 and Go 6
+- [ ] PDF text and Markdown checked on the PC
+- [ ] Help, tip, website, README updated
 
 ---
 
@@ -640,7 +809,7 @@ Every phase from 1 on also follows the **Definition of Done** at the end of this
 
 **User benefit:** smoother correction with the pen. More languages. Reporters see progress.
 
-**Dependencies:** D3, D4, D5, Phase 0 replies. Independent of Phase 1.
+**Dependencies:** D3, D4, D5, Phase 0 replies. Independent of Phases 1A and 1B.
 
 **UI/UX:** no new UI, except that the language pack popup must fit 11 languages on the Go 6.
 
@@ -746,9 +915,9 @@ Owner's standing rule: no startup or pen code for this until the cause is proven
 
 **User benefit:** amiguel's exact request: month calendar and appointments, no memo, no tasks.
 
-**Technical changes:** S3, settings, `SleepAgendaLayout`, `SleepAgendaRenderer`, `SleepScreenPublisher`, `SleepAgendaSetting`.
+**Technical changes:** settings, `SleepAgendaLayout`, `SleepAgendaRenderer`, `SleepScreenPublisher`, `SleepAgendaSetting`.
 
-**Dependencies:** D6. Phase 1 is not strictly needed, but the order keeps one change in flight.
+**Dependencies:** D6, S3 (from Phase 1B).
 
 **UI/UX**
 
@@ -783,21 +952,19 @@ When space runs short the existing order applies, but a chosen Month is never dr
 
 **Tasks, in order**
 
-1. Test: `DayDigestLoader` with a tablet copy that has `providerEventId` matching a synced event. If it shows twice, the bug is confirmed.
-2. Build S3. `EventsViewModel` and `DayDigestLoader` call it.
-3. `AppSettings`: add `sleepScreenContent: SleepScreenContent = SleepScreenContent()`, with `events`, `tasks`, `memo` as true, and `month: Boolean? = null` (per D6: null means today's "when there's room").
-4. `SleepAgendaLayout.plan`: take the choice. Extend `Plan` (`showSchedule`, `showTasks`, `monthPinned`). Reserve the month's height first when pinned. Keep today's result exactly when the choice is the default.
-5. `SleepAgendaRenderer.drawBody`: one-column and month-only paths; the empty message; footer rule. Keep pure black and white.
-6. `SleepScreenPublisher`: skip the memo render when off; add the choice to `fingerprint`; use it in `preview`.
-7. On change: save, then `SleepAgenda.requestRefresh(context, force = true)`.
-8. `SleepAgendaSetting`: the rows. Keep its own state, so `MainScreen` needs no change.
-9. Render pictures of each choice at each size. **Owner's picture OK before step 5 is final.**
+1. Confirm S3 from Phase 1B is in, so the sleep screen shows no duplicate events.
+2. `AppSettings`: add `sleepScreenContent: SleepScreenContent = SleepScreenContent()`, with `events`, `tasks`, `memo` as true, and `month: Boolean? = null` (per D6: null means today's "when there's room").
+3. `SleepAgendaLayout.plan`: take the choice. Extend `Plan` (`showSchedule`, `showTasks`, `monthPinned`). Reserve the month's height first when pinned. Keep today's result exactly when the choice is the default.
+4. `SleepAgendaRenderer.drawBody`: one-column and month-only paths; the empty message; footer rule. Keep pure black and white.
+5. `SleepScreenPublisher`: skip the memo render when off; add the choice to `fingerprint`; use it in `preview`.
+6. On change: save, then `SleepAgenda.requestRefresh(context, force = true)`.
+7. `SleepAgendaSetting`: the rows. Keep its own state, so `MainScreen` needs no change.
+8. Render pictures of each choice at each size. **Owner's picture OK before step 4 is final.**
 
 **Testing**
 
 | Test | Pins |
 |---|---|
-| `DayDigestLoaderTest`: tablet copy shown once | The duplicate bug |
 | `SleepAgendaLayoutTest`: default choice gives today's plan, for each size class | No change on update |
 | `SleepAgendaLayoutTest`: pinned month is never dropped, lists trim instead | The request |
 | `SleepAgendaLayoutTest`: memo off, tasks off, each alone | Clean layouts |
@@ -831,8 +998,6 @@ When space runs short the existing order applies, but a chosen Month is never dr
 
 **Checklist**
 
-- [ ] Duplicate bug proved or disproved, fixed if real
-- [ ] S3 built
 - [ ] Owner's picture OK
 - [ ] All combinations tested, on two real sleep screens
 - [ ] Help and tip updated
@@ -1196,7 +1361,7 @@ Prep adds [Prepare] in Phase 7. Action Items stays: it's free, works offline and
 
 - **Add 2 Tasks** opens the review sheet (S6), where text, days and ticks can be changed.
 - **Save to Notes** makes a typed page right after the meeting's notes, linked to the meeting. It's then editable on the page like any text box, searchable, backed up, exported, and in Daily Notes.
-- **Share PDF** builds a PDF of the recap and notes, then opens the share sheet. **Export** on the card does the same without AI: notes only, or the saved recap if there is one.
+- **Share PDF** builds a PDF of the recap and notes, then opens the share sheet. **Export** on the card opens the export dialog (Phase 1B) with **This meeting** chosen: notes only, or with the saved recap if there is one. No AI.
 - **Later visits:** if a saved recap exists and the notes haven't changed, Recap opens it with **no AI call**. If notes changed: [Update Recap], which asks first, because hand edits would be replaced.
 - **No AI, no key, offline:** Recap explains in plain words and offers Action Items and Export, so the notes are never stuck.
 
@@ -1212,7 +1377,7 @@ Prep adds [Prepare] in Phase 7. Action Items stays: it's free, works offline and
 4. `meetingRecapSchema` (Appendix B). `ai/MeetingRecapService.kt`: read pages (S8), then one WRITING call. Cap at 12 pages and say so. `maxTokens` 2,048. Cache in `summary_cache` under a new type with a hash of the text, for cost only: the saved page is the real copy.
 5. `meetings/MeetingRecapPopup.kt`, through S4 and S7.
 6. Save to Notes: off-canvas page creation as `EventMemoService` does, then `PageDataManager` if the page is loaded. Long recaps go on as many pages as needed.
-7. `io/MeetingExport.kt`: `StaticLayout` for the recap, S1 for pages, S2 for share. One bitmap at a time.
+7. `io/MeetingExport.kt`: `StaticLayout` for the recap, S1 for pages, S2 for share. One bitmap at a time. Add **This meeting** to the export dialog's What row, shown only on a page that belongs to a meeting.
 8. Card states and the AI menu item. Read the page's link inside a small helper to avoid adding to `SharedToolbar`.
 9. Help: new topic **Meetings** (see section 10). Tip.
 10. Privacy: show the owner exact lines (D14).
@@ -1552,7 +1717,8 @@ Done within each phase, not after.
 
 | Phase | In-app Help | Tips | README | Website | Privacy | Community (after approval) |
 |---|---|---|---|---|---|---|
-| 1 | Writing & Memos, Troubleshooting | Export line | No change | Fix-only rule, or one line | No change | amiguel |
+| 1A | Writing & Memos, Troubleshooting | Export line | No change | Fix-only rule, or one line | No change | amiguel |
+| 1B | Writing & Memos | Export line | Features | Memos list, picture, What's new | No change | Release note |
 | 2 | No change | No change | Tested list, known issue | Heading only | No change | Issues #1, #3, PR #5 |
 | 3 | E-Ink & Sleep Screen | Preferences | Features | Sleep card, What's new | No change | amiguel |
 | 4 | Calendar & Sync | Calendar | Features, screenshot | Card, picture, What's new | No change | Brilliant_Set7656 |
@@ -1622,6 +1788,7 @@ The notice shows once per install, so adding features to its text doesn't reach 
 | R15 | Go 7 and Note Max problems found by users | Medium | Medium | Render tests, ask testers before claiming |
 | R16 | Recap page confuses Action items | Medium | Medium | S8 filter and test |
 | R17 | Shared text tries to steer the AI | Low | Low | Fixed schema, review sheet, no tools |
+| R18 | Export grows into a settings panel | Medium | Medium | Two ticks at most per format; a new format needs a new decision |
 
 ---
 
@@ -1706,14 +1873,14 @@ Found by reading code, not reproduced. Rule 2 applies once one is confirmed: fix
 
 | Bug | Where | Check in |
 |---|---|---|
-| Sleep screen and Daily Notes may show a tablet copy of an event twice | `DayDigestLoader.events` | Phase 3 |
+| Sleep screen, Daily Notes and exports may show a tablet copy of an event twice | `DayDigestLoader.events` | Phase 1B |
 | `SupportPopup` doesn't block the pen | `isMainScreenModalBlockingCanvas` | Phase 2 |
 | Pushed tablet event loses its meeting notes link | `LocalEvent.toCalendarEvent`, `EventsViewModel` upgrade | Phase 6 |
 | Day switch drops an uncommitted lasso drag or pasted copy | `changePage` | Phase 5 |
 | Month grid stays on the old month after Search jumps | `viewingCalendar` | Phase 4 |
 | Weekly Summary uses the locale's week, not the setting | `MainScreen` weekly range | Phase 4 |
 | Text box writes may be dropped in a burst | `TextAnnotationIndexer` debounce | Phase 6 |
-| Tasks export runs on the main thread | `ToolbarMenu`, `TaskExportService` | Phase 1 |
+| Tasks export runs on the main thread | `ToolbarMenu`, `TaskExportService` | Phase 1A |
 | Convert to Tasks loses the lasso with no key | `MainScreen`, `requireKey()` with no resume | Phase 5 (small fix if the owner agrees) |
 
 Not a bug: copying a lasso image is cleared from the system clipboard on purpose, so the paste button shows the drawing (`EditorControlTower`).
