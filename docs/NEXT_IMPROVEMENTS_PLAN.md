@@ -38,8 +38,8 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 | 1B | Export redesign | Medium | Shipped in 1.0.62 (5 Nov 2026). Saving to a picked folder and the Go 6 not checked, by the owner's choice: see the phase's checklist |
 | 2 | Pen, compatibility and the Ukrainian PR | Small to medium | In progress on `next-release`: PR #5 merged there and the language screen rebuilt; eraser, issue #1 and SupportPopup left |
 | 3 | Sleep screen choices | Small to medium | Built on `next-release`, pictures approved; tablet checks left |
-| 4 | Week view | Large | Pictures approved 5 Nov 2026; building on `next-release` |
-| 5 | Write It, Schedule It | Large | Pictures approved 5 Nov 2026 |
+| 4 | Week view | Large | Built on `next-release`, checked on the Go 10.3 (5 Nov 2026). A busy day opens whole in one sheet, not pages of 6 (owner). Left: handwriting pictures, the pen after closing, the Go 6, a tick reaching Google Tasks, first open 795 ms |
+| 5 | Write It, Schedule It | Large | Built on `next-release`, works on the Go 10.3 with real ink (5 Nov 2026). Live check 20 of 20 on typed notes. Left: 20 samples in the owner's own handwriting, an event reaching Google and iCloud, offline and no-key on a tablet, the Go 6 |
 | 6 | Meeting Recap | Medium to large | Not started |
 | 7 | Meeting Prep | Medium | Not started |
 | 8 | Share to BooxDay | Medium | Not started |
