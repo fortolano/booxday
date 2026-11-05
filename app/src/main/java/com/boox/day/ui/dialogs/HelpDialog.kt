@@ -606,6 +606,11 @@ private fun CalendarSyncContent() {
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
+    SectionSubheader("From Handwriting to the Calendar")
+    BodyText("In Memos, lasso what you wrote, such as \"Lunch with Sam Tue 1pm\", and tap the calendar with a plus. Your AI reads it and shows what it found. Check it, change anything, then tap Add. Nothing is added until you do, and your writing stays on the page.")
+
+    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
     SectionSubheader("Week View")
     BodyText("Tap Week in the day header to see the whole week and what's overdue. Tap a day to tick tasks, move them, add an event or open that day. A task due on another day shows on both days, marked Due. To write a task by hand, open the day.")
 

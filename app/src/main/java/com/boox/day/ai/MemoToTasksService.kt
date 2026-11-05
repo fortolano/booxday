@@ -73,7 +73,9 @@ data class TasksAddedResult(
     val tasksAdded: Int,
     val pagesUsed: Int,
     val targetDates: Set<String>,  // All dates that tasks were added to (supports per-task date overrides)
-    val latestPageIndexByDate: Map<String, Int> = emptyMap()
+    val latestPageIndexByDate: Map<String, Int> = emptyMap(),
+    /** In the order they were placed. */
+    val taskIds: List<String> = emptyList()
 )
 
 // JSON response models for Gson parsing
@@ -123,7 +125,7 @@ object MemoToTasksService {
      * extract text" or "All models failed to convert memo to tasks" whatever the cause, so no
      * Wi-Fi, no credit and a bad answer looked the same.
      */
-    private class ModelFailures {
+    internal class ModelFailures {
         private var lastError: AiResponse.Error? = null
         private var creditRefusal: AiResponse.Error.OutOfCredit? = null
         private var keyProblem: AiResponse.Error? = null
@@ -469,6 +471,9 @@ Use this context to:
         bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
         return Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
     }
+
+    /** Stage 1 for other features: the words in [bitmap], "" when there are none. Throws when every model failed. */
+    internal suspend fun readHandwriting(bitmap: Bitmap): String = extractTextFromImage(encodeBitmapToBase64(bitmap))
 
     /**
      * Stage 1: Extract text from image using vision models with fallback.

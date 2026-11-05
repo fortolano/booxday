@@ -17,7 +17,22 @@ data class EventTarget(
     val calendar: WritableCalendar?,
     val serviceName: String?,
     val localCalendarId: String?
-)
+) {
+    /** "Work (Google)", or the tablet. */
+    val label: String
+        get() = calendar?.let { if (serviceName != null) "${it.name} ($serviceName)" else it.name } ?: "This device only"
+}
+
+/** What MainScreen knows about accounts, for features outside it. */
+object EventTargets {
+    private var latest: () -> EventTarget = { EventTarget(false, null, null, null) }
+
+    fun publish(target: () -> EventTarget) {
+        latest = target
+    }
+
+    fun current(): EventTarget = latest()
+}
 
 /** A new event, as Add Event hands it over. */
 data class EventDraft(

@@ -5712,6 +5712,7 @@ class TaskRepository(internal val context: Context) {
         Log.i(TAG, "MEMO_TO_TASKS: Adding ${selectedTasks.size} tasks across ${tasksByDate.size} date(s)")
 
         var totalTasksAdded = 0
+        val addedIds = mutableListOf<String>()
         val pagesUsed = mutableSetOf<Int>()
         val affectedDates = mutableSetOf<String>()
         val latestPageIndexByDate = mutableMapOf<String, Int>()
@@ -5756,6 +5757,7 @@ class TaskRepository(internal val context: Context) {
                     taskDao.getById(slot.task.id)?.let { scheduleTaskNotificationIfEnabled(it) }
                 }
                 totalTasksAdded++
+                addedIds += slot.task.id
                 pagesUsed.add(slot.pageIndex)
                 latestPageIndexByDate[targetDate] = maxOf(
                     latestPageIndexByDate[targetDate] ?: slot.pageIndex,
@@ -5776,7 +5778,8 @@ class TaskRepository(internal val context: Context) {
             tasksAdded = totalTasksAdded,
             pagesUsed = pagesUsed.size,
             targetDates = affectedDates,
-            latestPageIndexByDate = latestPageIndexByDate
+            latestPageIndexByDate = latestPageIndexByDate,
+            taskIds = addedIds
         )
     }
 

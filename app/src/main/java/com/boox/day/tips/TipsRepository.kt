@@ -237,6 +237,11 @@ object TipsRepository {
             contexts = setOf(TipContext.CALENDAR)
         ),
         Tip(
+            id = "memos_schedule",
+            message = "Lasso a note like \"Lunch Tue 1pm\" and tap the calendar with a plus to add it to your calendar.",
+            contexts = setOf(TipContext.MEMOS)
+        ),
+        Tip(
             id = "calendar_week",
             message = "Tap Week beside the date to plan the whole week, and place what's overdue.",
             contexts = setOf(TipContext.CALENDAR)

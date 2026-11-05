@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import com.boox.day.data.db.CalendarEvent
+import com.boox.day.data.model.ParsedEventData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.getAndUpdate
@@ -16,6 +17,8 @@ sealed interface MainScreenRequest {
     data class ShowEvent(val event: CalendarEvent) : MainScreenRequest
     /** The Add Event dialog, with this date filled in. */
     data class NewEvent(val date: String) : MainScreenRequest
+    /** The Add Event dialog, filled in from what was read. */
+    data class NewEventFrom(val draft: ParsedEventData) : MainScreenRequest
     /** The Tasks page on screen may have changed. */
     data object ReloadTasks : MainScreenRequest
 }

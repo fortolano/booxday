@@ -115,6 +115,7 @@ fun AddEditEventDialog(
     prefillDescription: String? = null,
     prefillAttendees: List<String>? = null,  // Attendee names from voice input
     prefillConfidenceLow: Boolean = false,  // Show warning if AI confidence was low
+    prefillFromHandwriting: Boolean = false,  // Write It, Schedule It: the same warning, in its own words
     // Sync mode settings (Standalone/Hybrid)
     syncMode: AppSettings.SyncMode = AppSettings.SyncMode.STANDALONE,  // Current sync mode
     isSignedIn: Boolean = false,                // Is user signed into any cloud account
@@ -400,7 +401,8 @@ fun AddEditEventDialog(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Text(
-                                    text = "Please verify the details - some were inferred from your speech.",
+                                    text = if (prefillFromHandwriting) "Read from your handwriting. Check the details."
+                                        else "Please verify the details - some were inferred from your speech.",
                                     fontSize = 12.sp,
                                     color = EInkTheme.Warning.textColor
                                 )
@@ -1694,7 +1696,7 @@ fun AddEditEventDialog(
 private val HOUR_ITEM_HEIGHT = 48.dp
 
 @Composable
-private fun TimeSelector(
+internal fun TimeSelector(
     hour: Int,
     minute: Int,
     onHourChange: (Int) -> Unit,

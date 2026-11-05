@@ -2106,6 +2106,16 @@ fun MainScreen(
     // Week view and later overlays (Nov 2026): new ones go in AppOverlays, not here
     com.boox.day.ui.AppOverlaysHost()
     LaunchedEffect(showAddEventDialog) { if (!showAddEventDialog) compactAddEventDate = null }
+    com.boox.day.events.EventTargets.publish {
+        com.boox.day.events.DefaultEventTarget.of(
+            com.boox.day.events.DefaultEventTarget.offered(
+                writableCalendars,
+                multiAccountUiState.googleAccounts.firstOrNull()?.account?.id,
+                multiAccountUiState.outlookAccounts.firstOrNull()?.account?.id
+            ),
+            hasGoogleAccount, hasOutlookAccount, hasCalDavAccount, syncModeSetting, localCalendars
+        )
+    }
     com.boox.day.ui.MainScreenRequestsCollector { request ->
         when (request) {
             is com.boox.day.ui.MainScreenRequest.ShowDay -> {
@@ -2123,6 +2133,11 @@ fun MainScreen(
                 editingEvent = null
                 parsedEventData = null
                 compactAddEventDate = request.date
+                showAddEventDialog = true
+            }
+            is com.boox.day.ui.MainScreenRequest.NewEventFrom -> {
+                editingEvent = null
+                parsedEventData = request.draft
                 showAddEventDialog = true
             }
             com.boox.day.ui.MainScreenRequest.ReloadTasks -> scope.launch {
@@ -5789,6 +5804,7 @@ fun MainScreen(
                     parsedEventData?.getEffectiveDescription(),
                 prefillAttendees = parsedEventData?.attendees?.takeIf { it.isNotEmpty() },
                 prefillConfidenceLow = parsedEventData?.let { !it.isHighConfidence } ?: false,
+                prefillFromHandwriting = parsedEventData?.originalIntent == com.boox.day.proposals.FROM_HANDWRITING,
                 // Sync mode settings
                 syncMode = syncModeSetting,
                 isSignedIn = hasAnyExternalAccount,  // Updated: use connected account check
@@ -6567,7 +6583,8 @@ private fun PersistentCanvasHost(
                     context = context,
                     controlTower = activeControlTower,
                     // Only show "Convert to Tasks" on Memos tab - callback passed from MainScreen
-                    onConvertSelectionToTasks = if (currentTab == EditorTab.Memos) onConvertSelectionToTasks else null
+                    onConvertSelectionToTasks = if (currentTab == EditorTab.Memos) onConvertSelectionToTasks else null,
+                    onScheduleSelection = if (currentTab == EditorTab.Memos) { strokes -> com.boox.day.proposals.ScheduleUi.start(strokes, selectedDate) } else null
                 )
                 TextBoxOverlay(context = context, controlTower = activeControlTower)
                 // Memos page map (Oct 2026, Phase 0 spike): above the canvas's other overlays

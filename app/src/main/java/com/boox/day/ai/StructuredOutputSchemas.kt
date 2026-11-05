@@ -229,6 +229,35 @@ internal object StructuredOutputSchemas {
         required = listOf("tasks")
     )
 
+    /** Write It, Schedule It (Nov 2026): "" for anything not written. */
+    val scheduleItemsSchema: Map<String, Any> = objectSchema(
+        properties = mapOf(
+            "items" to arraySchema(
+                items = objectSchema(
+                    properties = mapOf(
+                        "kind" to stringSchema(enum = listOf("event", "task")),
+                        "title" to stringSchema(minLength = 1, maxLength = 140),
+                        "date" to stringSchema(minLength = 0, maxLength = 10),
+                        "start_time" to stringSchema(minLength = 0, maxLength = 5),
+                        "end_time" to stringSchema(minLength = 0, maxLength = 5),
+                        "all_day" to booleanSchema(),
+                        "location" to stringSchema(minLength = 0, maxLength = 200),
+                        "is_deadline" to booleanSchema(),
+                        "source_text" to stringSchema(minLength = 0, maxLength = 300),
+                        "confidence" to stringSchema(enum = listOf("high", "medium", "low"))
+                    ),
+                    required = listOf(
+                        "kind", "title", "date", "start_time", "end_time", "all_day",
+                        "location", "is_deadline", "source_text", "confidence"
+                    )
+                ),
+                minItems = 0,
+                maxItems = MEMO_TO_TASKS_MAX_ITEMS
+            )
+        ),
+        required = listOf("items")
+    )
+
     fun inferenceSchema(trackCorrections: Boolean): Map<String, Any> {
         val properties = mutableMapOf<String, Any>(
             "refinedText" to stringSchema(minLength = 1, maxLength = 6000),

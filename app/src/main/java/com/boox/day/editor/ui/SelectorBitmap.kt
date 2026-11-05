@@ -55,7 +55,8 @@ val strokeStyle = Stroke(
 fun SelectedBitmap(
     context: Context,
     controlTower: EditorControlTower,
-    onConvertSelectionToTasks: ((List<DbStroke>) -> Unit)? = null
+    onConvertSelectionToTasks: ((List<DbStroke>) -> Unit)? = null,
+    onScheduleSelection: ((List<DbStroke>) -> Unit)? = null
 ) {
     val density = LocalDensity.current
     val selectionState = controlTower.getSnapshotOfSelectionState()
@@ -178,7 +179,7 @@ fun SelectedBitmap(
         val miniIconSize = 28.dp  // Increased from 24dp (15% larger)
         // Base buttons: Delete, Recognize, Cut, Copy, Duplicate (resize via corner handles)
         // +1 if Convert to Tasks callback is provided
-        val buttonCount = 5 + (if (onConvertSelectionToTasks != null) 1 else 0)
+        val buttonCount = 5 + (if (onConvertSelectionToTasks != null) 1 else 0) + (if (onScheduleSelection != null) 1 else 0)
         val toolbarPadding = 3
 
         // If we can calculate offset of buttons show selection handling tools
@@ -291,6 +292,26 @@ fun SelectedBitmap(
                                         onConvertSelectionToTasks(strokes)
                                     }
                                 }
+                            },
+                            modifier = Modifier.size(miniButtonSize.dp),
+                            iconSize = miniIconSize
+                        )
+                    }
+                    // Write It, Schedule It: reset as Convert to Tasks does, the strokes are already captured
+                    if (onScheduleSelection != null) {
+                        ToolbarButton(
+                            iconId = R.drawable.ai_schedule_lasso,
+                            contentDescription = "Add to Calendar",
+                            isSelected = false,
+                            onSelect = {
+                                // An image or text box alone has no strokes: the handler says so, and the selection stays
+                                val strokes = selectionState.selectedStrokes.orEmpty()
+                                if (strokes.isNotEmpty()) {
+                                    controlTower.applySelectionDisplace()
+                                    selectionState.reset()
+                                    controlTower.setIsDrawing(true)
+                                }
+                                onScheduleSelection(strokes)
                             },
                             modifier = Modifier.size(miniButtonSize.dp),
                             iconSize = miniIconSize

@@ -16,6 +16,7 @@ class StructuredOutputSchemasTest {
         "task_breakdown_v3" to StructuredOutputSchemas.breakdownSchema,
         "daily_summary_insights_v3" to StructuredOutputSchemas.dailyInsightsSchema,
         "weekly_summary_insights_v3" to StructuredOutputSchemas.weeklyInsightsSchema,
+        "schedule_items" to StructuredOutputSchemas.scheduleItemsSchema,
         "memo_to_tasks" to StructuredOutputSchemas.memoToTasksSchema,
         "text_inference" to StructuredOutputSchemas.inferenceSchema(trackCorrections = false),
         "text_inference_with_corrections" to StructuredOutputSchemas.inferenceSchema(trackCorrections = true),

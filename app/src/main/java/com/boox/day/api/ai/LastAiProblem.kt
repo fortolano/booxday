@@ -122,6 +122,7 @@ object LastAiProblem {
     // Answer formats, as the step they belong to
     private val STEPS = mapOf(
         "ocr_text" to "reading handwriting",
+        "schedule_items" to "finding dates",
         "ocr_text_with_language" to "reading handwriting",
         "text_inference" to "clean-up",
         "memo_to_tasks" to "making tasks"
