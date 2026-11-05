@@ -1493,6 +1493,7 @@ fun SharedToolbar(
                         hasSelectedStrokes = !activeState.selectionState.selectedStrokes.isNullOrEmpty(),
                         hasPageContent = activeState.pageView.strokes.isNotEmpty(),
                         hasTextAnnotations = activeState.pageView.textAnnotations.isNotEmpty(),
+                        pageId = activeState.pageView.currentPageId,
                         enabled = memosAiEnabled,
                         onRecognizePage = onRecognizePage,
                         onVoiceInput = onVoiceInput,
@@ -2335,6 +2336,7 @@ private fun toolbarMenuTools(
                         onSummarize = onSummarize,
                         onTranslate = onTranslate,
                         onConvertMemoToTasks = onConvertMemoToTasks,
+                        pageId = state.pageView.currentPageId,
                         onDone = closeMenu
                     )
                 }

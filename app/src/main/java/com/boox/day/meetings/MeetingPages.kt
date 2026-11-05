@@ -3,6 +3,8 @@ package com.boox.day.meetings
 import android.content.Context
 import com.boox.day.ai.MemoPageContent
 import com.boox.day.ai.MemoToTasksService
+import com.boox.day.data.db.AppDatabase
+import com.boox.day.data.db.CalendarEvent
 import com.boox.day.io.ExportText
 import com.boox.day.sync.EventMemoService
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +23,13 @@ object MeetingPages {
 
     /** [skipped]: pages past [MAX_PAGES]. */
     data class Read(val text: String, val pages: Int, val skipped: Int)
+
+    /** The meeting a memo page belongs to, a tablet-only one too; null for any other page. */
+    suspend fun eventOf(context: Context, pageId: String): CalendarEvent? = withContext(Dispatchers.IO) {
+        val db = AppDatabase.getDatabase(context.applicationContext)
+        val eventId = db.pageDao().getById(pageId)?.linkedEventId ?: return@withContext null
+        db.calendarEventDao().getById(eventId) ?: db.localEventDao().getById(eventId)?.toCalendarEvent()
+    }
 
     /** Null when the meeting has no pages. */
     suspend fun of(context: Context, eventId: String): Pages? {

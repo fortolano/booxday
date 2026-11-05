@@ -39,6 +39,9 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.R
 import com.boox.day.data.datastore.BUTTON_SIZE
+import com.boox.day.data.db.CalendarEvent
+import com.boox.day.meetings.MeetingPages
+import com.boox.day.meetings.MeetingRecapUi
 import com.boox.day.ui.convertDpToPixel
 import com.boox.day.ui.theme.EInkTheme
 
@@ -63,6 +66,7 @@ fun AiToolbarButton(
     onSummarize: () -> Unit,
     onTranslate: () -> Unit,
     onConvertMemoToTasks: () -> Unit,
+    pageId: String? = null,
     onMenuOpenChange: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -131,6 +135,7 @@ fun AiToolbarButton(
                         onSummarize = onSummarize,
                         onTranslate = onTranslate,
                         onConvertMemoToTasks = onConvertMemoToTasks,
+                        pageId = pageId,
                         onDone = { setMenuOpen(false) }
                     )
                 }
@@ -155,6 +160,7 @@ fun AiMenuItems(
     onSummarize: () -> Unit,
     onTranslate: () -> Unit,
     onConvertMemoToTasks: () -> Unit,
+    pageId: String? = null,
     onDone: () -> Unit
 ) {
     // Voice to Text - Enabled when feature accessible
@@ -217,6 +223,26 @@ fun AiMenuItems(
         onClick = {
             onDone()
             onConvertMemoToTasks()
+        }
+    )
+
+    pageId?.let { MeetingRecapItem(it, onDone) }
+}
+
+/** Only on a meeting's page, so the menu stays short everywhere else. */
+@Composable
+private fun MeetingRecapItem(pageId: String, onDone: () -> Unit) {
+    val context = LocalContext.current
+    var meeting by remember(pageId) { mutableStateOf<CalendarEvent?>(null) }
+    LaunchedEffect(pageId) { meeting = MeetingPages.eventOf(context, pageId) }
+    val event = meeting ?: return
+    Divider(color = EInkTheme.Divider.subtleColor, thickness = EInkTheme.Divider.subtleThickness)
+    AiMenuItemVector(
+        label = "Meeting Recap",
+        icon = Icons.Default.Summarize,
+        onClick = {
+            onDone()
+            MeetingRecapUi.open(event)
         }
     )
 }
