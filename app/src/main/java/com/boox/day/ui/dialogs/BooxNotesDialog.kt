@@ -29,7 +29,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.view.ViewCompat
@@ -585,7 +585,8 @@ fun BooxNotesDialog(
     }
 
     // Selected note: its page, and how many events its day has
-    LaunchedEffect(selectedId) {
+    // Also on [loaded]: a note opened from an event or search is selected before the list has arrived
+    LaunchedEffect(selectedId, loaded) {
         pageIndex = 0
         heldNoteId = selectedId?.takeIf { it !in cache.scored && !isLinked(it) }
         val note = selectedNote ?: return@LaunchedEffect
@@ -595,7 +596,7 @@ fun BooxNotesDialog(
     }
     // The list has its own thumbnails: a big page is drawn only where it is on show
     val pageWanted = twoPane || noteOpen || readerOpen || reviewing
-    LaunchedEffect(selectedId, pageIndex, pageWanted) {
+    LaunchedEffect(selectedId, pageIndex, pageWanted, loaded) {
         if (!pageWanted) return@LaunchedEffect
         val note = selectedNote ?: return@LaunchedEffect
         val ready = preloaded?.takeIf { it.first == note.uniqueId && pageIndex == 0 }
@@ -1087,25 +1088,13 @@ private fun NotesFirstUseHint(onClose: () -> Unit) {
     }
 }
 
-/** ⋮: everything that isn't a note */
+/** More: everything that isn't a note. A word, because three dots are easy to miss */
 @Composable
-private fun NotesMoreMenu(onReview: () -> Unit, onCheck: () -> Unit, onSetup: () -> Unit, onHelp: () -> Unit) {
+internal fun NotesMoreMenu(onReview: () -> Unit, onCheck: () -> Unit, onSetup: () -> Unit, onHelp: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     val menuOffsetY = with(LocalDensity.current) { EInkTheme.Global.touchTarget.roundToPx() }
     Box {
-        Box(
-            modifier = Modifier
-                .size(EInkTheme.Global.touchTarget)
-                .noRippleClickable { open = true },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "More",
-                tint = EInkTheme.Colors.primary,
-                modifier = Modifier.size(EInkTheme.Global.iconSize)
-            )
-        }
+        EinkSecondaryButton(text = "More", onClick = { open = true }, width = 76.dp)
         if (open) {
             Popup(
                 alignment = Alignment.TopEnd,
@@ -1136,7 +1125,7 @@ private fun NotesMoreMenu(onReview: () -> Unit, onCheck: () -> Unit, onSetup: ()
     }
 }
 
-/** Title, ⋮ and X; Day | All notes; the day, or what narrows All notes. One row when there is room. */
+/** Title, More and X; Day | All notes; the day, or what narrows All notes. One row when there is room. */
 @Composable
 internal fun BooxNotesHeader(
     showAll: Boolean,

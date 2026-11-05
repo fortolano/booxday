@@ -751,7 +751,7 @@ private fun SmartLinkContent() {
     BulletPoint("Tap a note to see its pages and link it to an event. Open in Notes App takes you to BOOX's own app.")
     BulletPoint("Review Suggestions shows each note with its likely event, one at a time: Link it, Reject it, or Decide Later. List shows them all, and Link All Likely… links the likely ones at once. Every change can be undone.")
     BulletPoint("New notes may link themselves when the match is strong. The note then says Linked automatically.")
-    BulletPoint("The ⋮ menu has Check for New Notes and Boox Notes Setup.")
+    BulletPoint("The More button has Check for New Notes and Boox Notes Setup.")
     BulletPoint("An event's details show its notes, with Link a Note… and Write a New Note.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))

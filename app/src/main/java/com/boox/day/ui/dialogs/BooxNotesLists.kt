@@ -262,7 +262,7 @@ internal fun NotesCaptionRow(caption: String, reviewCount: Int, shortLabel: Bool
             fontSize = EInkTheme.Typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = EInkTheme.Colors.darkGray,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
