@@ -1,6 +1,8 @@
 package com.boox.day.sleepscreen
 
 import android.graphics.Bitmap
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,8 +10,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -17,9 +21,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,8 +34,13 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.data.db.KvProxy
@@ -51,9 +63,39 @@ fun SleepAgendaSetting() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var enabled by remember { mutableStateOf(GlobalAppSettings.current.sleepScreenAgendaEnabled) }
-    var justTurnedOff by remember { mutableStateOf(false) }
+    var offMessage by remember { mutableStateOf<String?>(null) }
+    var askTurnOn by remember { mutableStateOf(false) }
+    var pickToTurnOn by rememberSaveable { mutableStateOf(false) }
+    var pickFailed by remember { mutableStateOf(false) }
+    var backVersion by remember { mutableIntStateOf(0) }
     var preview by remember { mutableStateOf<Bitmap?>(null) }
     var loadingPreview by remember { mutableStateOf(false) }
+    val backImage by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, backVersion) {
+        value = withContext(Dispatchers.IO) { SleepBackImage.thumbnail(context)?.asImageBitmap() }
+    }
+
+    fun turnOn() {
+        enabled = true
+        offMessage = null
+        KvProxy(context).setAppSettings(GlobalAppSettings.current.copy(sleepScreenAgendaEnabled = true))
+        SleepAgenda.setEnabled(context, true)
+    }
+
+    // Backing out of the picker changes nothing: the switch stays where it was
+    val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val thenTurnOn = pickToTurnOn
+        pickToTurnOn = false
+        if (uri != null) {
+            scope.launch {
+                val saved = withContext(Dispatchers.IO) { SleepBackImage.save(context, uri) }
+                pickFailed = !saved
+                if (saved) {
+                    backVersion++
+                    if (thenTurnOn) turnOn()
+                }
+            }
+        }
+    }
 
     SettingCard(
         title = "Today on sleep screen",
@@ -74,14 +116,16 @@ fun SleepAgendaSetting() {
                 EInkToggle(
                     checked = enabled,
                     onCheckedChange = { on ->
-                        enabled = on
-                        justTurnedOff = !on
-                        if (!on) {
+                        pickFailed = false
+                        if (on) {
+                            askTurnOn = true
+                        } else {
+                            enabled = false
                             preview?.recycle()
                             preview = null
+                            KvProxy(context).setAppSettings(GlobalAppSettings.current.copy(sleepScreenAgendaEnabled = false))
+                            SleepAgenda.turnOff(context) { handed -> offMessage = turnedOffMessage(handed) }
                         }
-                        KvProxy(context).setAppSettings(GlobalAppSettings.current.copy(sleepScreenAgendaEnabled = on))
-                        SleepAgenda.setEnabled(context, on)
                     }
                 )
             }
@@ -110,13 +154,40 @@ fun SleepAgendaSetting() {
                         }
                     }
                 )
+                Spacer(Modifier.height(EInkTheme.Global.spacingSmall))
                 ContentChoices()
+                Spacer(Modifier.height(EInkTheme.Global.spacingSmall))
+                SleepBackImageRow(backImage) { pickImage.launch(arrayOf("image/*")) }
             }
-            if (justTurnedOff) {
+            offMessage?.let {
+                Text(text = it, fontSize = EInkTheme.Typography.bodySmall, color = EInkTheme.Colors.darkGray)
+            }
+            if (pickFailed) {
                 Text(
-                    text = "Turned off. The sleep screen shows BOOX's own image again. To pick your own: BOOX Settings, then Screensaver.",
+                    text = "That image couldn't be used. Try another one.",
                     fontSize = EInkTheme.Typography.bodySmall,
-                    color = EInkTheme.Colors.darkGray
+                    color = EInkTheme.Colors.primary
+                )
+            }
+        }
+    }
+
+    if (askTurnOn) {
+        Popup(popupPositionProvider = ScreenCentre, onDismissRequest = { askTurnOn = false }, properties = PopupProperties(focusable = true)) {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                SleepTurnOnCard(
+                    onCancel = { askTurnOn = false },
+                    onSkip = {
+                        askTurnOn = false
+                        SleepBackImage.clear(context)
+                        backVersion++
+                        turnOn()
+                    },
+                    onPick = {
+                        askTurnOn = false
+                        pickToTurnOn = true
+                        pickImage.launch(arrayOf("image/*"))
+                    }
                 )
             }
         }
@@ -128,6 +199,21 @@ fun SleepAgendaSetting() {
             bitmap.recycle()
         }
     }
+}
+
+/**
+ * The middle of the screen. Alignment.Center means the middle of the card, which sits low in Preferences
+ * and put these popups at the bottom of the screen.
+ */
+private object ScreenCentre : PopupPositionProvider {
+    override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize) =
+        IntOffset((windowSize.width - popupContentSize.width) / 2, (windowSize.height - popupContentSize.height) / 2)
+}
+
+private fun turnedOffMessage(handedBack: Boolean?): String = when (handedBack) {
+    true -> "Turned off. Your image is back on the sleep screen."
+    false -> "Turned off. BOOX didn't take your image, so it shows its own. To pick your own: BOOX Settings, then Screensaver."
+    null -> "Turned off. The sleep screen shows BOOX's own image again. To pick your own: BOOX Settings, then Screensaver."
 }
 
 /** What to show, one switch each; the last one on can't be turned off. Saved at once, and the image follows. */
@@ -189,7 +275,7 @@ private fun ContentRow(label: String, on: Boolean, lastOne: Boolean, note: Strin
 @Composable
 private fun SleepAgendaPreviewPopup(bitmap: Bitmap, onClose: () -> Unit) {
     val image = remember(bitmap) { bitmap.asImageBitmap() }
-    Popup(alignment = Alignment.Center, onDismissRequest = onClose, properties = PopupProperties(focusable = true)) {
+    Popup(popupPositionProvider = ScreenCentre, onDismissRequest = onClose, properties = PopupProperties(focusable = true)) {
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Column(
                 modifier = Modifier

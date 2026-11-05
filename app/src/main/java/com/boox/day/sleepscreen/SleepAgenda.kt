@@ -94,6 +94,24 @@ object SleepAgenda {
         }
     }
 
+    /**
+     * The Preferences switch going off: as [setEnabled], then the user's own image goes back to BOOX.
+     * [done] hears true or false for that, null when no image was picked. A data wipe uses [setEnabled].
+     */
+    fun turnOff(context: Context, done: (Boolean?) -> Unit) {
+        val app = context.applicationContext
+        setEnabled(app, false)
+        val appScope = scope
+        if (!SleepBackImage.exists(app) || appScope == null) {
+            done(null)
+            return
+        }
+        appScope.launch(Dispatchers.IO) {
+            val handed = SleepScreenPublisher.handBack(app)
+            withContext(Dispatchers.Main) { done(handed) }
+        }
+    }
+
     fun requestRefresh(context: Context, delaySeconds: Long = 0, force: Boolean = false) {
         val request = OneTimeWorkRequestBuilder<SleepAgendaWorker>()
             .setInitialDelay(delaySeconds, TimeUnit.SECONDS)

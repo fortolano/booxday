@@ -839,7 +839,7 @@ private fun EInkOptimizationContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Today on Sleep Screen")
-    BodyText("Shows your day as the tablet's sleep screen. Turn it on in Preferences (Boox tablets only; off at first), then choose what it shows: the month calendar, events, tasks and, on larger tablets, the memo page. Turning it off brings back Boox's own sleep image.")
+    BodyText("Shows your day as the tablet's sleep screen. Turn it on in Preferences (Boox tablets only; off at first), then choose what it shows: the month calendar, events, tasks and, on larger tablets, the memo page. It replaces your Boox sleep screen, and Boox doesn't let apps read that, so BooxDay asks for an image to go back to when you turn it off. Without one, Boox shows its own image.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 

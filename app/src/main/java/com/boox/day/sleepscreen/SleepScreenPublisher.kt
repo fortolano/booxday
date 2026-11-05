@@ -38,6 +38,8 @@ object SleepScreenPublisher {
     private const val KEY_DATE = "date"
     private const val KEY_FILE = "file"
     private const val NAME_PREFIX = "booxday-today"
+    /** The user's own image on its way back to BOOX ([handBack]). */
+    private const val BACK_PREFIX = "booxday-back"
     /** The fixed name builds before 24 Oct 2026 used. */
     private const val OLD_FIXED_NAME = "booxday-today.png"
 
@@ -137,18 +139,41 @@ object SleepScreenPublisher {
         runCatching { File(folder(), "$NAME_PREFIX.tmp").delete() }  // left by a write that was cut short
     }
 
+    /**
+     * The setting went off and the user picked an image to go back to ([SleepBackImage]): BOOX gets it
+     * under a new name (it ignores a name it already has). After a publish still running, so that
+     * can't land on top. False when BOOX wouldn't take it.
+     */
+    suspend fun handBack(context: Context): Boolean = mutex.withLock {
+        val app = context.applicationContext
+        try {
+            val target = File(folder().apply { mkdirs() }, "$BACK_PREFIX-${System.currentTimeMillis()}.jpg")
+            SleepBackImage.file(app).copyTo(target)
+            val accepted = ScreenResourceManager.setScreensaver(app, target.absolutePath, false)
+            Log.i(TAG, "Own image ${if (accepted) "handed back" else "refused"}")
+            if (accepted) deleteImages(keep = setOf(target.name)) else target.delete()
+            accepted
+        } catch (t: Throwable) {
+            Log.e(TAG, "Own image not handed back", t)
+            false
+        }
+    }
+
     /** Deletes BooxDay's sleep images, in its folder and BOOX's copies in Pictures/, except [keep]. */
     private fun deleteImages(keep: Set<String>) {
         listOfNotNull(folder(), folder().parentFile).forEach { dir ->
             runCatching {
-                dir.listFiles { f -> f.isFile && f.name.startsWith(NAME_PREFIX) && f.name.endsWith(".png") && f.name !in keep }
+                dir.listFiles { f -> isOurImage(f.name) && f.isFile && f.name !in keep }
                     ?.forEach { if (!it.delete()) Log.w(TAG, "Could not delete ${it.absolutePath}") }
             }.onFailure { Log.w(TAG, "Old sleep images not cleaned up in $dir: ${it.message}") }
         }
     }
 
+    internal fun isOurImage(name: String): Boolean =
+        (name.startsWith(NAME_PREFIX) && name.endsWith(".png")) || (name.startsWith(BACK_PREFIX) && name.endsWith(".jpg"))
+
     /** The panel's portrait size in pixels and its pixels per inch. */
-    private fun panel(context: Context): Triple<Int, Int, Int> {
+    internal fun panel(context: Context): Triple<Int, Int, Int> {
         val size = runCatching { ScreenUtils.getScreenSize(context) }.getOrNull()
             ?: Resources.getSystem().displayMetrics.let { intArrayOf(it.widthPixels, it.heightPixels) }
         // Physical pixels per inch (BooxDay changes the app's density, not the panel's xdpi)
