@@ -8,10 +8,12 @@ import android.content.Intent
 import androidx.core.app.ShareCompat
 import androidx.core.content.FileProvider
 import com.boox.day.data.AppRepository
+import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.Task
 import com.boox.day.editor.ui.TaskExportAction
 import com.boox.day.editor.ui.TaskExportFormat
 import com.boox.day.editor.ui.TaskExportScope
+import com.boox.day.share.HandwrittenRows
 import android.util.Log
 import java.io.File
 import java.io.FileWriter
@@ -71,7 +73,7 @@ class TaskExportService(private val context: Context) {
         val tasks = getTasksForScope(scope, dayDate, currentTaskPageIndex)
 
         // Filter to only tasks with content (including handwriting-only tasks)
-        val tasksWithContent = taskRepository.filterTasksWithContent(tasks, canvasHeight)
+        val tasksWithContent = tasksWithContent(tasks, canvasHeight)
 
         if (tasksWithContent.isEmpty()) {
             return ExportResult(
@@ -92,6 +94,17 @@ class TaskExportService(private val context: Context) {
             TaskExportAction.CLIPBOARD -> copyToClipboard(content, tasksWithContent.size)
             TaskExportAction.SHARE -> shareContent(content, format, tasksWithContent.size)
         }
+    }
+
+    /**
+     * The tasks with something on them. The repository's check sees ink only on pages open this
+     * session, so handwriting not read yet dropped out of This Month and All Tasks; [HandwrittenRows]
+     * reads the saved ink of any page.
+     */
+    private fun tasksWithContent(tasks: List<Task>, canvasHeight: Float): List<Task> {
+        val withContent = taskRepository.filterTasksWithContent(tasks, canvasHeight).mapTo(HashSet()) { it.id }
+        val handwriting = HandwrittenRows(context, AppDatabase.getDatabase(context).openHelper.readableDatabase)
+        return tasks.filter { it.id in withContent || handwriting.inRow(it.pageId, it.dayDate, it.rowIndex) }
     }
 
     /**
@@ -191,13 +204,13 @@ class TaskExportService(private val context: Context) {
     private fun formatTaskAsText(task: Task, canvasHeight: Float): String {
         val checkbox = if (task.isCompleted) "☑" else "☐"
         val priority = if (task.priority.isNotEmpty()) "[${task.priority}] " else ""
-        val content = task.typedText?.trim()
-            ?: task.convertedText?.trim()
-            ?: task.recognizedText?.trim()
-            ?: "[Handwritten task]"
-
-        return "$checkbox $priority$content"
+        return "$checkbox $priority${taskText(task)}"
     }
+
+    /** The task's words, or a mark for handwriting with none. An empty typed text doesn't count. */
+    private fun taskText(task: Task): String =
+        listOf(task.typedText, task.convertedText, task.recognizedText).firstOrNull { !it.isNullOrBlank() }?.trim()
+            ?: "[Handwritten task]"
 
     /**
      * Generate CSV format with headers.
@@ -216,12 +229,7 @@ class TaskExportService(private val context: Context) {
             val row = task.rowIndex + 1  // 1-indexed for users
             val completed = if (task.isCompleted) "Yes" else "No"
             val priority = task.priority.ifEmpty { "" }
-            val content = escapeCsvField(
-                task.typedText?.trim()
-                    ?: task.convertedText?.trim()
-                    ?: task.recognizedText?.trim()
-                    ?: "[Handwritten task]"
-            )
+            val content = escapeCsvField(taskText(task))
 
             sb.appendLine("$date,$page,$row,$completed,$priority,$content")
         }
