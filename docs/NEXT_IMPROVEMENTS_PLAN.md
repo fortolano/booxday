@@ -40,9 +40,9 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 | 3 | Sleep screen choices | Small to medium | Built on `next-release`, pictures approved; tablet checks left |
 | 4 | Week view | Large | Built on `next-release`, checked on the Go 10.3 (5 Nov 2026). A busy day opens whole in one sheet, not pages of 6 (owner). Left: handwriting pictures, the pen after closing, the Go 6, a tick reaching Google Tasks, first open 795 ms |
 | 5 | Write It, Schedule It | Large | Built on `next-release`, works on the Go 10.3 with real ink (5 Nov 2026). Live check 20 of 20 on typed notes. Left: 20 samples in the owner's own handwriting, an event reaching Google and iCloud, offline and no-key on a tablet, the Go 6 |
-| 6 | Meeting Recap | Medium to large | Not started |
-| 7 | Meeting Prep | Medium | Not started |
-| 8 | Share to BooxDay | Medium | Not started |
+| 6 | Meeting Recap | Medium to large | Built on `next-release`, works on the Go 10.3 on typed notes (5 Nov 2026): card, Recap, Save to Notes, AI menu item, nothing-to-read card. Left: a recap of real handwriting, Share PDF and card Export on a tablet, offline, AI off, the Go 6, privacy lines (D14) |
+| 7 | Meeting Prep | Medium | Built on `next-release`, works on the Go 10.3 (5 Nov 2026): first-time meeting, Last time with the page picture, Open, Brief Me. Left: a saved recap showing as Last time, linked BOOX notes, a CalDAV series, offline, AI off, the Go 6, privacy lines (D14) |
+| 8 | Share to BooxDay | Medium | Built on `next-release`, works on the Go 10.3 by `am start` (5 Nov 2026): app open, in the background, closed (one main screen each), text, picture, 20,000 characters over 5 pages, Save as Note, Find Events and Tasks, Cancel brings the card back. Left: the real share sheet from real apps, a picture through Find, the pen after a share, offline, frozen, the Go 6, privacy lines (D14) |
 
 Phases 1A and 1B shipped as their own releases. **Phases 2 to 8 ship together as one release** (owner, 5 Nov 2026).
 
