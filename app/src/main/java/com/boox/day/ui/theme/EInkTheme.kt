@@ -1402,6 +1402,7 @@ object EInkTheme {
 
         // Event picker panel
         val pickerTimeColumnWidth = 84.dp
+        val pickerMaxWidth = 560.dp
         val pickerMaxHeight = 560.dp
 
         // Filter panel

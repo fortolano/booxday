@@ -1,24 +1,20 @@
 package com.boox.day.ui.dialogs
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Divider
-import androidx.compose.material.Icon
 import androidx.compose.material.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,14 +30,15 @@ import com.boox.day.booxnotes.BooxNoteIndexer
 import com.boox.day.data.db.BooxNoteIndex
 import com.boox.day.data.db.CalendarEvent
 import com.boox.day.editor.ui.TaskDatePickerContent
+import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.components.ScrollMoreBar
 import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 
-// Choose Event and Link a Note (Nov 2026): the same place from either side, on the window's own surface
-// (no popup on a popup). Same day first, then the days around it, then any day.
+// Choose Event and Link a Note (Nov 2026): the same panel from either side, over the notes (no popup on a
+// popup). Same day first, then the days around it; Choose a Date, at the top, reaches any other day.
 
 private sealed interface PickerStep {
     data object Nearby : PickerStep
@@ -88,6 +85,7 @@ internal fun BooxNoteEventPicker(
         title = "Choose Event",
         onBack = { if (currentStep == PickerStep.Nearby) onBack() else step = PickerStep.Nearby },
         onClose = onClose,
+        onChooseDate = if (currentStep == PickerStep.Calendar) null else ({ step = PickerStep.Calendar }),
         header = {
             NoteThumbnailRow(note)
         },
@@ -118,7 +116,6 @@ internal fun BooxNoteEventPicker(
                     around.forEach { event ->
                         PickerEventRow(note, event, showDay = true, linkedEventId, suggestedEventId) { onPick(event) }
                     }
-                    PickAnotherDayRow { step = PickerStep.Calendar }
                 }
             }
 
@@ -140,7 +137,6 @@ internal fun BooxNoteEventPicker(
                             PickerEventRow(note, event, showDay = false, linkedEventId, suggestedEventId) { onPick(event) }
                         }
                 }
-                PickAnotherDayRow { step = PickerStep.Calendar }
             }
         }
     }
@@ -167,6 +163,7 @@ internal fun BooxNoteNotePicker(
         title = "Link a Note",
         onBack = { if (currentStep == PickerStep.Nearby) onBack() else step = PickerStep.Nearby },
         onClose = onClose,
+        onChooseDate = if (currentStep == PickerStep.Calendar) null else ({ step = PickerStep.Calendar }),
         header = {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
@@ -205,7 +202,6 @@ internal fun BooxNoteNotePicker(
                 around.forEach { note ->
                     PickerNoteRow(note, showDay = true, linkedHere = linkedEventOf(note) == event.id) { onPick(note) }
                 }
-                PickAnotherDayRow { step = PickerStep.Calendar }
             }
 
             PickerStep.Calendar -> TaskDatePickerContent(
@@ -221,7 +217,6 @@ internal fun BooxNoteNotePicker(
                 dayNotes.forEach { note ->
                     PickerNoteRow(note, showDay = false, linkedHere = linkedEventOf(note) == event.id) { onPick(note) }
                 }
-                PickAnotherDayRow { step = PickerStep.Calendar }
             }
         }
     }
@@ -232,23 +227,35 @@ private fun PickerSurface(
     title: String,
     onBack: () -> Unit,
     onClose: () -> Unit,
+    onChooseDate: (() -> Unit)?,
     header: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)) {
+    val shape = RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
+    Column(
+        modifier = modifier
+            .background(EInkTheme.ModernDialog.background, shape)
+            .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, shape)
+            .padding(EInkTheme.Global.paddingMedium),
+        verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
+    ) {
         BooxNotesBar(title = title, onClose = onClose, onBack = onBack)
         header()
+        // At the top: under a busy week's events it took a long scroll to reach
+        if (onChooseDate != null) {
+            EinkSecondaryButton(text = "Choose a Date…", onClick = onChooseDate, modifier = Modifier.fillMaxWidth())
+        }
         Divider(color = EInkTheme.Colors.primary, thickness = EInkTheme.Global.borderWidth)
         val pickerScroll = rememberScrollState()
         Box(
             modifier = Modifier
-                .weight(1f)
+                .weight(1f, fill = false)
                 .fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .verticalScroll(pickerScroll)
             ) {
                 content()
@@ -265,7 +272,7 @@ private fun NoteThumbnailRow(note: BooxNoteIndex) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
     ) {
-        NotePageThumbnail(note = note)
+        NotePageThumbnail(note = note, width = 45.dp, height = 60.dp)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = note.title.ifBlank { "Untitled note" },
@@ -421,33 +428,5 @@ private fun PickerNoteRow(note: BooxNoteIndex, showDay: Boolean, linkedHere: Boo
             }
         }
         Divider(color = EInkTheme.Colors.dividerHairline, thickness = EInkTheme.Global.borderWidth)
-    }
-}
-
-@Composable
-private fun PickAnotherDayRow(onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = EInkTheme.MenuItem.height)
-            .noRippleClickable(onClick = onClick)
-            .padding(horizontal = EInkTheme.Global.paddingSmall),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall)
-    ) {
-        Box(modifier = Modifier.width(EInkTheme.BooxNotes.pickerTimeColumnWidth - EInkTheme.Global.paddingSmall)) {
-            Icon(
-                imageVector = Icons.Default.DateRange,
-                contentDescription = null,
-                tint = EInkTheme.Colors.primary,
-                modifier = Modifier.size(EInkTheme.Global.iconSizeSmall)
-            )
-        }
-        Text(
-            text = "Pick Another Day…",
-            fontSize = EInkTheme.Typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-            color = EInkTheme.Colors.primary
-        )
     }
 }

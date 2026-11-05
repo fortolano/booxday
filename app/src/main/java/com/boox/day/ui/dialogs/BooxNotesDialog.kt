@@ -700,22 +700,6 @@ fun BooxNotesDialog(
                 val note = selectedNote
 
                 when {
-                    pickerOpen && note != null -> BooxNoteEventPicker(
-                        note = note,
-                        linkedEventId = links[note.uniqueId]?.linkedEventId,
-                        suggestedEventId = cache.best(note.uniqueId)?.event?.id,
-                        loadEventsInRange = { from, to ->
-                            withContext(Dispatchers.IO) { smartLinkEventRepository.getEventsInRange(from, to) }
-                        },
-                        onPick = { event ->
-                            pickerOpen = false
-                            linkToEvent(note, event)
-                        },
-                        onBack = { pickerOpen = false },
-                        onClose = onDismiss,
-                        modifier = placeModifier
-                    )
-
                     readerOpen && note != null -> BooxNoteReader(
                         note = note,
                         page = page,
@@ -796,26 +780,6 @@ fun BooxNotesDialog(
                             onDecideLater = { reviewItem?.let { decideLater(it) } },
                             listView = suggestionListView,
                             onListViewChange = { suggestionListView = it },
-                            modifier = placeModifier
-                        )
-                    }
-
-                    linkEvent != null -> {
-                        val event = linkEvent!!
-                        BooxNoteNotePicker(
-                            event = event,
-                            notes = allNotes.filter { !isFoldedEmpty(it) },
-                            linkedEventOf = { links[it.uniqueId]?.linkedEventId },
-                            onPick = { picked ->
-                                // Land on the note: it shows the link, with Undo where Unlink goes
-                                linkEvent = null
-                                currentDate = picked.originalDate
-                                selectedId = picked.uniqueId
-                                noteOpen = true
-                                linkToEvent(picked, event)
-                            },
-                            onBack = closeOrBack,
-                            onClose = onDismiss,
                             modifier = placeModifier
                         )
                     }
@@ -988,14 +952,53 @@ fun BooxNotesDialog(
                     }
                 }
 
-                // Over the notes, not instead of them: it needs little room. A tap beside it closes it
+                // Panels sit over the notes, not instead of them: they need little room
+                val pickerModifier = Modifier
+                    .widthIn(max = theme.pickerMaxWidth)
+                    .fillMaxWidth()
+                    .heightIn(max = theme.pickerMaxHeight)
+                    .noRippleClickable { /* consume clicks */ }
+                if (pickerOpen && note != null) {
+                    PanelOverNotes(onDismiss = { pickerOpen = false }) {
+                        BooxNoteEventPicker(
+                            note = note,
+                            linkedEventId = links[note.uniqueId]?.linkedEventId,
+                            suggestedEventId = cache.best(note.uniqueId)?.event?.id,
+                            loadEventsInRange = { from, to ->
+                                withContext(Dispatchers.IO) { smartLinkEventRepository.getEventsInRange(from, to) }
+                            },
+                            onPick = { event ->
+                                pickerOpen = false
+                                linkToEvent(note, event)
+                            },
+                            onBack = { pickerOpen = false },
+                            onClose = onDismiss,
+                            modifier = pickerModifier
+                        )
+                    }
+                }
+                linkEvent?.let { event ->
+                    PanelOverNotes(onDismiss = closeOrBack) {
+                        BooxNoteNotePicker(
+                            event = event,
+                            notes = allNotes.filter { !isFoldedEmpty(it) },
+                            linkedEventOf = { links[it.uniqueId]?.linkedEventId },
+                            onPick = { picked ->
+                                // Land on the note: it shows the link, with Undo where Unlink goes
+                                linkEvent = null
+                                currentDate = picked.originalDate
+                                selectedId = picked.uniqueId
+                                noteOpen = true
+                                linkToEvent(picked, event)
+                            },
+                            onBack = closeOrBack,
+                            onClose = onDismiss,
+                            modifier = pickerModifier
+                        )
+                    }
+                }
                 if (filterOpen) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .noRippleClickable { filterOpen = false },
-                        contentAlignment = Alignment.Center
-                    ) {
+                    PanelOverNotes(onDismiss = { filterOpen = false }) {
                         BooxNotesFilterScreen(
                             filters = filters,
                             semantics = semantics,
@@ -1014,6 +1017,19 @@ fun BooxNotesDialog(
                 }
             }
         }
+    }
+}
+
+/** A small panel centred over the notes; a tap beside it closes it */
+@Composable
+private fun PanelOverNotes(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .noRippleClickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
     }
 }
 
