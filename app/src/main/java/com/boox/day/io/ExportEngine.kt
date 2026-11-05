@@ -32,8 +32,10 @@ import com.boox.day.utils.TaggedLog
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 import java.io.IOException
+import java.time.LocalDate
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /* ---------------------------- Public API ---------------------------- */
 
@@ -48,6 +50,9 @@ sealed class ExportTarget {
     data class Book(val bookId: String) : ExportTarget()
     data class Page(val pageId: String) : ExportTarget()
     data class DayPages(val date: String, val pageIds: List<String>) : ExportTarget()
+
+    /** Several days in one export. [from] and [to] are the dates chosen; [days] those with memo pages. */
+    data class Days(val from: String, val to: String, val days: List<DayPages>) : ExportTarget()
 }
 
 data class ExportOptions(
@@ -55,8 +60,21 @@ data class ExportOptions(
     val targetFolderUri: Uri? = null, // can be made to also get from it fileName.
     val overwrite: Boolean = false,   // TODO: Fix it -- for now it does not work correctly (it overwrites the files too often)
     val fileName: String? = null,
-    val layout: ExportLayout = ExportLayout.COMPACT  // Default to compact for efficient PDF exports
-)
+    val layout: ExportLayout = ExportLayout.COMPACT,  // Default to compact for efficient PDF exports
+    /** Each memo page's words under it (PDF). */
+    val typedText: Boolean = false,
+    /** Each day's events and tasks at its start (PDF). */
+    val eventsAndTasks: Boolean = false,
+    /** Where a file goes when [targetFolderUri] can't take it; set by the engine. */
+    val fallbackFolderUri: Uri? = null,
+    /** The PDF's title, and the dates line of its contents page; set by the engine. */
+    val pdfTitle: String? = null,
+    val datesLabel: String? = null,
+    /** Called as pages are done: done, total. */
+    val onProgress: (suspend (Int, Int) -> Unit)? = null
+) {
+    val hasExtras: Boolean get() = typedText || eventsAndTasks
+}
 
 class ExportEngine(
     private val context: Context,
@@ -79,21 +97,27 @@ class ExportEngine(
     ): ExportOutcome = try {
         // prepare file name and folder
         val (folderUri, baseFileName) = createFileNameAndFolder(target, format, options)
+        val fullOptions = options.copy(
+            // A folder picked through a storage app can fail after all the work is done
+            fallbackFolderUri = if (folderUri.scheme == "content") defaultFolderFor(target, format) else null,
+            pdfTitle = pdfTitleOf(target),
+            datesLabel = (target as? ExportTarget.Days)?.let { datesLabel(it.from, it.to) }
+        )
         // TODO: Retrieve all necessary data from the target, so that specific format exporter does not need to handle reading from db.
         //       For book it should be done page by page.
         when (format) {
-            ExportFormat.PDF -> exportAsPdf(target, folderUri, baseFileName, options)
+            ExportFormat.PDF -> exportAsPdf(target, folderUri, baseFileName, fullOptions)
             ExportFormat.PNG, ExportFormat.JPEG -> exportAsImages(
-                target, folderUri, baseFileName, format, options
+                target, folderUri, baseFileName, format, fullOptions
             )
 
-            ExportFormat.XOPP -> exportAsXopp(target, folderUri, baseFileName, options)
+            ExportFormat.XOPP -> exportAsXopp(target, folderUri, baseFileName, fullOptions)
         }
     } catch (e: CancellationException) {
         throw e
     } catch (e: OutOfMemoryError) {
         log.e("Export ran out of memory", e)
-        ExportOutcome.Failed(ExportOutcome.TOO_BIG_MESSAGE)
+        ExportOutcome.Failed(if (target is ExportTarget.Days) ExportOutcome.TOO_BIG_DATES_MESSAGE else ExportOutcome.TOO_BIG_MESSAGE)
     } catch (e: Exception) {
         log.e("Export failed: ${e.message}", e)
         ExportOutcome.Failed(ExportOutcome.FAILED_MESSAGE)
@@ -105,38 +129,10 @@ class ExportEngine(
     private suspend fun exportAsPdf(
         target: ExportTarget, folderUri: Uri, baseFileName: String, options: ExportOptions
     ): ExportOutcome {
-        // Use CompactExportEngine for COMPACT layout with DayPages or single Page
-        if (options.layout == ExportLayout.COMPACT) {
-            when (target) {
-                is ExportTarget.DayPages -> {
-                    return CompactExportEngine(context, pageRepo, dayPageRepo).exportCompactPdf(
-                        target = target,
-                        folderUri = folderUri,
-                        baseFileName = baseFileName,
-                        options = options
-                    )
-                }
-                is ExportTarget.Page -> {
-                    // For single page with COMPACT, convert to DayPages target
-                    val dayDate = dayPageRepo.getDateByPageId(target.pageId)
-                    if (dayDate != null) {
-                        val dayPagesTarget = ExportTarget.DayPages(
-                            date = dayDate,
-                            pageIds = listOf(target.pageId)
-                        )
-                        return CompactExportEngine(context, pageRepo, dayPageRepo).exportCompactPdf(
-                            target = dayPagesTarget,
-                            folderUri = folderUri,
-                            baseFileName = baseFileName,
-                            options = options
-                        )
-                    }
-                    // If not a day page, fall through to original behavior
-                }
-                else -> {
-                    // Book export: fall through to original behavior
-                }
-            }
+        // Days go through the page plan, except one memo per page with nothing added, which is plain
+        val days = daysOf(target)
+        if (days != null && (options.layout == ExportLayout.COMPACT || days.size > 1 || options.hasExtras)) {
+            return CompactExportEngine(context, pageRepo, dayPageRepo).exportDays(target, days, folderUri, baseFileName, options)
         }
 
         // Empty pages are left out, as in the compact layout; a book keeps all of its pages
@@ -146,7 +142,11 @@ class ExportEngine(
         }
         if (pageIds.isEmpty()) return emptyOutcome(target)
 
-        val saved = ExportFiles.save(context, folderUri, "$baseFileName.pdf", PDF_MIME_TYPE, options.overwrite) { out ->
+        val saved = ExportFiles.save(
+            context, folderUri, "$baseFileName.pdf", PDF_MIME_TYPE, options.overwrite,
+            fallback = options.fallbackFolderUri,
+            finish = { file -> options.pdfTitle?.let { PdfTitle.set(file, it) } }
+        ) { out ->
             PdfDocument().use { doc ->
                 var nextPageNumber = 1
                 pageIds.forEach { pageId -> nextPageNumber = writePageToPdfDocument(doc, pageId, nextPageNumber) }
@@ -159,8 +159,37 @@ class ExportEngine(
 
         return ExportOutcome.Saved(
             listOf(saved.uri), PDF_MIME_TYPE,
-            ExportFolderLabel.savedMessage(saved.displayName, ExportFolderLabel.of(folderUri))
+            ExportOutcome.withNotes(
+                ExportFolderLabel.savedMessage(saved.displayName, ExportFolderLabel.of(saved.folder)),
+                handwritingNotRead = false, movedToDefault = saved.folder != folderUri
+            )
         )
+    }
+
+    /** The days [target] covers; null when it isn't in the calendar (a book, a quick page). */
+    private fun daysOf(target: ExportTarget): List<ExportTarget.DayPages>? = when (target) {
+        is ExportTarget.Days -> target.days
+        is ExportTarget.DayPages -> listOf(target)
+        is ExportTarget.Page -> dayPageRepo.getDateByPageId(target.pageId)?.let { listOf(ExportTarget.DayPages(it, listOf(target.pageId))) }
+        is ExportTarget.Book -> null
+    }
+
+    private fun pdfTitleOf(target: ExportTarget): String? = when (target) {
+        is ExportTarget.Days -> "BooxDay notes, ${datesLabel(target.from, target.to)}"
+        is ExportTarget.DayPages -> "BooxDay notes, ${longDate(target.date)}"
+        is ExportTarget.Page -> dayPageRepo.getDateByPageId(target.pageId)?.let { "BooxDay notes, ${longDate(it)}" }
+        is ExportTarget.Book -> null
+    }
+
+    private fun longDate(date: String): String =
+        LocalDate.parse(date).format(DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH))
+
+    /** "October 26 to November 1, 2026". */
+    private fun datesLabel(from: String, to: String): String {
+        val first = LocalDate.parse(from)
+        val last = LocalDate.parse(to)
+        val start = if (first.year == last.year) first.format(DateTimeFormatter.ofPattern("MMMM d", Locale.ENGLISH)) else longDate(from)
+        return "$start to ${longDate(to)}"
     }
 
     /* -------------------- IMAGE EXPORT (PNG / JPEG) -------------------- */
@@ -178,14 +207,17 @@ class ExportEngine(
             else -> error("Unsupported image format")
         }
 
+        // Several days go in a folder of their own, named after the export
+        val imagesFolder = if (target is ExportTarget.Days) ExportFiles.subfolder(context, folderUri, baseFileName) else folderUri
+        val fallback = options.fallbackFolderUri?.takeIf { target !is ExportTarget.Days }
+        val pages = namedPages(target, baseFileName)
         val saved = mutableListOf<ExportFiles.Saved>()
         var failed = 0
-        pagesOf(target).forEachIndexed { index, pageId ->
+        pages.forEachIndexed { index, (pageId, fileName) ->
+            options.onProgress?.invoke(index, pages.size)
             val bitmap = renderBitmapForPage(pageId) ?: return@forEachIndexed
-            // Each page separately, with numbered file names, except a single page
-            val fileName = if (target is ExportTarget.Page) baseFileName else "$baseFileName-p${index + 1}"
             try {
-                saved += ExportFiles.save(context, folderUri, "$fileName.$ext", mime, options.overwrite) { out ->
+                saved += ExportFiles.save(context, imagesFolder, "$fileName.$ext", mime, options.overwrite, fallback = fallback) { out ->
                     if (!bitmap.compress(compressFormat, 100, out)) throw IOException("Image not written")
                 }
             } catch (e: CancellationException) {
@@ -205,12 +237,26 @@ class ExportEngine(
                 if (options.copyToClipboard && format == ExportFormat.PNG && target is ExportTarget.Page) {
                     copyPagePngLink(context, target.pageId)
                 }
+                val folderUsed = saved.first().folder
                 ExportOutcome.Saved(
                     saved.map { it.uri }, mime,
-                    ExportFolderLabel.savedPagesMessage(saved.map { it.displayName }, failed, ExportFolderLabel.of(folderUri))
+                    ExportOutcome.withNotes(
+                        ExportFolderLabel.savedPagesMessage(saved.map { it.displayName }, failed, ExportFolderLabel.of(folderUsed)),
+                        handwritingNotRead = false, movedToDefault = folderUsed != imagesFolder
+                    )
                 )
             }
         }
+    }
+
+    /** Each page of [target] with its file name: numbered, except a single page. */
+    private fun namedPages(target: ExportTarget, baseFileName: String): List<Pair<String, String>> = when (target) {
+        is ExportTarget.Page -> listOf(target.pageId to baseFileName)
+        is ExportTarget.DayPages -> target.pageIds.mapIndexed { index, id -> id to "$baseFileName p${index + 1}" }
+        is ExportTarget.Days -> target.days.flatMap { day ->
+            day.pageIds.mapIndexed { index, id -> id to "${day.date} p${index + 1}" }
+        }
+        is ExportTarget.Book -> pagesOf(target).mapIndexed { index, id -> id to "$baseFileName-p${index + 1}" }
     }
 
     /** The pages of [target], in order. */
@@ -218,14 +264,13 @@ class ExportEngine(
         is ExportTarget.Book -> bookRepo.getById(target.bookId)?.pageIds ?: throw IOException("Book ID not found")
         is ExportTarget.Page -> listOf(target.pageId)
         is ExportTarget.DayPages -> target.pageIds
+        is ExportTarget.Days -> target.days.flatMap { it.pageIds }
     }
 
     private suspend fun hasContent(pageId: String): Boolean =
         MemoPageRenderer.hasContent(MemoPageContent.load(context, pageId))
 
-    private fun emptyOutcome(target: ExportTarget) = ExportOutcome.Empty(
-        if (target is ExportTarget.Page) ExportOutcome.EMPTY_PAGE_MESSAGE else ExportOutcome.EMPTY_PAGES_MESSAGE
-    )
+    private fun emptyOutcome(target: ExportTarget) = ExportOutcome.Empty(ExportOutcome.emptyMessage(target))
 
     /* -------------------- XOPP export -------------------- */
 
@@ -261,7 +306,7 @@ class ExportEngine(
      *
      *  Day page export:
      *      folder: Documents/BooxDay/Calendar/<year-month>
-     *      file:   BooxDay-<date>-p<PageNumber>
+     *      file:   BooxDay <date> p<PageNumber>
      *
      *  Quick page export:
      *      folder: Documents/BooxDay/<folderHierarchyFromPageParent?>
@@ -287,11 +332,12 @@ class ExportEngine(
             return provided to fileName
         }
 
-        // Default export directory under Documents/BooxDay/<subfolder>
-        val subfolderPath = createSubfolderName(target, format)
-        val folderUri = getDefaultExportDirectoryUri(subfolderPath)
-        return folderUri to fileName
+        return defaultFolderFor(target, format) to fileName
     }
+
+    /** The default export directory under Documents/BooxDay/<subfolder>. */
+    private fun defaultFolderFor(target: ExportTarget, format: ExportFormat): Uri =
+        getDefaultExportDirectoryUri(createSubfolderName(target, format))
 
     /**
      * Builds a subfolder path relative to the "BooxDay" export root.
@@ -365,6 +411,9 @@ class ExportEngine(
                 val yearMonth = target.date.substring(0, 7)  // "2024-11" from "2024-11-24"
                 "Calendar/$yearMonth"
             }
+
+            // Several days: filed under the month they start in
+            is ExportTarget.Days -> "Calendar/${target.from.substring(0, 7)}"
         }
     }
 
@@ -385,7 +434,9 @@ class ExportEngine(
      *
      * Book export: BookTitle
      * Page export in book: BookTitle-p<PageNumber> (or p?)
-     * Day page: BooxDay-<date>-p<PageNumber> (e.g., BooxDay-2024-11-24-p1)
+     * Day page: BooxDay <date> p<PageNumber> (e.g., BooxDay 2024-11-24 p1)
+     * A day: BooxDay <date>
+     * Several days: BooxDay <from> to <to>
      * Quick page: booxday-<timestamp>
      */
     fun createFileName(target: ExportTarget): String {
@@ -414,7 +465,7 @@ class ExportEngine(
                     if (dayDate != null) {
                         // Day page - use date and page index
                         val pageIndex = dayPageRepo.getPageIndexForDay(target.pageId)?.plus(1) ?: 1
-                        "BooxDay-$dayDate-p$pageIndex"
+                        "BooxDay $dayDate p$pageIndex"
                     } else {
                         // Quick page (neither book nor day)
                         val timeStamp = getReadableUtcTimestamp()
@@ -425,8 +476,10 @@ class ExportEngine(
 
             is ExportTarget.DayPages -> {
                 // Multi-page day export - use date as base name
-                "BooxDay-${target.date}"
+                "BooxDay ${target.date}"
             }
+
+            is ExportTarget.Days -> "BooxDay ${target.from} to ${target.to}"
         }
     }
 

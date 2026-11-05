@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.DocumentsContract
 import java.io.File
+import java.io.OutputStream
 
 /**
  * Where the Markdown daily notes go (Oct 2026): Documents/BooxDay/Daily Notes by default, or a
@@ -55,8 +56,43 @@ object DailyNoteWriter {
      * Blocking; call from a background thread.
      */
     fun write(context: Context, fileName: String, update: (existing: String?) -> String) {
-        val tree = chosenFolder(context)
+        writeTo(context, chosenFolder(context), fileName, update)
+    }
+
+    /** As [write], in [tree]; null is the default folder. */
+    fun writeTo(context: Context, tree: Uri?, fileName: String, update: (existing: String?) -> String) {
         if (tree == null) writeFile(fileName, update) else writeDocument(context, tree, fileName, update)
+    }
+
+    /**
+     * Writes [fileName] in the folder [subfolder] of [tree] (null is the default folder), replacing
+     * a file of that name. Made beside the old file first, so a failure can't harm it. Blocking.
+     */
+    fun writeBinary(context: Context, tree: Uri?, subfolder: String, fileName: String, write: (OutputStream) -> Unit) {
+        if (tree == null) {
+            val dir = File(defaultFolder(), subfolder).apply { mkdirs() }
+            val tmp = File(dir, "$fileName.tmp")
+            tmp.outputStream().use(write)
+            val target = File(dir, fileName)
+            if (!tmp.renameTo(target)) {
+                target.delete()
+                check(tmp.renameTo(target)) { "Could not save ${target.absolutePath}" }
+            }
+            return
+        }
+        val resolver = context.contentResolver
+        val parent = findChild(context, tree, subfolder)
+            ?: DocumentsContract.createDocument(
+                resolver,
+                DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree)),
+                DocumentsContract.Document.MIME_TYPE_DIR,
+                subfolder
+            )
+            ?: error("The folder refused a new folder")
+        val target = findChild(context, parent, fileName)
+            ?: DocumentsContract.createDocument(resolver, parent, "image/png", fileName)
+            ?: error("The folder refused a new file")
+        resolver.openOutputStream(target, "wt")?.use(write) ?: error("Could not write $fileName")
     }
 
     private fun writeFile(fileName: String, update: (String?) -> String) {
@@ -84,8 +120,11 @@ object DailyNoteWriter {
             ?: error("Could not write $fileName")
     }
 
+    /** [name] inside [tree], which may be the picked folder or a folder inside it. */
     private fun findChild(context: Context, tree: Uri, name: String): Uri? {
-        val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+        val folderId = if (DocumentsContract.isDocumentUri(context, tree)) DocumentsContract.getDocumentId(tree)
+        else DocumentsContract.getTreeDocumentId(tree)
+        val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, folderId)
         context.contentResolver.query(
             children,
             arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME),

@@ -61,7 +61,8 @@ fun EinkPrimaryButton(
 
 /**
  * Secondary action button - White background with light gray border (ModernDialog style).
- * Use for secondary/cancel actions.
+ * Use for secondary/cancel actions. [emphasized]: black text, for an action that isn't an escape;
+ * the usual grey reads as switched off.
  */
 @Composable
 fun EinkSecondaryButton(
@@ -70,10 +71,15 @@ fun EinkSecondaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     width: Dp = 100.dp,
-    height: Dp = EInkTheme.Button.height
+    height: Dp = EInkTheme.Button.height,
+    emphasized: Boolean = false
 ) {
     val backgroundColor = EInkTheme.ModernDialog.background
-    val textColor = if (enabled) EInkTheme.ModernDialog.CancelLink.textColor else EInkTheme.Button.disabledTextColor
+    val textColor = when {
+        !enabled -> EInkTheme.Button.disabledTextColor
+        emphasized -> EInkTheme.Colors.primary
+        else -> EInkTheme.ModernDialog.CancelLink.textColor
+    }
     val borderColor = if (enabled) EInkTheme.ModernDialog.borderColor else EInkTheme.Button.disabledBorderColor
 
     Box(

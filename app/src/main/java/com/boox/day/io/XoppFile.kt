@@ -69,7 +69,7 @@ class XoppFile(
             context.cacheDir, when (target) {
                 is ExportTarget.Book -> "booxday_xopp_book.xml"
                 is ExportTarget.Page -> "booxday_xopp_page.xml"
-                is ExportTarget.DayPages -> throw IOException("XOPP export not supported for day pages")
+                is ExportTarget.DayPages, is ExportTarget.Days -> throw IOException("XOPP export not supported for day pages")
             }
         )
 
@@ -89,7 +89,7 @@ class XoppFile(
                     writePage(target.pageId, writer)
                 }
 
-                is ExportTarget.DayPages -> throw IOException("XOPP export not supported for day pages")
+                is ExportTarget.DayPages, is ExportTarget.Days -> throw IOException("XOPP export not supported for day pages")
             }
             writer.write("</xournal>\n")
         }

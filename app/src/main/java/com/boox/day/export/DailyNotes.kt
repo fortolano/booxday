@@ -73,13 +73,15 @@ object DailyNotes {
         val digest = DayDigestLoader(app).load(date, withMemoText = true, withFullTaskText = true)
         val use24Hour = SleepAgenda.settings(app).timeFormat == AppSettings.TimeFormat.TwentyFourHour
         val name = DailyNoteMarkdown.fileName(digest)
-        val block = DailyNoteMarkdown.block(
-            digest,
-            use24Hour,
-            memoWaitReason = IndexingStatus.waitingFor.value?.shortText
-        )
         try {
             DailyNoteWriter.write(app, name) { existing ->
+                // Page pictures added by an export stay in the note
+                val block = DailyNoteMarkdown.block(
+                    digest,
+                    use24Hour,
+                    memoWaitReason = IndexingStatus.waitingFor.value?.shortText,
+                    pageImages = DailyNoteMarkdown.imagesIn(existing)
+                )
                 DailyNoteMarkdown.merge(existing, block, DailyNoteMarkdown.frontMatter(digest))
             }
         } catch (e: Exception) {

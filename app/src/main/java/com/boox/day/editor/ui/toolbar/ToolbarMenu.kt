@@ -55,15 +55,14 @@ import com.boox.day.data.AppRepository
 import com.boox.day.data.datastore.BUTTON_SIZE
 import com.boox.day.editor.DrawCanvas
 import com.boox.day.editor.state.EditorState
-import com.boox.day.io.ExportEngine
+import com.boox.day.io.ExportRun
 import com.boox.day.io.ExportFormat
-import com.boox.day.io.ExportLayout
-import com.boox.day.io.ExportOptions
 import com.boox.day.io.ExportOutcome
 import com.boox.day.io.ExportTarget
 import com.boox.day.io.FileShare
 import com.boox.day.ui.LocalSnackContext
 import com.boox.day.ui.SnackConf
+import com.boox.day.ui.SnackState
 import com.boox.day.ui.showHint
 import com.boox.day.ui.convertDpToPixel
 import com.boox.day.data.db.TaskPageInfo
@@ -81,6 +80,8 @@ import com.boox.day.utils.DateTimeFormatUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * Width of the toolbar menu (≡) and of the tool menus shown in it (Oct 2026): wide enough for
@@ -119,7 +120,7 @@ private fun exportResultSnack(context: Context, outcome: ExportOutcome): SnackCo
     is ExportOutcome.Saved -> SnackConf(
         text = outcome.message,
         duration = EXPORT_SAVED_SNACK_MS,
-        actions = listOf<Pair<String, () -> Unit>>("Share" to {
+        actions = if (outcome.uris.isEmpty()) null else listOf<Pair<String, () -> Unit>>("Share" to {
             try {
                 FileShare.share(context, outcome.uris, outcome.mimeType)
             } catch (e: Exception) {
@@ -133,6 +134,43 @@ private fun exportResultSnack(context: Context, outcome: ExportOutcome): SnackCo
 
 /** Long enough to read the folder and reach for Share. */
 private const val EXPORT_SAVED_SNACK_MS = 10_000
+
+/** A long export says how far it's got, at most this often: each change is an e-ink refresh. */
+private const val EXPORT_PROGRESS_MS = 2_000L
+private const val EXPORT_PROGRESS_KEY = "export-progress"
+
+/** Runs a job from the Export dialog, with its progress and result in the snack bar. */
+private suspend fun runExport(context: Context, snackManager: SnackState, job: ExportRun.Job) {
+    val working = context.getString(
+        when {
+            job.target is ExportTarget.Page -> R.string.exporting_this_page
+            job.target is ExportTarget.Days -> R.string.exporting_these_dates
+            else -> R.string.exporting_this_day
+        }
+    )
+    var dismiss = snackManager.displaySnack(SnackConf(key = EXPORT_PROGRESS_KEY, text = working))
+    var lastShown = System.currentTimeMillis()
+    val outcome = try {
+        ExportRun.run(context, job) { done, total ->
+            val now = System.currentTimeMillis()
+            if (now - lastShown >= EXPORT_PROGRESS_MS) {
+                lastShown = now
+                dismiss = snackManager.displaySnack(SnackConf(key = EXPORT_PROGRESS_KEY, text = "$working $done of $total"))
+            }
+        }
+    } finally {
+        withContext(NonCancellable) { dismiss() }
+    }
+    if (job.share && outcome is ExportOutcome.Saved) {
+        try {
+            FileShare.share(context, outcome.uris, outcome.mimeType)
+        } catch (e: Exception) {
+            showHint("Couldn't open the share screen")
+        }
+    } else {
+        snackManager.displaySnack(exportResultSnack(context, outcome))
+    }
+}
 
 /**
  * The toolbar menu (≡), tab-aware; opened from the bar's last button on both tabs (Oct 2026).
@@ -223,38 +261,14 @@ fun ToolbarMenu(
 
     // Export dialog (for Memos)
     if (showExportDialog) {
-        val dayPageInfo = state.dayPageInfo
-        val dayDate = state.dayDate
-        val totalPages = dayPageInfo?.totalPages ?: 1
         ExportDialog(
-            totalPages = totalPages,
-            onExport = { format, exportAll, layout ->
+            date = state.dayDate,
+            currentPageId = state.currentPageId,
+            dayPageIds = state.dayPageInfo?.pageIds ?: listOf(state.currentPageId),
+            onExport = { job ->
                 showExportDialog = false
                 onClose()
-                scope.launch {
-                    val target = if (exportAll && dayDate != null && dayPageInfo != null) {
-                        // Export all pages for this day
-                        ExportTarget.DayPages(
-                            date = dayDate,
-                            pageIds = dayPageInfo.pageIds
-                        )
-                    } else {
-                        // Export current page only
-                        ExportTarget.Page(pageId = state.currentPageId)
-                    }
-
-                    // Create export options with layout preference; the clipboard stays as the user left it
-                    val options = ExportOptions(copyToClipboard = false, layout = layout)
-
-                    val outcome = snackManager.showSnackDuring(
-                        context.getString(
-                            if (target is ExportTarget.DayPages) R.string.exporting_this_day else R.string.exporting_this_page
-                        )
-                    ) {
-                        ExportEngine(context).export(target = target, format = format, options = options)
-                    }
-                    snackManager.displaySnack(exportResultSnack(context, outcome))
-                }
+                scope.launch { runExport(context, snackManager, job) }
             },
             onDismiss = { showExportDialog = false }
         )

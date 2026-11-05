@@ -517,7 +517,9 @@ private fun WritingMemosContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Page Actions (≡)")
-    BulletItem("Export Pages", "This page or all pages of the day, as PDF, PNG or JPG, with their text boxes. Saved in Documents/BooxDay; Share in the message sends the file to another app.")
+    BulletItem("Export Pages", "A page, a day, a week or dates you choose, as a PDF, pictures or Markdown. The preview shows the first page. Save puts it in a folder, and Change picks another one; Share sends it to another app.")
+    BulletItem("A week in one PDF", "Choose This week and PDF: you get a contents page, then each day under its date. Tick the day's events and tasks, or typed text under each page: the tablet reads your handwriting, so check it for mistakes.")
+    BulletItem("Notes for Obsidian", "Choose Markdown: each day gets a note with its pictures, in the Daily notes folder or one you pick, such as your vault. Anything you add to the note stays when you export again.")
     BulletItem("Clear This Page", "Empties the page and keeps it.")
     BulletItem("Delete Page", "Removes the page.")
     BulletItem("Clear This Day's Memos", "Empties every memo page of the day on screen. It can't be undone.")
@@ -894,7 +896,7 @@ private fun TroubleshootingContent() {
 
     TroubleshootingItem(
         problem = "Can't find an export?",
-        solution = "Look in Documents/BooxDay/Calendar, in the folder of that month. The message after an export names the folder, and its Share button sends the file to another app."
+        solution = "Look in Documents/BooxDay/Calendar, in the folder of that month, or in the folder you picked with Change. The message after an export names the folder, and its Share button sends the file to another app."
     )
 
     TroubleshootingItem(

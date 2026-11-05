@@ -20,7 +20,8 @@ import java.util.UUID
  */
 internal object ExportFiles {
 
-    data class Saved(val uri: Uri, val displayName: String)
+    /** [folder]: where it went, which is the fallback when the chosen folder failed. */
+    data class Saved(val uri: Uri, val displayName: String, val folder: Uri)
 
     /** [displayName], or the same with -2, -3... when that one is taken. */
     fun uniqueName(displayName: String, isTaken: (String) -> Boolean): String {
@@ -34,6 +35,8 @@ internal object ExportFiles {
     /**
      * Saves what [writer] writes as [displayName] in [folderUri] (a file:// folder or a picked one).
      * With [overwrite] a file of that name is replaced; otherwise the new one gets its own name.
+     * [finish] gets the whole file before it moves. When a chosen folder can't take the file (a
+     * storage app gone, access withdrawn), it goes to [fallback] rather than being lost.
      * @throws IOException or whatever [writer] throws; the folder then holds nothing new.
      */
     suspend fun save(
@@ -42,17 +45,57 @@ internal object ExportFiles {
         displayName: String,
         mimeType: String,
         overwrite: Boolean,
+        fallback: Uri? = null,
+        finish: (File) -> Unit = {},
         writer: suspend (OutputStream) -> Unit
     ): Saved = withContext(Dispatchers.IO) {
         val temp = File(File(context.cacheDir, "exports").apply { mkdirs() }, "writing-${UUID.randomUUID()}")
         try {
             FileOutputStream(temp).use { writer(it) }
-            if (folderUri.scheme == "file") copyToFolder(temp, folderUri, displayName, overwrite)
-            else copyToPickedFolder(context, temp, folderUri, displayName, mimeType, overwrite)
+            finish(temp)
+            try {
+                copyTo(context, temp, folderUri, displayName, mimeType, overwrite)
+            } catch (e: Exception) {
+                if (fallback == null || fallback == folderUri) throw e
+                copyTo(context, temp, fallback, displayName, mimeType, overwrite)
+            }
         } finally {
             temp.delete()
         }
     }
+
+    private fun copyTo(context: Context, temp: File, folderUri: Uri, displayName: String, mimeType: String, overwrite: Boolean): Saved =
+        if (folderUri.scheme == "file") copyToFolder(temp, folderUri, displayName, overwrite)
+        else copyToPickedFolder(context, temp, folderUri, displayName, mimeType, overwrite)
+
+    /** The folder [name] inside [folderUri], made if it isn't there. */
+    fun subfolder(context: Context, folderUri: Uri, name: String): Uri {
+        if (folderUri.scheme == "file") {
+            val folder = File(requireNotNull(folderUri.path) { "Missing folder path" }, name)
+            folder.mkdirs()
+            return folder.toUri()
+        }
+        val resolver = context.contentResolver
+        val parentId = documentId(context, folderUri)
+        val children = DocumentsContract.buildChildDocumentsUriUsingTree(folderUri, parentId)
+        resolver.query(
+            children,
+            arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+            null, null, null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                if (cursor.getString(1) == name) return DocumentsContract.buildDocumentUriUsingTree(folderUri, cursor.getString(0))
+            }
+        }
+        val parent = DocumentsContract.buildDocumentUriUsingTree(folderUri, parentId)
+        return DocumentsContract.createDocument(resolver, parent, DocumentsContract.Document.MIME_TYPE_DIR, name)
+            ?: throw IOException("Could not make the folder")
+    }
+
+    /** The document [folderUri] names: a picked folder itself, or a folder inside it. */
+    private fun documentId(context: Context, folderUri: Uri): String =
+        if (DocumentsContract.isDocumentUri(context, folderUri)) DocumentsContract.getDocumentId(folderUri)
+        else DocumentsContract.getTreeDocumentId(folderUri)
 
     private fun copyToFolder(temp: File, folderUri: Uri, displayName: String, overwrite: Boolean): Saved {
         val folder = File(requireNotNull(folderUri.path) { "Missing folder path" })
@@ -65,7 +108,7 @@ internal object ExportFiles {
             if (!overwrite && target.isFile) target.delete()
             throw e
         }
-        return Saved(target.toUri(), name)
+        return Saved(target.toUri(), name, folderUri)
     }
 
     private fun copyToPickedFolder(
@@ -73,7 +116,7 @@ internal object ExportFiles {
     ): Saved {
         val resolver = context.contentResolver
         val isTree = DocumentsContract.isTreeUri(folderUri)
-        val parentId = if (isTree) DocumentsContract.getTreeDocumentId(folderUri) else DocumentsContract.getDocumentId(folderUri)
+        val parentId = documentId(context, folderUri)
         val parent = if (isTree) DocumentsContract.buildDocumentUriUsingTree(folderUri, parentId) else folderUri
         val children = DocumentsContract.buildChildDocumentsUriUsingTree(folderUri, parentId)
 
@@ -99,6 +142,6 @@ internal object ExportFiles {
             if (!overwrite) runCatching { DocumentsContract.deleteDocument(resolver, document) }
             throw e
         }
-        return Saved(document, name)
+        return Saved(document, name, folderUri)
     }
 }

@@ -750,6 +750,11 @@ object EInkTheme {
         val maxHeight: Dp get() = (LayoutProfiles.screenHeightDp * heightFraction).dp
     }
 
+    /** The Export dialog's date choice: seven 44 dp days and the popup's padding. */
+    object ExportDialog {
+        val datePopupWidth = 360.dp
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // MODERN DIALOG STYLE
     //

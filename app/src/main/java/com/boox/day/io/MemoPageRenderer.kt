@@ -55,6 +55,21 @@ object MemoPageRenderer {
         return bounds
     }
 
+    /** The middle of each blank band between things on [page], top to bottom. */
+    fun blankRows(page: MemoPageContent.Page): List<Float> {
+        val spans = page.strokes.map { it.top to it.bottom } +
+            page.images.map { it.y.toFloat() to (it.y + it.height).toFloat() } +
+            page.attachments.map { it.y.toFloat() to (it.y + it.height).toFloat() } +
+            page.textAnnotations.map { it.y to it.y + it.height }
+        val rows = mutableListOf<Float>()
+        var reached = Float.NaN
+        for ((top, bottom) in spans.sortedBy { it.first }) {
+            if (!reached.isNaN() && top > reached) rows += (reached + top) / 2f
+            reached = if (reached.isNaN()) bottom else max(reached, bottom)
+        }
+        return rows
+    }
+
     /**
      * The screen-sized page, grown to take in content past its edges: ink written on a wider tablet
      * (a backup restored on a Go 6), above or left of the corner, or below the screen.

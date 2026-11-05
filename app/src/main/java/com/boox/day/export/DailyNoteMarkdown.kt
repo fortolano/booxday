@@ -2,6 +2,7 @@ package com.boox.day.export
 
 import com.boox.day.today.DayDigest
 import com.boox.day.today.DigestEvent
+import com.boox.day.today.DigestMemoPage
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -29,13 +30,16 @@ object DailyNoteMarkdown {
     /**
      * BooxDay's part of the note, markers included. [memoWaitReason]: why handwriting is not read
      * yet, if reading is waiting (e.g. "no internet (Wi-Fi is off)", `IndexingStatus`).
+     * [pageImages]: page number (from 1) to the page's picture, from an export ([imagesIn] keeps them
+     * when the note is written again). A page with its picture needs no "not read yet" line.
      */
     fun block(
         digest: DayDigest,
         use24Hour: Boolean,
         zone: ZoneId = ZoneId.systemDefault(),
         locale: Locale = Locale.getDefault(),
-        memoWaitReason: String? = null
+        memoWaitReason: String? = null,
+        pageImages: Map<Int, String> = emptyMap()
     ): String =
         buildString {
             appendLine(START)
@@ -68,7 +72,7 @@ object DailyNoteMarkdown {
                 }
             }
 
-            val pages = digest.memoPages.filter { it.text != null || it.textBoxes.isNotEmpty() || it.hasInk }
+            val pages = shownPages(digest)
             if (pages.isNotEmpty()) {
                 appendLine()
                 appendLine("## Memos")
@@ -77,13 +81,18 @@ object DailyNoteMarkdown {
                         appendLine()
                         appendLine("### Page ${i + 1}")
                     }
+                    val image = pageImages[i + 1]
+                    if (image != null) {
+                        appendLine()
+                        appendLine("![Page ${i + 1}]($image)")
+                    }
                     val text = page.text?.trim()
                     when {
                         text != null -> {
                             appendLine()
                             appendLine(text)
                         }
-                        page.hasInk -> {
+                        page.hasInk && image == null -> {
                             appendLine()
                             appendLine(
                                 if (memoWaitReason != null) "_Handwriting not read yet: ${memoWaitReason}._"
@@ -100,6 +109,18 @@ object DailyNoteMarkdown {
             appendLine()
             append(END)
         }
+
+    /** The memo pages a note lists; [block] numbers them in this order. */
+    fun shownPages(digest: DayDigest): List<DigestMemoPage> =
+        digest.memoPages.filter { it.text != null || it.textBoxes.isNotEmpty() || it.hasInk || it.hasPicture }
+
+    /** The page pictures [note] links to, by page number, so writing it again keeps them. */
+    fun imagesIn(note: String?): Map<Int, String> {
+        if (note == null) return emptyMap()
+        return PAGE_IMAGE.findAll(note).associate { it.groupValues[1].toInt() to it.groupValues[2] }
+    }
+
+    private val PAGE_IMAGE = Regex("""!\[Page (\d+)]\((attachments/[^)]+)\)""")
 
     /**
      * The file's new content: [block] in place of the old BooxDay part, or added at the end of a

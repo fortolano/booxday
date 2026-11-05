@@ -207,6 +207,9 @@ data class AppSettings(
     /** A Markdown note for each day, written by itself (Oct 2026, export/DailyNotes). Off until turned on. */
     val dailyNotesEnabled: Boolean = false,
 
+    // The Export dialog's last choices
+    val exportChoices: com.boox.day.io.ExportChoices = com.boox.day.io.ExportChoices(),
+
     /** Tasks: day (yyyy-MM-dd) the start-the-day review was last shown (plan T4, Oct 2026) */
     val lastStartDayReviewDay: String? = null,
 

@@ -636,7 +636,7 @@ private fun SubtaskLine(subtask: TaskCardSubtask) {
  * tapped (the next month's first days too), only the weeks the month needs, week start from Settings.
  */
 @Composable
-private fun MonthGrid(selected: LocalDate?, today: LocalDate, initialMonth: LocalDate? = null, onPick: (LocalDate) -> Unit) {
+internal fun MonthGrid(selected: LocalDate?, today: LocalDate, initialMonth: LocalDate? = null, onPick: (LocalDate) -> Unit) {
     var month by remember { mutableStateOf((initialMonth ?: selected ?: today).withDayOfMonth(1)) }
     Row(Modifier.fillMaxWidth().height(EInkTheme.Global.touchTarget), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(EInkTheme.Global.touchTarget).noRippleClickable { month = month.minusMonths(1) }, contentAlignment = Alignment.Center) {

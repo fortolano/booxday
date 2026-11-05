@@ -86,7 +86,7 @@ object TipsRepository {
         ),
         Tip(
             id = "memos_export",
-            message = "≡ → Export Pages saves this page or the whole day as PDF, PNG or JPG in Documents/BooxDay. Share sends it to an app.",
+            message = "≡ → Export Pages saves a page, a day or a week as a PDF, pictures or Markdown for Obsidian, or shares it.",
             contexts = setOf(TipContext.MEMOS)
         ),
         Tip(
