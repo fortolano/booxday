@@ -120,15 +120,23 @@ internal fun BooxNotesSuggestionsView(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
+            DialogCloseButton(onClose = onClose)
+        }
+        // Its own row: on a Go 6 these squeezed the title down to "Smart L…"
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EInkTheme.BooxNotes.headerSpacing)
+        ) {
             BooxNotesSegmented(
                 options = listOf(dayLabel, "All notes"),
                 selectedIndex = if (scopeAll) 1 else 0,
                 onSelect = { onScopeChange(it == 1) }
             )
+            Spacer(modifier = Modifier.weight(1f))
             if (content == SuggestionsContent.Ready && strongItems.isNotEmpty()) {
                 ActionButton(text = "Link ${strongItems.size} strong…", onClick = { confirmBulk = true })
             }
-            DialogCloseButton(onClose = onClose)
         }
 
         when (content) {

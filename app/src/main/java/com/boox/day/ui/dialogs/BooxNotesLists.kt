@@ -25,6 +25,7 @@ import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Link
@@ -146,6 +147,31 @@ private fun RowStateLine(icon: androidx.compose.ui.graphics.vector.ImageVector, 
     }
 }
 
+/** "2 empty notes": notes with no pages stay reachable, out of the way */
+@Composable
+private fun EmptyNotesRow(count: Int, showing: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(EInkTheme.Global.touchTarget)
+            .noRippleClickable { onChange(!showing) }
+            .padding(horizontal = EInkTheme.Global.paddingSmall),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = if (showing) "Hide ${plural(count, "empty note")}" else plural(count, "empty note"),
+            fontSize = EInkTheme.Typography.bodyMedium,
+            color = EInkTheme.Colors.darkGray,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            imageVector = if (showing) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+            contentDescription = null,
+            tint = EInkTheme.Colors.darkGray
+        )
+    }
+}
+
 @Composable
 private fun ListCaption(text: String) {
     Text(
@@ -169,6 +195,9 @@ internal fun BooxNotesDayList(
     rowState: (BooxNoteIndex) -> NoteRowState,
     caption: String,
     notice: String?,
+    emptyCount: Int,
+    showEmpty: Boolean,
+    onShowEmptyChange: (Boolean) -> Unit,
     suggestionCount: Int,
     onSelect: (BooxNoteIndex) -> Unit,
     onReviewSuggestions: () -> Unit,
@@ -199,6 +228,9 @@ internal fun BooxNotesDayList(
                         state = rowState(note),
                         onClick = { onSelect(note) }
                     )
+                }
+                if (emptyCount > 0) {
+                    item(key = "empty_notes") { EmptyNotesRow(emptyCount, showEmpty, onShowEmptyChange) }
                 }
             }
             ScrollMoreBar(dayListState)
@@ -233,6 +265,9 @@ private sealed interface AllNotesEntry {
 internal fun BooxNotesAllList(
     notes: List<BooxNoteIndex>,
     caption: String,
+    emptyCount: Int,
+    showEmpty: Boolean,
+    onShowEmptyChange: (Boolean) -> Unit,
     selectedId: String?,
     rowState: (BooxNoteIndex) -> NoteRowState,
     query: String,
@@ -361,6 +396,9 @@ internal fun BooxNotesAllList(
                                 onClick = { onSelect(entry.note) }
                             )
                         }
+                    }
+                    if (emptyCount > 0) {
+                        item(key = "empty_notes") { EmptyNotesRow(emptyCount, showEmpty, onShowEmptyChange) }
                     }
                 }
                 ScrollMoreBar(listState)

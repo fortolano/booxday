@@ -2223,10 +2223,7 @@ class SemanticGeniusService(context: Context) {
             .toSet()
 
     private fun extractOrgNames(title: String, description: String?): Set<String> =
-        Regex("\\b(?:[A-Z][a-z]*\\.?\\s*)+(?:Inc|LLC|Corp|Ltd|Co|Company|Team|Group)\\b", RegexOption.IGNORE_CASE)
-            .findAll("$title ${description ?: ""}")
-            .map { it.value.lowercase() }
-            .toSet()
+        OrgNames.find("$title ${description ?: ""}")
 
     private fun generateDateRange(startDate: String, endDate: String): List<String> {
         val start = LocalDate.parse(startDate)

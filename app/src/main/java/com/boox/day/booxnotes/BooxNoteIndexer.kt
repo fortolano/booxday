@@ -40,7 +40,9 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
@@ -2775,6 +2777,7 @@ class BooxNoteIndexer(
         var cooccurrenceCounts: CooccurrenceCounts? = null
 
         return eligibleEvents.map { event ->
+            coroutineContext.ensureActive()  // Closing Boox Notes stops the run here, not only between notes
             val eventProfile = loadEventProfileForMatching(
                 event = event,
                 eventProfilesMap = eventProfilesMap,
@@ -3583,6 +3586,14 @@ class BooxNoteIndexer(
     suspend fun suggestLinks(
         notes: List<BooxNoteIndex>,
         onProgress: (SmartLinkProgress) -> Unit = {}
+    ): Map<String, List<CrossDayLinkSuggestion>> = suggestLinksLock.withLock { scoreSuggestions(notes, onProgress) }
+
+    /** One run at a time: a second one waits, so opening All notes twice never doubles the work. */
+    private val suggestLinksLock = Mutex()
+
+    private suspend fun scoreSuggestions(
+        notes: List<BooxNoteIndex>,
+        onProgress: (SmartLinkProgress) -> Unit
     ): Map<String, List<CrossDayLinkSuggestion>> = withContext(Dispatchers.IO) {
         if (!isSmartLinkRuntimeEnabled()) {
             logSmartLinkRuntimeDisabled("Smart Link suggestions")
@@ -3596,7 +3607,8 @@ class BooxNoteIndexer(
             .filter { it.linkedEventId != null }
             .map { it.noteUniqueId }
             .toSet()
-        val unlinkedNotes = notes.filter { it.uniqueId !in linkedNoteIds && it.originalDate.isNotBlank() }
+        // A note with no pages has nothing to compare, and nobody wants to link it to a meeting
+        val unlinkedNotes = notes.filter { it.uniqueId !in linkedNoteIds && it.originalDate.isNotBlank() && it.pageCount > 0 }
         val noteDates = unlinkedNotes.mapNotNull { runCatching { LocalDate.parse(it.originalDate) }.getOrNull() }
         if (noteDates.isEmpty()) {
             onProgress(SmartLinkProgress.DONE)

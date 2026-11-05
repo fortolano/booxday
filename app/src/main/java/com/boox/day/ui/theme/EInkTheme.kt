@@ -1346,7 +1346,7 @@ object EInkTheme {
 
         // Header: title, Day | All notes, date control, close
         val titleFontSize = Typography.titleLarge
-        val headerSpacing = Global.paddingMedium
+        val headerSpacing: Dp get() = if (LayoutProfiles.isNarrowScreen) Global.paddingSmall else Global.paddingMedium
         val segmentFontSize = Typography.bodyLarge
 
         // Columns: note list | note pane (narrow screens give the list a little more room)
