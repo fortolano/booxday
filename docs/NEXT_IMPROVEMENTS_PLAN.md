@@ -36,7 +36,7 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 | 0 | Decisions and first replies | Small, no code | In progress: decisions done; replies and baselines left |
 | 1A | Export you can trust | Medium | Shipped in 1.0.61 (5 Nov 2026). Three tablet checks not done, by the owner's choice: see the phase's checklist |
 | 1B | Export redesign | Medium | Shipped in 1.0.62 (5 Nov 2026). Saving to a picked folder and the Go 6 not checked, by the owner's choice: see the phase's checklist |
-| 2 | Pen, compatibility and the Ukrainian PR | Small to medium | In progress on `next-release`: PR #5 merged there and the language screen rebuilt; SupportPopup checked, no bug; left: the eraser (reproduce with the real pen first) and issue #1 (waits on the reporter; the reply needs the owner's OK) |
+| 2 | Pen, compatibility and the Ukrainian PR | Small to medium | In progress on `next-release`: PR #5 merged there and the language screen rebuilt; SupportPopup checked, no bug; left: the eraser (reproduce with the real pen first) and issue #1 (asked the reporter for the version on 5 Nov 2026; waiting for the answer) |
 | 3 | Sleep screen choices | Small to medium | Built on `next-release`, pictures approved; tablet checks left |
 | 4 | Week view | Large | Built on `next-release`, checked on the Go 10.3 (5 Nov 2026). A busy day opens whole in one sheet, not pages of 6 (owner). Left: handwriting pictures, the pen after closing, the Go 6, a tick reaching Google Tasks, first open 795 ms |
 | 5 | Write It, Schedule It | Large | Built on `next-release`, works on the Go 10.3 with real ink (5 Nov 2026). Live check 20 of 20 on typed notes. Left: 20 samples in the owner's own handwriting, an event reaching Google and iCloud, offline and no-key on a tablet, the Go 6 |
@@ -942,7 +942,7 @@ Owner's standing rule: no startup or pen code for this until the cause is proven
 - [ ] Eraser reproduced, fixed (if leak proven), hardware list passed by the owner before shipping
 - [ ] Issue #1 version known; diagnostic only if needed
 - [x] `SupportPopup` checked (by log on the Go 10.3: the pen is off under it)
-- [ ] Replies drafted for approval
+- [x] Replies drafted for approval (issues #1 and #3 posted on 5 Nov 2026, with the owner's OK)
 
 ---
 
