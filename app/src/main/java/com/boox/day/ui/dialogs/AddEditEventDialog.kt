@@ -281,9 +281,7 @@ fun AddEditEventDialog(
     // Always auto-select default calendar
     var selectedLocalCalendarId by remember {
         mutableStateOf(
-            existingLocalCalendarId
-                ?: localCalendars.find { it.isDefault }?.id
-                ?: localCalendars.firstOrNull()?.id
+            existingLocalCalendarId ?: com.boox.day.events.DefaultEventTarget.localCalendar(localCalendars)
         )
     }
 

@@ -5639,11 +5639,7 @@ fun MainScreen(
 
             val primaryGoogleAccountId = multiAccountUiState.googleAccounts.firstOrNull()?.account?.id
             val primaryOutlookAccountId = multiAccountUiState.outlookAccounts.firstOrNull()?.account?.id
-            val writableCalendarsForDialog = writableCalendars.filter { calendar ->
-                (calendar.providerId == ProviderId.GOOGLE && calendar.accountId == primaryGoogleAccountId) ||
-                    (calendar.providerId == ProviderId.OUTLOOK && calendar.accountId == primaryOutlookAccountId) ||
-                    calendar.providerId == ProviderId.CALDAV  // each CalDAV account is its own line
-            }
+            val writableCalendarsForDialog = com.boox.day.events.DefaultEventTarget.offered(writableCalendars, primaryGoogleAccountId, primaryOutlookAccountId)
 
             // For local events, look up the original LocalEvent to get local calendar ID
             var localEventForEdit by remember { mutableStateOf<LocalEvent?>(null) }
@@ -5729,46 +5725,15 @@ fun MainScreen(
                         }
                     } else {
                         // Create new event
-                        eventsViewModel.createEvent(
-                            calendarId = calendarId,
-                            title = title,
-                            date = date,
-                            startTimeHour = startHour,
-                            startTimeMinute = startMin,
-                            endTimeHour = endHour,
-                            endTimeMinute = endMin,
-                            isAllDay = isAllDay,
-                            location = location?.takeIf { it.isNotBlank() },
-                            description = description?.takeIf { it.isNotBlank() },
-                            attendees = attendees?.takeIf { it.isNotBlank() },
-                            syncEnabled = syncEnabled,
-                            syncProviderId = syncProviderId,
-                            syncAccountId = syncAccountId,
-                            localCalendarId = localCalendarId
-                        ) { result ->
-                            when (result) {
-                                is EventOperationResult.Success -> {
-                                    showAddEventDialog = false
-                                    parsedEventData = null
-                                    SnackState.globalSnackFlow.tryEmit(
-                                        SnackConf(text = "Event created", duration = SnackConf.DURATION_STANDARD)
-                                    )
-                                }
-                                is EventOperationResult.Error -> {
-                                    // Show error message to user - dialog stays open for retry
-                                    val errorMessage = eventsViewModel.lastOperationMessage.value ?: result.message
-                                    SnackState.globalSnackFlow.tryEmit(
-                                        SnackConf(text = errorMessage, duration = SnackConf.DURATION_ERROR)
-                                    )
-                                }
-                                else -> {
-                                    // Other result types (NoNetwork, NotSignedIn, PermissionDenied) - show error
-                                    val errorMessage = eventsViewModel.lastOperationMessage.value ?: "Operation failed"
-                                    SnackState.globalSnackFlow.tryEmit(
-                                        SnackConf(text = errorMessage, duration = SnackConf.DURATION_ERROR)
-                                    )
-                                }
-                            }
+                        com.boox.day.events.EventDraftSaver.create(
+                            eventsViewModel,
+                            com.boox.day.events.EventDraft(
+                                calendarId, title, date, startHour, startMin, endHour, endMin, isAllDay,
+                                location, description, attendees, syncEnabled, syncProviderId, syncAccountId, localCalendarId
+                            )
+                        ) {
+                            showAddEventDialog = false
+                            parsedEventData = null
                         }
                     }
                 },
