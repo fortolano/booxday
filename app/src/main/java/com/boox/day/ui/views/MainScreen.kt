@@ -2140,6 +2140,10 @@ fun MainScreen(
                 parsedEventData = request.draft
                 showAddEventDialog = true
             }
+            com.boox.day.ui.MainScreenRequest.ReloadMemoPages -> scope.launch {
+                memosPageCount = withContext(Dispatchers.IO) { appRepository.dayPageRepository.getPageCount(selectedDate).coerceAtLeast(1) }
+                tabManager.refreshMemoPages()
+            }
             com.boox.day.ui.MainScreenRequest.ReloadTasks -> scope.launch {
                 loadTasksPage(selectedDate, currentTaskPageInfo?.currentIndex ?: 0)
             }

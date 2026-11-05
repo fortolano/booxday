@@ -6,9 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.model.ParsedEventData
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.getAndUpdate
+import kotlinx.coroutines.channels.Channel
 
 /** Things only MainScreen can do, asked for from outside it (Nov 2026). */
 sealed interface MainScreenRequest {
@@ -21,18 +19,19 @@ sealed interface MainScreenRequest {
     data class NewEventFrom(val draft: ParsedEventData) : MainScreenRequest
     /** The Tasks page on screen may have changed. */
     data object ReloadTasks : MainScreenRequest
+    /** Pages were added to a day off the canvas: the page counter has to hear of it. */
+    data object ReloadMemoPages : MainScreenRequest
 }
 
-/** Each request is handled once, also when it comes before MainScreen is up (as [TaskFocusRequests]). */
+/** Each request is handled once and in order, also when it comes before MainScreen is up. */
 object MainScreenRequests {
-    private val _pending = MutableStateFlow<MainScreenRequest?>(null)
-    val pending: StateFlow<MainScreenRequest?> = _pending
+    private val queue = Channel<MainScreenRequest>(Channel.UNLIMITED)
 
     fun request(request: MainScreenRequest) {
-        _pending.value = request
+        queue.trySend(request)
     }
 
-    fun consume(): MainScreenRequest? = _pending.getAndUpdate { null }
+    internal suspend fun next(): MainScreenRequest = queue.receive()
 }
 
 /** MainScreen's listener, in a composable of its own: MainScreen is at its size limit. */
@@ -40,8 +39,6 @@ object MainScreenRequests {
 fun MainScreenRequestsCollector(handle: (MainScreenRequest) -> Unit) {
     val current by rememberUpdatedState(handle)
     LaunchedEffect(Unit) {
-        MainScreenRequests.pending.collect { pending ->
-            if (pending != null) MainScreenRequests.consume()?.let { current(it) }
-        }
+        while (true) current(MainScreenRequests.next())
     }
 }

@@ -266,6 +266,7 @@ private fun RecapFlow(event: CalendarEvent) {
                         scope.launch {
                             MeetingPages.of(context, event.id)?.let { MeetingRecapSaver.save(context, event.id, title, it, now.recap) }
                             saved = true
+                            com.boox.day.ui.MainScreenRequests.request(com.boox.day.ui.MainScreenRequest.ReloadMemoPages)
                             SnackState.globalSnackFlow.tryEmit(SnackConf(text = "Saved after your notes", duration = SnackConf.DURATION_STANDARD))
                         }
                     }

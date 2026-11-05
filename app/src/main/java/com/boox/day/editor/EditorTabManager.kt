@@ -201,6 +201,11 @@ class EditorTabManager(
      *
      * PERFORMANCE: Direct property access - no Flow overhead.
      */
+    /** The Memos page list, after pages were added off the canvas. */
+    fun refreshMemoPages() {
+        _memosEditorState.value?.refreshDayPageInfo()
+    }
+
     val activeEditorState: EditorState?
         get() = if (currentTab.value == EditorTab.Memos) _memosEditorState.value else _tasksEditorState.value
 
