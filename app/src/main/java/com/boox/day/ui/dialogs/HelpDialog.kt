@@ -839,7 +839,7 @@ private fun EInkOptimizationContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Today on Sleep Screen")
-    BodyText("Shows today's events and tasks as the tablet's sleep screen. Turn it on in Preferences (Boox tablets only; off at first). Turning it off brings back Boox's own sleep image.")
+    BodyText("Shows your day as the tablet's sleep screen. Turn it on in Preferences (Boox tablets only; off at first), then choose what it shows: the month calendar, events, tasks and, on larger tablets, the memo page. Turning it off brings back Boox's own sleep image.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 

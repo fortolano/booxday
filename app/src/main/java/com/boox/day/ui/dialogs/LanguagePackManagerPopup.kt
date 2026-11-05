@@ -442,14 +442,14 @@ internal fun LanguagePickerPanel(
             EinkSecondaryButton(text = "Cancel", onClick = onCancel)
             Spacer(Modifier.weight(1f))
             if (pageCount > 1) {
-                EinkSecondaryButton(text = "Previous", onClick = { onPage(page - 1) }, enabled = page > 0, emphasized = true)
+                EinkSecondaryButton(text = "Previous", onClick = { onPage(page - 1) }, enabled = page > 0)
                 Text(
                     "${page + 1} of $pageCount",
                     modifier = Modifier.padding(horizontal = EInkTheme.Global.paddingSmall),
                     fontSize = EInkTheme.Typography.bodySmall,
                     color = EInkTheme.Colors.primary
                 )
-                EinkSecondaryButton(text = "Next", onClick = { onPage(page + 1) }, enabled = page < pageCount - 1, emphasized = true)
+                EinkSecondaryButton(text = "Next", onClick = { onPage(page + 1) }, enabled = page < pageCount - 1)
             }
         }
     }

@@ -36,8 +36,8 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 | 0 | Decisions and first replies | Small, no code | In progress: decisions done; replies and baselines left |
 | 1A | Export you can trust | Medium | Shipped in 1.0.61 (5 Nov 2026). Three tablet checks not done, by the owner's choice: see the phase's checklist |
 | 1B | Export redesign | Medium | Shipped in 1.0.62 (5 Nov 2026). Saving to a picked folder and the Go 6 not checked, by the owner's choice: see the phase's checklist |
-| 2 | Pen, compatibility and the Ukrainian PR | Small to medium | Not started |
-| 3 | Sleep screen choices | Small to medium | Not started |
+| 2 | Pen, compatibility and the Ukrainian PR | Small to medium | In progress on `next-release`: PR #5 merged there and the language screen rebuilt; eraser, issue #1 and SupportPopup left |
+| 3 | Sleep screen choices | Small to medium | Built on `next-release`, pictures approved; tablet checks left |
 | 4 | Week view | Large | Not started |
 | 5 | Write It, Schedule It | Large | Not started |
 | 6 | Meeting Recap | Medium to large | Not started |
@@ -851,6 +851,8 @@ Chips and ticks are 44 dp tall. No scrolling at font scale 1.0. No animation.
 4. Fix the stale "5 rows, 10 languages" comment.
 5. Merge with the owner's OK. Credit the author in the release notes.
 
+**Done differently (owner, 5 Nov 2026):** a sixth row of languages didn't fit the Go 6, so the screen became nine fixed languages (English, German, Spanish, French, Italian, Russian, Japanese, Korean, Chinese) and a tenth Other language card, for any of the rest. Picking from the list (by letter, 248 languages with a name) replaces what's on the card: the new one downloads first, a language in use hands over, the old one is deleted last, and a failed download changes nothing. Names are short ("German"), "Set Active" is "Use", the 5-download limit stays. Still to check on a tablet: a real swap, and handwriting read in an Other language.
+
 #### 2B. Issue #3, eraser to pen
 
 Protected code. The owner opened the erase row for this work (D3), on one condition: **nothing from this area ships until the owner has passed the tablet checks with the real pen.** No automated test can see the panel, and pen input can't be faked. Earlier work here failed four or five builds in a row for that reason. Read the erase row in `CLAUDE.md` and the sources it names before starting.
@@ -931,7 +933,7 @@ Owner's standing rule: no startup or pen code for this until the cause is proven
 
 **Checklist**
 
-- [ ] PR #5 built, fit-checked, merged with OK
+- [ ] PR #5 built and fit-checked (done); merged on `next-release`, reaches `main` with the one release
 - [ ] Eraser reproduced, fixed (if leak proven), hardware list passed by the owner before shipping
 - [ ] Issue #1 version known; diagnostic only if needed
 - [ ] `SupportPopup` checked
@@ -1028,9 +1030,9 @@ When space runs short the existing order applies, but a chosen Month is never dr
 
 **Checklist**
 
-- [ ] Owner's picture OK
+- [x] Owner's picture OK (5 Nov 2026)
 - [ ] All combinations tested, on two real sleep screens
-- [ ] Help and tip updated
+- [x] Help and tip updated
 
 ---
 

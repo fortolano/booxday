@@ -381,7 +381,7 @@ object TipsRepository {
         ),
         Tip(
             id = "general_sleep_screen",
-            message = "Turn on Today on sleep screen in Settings → Preferences to see today's plan while the tablet sleeps.",
+            message = "Turn on Today on sleep screen in Settings → Preferences, and choose what it shows: month, events, tasks or memo.",
             contexts = setOf(TipContext.GENERAL)
         ),
         Tip(
