@@ -17,6 +17,7 @@ BooxDay is free and open source under the [GNU General Public License v3.0](LICE
 - Task Sync with Google Tasks or a CalDAV server (Nextcloud, Fastmail and others), off until you turn it on
 - BOOX Notes integration: see your BOOX notes on the days they were written and link them to events
 - Search across memos, tasks and notes
+- Export a page, a day or a week as a PDF, pictures or Markdown for Obsidian, or share it to another app
 - Optional AI features (voice to event or task, handwriting to text, summaries, translation, task suggestions, search of handwritten pages) on your own [OpenRouter](https://openrouter.ai) account
 - Connect OpenRouter in a few taps from the app, or paste a key you already have. Without credit, AI uses OpenRouter's free models
 - Choose the AI model for each job, or leave BooxDay's choice. If your model fails, BooxDay's own model answers instead
