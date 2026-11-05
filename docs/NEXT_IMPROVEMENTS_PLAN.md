@@ -56,7 +56,7 @@ Phases 1A and 1B shipped as their own releases. **Phases 2 to 8 ship together as
 | 2. Planning | 4 Week view, 5 Write It, Schedule It | Phase 5 needs the overlay host and main-screen requests that Phase 4 builds |
 | 3. Meetings and sharing | 6 Recap, 7 Prep, 8 Share | All three reuse the proposal model and review sheet from Phase 5 |
 
-**One release at the end.** Work stays on its own branch until all three parts are done and checked. The usual "tested work ships" step (`CLAUDE.md` rule 8) doesn't apply to these phases.
+**One release at the end.** Work stays on its own branch until all three parts are done and checked. The usual "tested work ships" step (`CLAUDE.md` rule 8) doesn't apply to these phases. A bug found in 1.0.62 is fixed on the branch and waits for this release too: no separate fix release (owner, 5 Nov 2026).
 
 **Other agents work on this app too.** So that this work doesn't affect theirs:
 
