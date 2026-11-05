@@ -16,7 +16,7 @@ This is the execution guide for coding sessions. Read it with the project's loca
 2. Find the first phase in the table below that is not done.
 3. Check section 4. If a decision that blocks your phase is still open, ask the owner. Don't assume the recommended option: a recommendation is not a yes.
 4. Do the phase's tasks in order. Tick its completion checklist.
-5. At the end of a phase, update the table below and the "Decisions" column of section 4.
+5. At the end of a phase, update the table below and the "Decisions" column of section 4. Follow "How Phases 2 to 8 are done" below for branches and releases.
 
 **Evidence labels used here:**
 
@@ -44,7 +44,29 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 | 7 | Meeting Prep | Medium | Not started |
 | 8 | Share to BooxDay | Medium | Not started |
 
-Each phase from 1 onward ships as its own release (`CLAUDE.md` rule 8).
+Phases 1A and 1B shipped as their own releases. **Phases 2 to 8 ship together as one release** (owner, 5 Nov 2026).
+
+### How Phases 2 to 8 are done (owner, 5 Nov 2026)
+
+**Three parts, built in this order.** The phase sections below keep their numbers and details; only the grouping is new.
+
+| Part | Phases | Why they belong together |
+|---|---|---|
+| 1. Everyday fixes | 2 Pen and compatibility, 3 Sleep screen | Small and independent of everything else |
+| 2. Planning | 4 Week view, 5 Write It, Schedule It | Phase 5 needs the overlay host and main-screen requests that Phase 4 builds |
+| 3. Meetings and sharing | 6 Recap, 7 Prep, 8 Share | All three reuse the proposal model and review sheet from Phase 5 |
+
+**One release at the end.** Work stays on its own branch until all three parts are done and checked. The usual "tested work ships" step (`CLAUDE.md` rule 8) doesn't apply to these phases.
+
+**Other agents work on this app too.** So that this work doesn't affect theirs:
+
+- Work in a separate worktree and branch, never in the main checkout and never on `main`.
+- No version bump, tag, GitHub release, website change or push to `main` until the one release. The version number is taken then, after whatever others have shipped.
+- Bring `main` into the branch regularly, and resolve conflicts here. Never rewrite or force-push anything shared.
+- Before editing a file another agent has open, look at the worktrees (`git worktree list`, `git status` in each). Boox Notes files belong to the Boox Notes work for now: `booxnotes/`, `ui/dialogs/BooxNote*`, `ui/dialogs/BooxNotes*`, `ocr/semantic/SemanticGeniusService.kt`.
+- Keep changes to shared files small: `MainScreen.kt`, `Toolbar.kt`, `EInkTheme.kt`, `AppSettings.kt`, strings, Help. `MainScreen` and `SharedToolbar` have one size limit between all agents, so measure after each merge from `main`.
+- No database change without agreeing the version number first. This plan needs none.
+- Before driving or installing on a tablet, check that no other session is testing there, and that the owner isn't using it. Debug builds keep the version number of `main`.
 
 ### Rules that bite in this work
 
@@ -1763,7 +1785,7 @@ Follow Releases step 9 and the What's new rules:
 ### GitHub repository
 
 - **README:** Features, Screenshots, Requirements. Tested list only with evidence; say "reported by users" where that's the source.
-- **Changelog:** GitHub release notes are the changelog, so keep the format in `CLAUDE.md`. Short `- ` bullets feed the in-app popup: at most 6 show. One release per phase keeps them within that.
+- **Changelog:** GitHub release notes are the changelog, so keep the format in `CLAUDE.md`. Short `- ` bullets feed the in-app popup: at most 6 show. The one release for Phases 2 to 8 has one bullet per feature, so group the smaller fixes.
 - **Issues:** don't close until verified, and only with the owner's approval. Note the evidence in the closing comment.
 - **Contributors:** credit in release notes.
 
