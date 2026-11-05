@@ -35,7 +35,7 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 |---|---|---|---|
 | 0 | Decisions and first replies | Small, no code | In progress: decisions done; replies and baselines left |
 | 1A | Export you can trust | Medium | Shipped in 1.0.61 (5 Nov 2026). Three tablet checks not done, by the owner's choice: see the phase's checklist |
-| 1B | Export redesign | Medium | Not started |
+| 1B | Export redesign | Medium | Built on branch `export-redesign-1b`, tests pass, checked on the Go 10.3; a picked folder, the Go 6 and release left |
 | 2 | Pen, compatibility and the Ukrainian PR | Small to medium | Not started |
 | 3 | Sleep screen choices | Small to medium | Not started |
 | 4 | Week view | Large | Not started |
@@ -685,7 +685,7 @@ Every phase from 1 on also follows the **Definition of Done** at the end of this
 └────────────────────────────────────────────┘
 ```
 
-Save is rightmost because it's the main action (`docs/DIALOG_RULEBOOK.md`).
+Save is rightmost because it's the main action (`docs/DIALOG_RULEBOOK.md`). Share and Change have black text, because the outline button's grey reads as switched off; Cancel stays grey (owner, 5 Nov 2026).
 
 **What shows for each format:**
 
@@ -700,7 +700,7 @@ Save is rightmost because it's the main action (`docs/DIALOG_RULEBOOK.md`).
 - **What:** This page shows only if the day has more than one page. This week follows the first-day-of-week setting. Choose dates allows up to 31 days. This meeting joins in Phase 6.
 - **Defaults:** the last choices. First time: This day, PDF, Fit more on each page, no ticks.
 - **Change:** opens the Android folder picker, which reaches any folder and any storage app listed there. The choice is remembered. Markdown starts in the Daily notes folder if one is set.
-- **Preview:** the first output page, small, drawn with the same code as the export, so it's truthful. It redraws only when a choice changes.
+- **Preview:** the first page with memo content, small, drawn with the same code as the export, so it's truthful. A multi-day PDF shows its first day, not the contents page, so ticking an option shows up (owner, 5 Nov 2026). It redraws only when a choice changes.
 - **Page count** is exact. **File size** is an estimate; drop it if tests show it's unreliable.
 - **Long exports:** the dialog closes and the snack shows progress, updating at most every 2 seconds.
 - **Nothing to export:** "No memos in these dates."
@@ -711,7 +711,7 @@ Save is rightmost because it's the main action (`docs/DIALOG_RULEBOOK.md`).
 
 **Events and tasks:** a short block at the start of each day, from `DayDigestLoader`, which reads without creating anything.
 
-**Markdown:** one `yyyy-MM-dd.md` per day in the Daily notes format, so export and Daily notes update the same note, and text the user added outside BooxDay's markers is kept (`DailyNoteMarkdown.merge`). This is why D2's numbered copies don't apply here. Page images go in `attachments/` and use standard Markdown links, `![Page 1](attachments/2026-11-04-p1.png)`, which Obsidian and other apps read.
+**Markdown:** one `yyyy-MM-dd.md` per day in the Daily notes format, so export and Daily notes update the same note, and text the user added outside BooxDay's markers is kept (`DailyNoteMarkdown.merge`). This is why D2's numbered copies don't apply here. Page images go in `attachments/` and use standard Markdown links, `![Page 1](attachments/2026-11-04-p1.png)`, which Obsidian and other apps read. With a page's image in the note, "Handwriting not read yet" is left out (owner, 5 Nov 2026).
 
 **File names:** `BooxDay 2026-11-04.pdf`, `BooxDay 2026-11-02 to 2026-11-08.pdf`. Name clashes follow D2.
 
@@ -799,9 +799,9 @@ Chips and ticks are 44 dp tall. No scrolling at font scale 1.0. No animation.
 
 **Checklist**
 
-- [ ] Owner's picture OK
-- [ ] S3 built, duplicate bug proved or disproved
-- [ ] Scope proven read-only
+- [x] Owner's picture OK (5 Nov 2026, with the three choices above)
+- [x] S3 built, duplicate bug proved (a test showed the event twice) and fixed
+- [x] Scope proven read-only
 - [ ] Every format and scope checked on Go 10.3 and Go 6
 - [ ] PDF text and Markdown checked on the PC
 - [ ] Help, tip, website, README updated
