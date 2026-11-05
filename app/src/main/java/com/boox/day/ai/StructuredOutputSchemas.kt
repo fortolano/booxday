@@ -229,6 +229,29 @@ internal object StructuredOutputSchemas {
         required = listOf("tasks")
     )
 
+    /** Meeting Recap (Nov 2026): empty lists are fine, nothing may be made up. */
+    val meetingRecapSchema: Map<String, Any> = objectSchema(
+        properties = mapOf(
+            "summary" to stringSchema(minLength = 1, maxLength = 1200),
+            "decisions" to arraySchema(items = stringSchema(minLength = 1, maxLength = 300), minItems = 0, maxItems = 20),
+            "action_items" to arraySchema(
+                items = objectSchema(
+                    properties = mapOf(
+                        "text" to stringSchema(minLength = 1, maxLength = 200),
+                        "owner" to stringSchema(minLength = 0, maxLength = 80),
+                        "due_date" to stringSchema(minLength = 0, maxLength = 10)
+                    ),
+                    required = listOf("text", "owner", "due_date")
+                ),
+                minItems = 0,
+                maxItems = 30
+            ),
+            "follow_ups" to arraySchema(items = stringSchema(minLength = 1, maxLength = 300), minItems = 0, maxItems = 20),
+            "open_questions" to arraySchema(items = stringSchema(minLength = 1, maxLength = 300), minItems = 0, maxItems = 20)
+        ),
+        required = listOf("summary", "decisions", "action_items", "follow_ups", "open_questions")
+    )
+
     /** Write It, Schedule It (Nov 2026): "" for anything not written. */
     val scheduleItemsSchema: Map<String, Any> = objectSchema(
         properties = mapOf(

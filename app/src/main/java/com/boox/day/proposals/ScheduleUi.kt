@@ -65,7 +65,8 @@ import java.util.Locale
 
 /** Write It, Schedule It (Nov 2026): the selection bar's calendar button starts here. */
 object ScheduleUi {
-    data class Job(val strokes: List<Stroke>, val memoDay: LocalDate)
+    /** [ready]: items found elsewhere (a recap's action items), to review with no reading. */
+    data class Job(val strokes: List<Stroke>, val memoDay: LocalDate, val ready: ScheduleResult.Found? = null)
 
     var job by mutableStateOf<Job?>(null)
         private set
@@ -80,6 +81,10 @@ object ScheduleUi {
         }
         val request = Job(strokes, LocalDate.parse(memoDay))
         AiFeature.start(sendsCalendar = false) { job = request }
+    }
+
+    fun review(proposals: List<Proposal>, readAs: String, memoDay: String) {
+        job = Job(emptyList(), LocalDate.parse(memoDay), ScheduleResult.Found(readAs, proposals))
     }
 
     fun close() {
@@ -127,7 +132,7 @@ private fun ScheduleFlow(job: ScheduleUi.Job) {
 
     LaunchedEffect(attempt) {
         screen = Screen.Reading
-        when (val result = ScheduleItemsService.read(job.strokes, job.memoDay)) {
+        when (val result = job.ready ?: ScheduleItemsService.read(job.strokes, job.memoDay)) {
             is ScheduleResult.Found -> {
                 result.proposals.forEach { items[it.id] = it }
                 order = result.proposals.map { it.id }

@@ -56,7 +56,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -283,15 +285,28 @@ fun MeetingNotesSection(event: CalendarEvent, onDismiss: () -> Unit) {
         val memo = notes
         if (loaded) {
             if (memo == null) {
-                EinkSecondaryButton(text = "Take notes in Memos", onClick = ::openNotes, enabled = !busy, modifier = Modifier.fillMaxWidth())
+                EinkSecondaryButton(text = "Take Notes", onClick = ::openNotes, enabled = !busy, modifier = Modifier.fillMaxWidth())
             } else {
+                EinkSecondaryButton(text = "Open Notes", onClick = ::openNotes, enabled = !busy, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    EinkSecondaryButton(text = "Recap", onClick = { MeetingRecapUi.open(event) }, modifier = Modifier.weight(1f))
                     EinkSecondaryButton(
-                        text = "Action items",
+                        text = "Action Items",
                         onClick = { ActionItemsUi.open(memo.date, memo.pageIds, title = "From your notes · ${event.title}") },
                         modifier = Modifier.weight(1f)
                     )
-                    EinkSecondaryButton(text = "Open notes", onClick = ::openNotes, enabled = !busy, modifier = Modifier.weight(1f))
+                    EinkSecondaryButton(
+                        text = "Export",
+                        onClick = {
+                            scope.launch {
+                                val pages = MeetingPages.of(context, event.id) ?: return@launch
+                                val recap = withContext(Dispatchers.IO) { com.boox.day.ai.MeetingRecapService.cached(context, event.id) }?.first
+                                    ?.takeIf { pages.recap.isNotEmpty() }
+                                exportNow(context, com.boox.day.io.MeetingExport.Meeting(event.title, meetingLine(event), pages.date, pages.notes, recap))
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }

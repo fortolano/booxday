@@ -486,7 +486,7 @@ class ExportEngine(
     /* -------------------- Shared Drawing & PDF Helpers -------------------- */
 
     /** Writes a page from PDF page [firstPageNumber] on, and returns the number after its last. */
-    private suspend fun writePageToPdfDocument(doc: PdfDocument, pageId: String, firstPageNumber: Int): Int {
+    internal suspend fun writePageToPdfDocument(doc: PdfDocument, pageId: String, firstPageNumber: Int): Int {
         ensureNotMainThread("ExportPdf")
         val data = fetchPageData(pageId)
         val frame = MemoPageRenderer.frame(data.content)

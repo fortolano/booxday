@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.dialogs.ActionButton
+import com.boox.day.ui.noRippleClickable
 import com.boox.day.ui.theme.EInkTheme
 
 private val Ink = EInkTheme.Colors.primary
@@ -87,34 +88,58 @@ private fun Tick(text: String, note: String?, ticked: Boolean) {
 }
 
 @Composable
-private fun Pager(page: Int, pages: Int) {
+private fun Pager(page: Int, pages: Int, onPage: (Int) -> Unit = {}) {
     if (pages <= 1) return
     Row(Modifier.fillMaxWidth().height(44.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) { Icon(Icons.Default.ChevronLeft, contentDescription = "Previous page", tint = Ink) }
+        Box(Modifier.size(44.dp).noRippleClickable { onPage(page - 1) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.ChevronLeft, contentDescription = "Previous page", tint = Ink) }
         Text(text = "$page of $pages", fontSize = EInkTheme.Typography.bodyMedium, color = Ink)
-        Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) { Icon(Icons.Default.ChevronRight, contentDescription = "Next page", tint = Ink) }
+        Box(Modifier.size(44.dp).noRippleClickable { onPage(page + 1) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.ChevronRight, contentDescription = "Next page", tint = Ink) }
     }
 }
 
 @Composable
-private fun Buttons(left: String, middle: String?, right: String?, middleWidth: Int = 120, rightWidth: Int? = null) {
+private fun Buttons(
+    left: String,
+    middle: String?,
+    right: String?,
+    middleWidth: Int = 120,
+    rightWidth: Int? = null,
+    onLeft: () -> Unit = {},
+    onMiddle: () -> Unit = {},
+    onRight: () -> Unit = {}
+) {
     Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing), verticalAlignment = Alignment.CenterVertically) {
-        EinkSecondaryButton(text = left, onClick = {})
+        EinkSecondaryButton(text = left, onClick = onLeft)
         Spacer(Modifier.weight(1f))
-        middle?.let { EinkSecondaryButton(text = it, onClick = {}, width = middleWidth.dp) }
-        right?.let { ActionButton(text = it, modifier = rightWidth?.let { w -> Modifier.width(w.dp) } ?: Modifier, onClick = {}) }
+        middle?.let { EinkSecondaryButton(text = it, onClick = onMiddle, width = middleWidth.dp) }
+        right?.let { ActionButton(text = it, modifier = rightWidth?.let { w -> Modifier.width(w.dp) } ?: Modifier, onClick = onRight) }
     }
 }
 
 /** The recap: what the notes say, to check, keep or send. */
 @Composable
-fun MeetingRecapCard(title: String, line: String, content: RecapPageUi, page: Int, pages: Int, modifier: Modifier = Modifier, changedNotes: Boolean = false, saved: Boolean = false) {
+fun MeetingRecapCard(
+    title: String,
+    line: String,
+    content: RecapPageUi,
+    page: Int,
+    pages: Int,
+    modifier: Modifier = Modifier,
+    changedNotes: Boolean = false,
+    saved: Boolean = false,
+    onClose: () -> Unit = {},
+    onPage: (Int) -> Unit = {},
+    onUpdate: () -> Unit = {},
+    onAddTasks: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onSave: () -> Unit = {}
+) {
     Frame(modifier) {
         Title("Recap · $title", line)
         if (changedNotes) {
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(text = "Your notes changed since this recap.", fontSize = EInkTheme.Typography.bodyMedium, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
-                EinkSecondaryButton(text = "Update Recap", onClick = {}, width = 140.dp)
+                EinkSecondaryButton(text = "Update Recap", onClick = onUpdate, width = 140.dp)
             }
         }
         content.summary?.let {
@@ -127,7 +152,7 @@ fun MeetingRecapCard(title: String, line: String, content: RecapPageUi, page: In
         }
         if (content.actions.isNotEmpty()) {
             val count = content.actions.count { it.ticked }
-            Heading("Action items") { EinkSecondaryButton(text = "Add $count ${if (count == 1) "Task" else "Tasks"}", onClick = {}, width = 130.dp) }
+            Heading("Action items") { EinkSecondaryButton(text = "Add $count ${if (count == 1) "Task" else "Tasks"}", onClick = onAddTasks, width = 130.dp) }
             content.actions.forEach { Tick(it.text, it.due, it.ticked) }
         }
         if (content.followUps.isNotEmpty()) {
@@ -138,27 +163,37 @@ fun MeetingRecapCard(title: String, line: String, content: RecapPageUi, page: In
             Heading("Open questions")
             content.questions.forEach { Bullet(it) }
         }
-        Pager(page, pages)
-        Buttons("Close", "Share PDF", if (saved) null else "Save to Notes", rightWidth = 140)
+        Pager(page, pages, onPage)
+        Buttons("Close", "Share PDF", if (saved) null else "Save to Notes", rightWidth = 140, onLeft = onClose, onMiddle = onShare, onRight = onSave)
     }
 }
 
 /** Recap can't run: the notes are never stuck. */
 @Composable
-fun MeetingRecapBlockedCard(title: String, message: String, modifier: Modifier = Modifier) {
+fun MeetingRecapBlockedCard(title: String, message: String, modifier: Modifier = Modifier, onClose: () -> Unit = {}, onExport: () -> Unit = {}, onActionItems: () -> Unit = {}) {
     Frame(modifier) {
         Title("Recap · $title", null)
         Text(text = message, fontSize = EInkTheme.Typography.bodyLarge, color = Ink)
-        Buttons("Close", "Export", "Action Items", rightWidth = 130)
+        Buttons("Close", "Export", "Action Items", rightWidth = 130, onLeft = onClose, onMiddle = onExport, onRight = onActionItems)
+    }
+}
+
+/** Asks before something that replaces the user's work. */
+@Composable
+fun MeetingAskCard(title: String, message: String, modifier: Modifier = Modifier, onCancel: () -> Unit = {}, onUpdate: () -> Unit = {}) {
+    Frame(modifier) {
+        Title(title, null)
+        Text(text = message, fontSize = EInkTheme.Typography.bodyLarge, color = Ink)
+        Buttons("Cancel", null, "Update Recap", rightWidth = 150, onLeft = onCancel, onRight = onUpdate)
     }
 }
 
 @Composable
-fun MeetingReadingCard(title: String, message: String, modifier: Modifier = Modifier) {
+fun MeetingReadingCard(title: String, message: String, modifier: Modifier = Modifier, onCancel: () -> Unit = {}) {
     Frame(modifier) {
         Title(title, null)
         Text(text = message, fontSize = EInkTheme.Typography.bodyLarge, color = Ink)
-        Buttons("Cancel", null, null)
+        Buttons("Cancel", null, null, onLeft = onCancel)
     }
 }
 

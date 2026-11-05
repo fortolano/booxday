@@ -42,7 +42,8 @@ object MemoPageText {
             }
             written.zip(texts).forEach { (line, text) -> if (text.isNotEmpty()) found += line.minOf { it.top } to text }
         }
-        boxes.filter { it.sourceType != EventMemoService.HEADER_SOURCE }.forEach { box: TextAnnotation ->
+        // Not the header, and not a saved recap: it would be read back as notes
+        boxes.filter { it.sourceType != EventMemoService.HEADER_SOURCE && it.sourceType != com.boox.day.meetings.MeetingPages.RECAP_SOURCE }.forEach { box: TextAnnotation ->
             box.content.lines().forEachIndexed { i, text -> if (text.isNotBlank()) found += (box.y + i) to text.trim() }
         }
         return found.sortedBy { it.first }.map { it.second }
