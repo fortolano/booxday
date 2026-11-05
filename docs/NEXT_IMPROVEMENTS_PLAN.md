@@ -1,6 +1,6 @@
 # BooxDay: Next Improvements Plan
 
-**Status:** approved by the owner on 4 Nov 2026, with every decision taken (section 4). Phase 1A shipped in 1.0.61 on 5 Nov 2026; the phases after it are not built yet.
+**Status:** approved by the owner on 4 Nov 2026, with every decision taken (section 4). Phases 1A and 1B shipped on 5 Nov 2026 (1.0.61, 1.0.62); the phases after them are not built yet.
 **Baseline:** `main` at `d8df4cc` (version 1.0.60, database v34).
 **Scope source:** the owner's brief of 4 Nov 2026, based on Reddit feedback, GitHub issues and a code review.
 
@@ -35,7 +35,7 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 |---|---|---|---|
 | 0 | Decisions and first replies | Small, no code | In progress: decisions done; replies and baselines left |
 | 1A | Export you can trust | Medium | Shipped in 1.0.61 (5 Nov 2026). Three tablet checks not done, by the owner's choice: see the phase's checklist |
-| 1B | Export redesign | Medium | Built on branch `export-redesign-1b`, tests pass, checked on the Go 10.3; a picked folder, the Go 6 and release left |
+| 1B | Export redesign | Medium | Shipped in 1.0.62 (5 Nov 2026). Saving to a picked folder and the Go 6 not checked, by the owner's choice: see the phase's checklist |
 | 2 | Pen, compatibility and the Ukrainian PR | Small to medium | Not started |
 | 3 | Sleep screen choices | Small to medium | Not started |
 | 4 | Week view | Large | Not started |
@@ -802,8 +802,11 @@ Chips and ticks are 44 dp tall. No scrolling at font scale 1.0. No animation.
 - [x] Owner's picture OK (5 Nov 2026, with the three choices above)
 - [x] S3 built, duplicate bug proved (a test showed the event twice) and fixed
 - [x] Scope proven read-only
-- [ ] Every format and scope checked on Go 10.3 and Go 6
-- [ ] PDF text and Markdown checked on the PC
+- [ ] Every format and scope checked on Go 10.3 and Go 6: the Go 10.3 passed PDF (both layouts), Images, Markdown, Share, Choose dates. Released without these (owner, 5 Nov 2026):
+  - Saving to a folder picked with Change, in each format, and to a cloud storage app. New code that no tablet has run: `ExportFiles.subfolder`, `DailyNoteWriter.writeBinary`, the fallback to the default folder
+  - The Go 6: a full week (memory, under 30 seconds) and the dialog on the small screen
+  - The release APK itself, and Markdown in real Obsidian
+- [x] PDF text checked on the PC (selectable, found by search). Markdown read as text; not opened in Obsidian
 - [ ] Help, tip, website, README updated
 
 ---
