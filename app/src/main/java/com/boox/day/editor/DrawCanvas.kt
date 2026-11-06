@@ -1298,6 +1298,10 @@ class DrawCanvas(
             log.i("ERASE_COMMIT: not resuming the pen render, something else owns it now")
             return
         }
+        // The pen's style first, as BOOX Notes does before it resumes (ResumeRawDrawingRequest): after
+        // the eraser end, new ink came out in the eraser's style until something sent it again (issue
+        // #3: dashed on the Go 10.3, a grey band on the Note Air 6C).
+        updatePenAndStroke()
         touchHelper.isRawDrawingRenderEnabled = true
         log.i("ERASE_COMMIT: pen render resumed")
     }
