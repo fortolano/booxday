@@ -858,7 +858,7 @@ Chips and ticks are 44 dp tall. No scrolling at font scale 1.0. No animation.
 
 Protected code. The owner opened the erase row for this work (D3), on one condition: **nothing from this area ships until the owner has passed the tablet checks with the real pen.** No automated test can see the panel, and pen input can't be faked. Earlier work here failed four or five builds in a row for that reason. Read the erase row in `CLAUDE.md` and the sources it names before starting.
 
-**Result (owner, 5 Nov 2026):** the owner's real-pen test on the Go 10.3 passed, on a `next-release` build with the same eraser code as 1.0.62, so the steps below weren't needed and no protected code changed. Issue #3 is closed at the owner's word. The reporter's and rickeames's tablets weren't tested.
+**Result (owner, 5 Nov 2026):** the owner's real-pen test on the Go 10.3 passed, on a `next-release` build with the same eraser code as 1.0.62, so the steps below weren't needed and no protected code changed. Issue #3 was closed at the owner's word, then reopened on 6 Nov until a reporter confirms 1.0.64. The reporter's and rickeames's tablets weren't tested.
 
 **A second report (5 Nov 2026, rickeames on issue #3):** the same on a Note Air 6C with a Noris Digital Jumbo: grey banding after the eraser, and the writing is there after switching to Tasks and back. That fits the hypothesis (the stroke is saved, only the live ink is wrong), but it isn't proof.
 
