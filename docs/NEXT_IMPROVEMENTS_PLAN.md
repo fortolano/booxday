@@ -36,7 +36,7 @@ Paths are relative to `app/src/main/java/com/boox/day/` unless they start with `
 | 0 | Decisions and first replies | Small, no code | In progress: decisions done; replies and baselines left |
 | 1A | Export you can trust | Medium | Shipped in 1.0.61 (5 Nov 2026). Three tablet checks not done, by the owner's choice: see the phase's checklist |
 | 1B | Export redesign | Medium | Shipped in 1.0.62 (5 Nov 2026). Saving to a picked folder and the Go 6 not checked, by the owner's choice: see the phase's checklist |
-| 2 | Pen, compatibility and the Ukrainian PR | Small to medium | Shipped in 1.0.63 (5 Nov 2026). Eraser: owner's pen test passed, no code change, issue #3 closed. Left: issue #1 (waiting for the reporter's version) |
+| 2 | Pen, compatibility and the Ukrainian PR | Small to medium | Shipped in 1.0.63 (5 Nov 2026). Eraser: fixed in 1.0.64 after tests on a Note Air 6C (see 2B); the eraser end is still unconfirmed. Left: issue #1 (waiting for the reporter's version) |
 | 3 | Sleep screen choices | Small to medium | Shipped in 1.0.63 (5 Nov 2026), by the owner's choice with some checks left open. At release: pictures approved; tablet checks left |
 | 4 | Week view | Large | Shipped in 1.0.63 (5 Nov 2026), by the owner's choice with some checks left open. At release: checked on the Go 10.3 (5 Nov 2026). A busy day opens whole in one sheet, not pages of 6 (owner). Left: handwriting pictures, the pen after closing, the Go 6, a tick reaching Google Tasks, first open 795 ms |
 | 5 | Write It, Schedule It | Large | Shipped in 1.0.63 (5 Nov 2026), by the owner's choice with some checks left open. At release: works on the Go 10.3 with real ink (5 Nov 2026). Live check 20 of 20 on typed notes. Left: 20 samples in the owner's own handwriting, an event reaching Google and iCloud, offline and no-key on a tablet, the Go 6 |
@@ -861,6 +861,14 @@ Protected code. The owner opened the erase row for this work (D3), on one condit
 **Result (owner, 5 Nov 2026):** the owner's real-pen test on the Go 10.3 passed, on a `next-release` build with the same eraser code as 1.0.62, so the steps below weren't needed and no protected code changed. Issue #3 is closed at the owner's word. The reporter's and rickeames's tablets weren't tested.
 
 **A second report (5 Nov 2026, rickeames on issue #3):** the same on a Note Air 6C with a Noris Digital Jumbo: grey banding after the eraser, and the writing is there after switching to Tasks and back. That fits the hypothesis (the stroke is saved, only the live ink is wrong), but it isn't proof.
+
+**Note Air 6C work (5 and 6 Nov 2026, shipped in 1.0.64).** The owner connected a Note Air 6C (firmware 4.3.1) and saw three problems with the Standard Eraser and the dropdowns. What was found and done:
+- This tablet has BOOX's hardware display controller (`vendor.onyx.htcon`), which the Go tablets don't. A post made while the pen layer is on waits for the next change of display mode, so the erased page reached the panel only at the next tap.
+- The white trail wipes ink in the pen layer, and the page update then drives those pixels again: the erased ink flashed back and left a ghost in Regal, Speed and Smooth alike. Tests with switches on the tablet showed the trail was the cause. Finishing at pen-up alone only moved the flash. BOOX's soft trail plus the finish at pen-up was clean. Resetting the view's handwriting mode wasn't needed.
+- Owner's decision (6 Nov): soft trail and finish at pen-up on tablets with that controller only; Go tablets keep the white line.
+- The pen style is sent again before ink resumes (step 2 below, D3 option A). It is in 1.0.64 but **not proven**: the owner has no EMR pen with an eraser end or side button, and pen input can't be faked. That also means the 5 Nov pass on the Go 10.3 can't have used an eraser end. Rick or the first reporter have to confirm it.
+- Eraser and pen dropdowns now take effect after the popup has left, and the fast refresh modes wait 220 ms: the pen layer came back 30 ms before the popup was removed, and the dropdown stayed on the panel.
+- Checks on the fix build: the log shows the Tasks tab (15 strokes, 4 erases, dropdowns, right ink widths); the owner reports Memos, each pen and Scribble to Erase clean, but that run isn't in the log. Test builds with the same eraser code logged 48 Memos strokes and 26 erases. Go tablets not retested: they get the pen style line and the dropdown change.
 
 **Working hypothesis (not proven): one cause, two symptoms.** If the eraser's style stays on after it lifts, Stroke Eraser gives dashed ink (DASH), and Standard Eraser gives almost invisible ink (SOFT_ERASER). Invisible ink would look like a delay until BooxDay redraws the page. So one fix might solve both of the reporter's symptoms.
 
