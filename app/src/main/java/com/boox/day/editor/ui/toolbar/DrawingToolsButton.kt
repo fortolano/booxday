@@ -56,7 +56,7 @@ fun DrawingToolsButton(
     currentPen: Pen,
     currentColor: Int,
     currentMode: Mode,
-    onPenSelect: (Pen) -> Unit,
+    onPenSelect: (pen: Pen, fromMenu: Boolean) -> Unit,
     onActivate: () -> Unit = {},  // Called on every tap to highlight button
     onMenuOpenChange: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -64,10 +64,14 @@ fun DrawingToolsButton(
 ) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
+    var pickedPen by remember { mutableStateOf<Pen?>(null) }
 
-    if (onMenuOpenChange != null) {
-        LaunchedEffect(showMenu) {
-            onMenuOpenChange(showMenu)
+    // A pick takes effect once the popup has left (see EraserToolsButton).
+    LaunchedEffect(showMenu) {
+        onMenuOpenChange?.invoke(showMenu)
+        if (!showMenu) {
+            pickedPen?.let { onPenSelect(it, true) }
+            pickedPen = null
         }
     }
 
@@ -89,7 +93,7 @@ fun DrawingToolsButton(
                 } else {
                     // Button not highlighted: highlight and ensure Draw mode, NO menu
                     onActivate()
-                    onPenSelect(currentPen)
+                    onPenSelect(currentPen, false)
                 }
             },
             hasDropdown = true,
@@ -116,7 +120,7 @@ fun DrawingToolsButton(
                         selected = currentPen == Pen.BALLPEN || currentPen == Pen.REDBALLPEN ||
                                    currentPen == Pen.GREENBALLPEN || currentPen == Pen.BLUEBALLPEN,
                         onClick = {
-                            onPenSelect(Pen.BALLPEN)
+                            pickedPen = Pen.BALLPEN
                             showMenu = false
                         }
                     )
@@ -127,7 +131,7 @@ fun DrawingToolsButton(
                         label = "Fountain Pen",
                         selected = currentPen == Pen.FOUNTAIN,
                         onClick = {
-                            onPenSelect(Pen.FOUNTAIN)
+                            pickedPen = Pen.FOUNTAIN
                             showMenu = false
                         }
                     )
@@ -138,7 +142,7 @@ fun DrawingToolsButton(
                         label = "Marker",
                         selected = currentPen == Pen.MARKER,
                         onClick = {
-                            onPenSelect(Pen.MARKER)
+                            pickedPen = Pen.MARKER
                             showMenu = false
                         }
                     )
@@ -149,7 +153,7 @@ fun DrawingToolsButton(
                         label = "Pencil",
                         selected = currentPen == Pen.PENCIL,
                         onClick = {
-                            onPenSelect(Pen.PENCIL)
+                            pickedPen = Pen.PENCIL
                             showMenu = false
                         }
                     )
@@ -160,7 +164,7 @@ fun DrawingToolsButton(
                         label = "Brush",
                         selected = currentPen == Pen.BRUSH,
                         onClick = {
-                            onPenSelect(Pen.BRUSH)
+                            pickedPen = Pen.BRUSH
                             showMenu = false
                         }
                     )

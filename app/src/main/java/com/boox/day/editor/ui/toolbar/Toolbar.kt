@@ -512,7 +512,7 @@ fun SharedToolbar(
         )
     }
 
-    fun handleChangePen(pen: Pen, setActiveButton: (String?) -> Unit) {
+    fun handleChangePen(pen: Pen, fromMenu: Boolean, setActiveButton: (String?) -> Unit) {
         // Save and exit any active text box before changing pen/mode
         activeTower.saveAndExitTextBox()
         // Signal toolbar interaction (for collapsing expanded events panel)
@@ -530,10 +530,12 @@ fun SharedToolbar(
         // VISUAL STATE FIX: Unfreeze e-ink display so button highlight renders immediately.
         // Raw drawing freeze blocks View rendering; this bypasses the 2s stylus guard.
         // Safe for drawing tools because they want raw drawing re-enabled (after 50ms).
-        DrawCanvas.forceUnfreeze()
+        // After a dropdown the pen layer is off and comes back once the popup has left the panel
+        // (DrawCanvas's isDrawing observer); this would bring it back too soon.
+        if (!fromMenu) DrawCanvas.forceUnfreeze()
     }
 
-    fun handleEraser(setActiveButton: (String?) -> Unit) {
+    fun handleEraser(fromMenu: Boolean, setActiveButton: (String?) -> Unit) {
         // Save and exit any active text box before changing mode
         activeTower.saveAndExitTextBox()
         // Signal toolbar interaction (for collapsing expanded events panel)
@@ -545,7 +547,8 @@ fun SharedToolbar(
         // VISUAL STATE FIX: Unfreeze e-ink display so button highlight renders immediately.
         // Raw drawing freeze blocks View rendering; this bypasses the 2s stylus guard.
         // Safe for drawing tools because they want raw drawing re-enabled (after 50ms).
-        DrawCanvas.forceUnfreeze()
+        // Not after a dropdown: see handleChangePen.
+        if (!fromMenu) DrawCanvas.forceUnfreeze()
     }
 
     fun handleSelection(setActiveButton: (String?) -> Unit) {
@@ -1227,8 +1230,8 @@ fun SharedToolbar(
                         currentPen = activeState.pen,
                         currentColor = currentPenSetting?.color ?: android.graphics.Color.BLACK,
                         currentMode = activeState.mode,
-                        onPenSelect = { pen ->
-                            handleChangePen(pen) { activeButton = it }
+                        onPenSelect = { pen, fromMenu ->
+                            handleChangePen(pen, fromMenu) { activeButton = it }
                         },
                         onActivate = { activeButton = "draw" },  // Highlight button on tap
                         onMenuOpenChange = { activeState.isDrawing = !it },
@@ -1272,9 +1275,9 @@ fun SharedToolbar(
                         currentEraser = activeState.eraser,
                         currentMode = activeState.mode,
                         scribbleToErase = GlobalAppSettings.current.scribbleToEraseEnabled,
-                        onEraserSelect = { eraser ->
+                        onEraserSelect = { eraser, fromMenu ->
                             activeState.eraser = eraser
-                            handleEraser { activeButton = it }
+                            handleEraser(fromMenu) { activeButton = it }
                         },
                         onScribbleToggle = { enabled ->
                             val kvProxy = com.boox.day.data.db.KvProxy(context)

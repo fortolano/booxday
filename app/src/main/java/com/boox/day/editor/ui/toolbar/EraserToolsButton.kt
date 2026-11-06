@@ -54,7 +54,7 @@ fun EraserToolsButton(
     currentEraser: Eraser,
     currentMode: Mode,
     scribbleToErase: Boolean,
-    onEraserSelect: (Eraser) -> Unit,
+    onEraserSelect: (eraser: Eraser, fromMenu: Boolean) -> Unit,
     onScribbleToggle: (Boolean) -> Unit,
     onMenuOpenChange: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -62,10 +62,15 @@ fun EraserToolsButton(
 ) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
+    var pickedEraser by remember { mutableStateOf<Eraser?>(null) }
 
-    if (onMenuOpenChange != null) {
-        LaunchedEffect(showMenu) {
-            onMenuOpenChange(showMenu)
+    // A pick takes effect once the popup has left, or the pen layer came back before it did and the
+    // dropdown stayed on the panel over the canvas (Note Air 6C, Nov 2026).
+    LaunchedEffect(showMenu) {
+        onMenuOpenChange?.invoke(showMenu)
+        if (!showMenu) {
+            pickedEraser?.let { onEraserSelect(it, true) }
+            pickedEraser = null
         }
     }
 
@@ -80,7 +85,7 @@ fun EraserToolsButton(
                     showMenu = !showMenu
                 } else {
                     // Switch back to erase mode with existing eraser type
-                    onEraserSelect(currentEraser)
+                    onEraserSelect(currentEraser, false)
                 }
             },
             hasDropdown = true,
@@ -107,7 +112,7 @@ fun EraserToolsButton(
                         label = "Standard Eraser",
                         selected = currentEraser == Eraser.PEN && currentMode == Mode.Erase,
                         onClick = {
-                            onEraserSelect(Eraser.PEN)
+                            pickedEraser = Eraser.PEN
                             showMenu = false
                         }
                     )
@@ -118,7 +123,7 @@ fun EraserToolsButton(
                         label = "Stroke Eraser",
                         selected = currentEraser == Eraser.SELECT && currentMode == Mode.Erase,
                         onClick = {
-                            onEraserSelect(Eraser.SELECT)
+                            pickedEraser = Eraser.SELECT
                             showMenu = false
                         }
                     )

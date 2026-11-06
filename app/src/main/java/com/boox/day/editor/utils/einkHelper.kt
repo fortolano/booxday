@@ -180,6 +180,12 @@ fun getCurRefreshModeString(): String {
     return (Device.currentDevice().appScopeRefreshMode).toString()
 }
 
+// A dropdown over the canvas has to leave the panel before the pen layer comes back: with the layer
+// on, nothing new reaches the panel there, and the dropdown stayed on screen after it had closed
+// (Note Air 6C, Nov 2026). That takes the same time in every refresh mode; the fast modes used to
+// wait 4 to 20 ms, less than the window's own removal. Tested with the real pen at this length.
+private const val MENU_LEAVES_PANEL_MS = 220L
+
 suspend fun waitForEpdRefresh(updateOption: UpdateOption = Device.currentDevice().appScopeRefreshMode) {
     einkLogger.d("Waiting for screen, Update mode: $updateOption")
 //        Device.currentDevice().waitForUpdateFinished()
@@ -200,19 +206,8 @@ suspend fun waitForEpdRefresh(updateOption: UpdateOption = Device.currentDevice(
             delay(180) // On my device ~150 is the minimal delay
         }
 
-        UpdateOption.FAST -> {
-            //ultra fast, fast, balanced
-            delay(20) // 5ms is problematic sometimes on balanced mode.
-        }
-
-        UpdateOption.FAST_X -> {
-            // no idea what it is
-            delay(4) // Minimal delay
-        }
-
-        UpdateOption.FAST_QUALITY -> {
-            // no idea what it is
-            delay(15)
+        UpdateOption.FAST, UpdateOption.FAST_X, UpdateOption.FAST_QUALITY -> {
+            delay(MENU_LEAVES_PANEL_MS)
         }
 
         else -> {
