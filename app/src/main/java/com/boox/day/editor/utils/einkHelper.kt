@@ -443,6 +443,11 @@ fun resetScreenFreeze(touchHelper: TouchHelper, view: View? = null) {
     touchHelper.isRawDrawingRenderEnabled = true
 }
 
+/** BOOX's soft eraser: width, opacity, black opacity (BOOX Notes' own values). */
+fun sendSoftEraserParameters() {
+    Device.currentDevice().setStrokeParameters(StrokeStyle.SOFT_ERASER, floatArrayOf(ERASER_WIDTH, 0.5f, 0.1f))
+}
+
 // Eraser kind whose trail was last asked for; null until a canvas on the BOOX pen engine asks.
 @Volatile private var eraserTrail: Eraser? = null
 
@@ -462,10 +467,7 @@ fun setEraserTrail(touchHelper: TouchHelper, eraser: Eraser? = eraserTrail) {
             Device.currentDevice().setStrokeParameters(StrokeStyle.DASH, floatArrayOf(5f))
             touchHelper.setEraserRawDrawingEnabled(true, StrokeStyle.DASH)
         } else {
-            // Width, opacity, black opacity
-            Device.currentDevice().setStrokeParameters(
-                StrokeStyle.SOFT_ERASER, floatArrayOf(ERASER_WIDTH, 0.5f, 0.1f)
-            )
+            sendSoftEraserParameters()
             touchHelper.setEraserRawDrawingEnabled(true, StrokeStyle.SOFT_ERASER)
         }
     } catch (e: Exception) {

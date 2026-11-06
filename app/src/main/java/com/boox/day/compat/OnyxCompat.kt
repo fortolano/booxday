@@ -8,6 +8,7 @@ import com.onyx.android.sdk.pen.RawInputCallback
 import com.onyx.android.sdk.pen.TouchHelper
 import com.onyx.android.sdk.rx.RxManager
 import com.onyx.android.sdk.utils.DeviceFeatureUtil
+import com.onyx.android.sdk.utils.OnyxSystemProperties
 import com.onyx.android.sdk.utils.ResManager
 
 object OnyxCompat {
@@ -62,6 +63,20 @@ object OnyxCompat {
     }
 
     fun usesAndroidPenInput(context: Context): Boolean = !DeviceFeatureUtil.hasStylus(context)
+
+    /**
+     * The screen runs on BOOX's hardware display controller (Nov 2026): the firmware's own switch
+     * between its two display paths. True on the Note Air 6C, not set on the Go 6. The pen layer
+     * behaves differently there: see DrawCanvas.showErasedPage.
+     */
+    val hasHardwareDisplayController: Boolean by lazy {
+        try {
+            OnyxSystemProperties.get("vendor.onyx.htcon", "false") == "true"
+        } catch (t: Throwable) {
+            Log.w(TAG, "Could not read the display controller property", t)
+            false
+        }
+    }
 
     /**
      * The pen backend chosen at the last [createTouchHelper], for the crash report (Oct 2026): it is

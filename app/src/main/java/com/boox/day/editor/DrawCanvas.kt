@@ -93,7 +93,9 @@ import com.boox.day.editor.utils.restoreDefaults
 import com.boox.day.editor.utils.selectImage
 import com.boox.day.editor.utils.selectImagesAndStrokes
 import com.boox.day.editor.utils.selectImagesStrokesAndAttachments
+import com.boox.day.editor.utils.sendSoftEraserParameters
 import com.boox.day.editor.utils.setEraserTrail
+import com.boox.day.editor.utils.usesSoftEraserTrail
 import com.boox.day.editor.utils.setupSurface
 import com.boox.day.editor.utils.toPageCoordinates
 import com.boox.day.editor.utils.transformToLine
@@ -108,6 +110,7 @@ import com.boox.day.ui.convertDpToPixel
 import com.boox.day.ui.showHint
 import com.boox.day.utils.logCallStack
 import com.onyx.android.sdk.api.device.epd.EpdController
+import com.onyx.android.sdk.pen.style.StrokeStyle
 import com.onyx.android.sdk.data.note.TouchPoint
 import com.onyx.android.sdk.extension.isNotNull
 import com.onyx.android.sdk.extension.isNull
@@ -1043,6 +1046,8 @@ class DrawCanvas(
 
     private lateinit var touchHelper: TouchHelper
     private var androidPenBackend = false
+    private val softEraserTrail: Boolean
+        get() = usesSoftEraserTrail(OnyxCompat.hasHardwareDisplayController, androidPenBackend)
     private val androidPenInput by lazy {
         AndroidStylusInput(inputCallback, { pressure }) { action, point, normalizedPressure, erasing ->
             // Use the SDK's pressure-aware EPD commands synchronously. Its AppTouchRender
@@ -1196,11 +1201,19 @@ class DrawCanvas(
     }
 
     /**
-     * Shows the page after an erase (Oct 2026, Go 6 tests with the owner).
+     * Shows the page after an erase (Oct 2026, Go 6 tests with the owner; Nov 2026, Note Air 6C).
      *
-     * Pen tip, Standard Eraser: the white trail paints over the erased ink inside the pen layer, so
-     * the page is simply posted like a pen stroke once the pen rests. Any pause of the pen layer
-     * here flashed erased ink.
+     * Pen tip, Standard Eraser, Go tablets: the white trail paints over the erased ink inside the
+     * pen layer, so the page is simply posted like a pen stroke once the pen rests. Any pause of the
+     * pen layer here flashed erased ink.
+     *
+     * Pen tip, Standard Eraser, hardware display controller: the white line fails there. A plain post
+     * waits until the pen layer next leaves handwriting mode (there is no system repaint after
+     * pen-up), and the update then re-drives pixels the trail has already wiped: the erased ink
+     * flashes back at the next tap and leaves a ghost, in every refresh mode (Note Air 6C, firmware
+     * 4.3.1). So the trail is BOOX's soft one, which leaves the ink alone until the page replaces it,
+     * and the page goes through [commitErasedPage] at pen-up, as BOOX Notes does. Owner's real-pen
+     * tests, 6 Nov 2026: clean.
      *
      * Everything else on the BOOX pen engine, where ink is removed away from the pen's own trail
      * (Stroke Eraser loops, the pen's eraser end, Scribble to Erase): [commitErasedPage]. The
@@ -1211,7 +1224,7 @@ class DrawCanvas(
         when {
             androidPenBackend ->
                 refreshUi(erasedArea?.let { Rect(trailArea).apply { union(it) } } ?: trailArea)
-            eraserEnd || getActualState().eraser == Eraser.SELECT ->
+            eraserEnd || getActualState().eraser == Eraser.SELECT || softEraserTrail ->
                 commitErasedPage(erasedArea?.let { Rect(trailArea).apply { union(it) } } ?: trailArea)
             else -> schedulePenRestBlit(PEN_REST_BLIT_DELAY_MS - (SystemClock.uptimeMillis() - penUpMs))
         }
@@ -2423,10 +2436,18 @@ class DrawCanvas(
     private fun setEraserPenStyle() {
         when (state.eraser) {
             // Solid white line (Oct 2026, from the inkit test app): the ink vanishes under the
-            // tip as it is erased, and the strip cut at pen-up is the same width.
-            Eraser.PEN -> touchHelper.setStrokeStyle(penToStroke(Pen.BALLPEN))
-                ?.setStrokeWidth(ERASER_WIDTH)
-                ?.setStrokeColor(Color.WHITE)
+            // tip as it is erased, and the strip cut at pen-up is the same width. BOOX's soft trail
+            // on the hardware display controller, where a white line ghosts: see showErasedPage().
+            Eraser.PEN -> if (softEraserTrail) {
+                sendSoftEraserParameters()
+                touchHelper.setStrokeStyle(StrokeStyle.SOFT_ERASER)
+                    ?.setStrokeWidth(ERASER_WIDTH)
+                    ?.setStrokeColor(Color.BLACK)
+            } else {
+                touchHelper.setStrokeStyle(penToStroke(Pen.BALLPEN))
+                    ?.setStrokeWidth(ERASER_WIDTH)
+                    ?.setStrokeColor(Color.WHITE)
+            }
 
             Eraser.SELECT -> touchHelper.setStrokeStyle(penToStroke(Pen.BALLPEN))
                 ?.setStrokeWidth(3f)

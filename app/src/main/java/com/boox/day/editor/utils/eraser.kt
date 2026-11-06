@@ -20,6 +20,14 @@ enum class Eraser(val _name: String) {
 /** Standard Eraser width in screen pixels: its trail on screen and the strip it cuts are the same. */
 const val ERASER_WIDTH = 30f
 
+/**
+ * Whether the Standard Eraser leaves BOOX's soft trail and finishes at pen-up (owner's choice, Nov 2026:
+ * the hardware display controller only, Go tablets keep the white line). The Android pen backend draws
+ * its own trail. Why: DrawCanvas.showErasedPage.
+ */
+fun usesSoftEraserTrail(hardwareDisplayController: Boolean, androidPen: Boolean): Boolean =
+    hardwareDisplayController && !androidPen
+
 const val SCRIBBLE_TO_ERASE_GRACE_PERIOD_MS = 150L
 const val SCRIBBLE_INTERSECTION_THRESHOLD = 0.20f
 
