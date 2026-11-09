@@ -17,6 +17,7 @@ import com.microsoft.identity.client.PublicClientApplication
 import com.microsoft.identity.client.exception.MsalException
 import com.microsoft.identity.client.exception.MsalUiRequiredException
 import android.util.Log
+import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -215,9 +216,10 @@ class OutlookAuthManager(private val context: Context) {
      * returns failure with MsalUiRequiredException.
      *
      * @param msalAccountId The MSAL account identifier
+     * @param scopes The permissions the token is for: the calendar's, or To Do's for Task Sync
      * @return Result containing the access token string, or failure
      */
-    suspend fun getAccessToken(msalAccountId: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun getAccessToken(msalAccountId: String, scopes: List<String> = SCOPES.toList()): Result<String> = withContext(Dispatchers.IO) {
         val app = msalApp ?: return@withContext Result.failure(
             IllegalStateException("MSAL not initialized")
         )
@@ -230,7 +232,7 @@ class OutlookAuthManager(private val context: Context) {
                 )
 
             // Try to acquire token silently
-            val authResult = acquireTokenSilent(msalAccount)
+            val authResult = acquireTokenSilent(msalAccount, scopes)
             Result.success(authResult.accessToken)
 
         } catch (e: MsalUiRequiredException) {
@@ -248,32 +250,58 @@ class OutlookAuthManager(private val context: Context) {
     /**
      * Acquire token silently for an MSAL account.
      */
-    private suspend fun acquireTokenSilent(account: IAccount): IAuthenticationResult {
+    private suspend fun acquireTokenSilent(account: IAccount, scopes: List<String>): IAuthenticationResult {
         val app = msalApp ?: throw IllegalStateException("MSAL not initialized")
 
         return suspendCancellableCoroutine { continuation ->
             val params = AcquireTokenSilentParameters.Builder()
                 .forAccount(account)
                 .fromAuthority(account.authority)
-                .withScopes(SCOPES.toList())
-                .withCallback(object : AuthenticationCallback {
-                    override fun onSuccess(authenticationResult: IAuthenticationResult) {
-                        continuation.resume(authenticationResult)
-                    }
-
-                    override fun onError(exception: MsalException) {
-                        continuation.resumeWithException(exception)
-                    }
-
-                    override fun onCancel() {
-                        continuation.resumeWithException(
-                            SignInCancelledException("Silent auth cancelled")
-                        )
-                    }
-                })
+                .withScopes(scopes)
+                .withCallback(callbackFor(continuation, "Silent auth cancelled"))
                 .build()
 
             app.acquireTokenSilentAsync(params)
+        }
+    }
+
+    /**
+     * Microsoft's own screen for [scopes] a signed-in account hasn't allowed yet (To Do for Task Sync,
+     * Nov 2026): the account stays signed in for the calendar whatever the user chooses.
+     *
+     * @return the access token for [scopes], or the failure (SignInCancelledException, AccountNotFoundException, MsalException)
+     */
+    suspend fun acquireTokenInteractive(activity: Activity, msalAccountId: String, scopes: List<String>): Result<String> {
+        val app = msalApp ?: return Result.failure(IllegalStateException("MSAL not initialized"))
+        val account = withContext(Dispatchers.IO) { app.accounts.find { it.id == msalAccountId } }
+            ?: return Result.failure(AccountNotFoundException("Account not found: $msalAccountId"))
+        return withContext(Dispatchers.Main) {
+            runCatching {
+                suspendCancellableCoroutine<IAuthenticationResult> { continuation ->
+                    val params = AcquireTokenParameters.Builder()
+                        .startAuthorizationFromActivity(activity)
+                        .forAccount(account)
+                        .fromAuthority(account.authority)
+                        .withScopes(scopes)
+                        .withCallback(callbackFor(continuation, "Consent cancelled by user"))
+                        .build()
+                    app.acquireToken(params)
+                }.accessToken
+            }
+        }
+    }
+
+    private fun callbackFor(continuation: CancellableContinuation<IAuthenticationResult>, cancelled: String) = object : AuthenticationCallback {
+        override fun onSuccess(authenticationResult: IAuthenticationResult) {
+            continuation.resume(authenticationResult)
+        }
+
+        override fun onError(exception: MsalException) {
+            continuation.resumeWithException(exception)
+        }
+
+        override fun onCancel() {
+            continuation.resumeWithException(SignInCancelledException(cancelled))
         }
     }
 

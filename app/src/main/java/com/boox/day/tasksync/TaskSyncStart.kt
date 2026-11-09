@@ -29,7 +29,7 @@ internal object TaskSyncStart {
         return try {
             val service = withContext(Dispatchers.IO) { target.service(context) }
             // A server without task lists: nothing to sync with yet (picture E, owner decision 68)
-            if (!target.isGoogle && withContext(Dispatchers.IO) { service.lists() }.isEmpty()) {
+            if (target.isCalDav && withContext(Dispatchers.IO) { service.lists() }.isEmpty()) {
                 "$name has no task lists. Make one there first, then turn Task Sync on again."
             } else {
                 if (TaskSync.isOn(context) && TaskSync.target(context)?.key != target.key) TaskSync.turnOff(context)
@@ -42,7 +42,8 @@ internal object TaskSyncStart {
         } catch (e: TaskSyncServiceException.Offline) {
             "No connection to $name. Try again when the tablet is online."
         } catch (e: TaskSyncServiceException.SignInNeeded) {
-            "$name refused the password. Sign in again in Settings → Calendar Accounts."
+            if (target.isCalDav) "$name refused the password. Sign in again in Settings → Calendar Accounts."
+            else "$name needs you to sign in again (Settings → Preferences → Task Sync)."
         } catch (e: TaskSyncServiceException) {
             "$name didn't answer as expected. Try again in a moment."
         } catch (e: Exception) {

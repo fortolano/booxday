@@ -112,7 +112,7 @@ From `CLAUDE.md` and the owner's brief. The full text wins.
 - **Translating the app** (owner, 4 Nov 2026). Note for later: about 2,000 pieces of text sit in the code, and only 8 of 588 Kotlin files use string resources. New code in this plan should not make that worse, but needn't solve it.
 - **Landscape.** The app is portrait only (`AndroidManifest.xml`: both activities). The brief says "where supported", so no landscape work and no landscape tests.
 - **Plan my week, Ask BooxDay, meeting audio recording.** Proposed earlier, not in the owner's list.
-- **Microsoft To Do** (owner: later).
+- **Microsoft To Do** (owner: later). Built apart from this plan in Nov 2026: a third Task Sync service, for an Outlook account from Calendar Accounts (`tasksync/microsoft`).
 - **PowerPoint and Word export, and direct links to services such as Notion or OneNote** (owner, 4 Nov 2026). Share, Save and Markdown reach those apps with no accounts. AI stays out of normal export.
 - **Clean-ups for their own sake:** dead Layout B code, Book export, XOPP, `autoExport`. Leave them unless a task needs them.
 

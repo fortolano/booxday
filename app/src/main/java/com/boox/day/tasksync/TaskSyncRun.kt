@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.db.AppDatabase
-import com.boox.day.data.model.ProviderId
 import com.boox.day.editor.DrawCanvas
 import com.boox.day.ocr.TaskTextExtractor
 import com.boox.day.sync.SingleFlight
@@ -83,8 +82,8 @@ internal object TaskSyncRun {
         } catch (e: TaskSyncServiceException.Offline) {
             "No connection to ${target.shortName}. $stays"
         } catch (e: TaskSyncServiceException.SignInNeeded) {
-            if (target.isGoogle) "Task Sync needs you to sign in again (Settings → Preferences → Task Sync). $stays"
-            else "${target.shortName} refused the password. Sign in again in Settings → Calendar Accounts. $stays"
+            if (target.isCalDav) "${target.shortName} refused the password. Sign in again in Settings → Calendar Accounts. $stays"
+            else "Task Sync needs you to sign in again (Settings → Preferences → Task Sync). $stays"
         } catch (e: TaskSyncServiceException.Busy) {
             "${target.shortName} is busy. Try again in a moment. $stays"
         } catch (e: Exception) {
@@ -114,8 +113,7 @@ internal object TaskSyncRun {
         val db = AppDatabase.getDatabase(app)
         // The account was removed in Calendar Accounts: sync stops and asks for the user (plan 2.1).
         // Android may still hold a Google account, so Google would go on answering without this check.
-        val accountKey = if (target.isGoogle) ProviderId.GOOGLE.key else ProviderId.CALDAV.key
-        val accountGone = db.connectedAccountDao().getByEmail(accountKey, server, email) == null
+        val accountGone = db.connectedAccountDao().getByEmail(target.accountProvider.key, server, email) == null
         TaskSync.recordAccountGone(app, accountGone)
         if (accountGone) return TaskSync.recordRun(app, Result.NEEDS_RECONNECT)
         val provider = target.provider
