@@ -3093,6 +3093,8 @@ fun MainScreen(
                         tabManager = tabManager,
                         currentTab = currentEditorTab,
                         memosPageId = currentPageId!!,
+                        // A flip to another memo page: every canvas rebuild (full screen) opens that page
+                        onMemosPageChange = { currentPageId = it },
                         tasksPageId = currentTaskPageId!!,
                         tasks = currentTasks,
                         taskPageInfo = currentTaskPageInfo,
@@ -5970,6 +5972,7 @@ private fun PersistentCanvasHost(
     tabManager: EditorTabManager,
     currentTab: EditorTab,
     memosPageId: String,
+    onMemosPageChange: (String) -> Unit,
     tasksPageId: String,
     tasks: List<Task>,
     taskPageInfo: TaskPageInfo?,
@@ -6141,7 +6144,7 @@ private fun PersistentCanvasHost(
                     pageId = memosPageId,
                     pageView = page,
                     appRepository = appRepository,
-                    onPageChange = { }
+                    onPageChange = onMemosPageChange
                 ).apply {
                     refreshDayPageInfo()
                     hasInternalToolbar = false
