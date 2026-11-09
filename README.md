@@ -14,7 +14,7 @@ BooxDay is free and open source under the [GNU General Public License v3.0](LICE
 - Handwritten Memos pages for each day, with text boxes, images and linked files
 - Handwritten Tasks pages: ten rows a page, checkboxes, priorities, due dates, reminders, repeating tasks and subtasks
 - Google Calendar, Outlook and CalDAV calendar sync (iCloud, Fastmail, Nextcloud and other servers), or a calendar kept only on the tablet
-- Task Sync with Google Tasks or a CalDAV server (Nextcloud, Fastmail and others), off until you turn it on
+- Task Sync with Google Tasks, Microsoft To Do or a CalDAV server (Nextcloud, Fastmail and others), off until you turn it on
 - BOOX Notes integration: see your BOOX notes on the days they were written and link them to events
 - Search across memos, tasks and notes
 - Export a page, a day or a week as a PDF, pictures or Markdown for Obsidian, or share it to another app
@@ -75,7 +75,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Release builds are signed with a key you provide, either through the environment variables `STORE_FILE`, `STORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`, or through a `keystore.properties` file in the project root (it is ignored by git).
 
-Calendar sync needs your own OAuth setup if you build and sign the app yourself: a Google Cloud OAuth client for Android (package `com.boox.day` and your signing certificate's SHA-1) with the Google Calendar and Google Tasks APIs enabled, and for Outlook an Azure app registration, whose client ID and redirect URI go in `app/src/main/res/raw/auth_config.json`.
+Calendar sync needs your own OAuth setup if you build and sign the app yourself: a Google Cloud OAuth client for Android (package `com.boox.day` and your signing certificate's SHA-1) with the Google Calendar and Google Tasks APIs enabled, and for Outlook an Azure app registration, whose client ID and redirect URI go in `app/src/main/res/raw/auth_config.json` (Task Sync with Microsoft To Do asks that account for the `Tasks.ReadWrite` permission when it is turned on).
 
 ## Support
 
@@ -91,7 +91,7 @@ It's never required, and it doesn't buy support or features: BooxDay stays free 
 
 ## Privacy
 
-Your memos, tasks and calendar are stored on the tablet. BooxDay has no server and sends nothing to its developer. It goes online to download Google's on-device handwriting model and for the features you turn on: calendar sync (Google, Microsoft or the calendar server you add), Task Sync (Google Tasks or your CalDAV server), backup to your own Google Drive, and AI features (OpenRouter, with your own key).
+Your memos, tasks and calendar are stored on the tablet. BooxDay has no server and sends nothing to its developer. It goes online to download Google's on-device handwriting model and for the features you turn on: calendar sync (Google, Microsoft or the calendar server you add), Task Sync (Google Tasks, Microsoft To Do or your CalDAV server), backup to your own Google Drive, and AI features (OpenRouter, with your own key).
 
 ## Credits
 

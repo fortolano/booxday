@@ -23,6 +23,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 object TaskSyncProvider {
     const val GOOGLE_TASKS = "GOOGLE_TASKS"
     const val CALDAV = "CALDAV"
+    const val MICROSOFT_TODO = "MICROSOFT_TODO"
 }
 
 object TaskSyncOp {

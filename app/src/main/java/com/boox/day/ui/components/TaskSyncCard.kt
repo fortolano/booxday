@@ -68,19 +68,26 @@ internal data class TaskSyncCardState(
 
 internal data class TaskSyncCardList(val id: String, val title: String, val ticked: Boolean)
 
-/** A service tasks can sync with: a Google account, or a CalDAV account from Calendar Accounts. */
+/** A service tasks can sync with: a Google or Outlook account, or a CalDAV account from Calendar Accounts. */
 internal data class TaskSyncChoice(
-    /** "google:<email>" or "caldav:<account id>". */
+    /** "google:<email>", "microsoft:<account id>" or "caldav:<account id>". */
     val key: String,
-    /** "Google Tasks", "Nextcloud", "Fastmail", or the server for Other ("dav.example.com"). */
+    /** "Google Tasks", "Microsoft To Do", "Nextcloud", "Fastmail", or the server for Other ("dav.example.com"). */
     val service: String,
     /** The account's address or sign-in name. */
     val account: String,
-    val isGoogle: Boolean
+    val isGoogle: Boolean,
+    val isMicrosoft: Boolean = false
 ) {
-    /** In sentences: "Google", "Nextcloud", the server. */
-    val shortName: String get() = if (isGoogle) "Google" else service
+    /** In sentences: "Google", "Microsoft", "Nextcloud", the server. */
+    val shortName: String get() = when {
+        isGoogle -> "Google"
+        isMicrosoft -> "Microsoft"
+        else -> service
+    }
     val label: String get() = "$service · $account"
+    /** Signed in again from the card (Google's and Microsoft's own screens); a CalDAV password in Calendar Accounts. */
+    val reconnectsHere: Boolean get() = isGoogle || isMicrosoft
 }
 
 internal class TaskSyncCardActions(
@@ -147,8 +154,8 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
                         "The account Task Sync uses (${chosen?.label.orEmpty()}) isn't connected any more. " +
                             "Connect it again in Calendar Accounts, or turn Task Sync off to choose another."
                     ) {}
-                } else if (state.needsReconnect && chosen?.isGoogle != false) {
-                    Attention("Google needs you to sign in again before tasks can sync.") {
+                } else if (state.needsReconnect && chosen?.reconnectsHere != false) {
+                    Attention("${chosen?.shortName ?: "Google"} needs you to sign in again before tasks can sync.") {
                         ActionButton(text = "Reconnect", onClick = actions.reconnect)
                     }
                 } else if (state.needsReconnect) {
@@ -160,7 +167,7 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
                         "${state.deletesWaiting} tasks you cleared on the tablet would be deleted in ${chosen?.service ?: name}. " +
                             "Sync waits until you choose."
                     ) {
-                        val where = if (chosen?.isGoogle != false) "in Google" else "on Server"
+                        val where = if (chosen?.reconnectsHere != false) "in ${chosen?.shortName ?: "Google"}" else "on Server"
                         Row(horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)) {
                             EinkSecondaryButton(text = "Keep $where", onClick = actions.keepInService, width = 180.dp)
                             ActionButton(text = "Delete $where", onClick = actions.deleteInService, modifier = Modifier.width(180.dp))
@@ -176,8 +183,11 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
         Section("Synced with") {
             Text(chosen?.label.orEmpty(), fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.primary)
             Note(
-                if (chosen?.isGoogle != false) "Words, ticked, due date and subtasks."
-                else "Words, ticked, due date, reminder, priority and subtasks."
+                when {
+                    chosen?.isMicrosoft == true -> "Words, ticked and due date. A subtask is a task of its own in To Do."
+                    chosen?.isGoogle != false -> "Words, ticked, due date and subtasks."
+                    else -> "Words, ticked, due date, reminder, priority and subtasks."
+                }
             )
         }
 

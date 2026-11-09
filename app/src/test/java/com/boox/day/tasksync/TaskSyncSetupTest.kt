@@ -16,6 +16,9 @@ import com.boox.day.data.db.TaskSyncOp
 import com.boox.day.data.db.TaskSyncOutboxEntry
 import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.data.getDbDir
+import com.boox.day.data.model.AccountType
+import com.boox.day.data.model.ConnectedAccount
+import com.boox.day.data.model.ProviderId
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -57,6 +60,19 @@ class TaskSyncSetupTest {
         repo.invalidateTaskCache()
         AppDatabase.closeDatabase()
         deleteDatabaseFiles()
+    }
+
+    @Test
+    fun aMicrosoftAccountChosenWhileOffIsReadBackAsIs() {
+        val account = ConnectedAccount(id = "acc-1", providerId = ProviderId.OUTLOOK, accountType = AccountType.OUTLOOK_PERSONAL, email = "me@outlook.com")
+        val target = TaskSyncTarget.microsoft(account)
+
+        TaskSync.choose(context, target)
+
+        assertEquals(target, TaskSync.target(context))
+        assertEquals("microsoft:acc-1", target.key)
+        assertEquals(ProviderId.OUTLOOK, target.accountProvider)
+        assertTrue(target.isMicrosoft && !target.isGoogle && !target.isCalDav)
     }
 
     @Test

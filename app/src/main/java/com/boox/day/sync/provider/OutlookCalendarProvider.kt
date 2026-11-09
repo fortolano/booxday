@@ -76,6 +76,10 @@ class OutlookCalendarProvider(
         // SharedPreferences key prefix for storing MSAL account ID mapping
         private const val PREFS_NAME = "outlook_accounts"
         private const val KEY_MSAL_ID_PREFIX = "msal_id_"
+
+        /** The MSAL account behind the Calendar Accounts row [accountId], or null when it was never saved (Task Sync's To Do uses it too). */
+        fun msalAccountId(context: Context, accountId: String): String? =
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_MSAL_ID_PREFIX + accountId, null)
     }
 
     override val providerId: ProviderId = ProviderId.OUTLOOK
@@ -560,10 +564,7 @@ class OutlookCalendarProvider(
     /**
      * Get the MSAL account ID for our internal account ID.
      */
-    private fun getMsalAccountId(accountId: String): String? {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_MSAL_ID_PREFIX + accountId, null)
-    }
+    private fun getMsalAccountId(accountId: String): String? = msalAccountId(context, accountId)
 
     /**
      * Save the MSAL account ID mapping.
