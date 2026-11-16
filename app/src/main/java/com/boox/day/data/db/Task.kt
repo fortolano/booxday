@@ -3008,14 +3008,18 @@ class TaskRepository(internal val context: Context) {
         val isSameDateMove = targetDate == sourceDate
 
         // Get or create target page
-        val (targetTasks, _) = getOrCreateTasksForPage(targetDate, targetPageIndex)
+        val (cachedTargetTasks, _) = getOrCreateTasksForPage(targetDate, targetPageIndex)
 
         // Get target page ID from the target tasks
-        val targetPageId = targetTasks.firstOrNull()?.pageId
+        val targetPageId = cachedTargetTasks.firstOrNull()?.pageId
             ?: return MoveTaskResult(
                 success = false,
                 errorReason = MoveTaskError.DATABASE_ERROR
             )
+        // The rows come from the database: the cached list is dropped only after a move commits, so
+        // a move starting right then (Move all to today runs them side by side) saw the row the
+        // last one filled as free and put its task on top (Nov 2026).
+        val targetTasks = taskDao.getTasksForPageId(targetPageId).sortedBy { it.rowIndex }
 
         // Find rows that have content - MUST check BOTH metadata AND strokes
         // A child task slot (parentTaskId != null) is also considered "used"
@@ -3033,13 +3037,7 @@ class TaskRepository(internal val context: Context) {
 
         // Load target page strokes and check which rows have content
         val strokeRepo = StrokeRepository(context)
-        val targetPageStrokes = PageDataManager.getStrokesInRectangle(
-            Rect(0, 0, Int.MAX_VALUE, Int.MAX_VALUE),
-            targetPageId
-        ) ?: run {
-            Log.i(TAG, "TARGET_PAGE_STROKES: Page $targetPageId not in memory, querying database")
-            strokeRepo.getAllForPage(targetPageId)
-        }
+        val targetPageStrokes = strokesOnTargetPage(targetPageId, strokeRepo)
 
         // Calculate which rows have strokes
         val strokeUsedRows = mutableSetOf<Int>()
@@ -3490,7 +3488,7 @@ class TaskRepository(internal val context: Context) {
                     var targetPageId = targetTasks.firstOrNull()?.pageId ?: continue
 
                     // Calculate used rows on target (content-based) + already allocated rows
-                    var usedRows = calculateUsedRowsForPage(targetTasks, targetPageId, canvasHeight, strokeRepository)
+                    var usedRows = calculateUsedRowsForPage(targetPageId, canvasHeight, strokeRepository)
                     val allocatedRows = allocatedRowsByPage.getOrPut(currentTargetPageIndex) { mutableSetOf() }
                     var combinedUsedRows = usedRows + allocatedRows
 
@@ -3503,7 +3501,7 @@ class TaskRepository(internal val context: Context) {
                         val pageResult = getOrCreateTasksForPage(targetDate, currentTargetPageIndex)
                         targetTasks = pageResult.first
                         targetPageId = targetTasks.firstOrNull()?.pageId ?: break
-                        usedRows = calculateUsedRowsForPage(targetTasks, targetPageId, canvasHeight, strokeRepository)
+                        usedRows = calculateUsedRowsForPage(targetPageId, canvasHeight, strokeRepository)
                         val nextAllocatedRows = allocatedRowsByPage.getOrPut(currentTargetPageIndex) { mutableSetOf() }
                         combinedUsedRows = usedRows + nextAllocatedRows
                         startRow = findContiguousSlots(groupInfo.totalSlots, combinedUsedRows)
@@ -3616,15 +3614,14 @@ class TaskRepository(internal val context: Context) {
      * A child task (parentTaskId != null) is considered "used".
      */
     private fun calculateUsedRowsForPage(
-        tasks: List<Task>,
         pageId: String,
         canvasHeight: Float,
         strokeRepository: StrokeRepository
     ): Set<Int> {
-        val strokes = PageDataManager.getStrokesInRectangle(
-            Rect(0, 0, Int.MAX_VALUE, Int.MAX_VALUE),
-            pageId
-        ) ?: strokeRepository.getAllForPage(pageId)
+        // From the database, not the caller's cached list: a day with several pages moves them one
+        // after another onto the same target page, and each must see what the last one put there
+        val tasks = taskDao.getTasksForPageId(pageId)
+        val strokes = strokesOnTargetPage(pageId, strokeRepository)
 
         val usedRows = mutableSetOf<Int>()
         for (rowIdx in 0 until 10) {
@@ -3645,6 +3642,17 @@ class TaskRepository(internal val context: Context) {
             }
         }
         return usedRows
+    }
+
+    /**
+     * Ink on a page a move is about to put tasks on. The database has what a move committed a moment
+     * ago (the stroke cache follows only after the commit); the cache has ink not saved yet.
+     */
+    private fun strokesOnTargetPage(pageId: String, strokeRepository: StrokeRepository): List<Stroke> {
+        val saved = strokeRepository.getAllForPage(pageId)
+        val cached = PageDataManager.getStrokesInRectangle(Rect(0, 0, Int.MAX_VALUE, Int.MAX_VALUE), pageId)
+            ?: return saved
+        return (saved + cached).distinctBy { it.id }
     }
 
     /** Queues search re-indexing of every task page of [date] (plan T19). */
@@ -3848,7 +3856,7 @@ class TaskRepository(internal val context: Context) {
         val (targetTasks, _) = getOrCreateTasksForPage(targetDate, targetPageIndex)
         val targetPageId = targetTasks.firstOrNull()?.pageId ?: return Result.success(0)
 
-        val baseUsedRows = calculateUsedRowsForPage(targetTasks, targetPageId, canvasHeight, strokeRepository)
+        val baseUsedRows = calculateUsedRowsForPage(targetPageId, canvasHeight, strokeRepository)
         val allocatedRows = mutableSetOf<Int>()  // Track allocated rows to prevent overwrites
         var movedCount = 0
         var strokesMigrated = false  // Track for recognition trigger
@@ -4350,7 +4358,7 @@ class TaskRepository(internal val context: Context) {
                 var targetPageId = targetTasks.firstOrNull()?.pageId ?: continue
 
                 // Calculate used rows on target (content-based) + already allocated rows
-                var usedRows = calculateUsedRowsForPage(targetTasks, targetPageId, canvasHeight, strokeRepository)
+                var usedRows = calculateUsedRowsForPage(targetPageId, canvasHeight, strokeRepository)
                 val allocatedRows = allocatedRowsByPage.getOrPut(currentTargetPageIndex) { mutableSetOf() }
                 var combinedUsedRows = usedRows + allocatedRows
 
@@ -4363,7 +4371,7 @@ class TaskRepository(internal val context: Context) {
                     val pageResult = getOrCreateTasksForPage(targetDate, currentTargetPageIndex)
                     targetTasks = pageResult.first
                     targetPageId = targetTasks.firstOrNull()?.pageId ?: break
-                    usedRows = calculateUsedRowsForPage(targetTasks, targetPageId, canvasHeight, strokeRepository)
+                    usedRows = calculateUsedRowsForPage(targetPageId, canvasHeight, strokeRepository)
                     val nextAllocatedRows = allocatedRowsByPage.getOrPut(currentTargetPageIndex) { mutableSetOf() }
                     combinedUsedRows = usedRows + nextAllocatedRows
                     startRow = findContiguousSlots(groupInfo.totalSlots, combinedUsedRows)
@@ -4651,7 +4659,7 @@ class TaskRepository(internal val context: Context) {
         val (targetTasks, _) = getOrCreateTasksForPage(targetDate, targetPageIndex)
         val targetPageId = targetTasks.firstOrNull()?.pageId ?: return Result.success(CopyTasksResult(0))
 
-        val baseUsedRows = calculateUsedRowsForPage(targetTasks, targetPageId, canvasHeight, strokeRepository)
+        val baseUsedRows = calculateUsedRowsForPage(targetPageId, canvasHeight, strokeRepository)
         val allocatedRows = mutableSetOf<Int>()  // Track allocated rows to prevent overwrites
         var copiedCount = 0
         var dueDatesPreserved = 0
@@ -4837,7 +4845,7 @@ class TaskRepository(internal val context: Context) {
                 if (pageId == null) break
 
                 targetPageId = pageId
-                val usedRows = calculateUsedRowsForPage(targetTasks, targetPageId, canvasHeight, strokeRepository)
+                val usedRows = calculateUsedRowsForPage(targetPageId, canvasHeight, strokeRepository)
                 val slot = findContiguousSlots(groupSize, usedRows)
 
                 if (slot != null) {

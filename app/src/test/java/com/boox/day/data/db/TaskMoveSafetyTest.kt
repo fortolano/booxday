@@ -145,6 +145,49 @@ class TaskMoveSafetyTest {
         assertEquals("Buy milk", tasks.getById(movedTo.id)?.typedText)
     }
 
+    /**
+     * Move all to today (start-the-day review) runs one move per task side by side. A move that began
+     * before the last one's caches were refreshed took the same row, and the tasks lay on each other.
+     */
+    @Test
+    fun movesRunSideBySideNeverShareARow() {
+        val (source, _) = repo.getOrCreateTasksForPage(SOURCE, 0)
+        val names = (0 until 8).map { "Task $it" }
+        names.forEachIndexed { row, name -> repo.setTypedText(source[row].id, name) }
+        repo.getOrCreateTasksForPage(TARGET, 0)  // today's page is on screen, so it is cached
+        val toMove = names.indices.map { tasks.getById(source[it].id)!! }
+
+        val start = java.util.concurrent.CountDownLatch(1)
+        val threads = toMove.map { task ->
+            Thread {
+                start.await()
+                repo.moveTaskWithStrokes(task, TARGET, 0, CANVAS_HEIGHT, context)
+            }.apply { start() }
+        }
+        start.countDown()
+        threads.forEach { it.join() }
+
+        assertEquals(names, tasks.getTasksForDay(TARGET).mapNotNull { it.typedText }.sorted())
+    }
+
+    /** A day with two pages moved to a day: the second page's tasks went onto the first page's. */
+    @Test
+    fun aDayWithTwoPagesMovesWithoutSharingARow() {
+        val (page0, _) = repo.getOrCreateTasksForPage(SOURCE, 0)
+        val (page1, _) = repo.getOrCreateTasksForPage(SOURCE, 1)
+        (0 until 3).forEach { repo.setTypedText(page0[it].id, "First $it") }
+        (0 until 3).forEach { repo.setTypedText(page1[it].id, "Second $it") }
+        repo.invalidateTaskCache()
+
+        val result = repo.moveAllTasksForDate(SOURCE, TARGET, CANVAS_HEIGHT)
+
+        assertEquals(6, result.getOrNull())
+        assertEquals(
+            (0 until 3).map { "First $it" } + (0 until 3).map { "Second $it" },
+            tasks.getTasksForDay(TARGET).mapNotNull { it.typedText }.sorted()
+        )
+    }
+
     private fun deleteDatabaseFiles() {
         val file = File(getDbDir(context), APP_DATABASE_FILE_NAME)
         listOf("", "-wal", "-shm", "-journal").forEach { File(file.path + it).delete() }
