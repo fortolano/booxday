@@ -35,10 +35,16 @@ object EventReminderChain {
     private const val KEY_WAKE_AT = "wake_at"
     private const val KEY_HANDLED_UNTIL = "handled_until"
     private const val KEY_OLD_JOBS_RETIRED = "old_jobs_retired"
+    /** The earliest time wakeBy was asked for while a run was in progress or due */
+    private const val KEY_ASKED = "asked_meanwhile"
     private const val MINUTE_MS = 60_000L
     /** A reminder is still shown this long after the event started. */
     private const val GRACE_MS = 5 * MINUTE_MS
     private const val LOOK_AHEAD_MS = 30L * 24 * 60 * MINUTE_MS
+    private const val LOST_AFTER_MS = 15 * MINUTE_MS
+
+    /** A run is in progress in this process */
+    @Volatile private var running = false
 
     data class Reminder(val eventId: String, val title: String, val dayId: String, val startMs: Long)
 
@@ -56,13 +62,33 @@ object EventReminderChain {
     /** When the queued job runs, or null when none is queued. */
     fun wakeAt(context: Context): Long? = prefs(context).getLong(KEY_WAKE_AT, 0L).takeIf { it > 0L }
 
-    /** Makes sure the job runs no later than [triggerMs]. A job already queued for earlier stays. */
+    /**
+     * Makes sure the job runs no later than [triggerMs]. A job already queued for earlier stays.
+     *
+     * While a run is in progress or due, the time is only noted ([KEY_ASKED]) and the run queues the
+     * earliest of everything when it ends. Queueing here would replace, and so cancel, that run, and
+     * the job then woke at whatever was asked last: 8 Dec instead of the next morning, when the
+     * app's start planned a month of reminders during the first run (Note Mini C, 19 Nov 2026).
+     */
     @Synchronized
     fun wakeBy(context: Context, triggerMs: Long, now: Long = System.currentTimeMillis()) {
         val app = context.applicationContext
         val prefs = prefs(app)
         val queued = wakeAt(app)
         if (queued != null && queued > now && queued <= triggerMs) return
+        if (running || (queued != null && queued <= now)) {
+            val asked = prefs.getLong(KEY_ASKED, Long.MAX_VALUE)
+            if (triggerMs < asked) prefs.edit().putLong(KEY_ASKED, triggerMs).apply()
+            // A job due this long ago and still not run is taken as lost: run one now
+            if (!running && queued != null && now - queued > LOST_AFTER_MS) queue(app, now, now)
+            return
+        }
+        queue(app, triggerMs, now)
+    }
+
+    /** Queues the job for [triggerMs], in place of the one queued before. */
+    private fun queue(app: Context, triggerMs: Long, now: Long) {
+        val prefs = prefs(app)
         val request = OneTimeWorkRequestBuilder<EventReminderWorker>()
             .setInitialDelay((triggerMs - now).coerceAtLeast(0L), TimeUnit.MILLISECONDS)
             .build()
@@ -78,26 +104,42 @@ object EventReminderChain {
      */
     suspend fun run(context: Context, now: Long = System.currentTimeMillis()) {
         val app = context.applicationContext
-        prefs(app).edit().remove(KEY_WAKE_AT).apply()  // the queued job is this run
-        // The saved settings: GlobalAppSettings holds defaults in a process started for this job
-        val settings = runCatching { KvProxy(app).get(APP_SETTINGS_KEY, AppSettings.serializer()) }.getOrNull()
-        if (settings?.eventNotificationsEnabled != true || !EventNotificationScheduler(app).usesQueuedJob()) {
-            prefs(app).edit().remove(KEY_HANDLED_UNTIL).apply()
-            return
-        }
-
-        val minutes = settings.defaultEventReminderMinutes
-        val reminders = load(app, now, minutes)
-        val handledUntil = prefs(app).getLong(KEY_HANDLED_UNTIL, now)
-        if (NotificationPermissionHelper.hasNotificationPermission(app)) {
-            val helper = NotificationHelper(app)
-            due(reminders, minutes, handledUntil, now).forEach {
-                helper.showEventReminderNotification(it.eventId, it.title, it.dayId, minutes)
+        running = true  // from here wakeBy only notes what it is asked; a failed run leaves the job due
+        try {
+            // The saved settings: GlobalAppSettings holds defaults in a process started for this job
+            val settings = runCatching { KvProxy(app).get(APP_SETTINGS_KEY, AppSettings.serializer()) }.getOrNull()
+            if (settings?.eventNotificationsEnabled != true || !EventNotificationScheduler(app).usesQueuedJob()) {
+                finish(app, now, next = null, chainEnds = true)
+                return
             }
+
+            val minutes = settings.defaultEventReminderMinutes
+            val reminders = load(app, now, minutes)
+            val handledUntil = prefs(app).getLong(KEY_HANDLED_UNTIL, now)
+            if (NotificationPermissionHelper.hasNotificationPermission(app)) {
+                val helper = NotificationHelper(app)
+                due(reminders, minutes, handledUntil, now).forEach {
+                    helper.showEventReminderNotification(it.eventId, it.title, it.dayId, minutes)
+                }
+            }
+            prefs(app).edit().putLong(KEY_HANDLED_UNTIL, now).apply()
+            // Last: queueing the next job replaces, and so cancels, the one this may be running in
+            finish(app, now, next = nextWake(reminders, minutes, now), chainEnds = false)
+        } finally {
+            running = false
         }
-        prefs(app).edit().putLong(KEY_HANDLED_UNTIL, now).apply()
-        // Last: queueing the next job replaces, and so cancels, the one this may be running in
-        nextWake(reminders, minutes, now)?.let { wakeBy(app, it, now) }
+    }
+
+    /** The end of a run: the job is queued for the earliest of [next] and what wakeBy was asked meanwhile. */
+    @Synchronized
+    private fun finish(app: Context, now: Long, next: Long?, chainEnds: Boolean) {
+        val prefs = prefs(app)
+        val asked = prefs.getLong(KEY_ASKED, 0L).takeIf { it > now }
+        val edit = prefs.edit().remove(KEY_WAKE_AT).remove(KEY_ASKED)
+        if (chainEnds) edit.remove(KEY_HANDLED_UNTIL)
+        edit.apply()
+        running = false
+        listOfNotNull(next, asked).minOrNull()?.let { queue(app, it, now) }
     }
 
     /** Events that start from a little before [now] to a month ahead, from both tables. */
@@ -114,7 +156,7 @@ object EventReminderChain {
     fun stop(context: Context) {
         val app = context.applicationContext
         WorkManager.getInstance(app).cancelUniqueWork(WORK_NAME)
-        prefs(app).edit().remove(KEY_WAKE_AT).remove(KEY_HANDLED_UNTIL).apply()
+        prefs(app).edit().remove(KEY_WAKE_AT).remove(KEY_HANDLED_UNTIL).remove(KEY_ASKED).apply()
     }
 
     /** Cancels the jobs versions up to 1.0.64 queued, one per event. */

@@ -134,6 +134,34 @@ class EventReminderChainTest {
         assertEquals("not shown twice", listOf("Standup"), shownTitles())
     }
 
+    /**
+     * The app's start plans a month of reminders while the chain's first run is due or in progress.
+     * Each used to replace that run, and the job woke at whatever was asked last (Note Mini C,
+     * 19 Nov 2026: 8 Dec instead of the next morning).
+     */
+    @Test
+    fun `reminders asked for while a run is due do not push the wake later`(): Unit = runBlocking(Dispatchers.IO) {
+        val realNow = System.currentTimeMillis()
+        KvProxy(context).setKv(
+            APP_SETTINGS_KEY,
+            AppSettings(version = 1).copy(eventNotificationsEnabled = true, defaultEventReminderMinutes = 15),
+            AppSettings.serializer()
+        )
+        AppDatabase.getDatabase(context).calendarEventDao().upsertAll(listOf(event("review", "Review", realNow + 26 * HOUR)))
+        // A run is due (written straight to the chain's file, so no job starts by itself here)
+        context.getSharedPreferences("event_reminder_chain", Context.MODE_PRIVATE).edit()
+            .putLong("wake_at", realNow - MINUTE).putLong("handled_until", realNow - MINUTE).commit()
+
+        EventReminderChain.wakeBy(context, realNow + 400 * HOUR, realNow)  // a late event, asked for first
+        EventReminderChain.wakeBy(context, realNow + 3 * HOUR, realNow)  // an event not saved yet
+        assertEquals("the due run stays", realNow - MINUTE, EventReminderChain.wakeAt(context))
+
+        EventReminderChain.run(context, realNow)
+
+        assertEquals(realNow + 3 * HOUR, EventReminderChain.wakeAt(context))
+        assertEquals(1, waitingJobs().size)
+    }
+
     @Test
     fun `jobs queued one per event by older versions are cancelled`() {
         val workManager = WorkManager.getInstance(context)
