@@ -5,7 +5,10 @@ Usage (the tag must already be pushed):
     python tools/publish-github-release.py v1.0.32 "BooxDay 1.0.32" ../booxday-release/booxday-1.0.32.apk notes.md
 
 Re-running reuses the draft for the tag and replaces a half-uploaded APK; it refuses to touch a
-release that is already published. Needs no gh CLI (not installed on this PC)."""
+release that is already published. Needs no gh CLI (not installed on this PC).
+
+A fifth argument "prerelease" publishes a pre-release that is not Latest (a test or report build):
+installed apps and the website read releases/latest, so they never offer it."""
 import json
 import os
 import subprocess
@@ -16,6 +19,7 @@ import urllib.request
 REPO = "fortolano/booxday"
 TAG, TITLE, APK = sys.argv[1], sys.argv[2], sys.argv[3]
 BODY = open(sys.argv[4], encoding="utf-8").read().strip()
+PRERELEASE = len(sys.argv) > 5 and sys.argv[5] == "prerelease"
 ASSET_NAME = os.path.basename(APK)
 
 cred = subprocess.run(["git", "credential", "fill"], input="protocol=https\nhost=github.com\n\n",
@@ -51,7 +55,7 @@ if release and not release["draft"]:
     sys.exit(f"{TAG} is already published: {release['html_url']}")
 if release is None:
     status, release = call("POST", f"{api}/releases", json.dumps(
-        {"tag_name": TAG, "name": TITLE, "body": BODY, "draft": True}).encode())
+        {"tag_name": TAG, "name": TITLE, "body": BODY, "draft": True, "prerelease": PRERELEASE}).encode())
     if status != 201:
         sys.exit(f"Creating the draft failed: {status} {release}")
     print(f"draft created: id {release['id']}")
@@ -75,7 +79,8 @@ print(f"uploaded {ASSET_NAME}: {asset['size']} bytes (local {size})")
 
 # Publish
 status, release = call("PATCH", f"{api}/releases/{release['id']}", json.dumps(
-    {"draft": False, "name": TITLE, "body": BODY, "make_latest": "true"}).encode())
+    {"draft": False, "name": TITLE, "body": BODY, "prerelease": PRERELEASE,
+     "make_latest": "false" if PRERELEASE else "true"}).encode())
 if status != 200:
     sys.exit(f"Publishing failed: {status} {release}")
 print(f"published: {release['html_url']}")
