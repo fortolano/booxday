@@ -225,7 +225,7 @@ class EditorTabManager(
         if (currentTab.value == EditorTab.Memos) return  // Already on Memos
 
         val memosDate = _memosEditorState.value?.dayDate
-        val memosPageId = _memosEditorState.value?.pageId
+        val memosPageId = _memosEditorState.value?.currentPageId
 
         // STALENESS CHECK: If active tab is becoming visible but has old data (due to lazy load), force update
         if (targetPageId != null && memosPageId != targetPageId) {
