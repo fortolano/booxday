@@ -11,14 +11,11 @@ import com.boox.day.data.db.KvProxy
 import com.boox.day.data.db.SyncStatus
 
 /**
- * WorkManager worker for event reminder notifications.
+ * One event's reminder, as versions up to 1.0.64 queued them: a job per event. No longer queued
+ * (Nov 2026): all reminders share one job, [EventReminderChain], which cancels these at the first
+ * start after the update. Kept so one that runs before that still shows its reminder.
  *
- * This worker is used as a fallback when:
- * - Exact alarm permission is not granted (Android 12+)
- * - Running on Boox/Onyx devices (firmware-level AlarmManager restrictions)
- *
- * It's scheduled by EventNotificationScheduler with the event ID and
- * reminder minutes passed via inputData.
+ * The event ID and reminder minutes come in inputData.
  *
  * IMPORTANT: Events can be in either table:
  * - LocalEvent: standalone events created in-app

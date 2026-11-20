@@ -6,18 +6,16 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
-import androidx.work.WorkManager
 import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.db.LocalEvent
-import java.util.concurrent.TimeUnit
 
 /**
  * Schedules notifications for event reminders using AlarmManager.
  *
  * Architecture:
  * - Uses setExactAndAllowWhileIdle() for precise notifications (Doze-aware)
- * - Falls back to WorkManager if exact alarm permission not granted (Android 12+)
- * - Falls back to WorkManager on Boox devices (firmware restrictions)
+ * - Without the exact alarm permission (Android 12+) and on Boox devices (the firmware drops
+ *   alarms) all reminders share one queued WorkManager job instead: [EventReminderChain]
  * - Each event gets its own alarm keyed by eventId
  *
  * Key difference from TaskNotificationScheduler:
@@ -46,9 +44,6 @@ class EventNotificationScheduler(private val context: Context) {
         // Request code prefix to ensure unique PendingIntents per event
         // Different from tasks (10000) to avoid collisions
         private const val REQUEST_CODE_PREFIX = 20000
-
-        // WorkManager tags
-        const val WORK_TAG_EVENT_FALLBACK = "event_notification_fallback"
 
         /**
          * Check if running on a Boox/Onyx device.
@@ -147,7 +142,7 @@ class EventNotificationScheduler(private val context: Context) {
         // Check exact alarm permission (Android 12+)
         if (!NotificationPermissionHelper.canScheduleExactAlarms(context)) {
             Log.w(TAG, "No exact alarm permission, using WorkManager fallback for event ${event.id}")
-            scheduleWithWorkManager(event.id, event.dayId, minutesBefore, triggerMillis)
+            scheduleWithWorkManager(event.id, triggerMillis)
             return ScheduleResult.WorkManagerFallback
         }
 
@@ -156,7 +151,7 @@ class EventNotificationScheduler(private val context: Context) {
         // Also check SharedPreferences override flag for hard failsafe.
         if (shouldForceWorkManager()) {
             Log.d(TAG, "Using WorkManager for event ${event.id} (forceWorkManager=true, isBoox=${isBooxDevice()})")
-            scheduleWithWorkManager(event.id, event.dayId, minutesBefore, triggerMillis)
+            scheduleWithWorkManager(event.id, triggerMillis)
             return ScheduleResult.WorkManagerFallback
         }
 
@@ -179,7 +174,8 @@ class EventNotificationScheduler(private val context: Context) {
             return ScheduleResult.ExactAlarm
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException scheduling alarm for event ${event.id}: ${e.message}")
-            scheduleWithWorkManager(event.id, event.dayId, minutesBefore, triggerMillis)
+            alarmsRefused()
+            scheduleWithWorkManager(event.id, triggerMillis)
             return ScheduleResult.WorkManagerFallback
         }
     }
@@ -231,7 +227,7 @@ class EventNotificationScheduler(private val context: Context) {
         // Check exact alarm permission (Android 12+)
         if (!NotificationPermissionHelper.canScheduleExactAlarms(context)) {
             Log.w(TAG, "No exact alarm permission, using WorkManager fallback for CalendarEvent ${event.id}")
-            scheduleWithWorkManager(event.id, event.dayId, minutesBefore, triggerMillis)
+            scheduleWithWorkManager(event.id, triggerMillis)
             return ScheduleResult.WorkManagerFallback
         }
 
@@ -239,7 +235,7 @@ class EventNotificationScheduler(private val context: Context) {
         // Also check SharedPreferences override flag for hard failsafe.
         if (shouldForceWorkManager()) {
             Log.d(TAG, "Using WorkManager for CalendarEvent ${event.id} (forceWorkManager=true, isBoox=${isBooxDevice()})")
-            scheduleWithWorkManager(event.id, event.dayId, minutesBefore, triggerMillis)
+            scheduleWithWorkManager(event.id, triggerMillis)
             return ScheduleResult.WorkManagerFallback
         }
 
@@ -262,7 +258,8 @@ class EventNotificationScheduler(private val context: Context) {
             return ScheduleResult.ExactAlarm
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException scheduling alarm for CalendarEvent ${event.id}: ${e.message}")
-            scheduleWithWorkManager(event.id, event.dayId, minutesBefore, triggerMillis)
+            alarmsRefused()
+            scheduleWithWorkManager(event.id, triggerMillis)
             return ScheduleResult.WorkManagerFallback
         }
     }
@@ -280,9 +277,8 @@ class EventNotificationScheduler(private val context: Context) {
             pendingIntent.cancel()
             Log.d(TAG, "Cancelled alarm for event $eventId")
         }
-
-        // Also cancel any WorkManager fallback
-        WorkManager.getInstance(context).cancelAllWorkByTag("$WORK_TAG_EVENT_FALLBACK:$eventId")
+        // Where reminders share one queued job (EventReminderChain) there is nothing to cancel:
+        // the job looks events up when it runs, and a deleted event isn't found
     }
 
     /**
@@ -318,35 +314,24 @@ class EventNotificationScheduler(private val context: Context) {
     }
 
     /**
-     * Fallback: Schedule notification using WorkManager.
-     * Used when exact alarm permission is not granted or on Boox devices.
-     * Less precise but still works.
+     * Where alarms can't be used (no exact alarm permission, or a BOOX tablet): the reminder joins
+     * the one job all event reminders share ([EventReminderChain]), which must run by [triggerMillis].
      */
-    private fun scheduleWithWorkManager(
-        eventId: String,
-        dayId: String,
-        minutesBefore: Int,
-        triggerMillis: Long
-    ) {
-        val delayMillis = triggerMillis - System.currentTimeMillis()
-        if (delayMillis <= 0) {
+    private fun scheduleWithWorkManager(eventId: String, triggerMillis: Long) {
+        if (triggerMillis <= System.currentTimeMillis()) {
             Log.d(TAG, "WorkManager fallback: time already passed for event $eventId")
             return
         }
-
-        val workRequest = androidx.work.OneTimeWorkRequestBuilder<EventNotificationWorker>()
-            .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
-            .addTag("$WORK_TAG_EVENT_FALLBACK:$eventId")
-            .setInputData(
-                androidx.work.Data.Builder()
-                    .putString(EXTRA_EVENT_ID, eventId)
-                    .putString(EXTRA_EVENT_DAY_ID, dayId)
-                    .putInt(EXTRA_MINUTES_BEFORE, minutesBefore)
-                    .build()
-            )
-            .build()
-
-        WorkManager.getInstance(context).enqueue(workRequest)
-        Log.d(TAG, "Scheduled WorkManager fallback for event $eventId in ${delayMillis}ms")
+        EventReminderChain.wakeBy(context, triggerMillis)
     }
+
+    /** Alarms were refused after all: from now on this device uses the shared queued job. */
+    private fun alarmsRefused() {
+        context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+            .edit().putBoolean("force_workmanager_notifications", true).apply()
+    }
+
+    /** True where reminders come from the shared queued job and not from alarms. */
+    fun usesQueuedJob(): Boolean =
+        !NotificationPermissionHelper.canScheduleExactAlarms(context) || shouldForceWorkManager()
 }

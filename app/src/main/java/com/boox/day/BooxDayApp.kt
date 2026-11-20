@@ -90,6 +90,8 @@ class BooxDayApp : Application() {
         runSafeStartupStep("Background sync schedule") { scheduleBackgroundSync() }
         // Task sync's change watcher, only when the user turned task sync on (tasksync/TaskSync)
         runSafeStartupStep("Task sync") { com.boox.day.tasksync.TaskSync.startIfOn(this, applicationScope) }
+        // Event reminders share one queued job; the jobs older versions queued per event go (Nov 2026)
+        runSafeStartupStep("Event reminders") { com.boox.day.notifications.EventReminderChain.onAppStart(this, applicationScope) }
         // Today's agenda on the BOOX sleep screen, when turned on (sleepscreen/SleepAgenda)
         runSafeStartupStep("Sleep screen agenda") { com.boox.day.sleepscreen.SleepAgenda.onAppStart(this, applicationScope) }
         // Markdown daily notes, when turned on (export/DailyNotes)
