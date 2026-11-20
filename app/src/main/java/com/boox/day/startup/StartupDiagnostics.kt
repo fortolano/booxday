@@ -77,6 +77,7 @@ object StartupDiagnostics {
             if (_status.value is StartupStatus.Fatal) return
 
             Log.e(TAG, "Fatal startup failure at ${stage.label}: $summary", throwable)
+            com.boox.day.diagnostics.StartReport.mark("Fatal start failure at ${stage.label}", throwable)
 
             _status.value = StartupStatus.Fatal(
                 StartupFailureReport(

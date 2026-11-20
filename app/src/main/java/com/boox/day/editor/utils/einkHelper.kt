@@ -249,6 +249,7 @@ fun onSurfaceInit(view: View) {
         EpdController.enablePost(1)
     } catch (t: Throwable) {
         einkLogger.e("onSurfaceInit failed: ${t.message}", t)
+        com.boox.day.diagnostics.StartReport.mark("Surface refresh mode failed", t)
         throw t
     }
 }
@@ -317,6 +318,7 @@ fun setupSurface(
             Rect(0, 0, viewWidth, viewHeight - toolbarHeight)
 
     touchHelper.setLimitRect(mutableListOf(limitRect)).setExcludeRect(listOf(excludeRect))
+    if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Pen area: limit $limitRect, exclude $excludeRect, open allowed $allowRawDrawingOpen, window open ${DrawCanvas.isCanvasInputBlockedByOverlay()}")
 
     // Only open raw drawing if startup allows it and no blocking overlay is visible.
     return if (allowRawDrawingOpen && !DrawCanvas.isCanvasInputBlockedByOverlay()) {

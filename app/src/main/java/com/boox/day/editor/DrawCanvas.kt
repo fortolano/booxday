@@ -1447,6 +1447,7 @@ class DrawCanvas(
 
         val canvasName = if (isMemosCanvas) "Memos" else "Tasks"
         log.i("SPLASH_FIX[$canvasName]: activating deferred startup raw drawing (trigger=$trigger)")
+        if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Canvas $canvasName: opening the pen layer after the splash")
 
         // Run the normal surface activation path first (includes onSurfaceInit + setupSurface).
         updateActiveSurface()
@@ -1500,6 +1501,7 @@ class DrawCanvas(
                 override fun surfaceCreated(holder: SurfaceHolder) {
                     val currentWidth = this@DrawCanvas.width
                     val currentHeight = this@DrawCanvas.height
+                    if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Canvas ${if (isMemosCanvas) "Memos" else "Tasks"}: surface created ${currentWidth}x$currentHeight")
                     if (currentWidth > 0 && currentHeight > 0) {
                         surfaceSize.value = SurfaceSize(currentWidth, currentHeight)
                         page.syncToSurfaceSize(currentWidth, currentHeight)
@@ -1514,6 +1516,7 @@ class DrawCanvas(
                     holder: SurfaceHolder, format: Int, width: Int, height: Int
                 ) {
                     val sizeChanged = page.viewWidth != width || page.viewHeight != height
+                    if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Canvas ${if (isMemosCanvas) "Memos" else "Tasks"}: surface changed ${width}x$height, format $format, size changed $sizeChanged")
                     if (sizeChanged) cancelAndroidPen()
                     surfaceSize.value = SurfaceSize(width, height)
                     page.syncToSurfaceSize(width, height)
@@ -1529,6 +1532,7 @@ class DrawCanvas(
                 override fun surfaceDestroyed(holder: SurfaceHolder) {
                     finishStylusContact()
                     val canvasName = if (isMemosCanvas) "Memos" else "Tasks"
+                    if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Canvas $canvasName: surface destroyed")
                     surfaceReady = false
                     if (::touchHelper.isInitialized && PERF_LOGS) {
                         log.i("TOUCH_TRACE[$canvasName]: surfaceDestroyed - hashCode=${this@DrawCanvas.hashCode()}, touchHelper=${touchHelper.hashCode()}, rawDrawingOpened=$rawDrawingOpened")
@@ -2366,7 +2370,10 @@ class DrawCanvas(
             if (forcePost) EpdController.enablePost(this, 1)
             unlockAttempted = true
             surfaceHolder.unlockCanvasAndPost(canvas)
-            if (!startupCanvasDrawn.value && memoModeChanged.value == isMemosCanvas) startupCanvasDrawn.value = true
+            if (!startupCanvasDrawn.value && memoModeChanged.value == isMemosCanvas) {
+                startupCanvasDrawn.value = true
+                com.boox.day.diagnostics.StartReport.mark("Canvas: first picture on the active surface")
+            }
             if (zoneToRedraw.width() >= surfaceWidth && zoneToRedraw.height() >= surfaceHeight &&
                 staleGeneration == surfaceStaleGeneration) {
                 surfaceStale = false
@@ -2701,6 +2708,7 @@ class DrawCanvas(
                 // surface init/open/blit work. Defer full activation until gate opens.
                 if (isStartupRawDrawingCaptureBlocked()) {
                     log.i("SPLASH_FIX[$canvasName]: startup guard active - deferring onSurfaceInit/setupSurface/draw")
+                    if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Canvas $canvasName: surface set up, pen layer waits for the splash")
                     rawDrawingOpened = false
                     surfaceReady = true
                     // Keep visible canvas content while deferring raw-drawing startup activation.
@@ -2747,6 +2755,7 @@ class DrawCanvas(
 
                 if (PERF_LOGS) log.i("PERF: setupSurface took ${System.currentTimeMillis() - startSetup}ms")
                 if (PERF_LOGS) log.i("setupSurface returned rawDrawingOpened=$rawDrawingOpened")
+                if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Canvas $canvasName: set up, pen layer open: $rawDrawingOpened, view ${width}x$height")
                 hasCompletedInitialSurfaceSetup = true
             } catch (t: CancellationException) {
                 throw t

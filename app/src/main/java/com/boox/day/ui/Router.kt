@@ -114,6 +114,7 @@ fun Router() {
         // showed a wrong setup badge and its writers could save defaults over the user's settings
         snapshotFlow { GlobalAppSettings.loaded }.first { it }
         shouldComposeNavHost = true
+        com.boox.day.diagnostics.StartReport.mark("Router: settings in, main screen may be built")
     }
 
     // Select tagline ONCE at Router level (not inside AnimatedVisibility)
@@ -201,6 +202,7 @@ fun Router() {
         snapshotFlow { GlobalAppSettings.loaded }.first { it }
 
         logRouter.i("PERF: Splash pre-loading COMPLETE (${System.currentTimeMillis() - startTime}ms)")
+        if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Router: splash wait over, start screen: $startDestination")
         if (shouldWaitForCanvasHandoff) {
             // A drawing surface shows black until its first picture: the splash stays until the
             // canvas has drawn once (the black Memos flash at launch, Nov 2026). The main screen's
@@ -210,6 +212,7 @@ fun Router() {
             withFrameNanos { }
             val drawn = DrawCanvas.awaitStartupCanvasDrawn(STARTUP_CANVAS_DRAWN_TIMEOUT_MS)
             logRouter.i("STARTUP_FRAME: canvas drawn before the splash left: $drawn")
+            if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Router: canvas drawn before the splash left: $drawn")
             // Native drawing can freeze normal UI posting on some BOOX firmware.
             // Remove the cover and let the app submit its UI before permitting raw drawing;
             // otherwise a white cover can remain visible even while the pen works (#1).
@@ -218,10 +221,12 @@ fun Router() {
             withFrameNanos { }
             withFrameNanos { }
             logRouter.i("STARTUP_FRAME: splash removed before native drawing activation")
+            com.boox.day.diagnostics.StartReport.mark("Router: two frames after the splash left")
 
             // Retain the existing raw-drawing settle delay and bounded readiness wait.
             DrawCanvas.notifySplashDismissed()
             val canvasReady = DrawCanvas.awaitStartupCanvasReady(STARTUP_CANVAS_HANDOFF_TIMEOUT_MS)
+            if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Router: pen layer ready: $canvasReady")
             if (!canvasReady) {
                 logRouter.w("PERF: Startup canvas handoff timed out after ${STARTUP_CANVAS_HANDOFF_TIMEOUT_MS}ms")
             }
@@ -230,6 +235,7 @@ fun Router() {
         }
         DrawCanvas.finishStartupSplashHandoff()
         showSplash = false
+        com.boox.day.diagnostics.StartReport.splashRemoved()
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -245,6 +251,7 @@ fun Router() {
                 // Main screen - Calendar + Drawing Canvas
                 composable(route = "main") {
                     MainScreen(navController = navController)
+                    androidx.compose.runtime.SideEffect { com.boox.day.diagnostics.StartReport.mainScreenComposed() }
                 }
 
                 // Welcome/Setup screen (shown on first run or if permissions needed)

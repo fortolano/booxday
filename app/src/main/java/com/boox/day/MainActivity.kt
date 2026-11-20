@@ -110,6 +110,7 @@ class MainActivity : ComponentActivity() {
      */
     override fun attachBaseContext(newBase: Context?) {
         if (newBase != null) {
+            com.boox.day.diagnostics.StartReport.baseContext(newBase.resources)
             val config = newBase.resources.configuration
             config.densityDpi = AppDensity.dpi
             val context = newBase.createConfigurationContext(config)
@@ -135,6 +136,7 @@ class MainActivity : ComponentActivity() {
 
         // Set app-wide DPI for optimal toolbar fit and readability
         setAppDensity()
+        com.boox.day.diagnostics.StartReport.activityCreated(this)
 
         enableFullScreen()
         SCREEN_WIDTH = applicationContext.resources.displayMetrics.widthPixels
@@ -213,6 +215,7 @@ class MainActivity : ComponentActivity() {
             } finally {
                 // The main screen waits for this (Router): set on every path, found, none or failed
                 GlobalAppSettings.loaded = true
+                com.boox.day.diagnostics.StartReport.mark("Settings loaded")
             }
         }
         }
@@ -273,6 +276,7 @@ class MainActivity : ComponentActivity() {
         // which can corrupt our custom DPI setting. Reset it every time we resume.
         // propagateToCompose=true forces Compose to pick up the restored density.
         setAppDensity(propagateToCompose = true)
+        com.boox.day.diagnostics.StartReport.mark("Activity.onResume")
 
         if (StartupDiagnostics.hasFatalFailure()) {
             return
@@ -378,6 +382,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        com.boox.day.diagnostics.StartReport.activityStopped()
         // Page images still waiting for the pen to rest: save them before the app can be killed
         PageDataManager.flushAllPendingPersists()
         // The tablet is often put to sleep right after: bring the sleep-screen agenda up to date
@@ -387,6 +392,7 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         DrawCanvas.cancelAndroidStylusInput()
         super.onPause()
+        com.boox.day.diagnostics.StartReport.mark("Activity.onPause")
 
         // BATTERY FIX: Stop tips timer when app goes to background
         TipsService.stop()
@@ -408,6 +414,7 @@ class MainActivity : ComponentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         Log.d(TAG, "OnWindowFocusChanged: $hasFocus")
         super.onWindowFocusChanged(hasFocus)
+        if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Window focus: $hasFocus")
         if (!hasFocus) DrawCanvas.cancelAndroidStylusInput()
         if (hasFocus) {
             enableFullScreen()
@@ -426,6 +433,7 @@ class MainActivity : ComponentActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         DrawCanvas.cancelAndroidStylusInput()
         super.onConfigurationChanged(newConfig)
+        if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Configuration changed: ${newConfig.densityDpi} dpi, ${newConfig.screenWidthDp}x${newConfig.screenHeightDp} dp")
         if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             Log.i(TAG, "Switched to Landscape")
         } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {

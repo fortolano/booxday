@@ -51,6 +51,7 @@ class BooxDayApp : Application() {
         super.onCreate()
         // First, so a crash anywhere after this leaves a report for the next start
         com.boox.day.diagnostics.CrashReporter.install(this)
+        com.boox.day.diagnostics.StartReport.begin(this)
         com.boox.day.share.TasksFeedNotifier.start(this, applicationScope)
         PerfProbe.install(this)  // TEMPORARY: MainScreen JIT measurement
         if (!runFatalStartupStep(
@@ -96,6 +97,7 @@ class BooxDayApp : Application() {
         runSafeStartupStep("Sleep screen agenda") { com.boox.day.sleepscreen.SleepAgenda.onAppStart(this, applicationScope) }
         // Markdown daily notes, when turned on (export/DailyNotes)
         runSafeStartupStep("Daily notes") { com.boox.day.export.DailyNotes.onAppStart(this, applicationScope) }
+        com.boox.day.diagnostics.StartReport.mark("App.onCreate done")
     }
 
     /**
@@ -323,6 +325,7 @@ class BooxDayApp : Application() {
             block()
         } catch (t: Throwable) {
             Log.e("BooxDayApp", "$name failed during startup", t)
+            com.boox.day.diagnostics.StartReport.mark("App start step failed: $name", t)
         }
     }
 
