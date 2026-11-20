@@ -20,7 +20,9 @@ import kotlinx.coroutines.withContext
 /**
  * Production Digital Ink Recognition service for Tasks pages.
  *
- * Converts stroke data to text using ML Kit Digital Ink Recognition.
+ * Converts stroke data to text: BOOX's own MyScript where the tablet has it (Nov 2026,
+ * BooxHandwritingReader: it reads mixed Ukrainian and English lines that ML Kit breaks), else ML Kit
+ * Digital Ink Recognition.
  * Designed for the Tasks page layout (10 rows, control column on left).
  *
  * Key features:
@@ -39,6 +41,9 @@ class DigitalInkService(
         private const val TAG = "DigitalInkService"
 
         private const val ROWS_PER_PAGE = 10
+
+        /** BOOX's MyScript gives no per-word confidence; page reading stores this */
+        private const val WHOLE_TEXT_CONFIDENCE = 0.9f
 
         /**
          * Create an instance using application context.
@@ -201,6 +206,8 @@ class DigitalInkService(
             return RecognitionResult("", 0f, true)
         }
 
+        booxReading(strokes)?.let { return RecognitionResult(it, WHOLE_TEXT_CONFIDENCE, false) }
+
         if (!isReady()) {
             Log.w(TAG, "recognizeStrokes: Model not ready")
             return RecognitionResult("", 0f, true)
@@ -302,6 +309,8 @@ class DigitalInkService(
             return SlotResult(slotIndex, "", 0f, true)
         }
 
+        booxReading(strokes)?.let { return SlotResult(slotIndex, it, WHOLE_TEXT_CONFIDENCE, false) }
+
         val recognizer = DigitalInkModelManager.getActiveRecognizer()
         if (recognizer == null) {
             Log.w(TAG, "No recognizer available for slot $slotIndex")
@@ -341,6 +350,14 @@ class DigitalInkService(
             SlotResult(slotIndex, "", 0f, true)
         }
     }
+
+    /**
+     * BOOX's own MyScript reading (BooxHandwritingReader), tidied; null where ML Kit reads.
+     * shortcut: a row ML Kit read while BOOX paused keeps that text until its page changes; re-read
+     * such pages when BOOX answers again if users see it.
+     */
+    private suspend fun booxReading(strokes: List<Stroke>): String? =
+        BooxHandwritingReader.read(context, strokes, DigitalInkModelManager.activeLanguage.value)?.let(::tidy)?.ifEmpty { null }
 
     /**
      * Convert BooxDay strokes to ML Kit Ink format.
