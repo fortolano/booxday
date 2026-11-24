@@ -193,7 +193,8 @@ class CalendarSyncManager(
         accountId: String = "",
         accountEmail: String = "",
         providerId: String = "GOOGLE",
-        credential: GoogleAccountCredential? = null
+        credential: GoogleAccountCredential? = null,
+        selectedCalendarsOverride: Set<String>? = null
     ): SyncResult = withContext(Dispatchers.IO) {
         try {
             val service = getCalendarService(credential)
@@ -209,8 +210,8 @@ class CalendarSyncManager(
 
             Log.d(TAG, "Fetching events from $startDate to $endDate")
 
-            // Get list of selected calendars from preferences
-            val selectedCalendars = authManager.getSelectedCalendars()
+            // Prefer explicit per-account calendar selection so parallel Google syncs never clobber global prefs
+            val selectedCalendars = selectedCalendarsOverride ?: authManager.getSelectedCalendars()
 
             // Get all user's calendars if no selection made yet
             val calendarList = if (selectedCalendars.isEmpty()) {
@@ -274,7 +275,7 @@ class CalendarSyncManager(
             val existingEvents = eventRepository.getEventsInRange(
                 startDate.toString(),
                 endDate.toString()
-            ).filter { it.accountId == accountId }
+            ).filter { it.providerId == providerId && it.accountId == accountId }
             val successfulCalendarIds = calendarList.toSet() - fetchFailures.map { it.calendarId }.toSet()
 
             // Convert and store events
@@ -284,12 +285,17 @@ class CalendarSyncManager(
             val fetchedEventIds = mutableSetOf<String>()
 
             allEvents.forEach { (event, calendarInfo) ->
+                val remoteId = event.id
+                if (!remoteId.isNullOrBlank()) {
+                    // Record remote presence BEFORE local conversion/write so a conversion error or
+                    // unsupported timing never triggers deletion of cached rows and manual BOOX note links.
+                    fetchedEventIds.add(remoteId)
+                }
                 try {
                     val calendarEvent = event.toCalendarEvent(calendarInfo, accountId, accountEmail, providerId)
                     if (calendarEvent != null) {
-                        val existingEvent = eventRepository.getEventById(event.id)
+                        val existingEvent = eventRepository.getEventById(calendarEvent.id)
                         eventRepository.cacheEvent(calendarEvent)
-                        fetchedEventIds.add(calendarEvent.id)
                         // Re-link only days whose events really changed (old and new days of a moved event)
                         if (smartLinkFieldsChanged(existingEvent, calendarEvent)) {
                             if (existingEvent != null) {
@@ -303,15 +309,15 @@ class CalendarSyncManager(
                         } else {
                             newEventsCount++
                         }
+                    } else {
+                        Log.w(TAG, "Skipping Google event with unsupported timing: id=$remoteId")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error converting event: ${event.id}", e)
+                    Log.e(TAG, "Error converting event: $remoteId", e)
                 }
             }
 
-            val missingEvents = existingEvents.filter { existing ->
-                existing.calendarId in successfulCalendarIds && existing.id !in fetchedEventIds
-            }
+            val missingEvents = selectMissingEvents(existingEvents, successfulCalendarIds, fetchedEventIds)
             if (missingEvents.isNotEmpty()) {
                 eventRepository.removeEvents(
                     eventIds = missingEvents.map { it.id },
@@ -736,5 +742,13 @@ class CalendarSyncManager(
             colorHex = calendarInfo.backgroundColor,
             syncedAt = System.currentTimeMillis()
         )
+    }
+
+    internal fun selectMissingEvents(
+        existingEvents: List<CalendarEvent>,
+        successfulCalendarIds: Set<String>,
+        presentRemoteIds: Set<String>
+    ): List<CalendarEvent> = existingEvents.filter { existing ->
+        existing.calendarId in successfulCalendarIds && existing.id !in presentRemoteIds
     }
 }

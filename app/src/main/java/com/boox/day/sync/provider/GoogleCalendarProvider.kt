@@ -326,23 +326,16 @@ class GoogleCalendarProvider(
                     CalendarProviderException.AuthenticationException("Not signed in")
                 )
 
-            // Temporarily set selected calendars for sync
-            val previousSelection = authManager.getSelectedCalendars()
-            authManager.setSelectedCalendars(calendarIds)
-
-            // Use existing sync manager with per-account credential
-            val syncResult = try {
-                syncManager.syncEvents(
-                    startDate = startDate,
-                    endDate = endDate,
-                    accountId = accountId,
-                    accountEmail = account.email,
-                    providerId = "GOOGLE",
-                    credential = credential
-                )
-            } finally {
-                authManager.setSelectedCalendars(previousSelection)
-            }
+            // Pass this account's selected calendars directly so parallel Google syncs never race on global prefs
+            val syncResult = syncManager.syncEvents(
+                startDate = startDate,
+                endDate = endDate,
+                accountId = accountId,
+                accountEmail = account.email,
+                providerId = "GOOGLE",
+                credential = credential,
+                selectedCalendarsOverride = calendarIds
+            )
 
             val deletedCalendarIds = syncResult.deletedCalendarIds()
             if (deletedCalendarIds.isNotEmpty()) {
@@ -357,7 +350,7 @@ class GoogleCalendarProvider(
 
             when (syncResult) {
                 is SyncResult.Success -> {
-                    val providerEvents = loadProviderEventsForRange(activeCalendarIds, startDate, endDate)
+                    val providerEvents = loadProviderEventsForRange(accountId, activeCalendarIds, startDate, endDate)
 
                     // Update last sync time for account
                     accountDao.updateLastSync(accountId, System.currentTimeMillis())
@@ -373,7 +366,7 @@ class GoogleCalendarProvider(
                 is SyncResult.Error -> Result.failure(fetchFailure(syncResult))
 
                 is SyncResult.PartialSuccess -> {
-                    val providerEvents = loadProviderEventsForRange(activeCalendarIds, startDate, endDate)
+                    val providerEvents = loadProviderEventsForRange(accountId, activeCalendarIds, startDate, endDate)
                     Log.w(TAG, "Partial Google sync for account $accountId: ${syncResult.errors.joinToString()}")
                     Result.failure(CalendarProviderException.PartialSyncException(syncResult, providerEvents))
                 }
@@ -734,7 +727,8 @@ class GoogleCalendarProvider(
         )
     }
 
-    private suspend fun loadProviderEventsForRange(
+    internal suspend fun loadProviderEventsForRange(
+        accountId: String,
         calendarIds: Set<String>,
         startDate: LocalDate,
         endDate: LocalDate
@@ -742,7 +736,7 @@ class GoogleCalendarProvider(
         val startStr = startDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
         val endStr = endDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
         return eventRepository.getEventsInRange(startStr, endStr)
-            .filter { it.calendarId in calendarIds }
+            .filter { it.providerId == "GOOGLE" && it.accountId == accountId && it.calendarId in calendarIds }
             .map { it.toProviderEvent() }
     }
 
