@@ -93,6 +93,9 @@ fun selectImagesStrokesAndAttachments(
     strokesToSelect: List<Stroke>,
     attachmentsToSelect: List<Attachment> = emptyList()
 ) {
+    if (imagesToSelect.isEmpty() && strokesToSelect.isEmpty() && attachmentsToSelect.isEmpty()) {
+        return
+    }
     //handle selection:
     val pageBounds = Rect()
 
@@ -116,9 +119,11 @@ fun selectImagesStrokesAndAttachments(
     pageBounds.inset(-padding, -padding)
 
     // create bitmap and draw images, strokes, and attachments
-    val selectedBitmap = page.toScreenCoordinates(pageBounds).let { boundsScreen ->
-        createBitmap(boundsScreen.width(), boundsScreen.height())
+    val boundsScreen = page.toScreenCoordinates(pageBounds)
+    if (boundsScreen.width() <= 0 || boundsScreen.height() <= 0) {
+        return
     }
+    val selectedBitmap = createBitmap(boundsScreen.width(), boundsScreen.height())
     val selectedCanvas = Canvas(selectedBitmap)
     selectedCanvas.scale(page.zoomLevel.value, page.zoomLevel.value)
 

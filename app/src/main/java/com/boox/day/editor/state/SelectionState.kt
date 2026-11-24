@@ -398,12 +398,17 @@ class SelectionState {
             it.copy(x = it.x - scrollPos.x.toInt(), y = it.y - scrollPos.y.toInt())
         }
 
+        val attachments = selectedAttachments?.map {
+            it.copy(x = it.x - scrollPos.x.toInt(), y = it.y - scrollPos.y.toInt())
+        }
+
         selectedBitmap?.let {
             copyBitmapToClipboard(context, it)
         }
         return ClipboardContent(
             strokes = strokes ?: emptyList(),
-            images = images ?: emptyList()
+            images = images ?: emptyList(),
+            attachments = attachments ?: emptyList(),
         )
     }
 }

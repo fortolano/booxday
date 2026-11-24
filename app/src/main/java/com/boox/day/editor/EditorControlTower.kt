@@ -17,7 +17,7 @@ import com.boox.day.editor.state.SelectionState
 import com.boox.day.editor.state.UndoRedoType
 import com.boox.day.editor.utils.offsetStroke
 import com.boox.day.editor.utils.refreshScreen
-import com.boox.day.editor.utils.selectImagesAndStrokes
+import com.boox.day.editor.utils.selectImagesStrokesAndAttachments
 import com.boox.day.ui.showHint
 import com.boox.day.utils.TaggedLog
 import kotlinx.coroutines.CoroutineScope
@@ -569,13 +569,17 @@ class EditorControlTower(
     }
 
     fun cutSelectionToClipboard(context: Context) {
-        state.clipboard = state.selectionState.selectionToClipboard(page.scroll, context)
+        val clip = state.selectionState.selectionToClipboard(page.scroll, context)
+        if (clip.isEmpty) return
+        state.clipboard = clip
         deleteSelection()
         showHint("Content cut to clipboard", scope)
     }
 
     fun copySelectionToClipboard(context: Context) {
-        state.clipboard = state.selectionState.selectionToClipboard(page.scroll, context)
+        val clip = state.selectionState.selectionToClipboard(page.scroll, context)
+        if (clip.isEmpty) return
+        state.clipboard = clip
 
         // CRITICAL: Clear system text clipboard so paste button shows drawing icon
         // This ensures the most recent copy operation (drawing) takes precedence
@@ -592,7 +596,9 @@ class EditorControlTower(
         // finish ongoing movement
         applySelectionDisplace()
 
-        val (strokes, images) = state.clipboard ?: return
+        val clipboard = state.clipboard ?: return
+        if (clipboard.isEmpty) return
+        val (strokes, images, attachments) = clipboard
 
         val now = Date()
         val scrollPos = page.scroll
@@ -623,7 +629,19 @@ class EditorControlTower(
             )
         }
 
-        selectImagesAndStrokes(scope, page, state, pastedImages, pastedStrokes)
+        val pastedAttachments = attachments.map {
+            it.copy(
+                id = UUID
+                    .randomUUID()
+                    .toString(),
+                x = it.x + scrollPos.x.toInt(),
+                y = it.y + scrollPos.y.toInt(),
+                createdAt = now,
+                pageId = this.page.currentPageId
+            )
+        }
+
+        selectImagesStrokesAndAttachments(scope, page, state, pastedImages, pastedStrokes, pastedAttachments)
         state.selectionState.placementMode = PlacementMode.Paste
 
         showHint("Pasted content from clipboard", scope)
@@ -642,7 +660,7 @@ class EditorControlTower(
      * @return ClipboardType indicating what can be pasted
      */
     fun detectClipboardType(context: Context): ClipboardType {
-        val hasDrawing = state.clipboard != null
+        val hasDrawing = state.clipboard?.isEmpty == false
         val hasText = hasSystemClipboardText(context)
 
         return when {
