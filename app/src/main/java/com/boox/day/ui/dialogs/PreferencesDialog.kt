@@ -344,6 +344,9 @@ fun PreferencesDialog(
                         // A Markdown note for each day (Oct 2026, export/DailyNotes)
                         com.boox.day.export.DailyNotesSetting()
 
+                        // Opt-in read-only tasks feed for other apps (Decision D1, off by default)
+                        com.boox.day.share.TasksFeedSetting()
+
                         // Tasks kept in step with Google Tasks (Oct 2026, tasksync/; builds with task sync only)
                         com.boox.day.ui.components.TaskSyncSetting(
                             Modifier.bringIntoViewRequester(taskSyncInView)

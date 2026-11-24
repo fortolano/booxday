@@ -1,14 +1,13 @@
 package com.boox.day.today
 
 import android.content.Context
-import android.net.Uri
 import android.util.Log
 import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.BooxNoteRepository
 import com.boox.day.data.db.TaskRepository
 import com.boox.day.data.db.UnifiedOcrRepository
 import com.boox.day.ocr.model.OcrSource
-import com.boox.day.share.TasksFeedContract
+import com.boox.day.share.TasksFeedQuery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -67,38 +66,29 @@ class DayDigestLoader(context: Context) {
     }
 
     private fun tasks(date: LocalDate, withFullText: Boolean): List<DigestTask> {
-        val uri = Uri.withAppendedPath(TasksFeedContract.BASE_URI, TasksFeedContract.PATH_TODAY).buildUpon()
-            .appendQueryParameter("day", date.toString())
-            .appendQueryParameter("limit", "200")
-            .build()
-        val out = mutableListOf<DigestTask>()
-        try {
-            app.contentResolver.query(uri, null, null, null, null)?.use { c ->
-                val id = c.getColumnIndexOrThrow(TasksFeedContract.TASK_ID)
-                val title = c.getColumnIndexOrThrow(TasksFeedContract.TITLE)
-                val handwritten = c.getColumnIndexOrThrow(TasksFeedContract.HANDWRITTEN_ONLY)
-                val completed = c.getColumnIndexOrThrow(TasksFeedContract.COMPLETED)
-                val priority = c.getColumnIndexOrThrow(TasksFeedContract.PRIORITY)
-                val parent = c.getColumnIndexOrThrow(TasksFeedContract.PARENT_TASK_ID)
-                while (c.moveToNext()) {
-                    val taskId = c.getString(id)
-                    val fullText = if (withFullText) db.taskDao().getById(taskId)?.let { task ->
-                        listOf(task.convertedText, task.typedText, task.recognizedText).firstOrNull { !it.isNullOrBlank() }?.trim()
-                    } else null
-                    out += DigestTask(
-                        id = taskId,
-                        title = if (c.getInt(handwritten) == 1) null else c.getString(title),
-                        completed = c.getInt(completed) == 1,
-                        priority = c.getString(priority).orEmpty(),
-                        isSubtask = !c.isNull(parent),
-                        fullText = fullText,
-                    )
-                }
+        return try {
+            // Query Room directly through the shared TasksFeedQuery helper: bypasses the external
+            // opt-in ContentProvider gate (Decision D1) and removes the external 200-task cap.
+            TasksFeedQuery.query(
+                context = app,
+                mode = TasksFeedQuery.Mode.TODAY,
+                day = date.toString(),
+                today = date.toString(),
+                limit = null,
+            ).map { row ->
+                DigestTask(
+                    id = row.taskId,
+                    title = if (row.handwrittenOnly) null else row.title,
+                    completed = row.completed,
+                    priority = row.priority,
+                    isSubtask = row.parentTaskId != null,
+                    fullText = if (withFullText) row.fullText else null,
+                )
             }
         } catch (e: Exception) {
             Log.w(TAG, "Tasks for $date not read: ${e.message}")
+            emptyList()
         }
-        return out
     }
 
     private suspend fun memoPages(date: LocalDate, withText: Boolean): List<DigestMemoPage> {

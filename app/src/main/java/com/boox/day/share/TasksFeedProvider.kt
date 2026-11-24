@@ -21,8 +21,10 @@ import java.time.LocalDate
 
 /**
  * Read-only feed of BooxDay tasks for other apps on the device (launchers, widgets,
- * assistants). It exposes task text and dates only: no strokes, notes, pages,
- * accounts or settings, and every write is refused.
+ * assistants). Off by default (Decision D1 / D9): external apps receive an empty cursor until
+ * enabled in Settings → Preferences → Tasks feed for other apps. Internal callers
+ * ([com.boox.day.today.DayDigestLoader]) query [TasksFeedQuery] directly so sleep screen and
+ * daily notes always work regardless of the external toggle.
  *
  *   content://com.boox.day.tasks/due    open tasks due today or overdue
  *   content://com.boox.day.tasks/today  every task with content on today's page
@@ -51,66 +53,39 @@ class TasksFeedProvider : ContentProvider() {
         val match = matcher.match(uri)
         if (match == UriMatcher.NO_MATCH) return null
         val context = context ?: return null
+        val out = MatrixCursor(TasksFeedContract.COLUMNS)
+        out.setNotificationUri(context.contentResolver, TasksFeedContract.BASE_URI)
+
+        if (!isExternalFeedEnabled(context)) {
+            return out
+        }
+
         val limit = uri.getQueryParameter("limit")?.toIntOrNull()?.coerceIn(1, 200) ?: 50
         val today = LocalDate.now().toString()
-        // /today?day=yyyy-MM-dd: another day's tasks (the Markdown daily note writes yesterday's)
+        // /today?day=yyyy-MM-dd: another day's tasks
         val day = uri.getQueryParameter("day")?.takeIf { runCatching { LocalDate.parse(it) }.isSuccess } ?: today
+        val mode = when (match) {
+            DUE -> TasksFeedQuery.Mode.DUE
+            TODAY -> TasksFeedQuery.Mode.TODAY
+            else -> TasksFeedQuery.Mode.OPEN
+        }
 
-        val where = when (match) {
-            DUE -> "isCompleted = 0 AND dueDay IS NOT NULL AND dueDay <= ?"
-            TODAY -> "dayDate = ?"
-            else -> "isCompleted = 0"
+        val rows = TasksFeedQuery.query(context, mode = mode, day = day, today = today, limit = limit)
+        rows.forEachIndexed { idx, row ->
+            out.addRow(arrayOf<Any?>(
+                idx.toLong(),
+                row.taskId,
+                row.title,
+                if (row.handwrittenOnly) 1 else 0,
+                row.dayDate,
+                row.dueDay,
+                if (row.completed) 1 else 0,
+                row.priority,
+                if (row.overdue) 1 else 0,
+                row.parentTaskId,
+                row.updatedAt,
+            ))
         }
-        val order = when (match) {
-            DUE -> "dueDay ASC, dayDate ASC, taskPageIndex ASC, rowIndex ASC"
-            TODAY -> "taskPageIndex ASC, rowIndex ASC"
-            else -> "dayDate DESC, taskPageIndex ASC, rowIndex ASC"
-        }
-        val args: Array<Any> = when (match) {
-            OPEN -> emptyArray()
-            TODAY -> arrayOf(day)
-            else -> arrayOf(today)
-        }
-        // Rows with text or task data, and rows on pages with ink: a task can be handwriting only
-        // (no text until handwriting recognition reads it, or ever if it can't). Those are checked
-        // below with the app's own rule for intentional ink in a row.
-        val sql = """
-            SELECT id, typedText, convertedText, recognizedText, dayDate, dueDay,
-                   isCompleted, priority, parentTaskId, updatedAt,
-                   $HAS_CONTENT AS hasContent, pageId, rowIndex
-            FROM task
-            WHERE $where AND ($HAS_CONTENT OR EXISTS (SELECT 1 FROM stroke WHERE stroke.pageId = task.pageId))
-            ORDER BY $order
-        """.trimIndent()
-
-        val out = MatrixCursor(TasksFeedContract.COLUMNS)
-        val db = AppDatabase.getDatabase(context).openHelper.readableDatabase
-        val handwriting = HandwrittenRows(context, db)
-        db.query(SimpleSQLiteQuery(sql, args)).use { c ->
-            var row = 0L
-            while (row < limit && c.moveToNext()) {
-                if (c.getInt(10) == 0 && !handwriting.inRow(c.getString(11), c.getString(4), c.getInt(12))) continue
-                val title = listOf(c.getString(2), c.getString(1), c.getString(3))
-                    .firstOrNull { !it.isNullOrBlank() }?.trim()?.lineSequence()?.first()?.take(300)
-                    ?: HANDWRITTEN
-                val dueDay = c.getString(5)
-                val completed = c.getInt(6) != 0
-                out.addRow(arrayOf<Any?>(
-                    row++,
-                    c.getString(0),
-                    title,
-                    if (title == HANDWRITTEN) 1 else 0,
-                    c.getString(4),
-                    dueDay,
-                    if (completed) 1 else 0,
-                    c.getString(7).orEmpty(),
-                    if (!completed && dueDay != null && dueDay < today) 1 else 0,
-                    c.getString(8),
-                    if (c.isNull(9)) null else c.getLong(9)
-                ))
-            }
-        }
-        out.setNotificationUri(context.contentResolver, TasksFeedContract.BASE_URI)
         return out
     }
 
@@ -124,14 +99,112 @@ class TasksFeedProvider : ContentProvider() {
 
     private fun readOnly() = UnsupportedOperationException("The BooxDay tasks feed is read-only")
 
-    private companion object {
-        const val DUE = 1
-        const val TODAY = 2
-        const val OPEN = 3
-        const val HANDWRITTEN = "Handwritten task"
-        // Same "slot has content" rule BooxDay uses for its own task counts.
-        const val HAS_CONTENT = "(isCompleted = 1 OR priority != '' OR typedText IS NOT NULL OR convertedText IS NOT NULL " +
-            "OR (recognizedText IS NOT NULL AND recognizedText != '') OR parentTaskId IS NOT NULL OR dueDay IS NOT NULL)"
+    companion object {
+        private const val DUE = 1
+        private const val TODAY = 2
+        private const val OPEN = 3
+
+        /**
+         * Reads the opt-in external feed toggle safely in both warm and cold ContentProvider processes.
+         * When [GlobalAppSettings.loaded] is false (cold process), reads directly from Room KV storage.
+         */
+        fun isExternalFeedEnabled(context: Context): Boolean {
+            if (GlobalAppSettings.loaded) {
+                return GlobalAppSettings.current.tasksFeedEnabled
+            }
+            return runCatching {
+                KvProxy(context.applicationContext).get(APP_SETTINGS_KEY, AppSettings.serializer())?.tasksFeedEnabled
+            }.getOrNull() ?: false
+        }
+    }
+}
+
+/**
+ * Shared task query used by both [TasksFeedProvider] (gated, capped) and internal
+ * [com.boox.day.today.DayDigestLoader] (always allowed, uncapped) so both apply the exact same
+ * handwritten-row rule ([HandwrittenRows]).
+ */
+internal object TasksFeedQuery {
+    const val HANDWRITTEN = "Handwritten task"
+
+    // Same "slot has content" rule BooxDay uses for its own task counts.
+    private const val HAS_CONTENT = "(isCompleted = 1 OR priority != '' OR typedText IS NOT NULL OR convertedText IS NOT NULL " +
+        "OR (recognizedText IS NOT NULL AND recognizedText != '') OR parentTaskId IS NOT NULL OR dueDay IS NOT NULL)"
+
+    enum class Mode { DUE, TODAY, OPEN }
+
+    data class Row(
+        val taskId: String,
+        val title: String,
+        val fullText: String?,
+        val handwrittenOnly: Boolean,
+        val dayDate: String,
+        val dueDay: String?,
+        val completed: Boolean,
+        val priority: String,
+        val overdue: Boolean,
+        val parentTaskId: String?,
+        val updatedAt: Long?,
+    )
+
+    fun query(
+        context: Context,
+        mode: Mode,
+        day: String = LocalDate.now().toString(),
+        today: String = LocalDate.now().toString(),
+        limit: Int? = null,
+    ): List<Row> {
+        val where = when (mode) {
+            Mode.DUE -> "isCompleted = 0 AND dueDay IS NOT NULL AND dueDay <= ?"
+            Mode.TODAY -> "dayDate = ?"
+            Mode.OPEN -> "isCompleted = 0"
+        }
+        val order = when (mode) {
+            Mode.DUE -> "dueDay ASC, dayDate ASC, taskPageIndex ASC, rowIndex ASC"
+            Mode.TODAY -> "taskPageIndex ASC, rowIndex ASC"
+            Mode.OPEN -> "dayDate DESC, taskPageIndex ASC, rowIndex ASC"
+        }
+        val args: Array<Any> = when (mode) {
+            Mode.OPEN -> emptyArray()
+            Mode.TODAY -> arrayOf(day)
+            Mode.DUE -> arrayOf(today)
+        }
+        val sql = """
+            SELECT id, typedText, convertedText, recognizedText, dayDate, dueDay,
+                   isCompleted, priority, parentTaskId, updatedAt,
+                   $HAS_CONTENT AS hasContent, pageId, rowIndex
+            FROM task
+            WHERE $where AND ($HAS_CONTENT OR EXISTS (SELECT 1 FROM stroke WHERE stroke.pageId = task.pageId))
+            ORDER BY $order
+        """.trimIndent()
+
+        val out = mutableListOf<Row>()
+        val db = AppDatabase.getDatabase(context).openHelper.readableDatabase
+        val handwriting = HandwrittenRows(context, db)
+        db.query(SimpleSQLiteQuery(sql, args)).use { c ->
+            while ((limit == null || out.size < limit) && c.moveToNext()) {
+                if (c.getInt(10) == 0 && !handwriting.inRow(c.getString(11), c.getString(4), c.getInt(12))) continue
+                val full = listOf(c.getString(2), c.getString(1), c.getString(3))
+                    .firstOrNull { !it.isNullOrBlank() }?.trim()
+                val title = full?.lineSequence()?.first()?.take(300) ?: HANDWRITTEN
+                val dueDay = c.getString(5)
+                val completed = c.getInt(6) != 0
+                out += Row(
+                    taskId = c.getString(0),
+                    title = title,
+                    fullText = full,
+                    handwrittenOnly = full == null,
+                    dayDate = c.getString(4),
+                    dueDay = dueDay,
+                    completed = completed,
+                    priority = c.getString(7).orEmpty(),
+                    overdue = !completed && dueDay != null && dueDay < today,
+                    parentTaskId = c.getString(8),
+                    updatedAt = if (c.isNull(9)) null else c.getLong(9),
+                )
+            }
+        }
+        return out
     }
 }
 

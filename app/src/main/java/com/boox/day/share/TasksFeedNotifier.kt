@@ -40,7 +40,9 @@ object TasksFeedNotifier {
                 tracker.addObserver(observer)
                 awaitClose { tracker.removeObserver(observer) }
             }.debounce(QUIET_MS).collect {
-                runCatching { app.contentResolver.notifyChange(TasksFeedContract.BASE_URI, null) }
+                if (TasksFeedProvider.isExternalFeedEnabled(app)) {
+                    runCatching { app.contentResolver.notifyChange(TasksFeedContract.BASE_URI, null) }
+                }
             }
         }
     }

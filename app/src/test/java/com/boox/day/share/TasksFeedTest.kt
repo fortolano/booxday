@@ -42,16 +42,25 @@ class TasksFeedTest {
     private lateinit var db: AppDatabase
     private val today = LocalDate.now().toString()
     private val settingsBefore = GlobalAppSettings.current
+    private val loadedBefore = GlobalAppSettings.loaded
 
     @Before
     fun setUp() {
         db = AppDatabase.getDatabase(context)
-        GlobalAppSettings.update(settingsBefore.copy(tasksInkCanvasHeight = TOP + 10 * ROW_HEIGHT, tasksInkTopOffset = TOP))
+        GlobalAppSettings.update(
+            settingsBefore.copy(
+                tasksInkCanvasHeight = TOP + 10 * ROW_HEIGHT,
+                tasksInkTopOffset = TOP,
+                tasksFeedEnabled = true,
+            )
+        )
+        GlobalAppSettings.loaded = true
     }
 
     @After
     fun tearDown() {
         GlobalAppSettings.update(settingsBefore)
+        GlobalAppSettings.loaded = loadedBefore
         AppDatabase.closeDatabase()
     }
 
@@ -76,11 +85,32 @@ class TasksFeedTest {
 
     @Test
     fun withoutTasksInkGeometryOnlyTextCounts() {
-        GlobalAppSettings.update(settingsBefore.copy(tasksInkCanvasHeight = 0f, tasksInkTopOffset = 0f))
+        GlobalAppSettings.update(GlobalAppSettings.current.copy(tasksInkCanvasHeight = 0f, tasksInkTopOffset = 0f))
         val page = seedToday()
         db.strokeDao().create(strokeInRow(page, row = 1))
         db.strokeDao().create(strokeInRow(page, row = 1, from = 0.3f, to = 0.8f))
 
+        assertEquals(listOf("A"), query("today").map { it.title })
+    }
+
+    @Test
+    fun externalFeedIsEmptyByDefaultUntilOptedInAndWorksInColdProcess() {
+        seedToday()
+        // Default OFF in warm process -> empty cursor
+        GlobalAppSettings.update(GlobalAppSettings.current.copy(tasksFeedEnabled = false))
+        GlobalAppSettings.loaded = true
+        assertTrue("external feed must be empty when off", query("today").isEmpty())
+
+        // Cold process (GlobalAppSettings.loaded == false): reads persisted Room KV directly
+        GlobalAppSettings.loaded = false
+        assertTrue("cold process with no saved opt-in returns empty", query("today").isEmpty())
+
+        // Persisted opt-in ON in Room KV -> cold process serves rows
+        com.boox.day.data.db.KvProxy(context).setKv(
+            com.boox.day.APP_SETTINGS_KEY,
+            com.boox.day.data.datastore.AppSettings(version = 1, tasksFeedEnabled = true),
+            com.boox.day.data.datastore.AppSettings.serializer()
+        )
         assertEquals(listOf("A"), query("today").map { it.title })
     }
 

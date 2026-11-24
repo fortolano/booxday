@@ -207,6 +207,9 @@ data class AppSettings(
     /** A Markdown note for each day, written by itself (Oct 2026, export/DailyNotes). Off until turned on. */
     val dailyNotesEnabled: Boolean = false,
 
+    /** Read-only Tasks ContentProvider for other apps on this tablet (Phase 1 H16 / Decision D1). Off by default. */
+    val tasksFeedEnabled: Boolean = false,
+
     // What the sleep screen shows
     val sleepScreenContent: com.boox.day.sleepscreen.SleepScreenContent = com.boox.day.sleepscreen.SleepScreenContent(),
 

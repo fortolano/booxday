@@ -18,7 +18,8 @@ recognition reads it, or when it can't). A row counts as handwritten by the same
 uses on its own pages, so a stray line from the next row doesn't make an empty row a task.
 
 Only task text and dates are shared. Strokes, notes, pages, accounts, API keys and settings are
-not. The provider is exported without a permission, so any app on the device can read it.
+not. The feed is **off by default** (returns an empty cursor until enabled in **Settings →
+Preferences → Tasks feed for other apps**). Once enabled, any app on the device can read it.
 
 Readers are notified on `content://com.boox.day.tasks` whenever tasks change, including new
 handwriting and handwriting recognition, about a second after the change (a burst of changes is
