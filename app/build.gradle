@@ -45,12 +45,6 @@ android {
         ksp {
             arg('room.schemaLocation', "$projectDir/schemas")
         }
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments = ["room.schemaLocation":
-                                     "$projectDir/schemas".toString()]
-            }
-        }
     }
 
     signingConfigs {
@@ -153,9 +147,6 @@ android {
         compose true
         buildConfig true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion compose_version
-    }
     packagingOptions {
 
         resources {
@@ -167,6 +158,11 @@ android {
             excludes += 'META-INF/NOTICE'
             excludes += 'META-INF/NOTICE.txt'
             excludes += 'META-INF/notice.txt'
+            // Coroutines debug agent metadata and desktop-only lz4-java natives (Android uses Java LZ4 path)
+            excludes += 'DebugProbesKt.bin'
+            excludes += 'net/jpountz/util/darwin/**'
+            excludes += 'net/jpountz/util/win32/**'
+            excludes += 'net/jpountz/util/linux/**'
         }
         jniLibs {
             // BOOX's SDK includes a link-time INPUT script, not a loadable runtime library.
@@ -185,7 +181,9 @@ android {
     lint {
         baseline = file("lint-baseline.xml")
         checkReleaseBuilds true
-        abortOnError false
+        abortOnError true
+        // values-pl is a partial community translation; don't block release builds on untranslated strings
+        warning 'MissingTranslation'
     }
     testOptions {
         unitTests {
@@ -244,8 +242,6 @@ dependencies {
     implementation "androidx.compose.runtime:runtime-livedata:$compose_version"
     implementation "androidx.compose.runtime:runtime:$compose_version"
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0'
-    // Entitlement system: ISO 8601 timestamp parsing for trial dates, key expiry
-    implementation 'org.jetbrains.kotlinx:kotlinx-datetime:0.5.0'
 
     implementation "androidx.navigation:navigation-compose:2.9.6"
 
@@ -253,11 +249,10 @@ dependencies {
 
     implementation "androidx.room:room-runtime:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
-    annotationProcessor "androidx.room:room-compiler:$room_version"
     ksp "androidx.room:room-compiler:$room_version"
 
     // For testing:
-    implementation "androidx.room:room-testing-android:$room_version"
+    androidTestImplementation "androidx.room:room-testing-android:$room_version"
     testImplementation "androidx.room:room-testing:$room_version"
     testImplementation "androidx.arch.core:core-testing:2.2.0"
 
@@ -328,7 +323,6 @@ dependencies {
     // LZ4 support. Phase 3 (Oct 2026): maintained fork (org.lz4 1.8.0 has CVE-2025-12183 and
     // CVE-2025-66566); same net.jpountz.lz4 API and block format
     implementation("at.yawk.lz4:lz4-java:1.10.1")
-    implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0"
 
     // for PDF support:
     implementation("com.artifex.mupdf:fitz:1.26.10")

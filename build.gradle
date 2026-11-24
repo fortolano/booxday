@@ -3,10 +3,6 @@ buildscript {
         google()
         mavenCentral()
     }
-    dependencies {
-        // Add the dependency for the Google services Gradle plugin
-        classpath 'com.google.gms:google-services:4.4.4'
-    }
     ext {
         compose_version = '1.9.5'
     }
