@@ -238,7 +238,7 @@ fun EditorGestureReceiver(
                                         )
                                         if (attachmentAtPoint != null) {
                                             // Directly select this attachment
-                                            log.i("Long-press on attachment: ${attachmentAtPoint.displayName}")
+                                            log.i("Long-press on attachment: id=${attachmentAtPoint.id}")
                                             coroutineScope.launch {
                                                 DrawCanvas.selectSingleAttachment.emit(attachmentAtPoint)
                                             }
@@ -802,7 +802,7 @@ private fun handleAttachmentTap(
     val tappedAttachment = findAttachmentAtPoint(attachments, pageX, pageY)
 
     if (tappedAttachment != null) {
-        log.i("Attachment tapped: ${tappedAttachment.displayName} (${tappedAttachment.fileType})")
+        log.i("Attachment tapped: id=${tappedAttachment.id} (${tappedAttachment.fileType})")
         openAttachmentFile(context, tappedAttachment)
         return true
     }
@@ -833,7 +833,7 @@ private fun openAttachmentFile(context: Context, attachment: Attachment) {
     val file = File(attachment.filePath)
 
     if (!file.exists()) {
-        log.w("Attachment file not found: ${attachment.filePath}")
+        log.w("Attachment file not found: id=${attachment.id} (${attachment.fileType})")
         Toast.makeText(context, "File not found: ${attachment.displayName}", Toast.LENGTH_SHORT).show()
         return
     }
@@ -854,12 +854,12 @@ private fun openAttachmentFile(context: Context, attachment: Attachment) {
         }
 
         context.startActivity(intent)
-        log.i("Opened attachment: ${attachment.displayName}")
+        log.i("Opened attachment: id=${attachment.id} (${attachment.fileType})")
     } catch (e: ActivityNotFoundException) {
-        log.e("No app found to open file: ${attachment.filePath}", e)
+        log.e("No app found to open attachment: id=${attachment.id} (${attachment.fileType})")
         Toast.makeText(context, "No app found to open this file", Toast.LENGTH_SHORT).show()
     } catch (e: Exception) {
-        log.e("Failed to open attachment: ${e.message}", e)
+        log.e("Failed to open attachment: id=${attachment.id} (${e.javaClass.simpleName})")
         Toast.makeText(context, "Failed to open file: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }

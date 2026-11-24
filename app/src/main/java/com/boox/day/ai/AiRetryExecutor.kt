@@ -108,38 +108,39 @@ object AiRetryExecutor {
                     }
                     is AiResponse.Error.RateLimitError -> {
                         Log.w(TAG, "${model.displayName} rate limited")
-                        lastError = "Rate limited: ${response.message}"
+                        lastError = "Rate limited"
                         lastProblem = AiProblem.of(response)
                     }
                     is AiResponse.Error.NetworkError -> {
-                        Log.w(TAG, "${model.displayName} network error: ${response.message}")
-                        lastError = "Network error: ${response.message}"
+                        Log.w(TAG, "${model.displayName} network error (${response.cause?.javaClass?.simpleName ?: "unknown"})")
+                        lastError = "Network error"
                         lastProblem = AiProblem.of(response)
                     }
                     is AiResponse.Error.ServiceUnavailable -> {
-                        Log.w(TAG, "${model.displayName} service unavailable: ${response.message}")
-                        return RetryResult.Failure(response.message, response.message)
+                        Log.w(TAG, "${model.displayName} service unavailable")
+                        return RetryResult.Failure(response.message, "Service unavailable")
                     }
                     // The user's own key: missing or rejected. No other model can help.
                     is AiResponse.Error.NoApiKey,
                     is AiResponse.Error.KeyRejected -> {
-                        Log.w(TAG, "OpenRouter key problem: ${response.message}")
-                        return RetryResult.Failure(response.message, response.message)
+                        Log.w(TAG, "OpenRouter key problem (${response.javaClass.simpleName})")
+                        return RetryResult.Failure(response.message, response.javaClass.simpleName)
                     }
                     // Refused for credit: free models still work (before Oct 2026 this ended here,
                     // so an account without credit never reached the free models)
                     is AiResponse.Error.OutOfCredit -> {
-                        Log.w(TAG, "${model.displayName} refused for credit: ${response.message}")
+                        Log.w(TAG, "${model.displayName} refused for credit (source=${response.limitSource})")
                         creditRefusal = response
-                        lastError = response.message
+                        lastError = "OutOfCredit"
                         if (models.none { OpenRouterAccount.isFreeModel(it.id) }) {
-                            return RetryResult.Failure(response.message, response.message)
+                            return RetryResult.Failure(response.message, "OutOfCredit")
                         }
                         cycles = minOf(cycles, cycle + 1)
                     }
                     is AiResponse.Error -> {
-                        Log.w(TAG, "${model.displayName} error: ${response.message}")
-                        lastError = response.message
+                        val code = (response as? AiResponse.Error.ApiError)?.code
+                        Log.w(TAG, "${model.displayName} error (${response.javaClass.simpleName}${code?.let { ", HTTP $it" } ?: ""})")
+                        lastError = "${response.javaClass.simpleName}${code?.let { "($it)" } ?: ""}"
                         lastProblem = AiProblem.of(response)
                     }
                 }
@@ -152,7 +153,7 @@ object AiRetryExecutor {
             }
         }
 
-        Log.e(TAG, "All $totalAttempts attempts failed. Last error: $lastError")
+        Log.e(TAG, "All $totalAttempts attempts failed (last=${lastError ?: "none"})")
         // A credit refusal says what to do (add credit); the free models' errors usually don't
         return RetryResult.Failure(creditRefusal?.message ?: lastProblem?.message ?: SERVICE_UNAVAILABLE_MESSAGE, lastError)
     }
@@ -193,12 +194,13 @@ object AiRetryExecutor {
                 is AiResponse.Error.NoApiKey,
                 is AiResponse.Error.KeyRejected -> return response
                 is AiResponse.Error.OutOfCredit -> {
-                    Log.w(TAG, "${model.displayName} refused for credit: ${response.message}")
+                    Log.w(TAG, "${model.displayName} refused for credit (source=${response.limitSource})")
                     creditRefusal = response
                     lastError = response
                 }
                 is AiResponse.Error -> {
-                    Log.w(TAG, "${model.displayName} failed, trying the next model: ${response.message}")
+                    val code = (response as? AiResponse.Error.ApiError)?.code
+                    Log.w(TAG, "${model.displayName} failed, trying next (${response.javaClass.simpleName}${code?.let { ", HTTP $it" } ?: ""})")
                     lastError = response
                 }
             }

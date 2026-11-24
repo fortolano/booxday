@@ -690,7 +690,7 @@ fun SharedToolbar(
                     pageId = activeState.currentPageId
                 )
                 activeState.pageView.addAttachment(attachment)
-                toolbarLog.i("Attachment added: $displayName ($fileType)")
+                toolbarLog.i("Attachment added (type=$fileType)")
                 scope.launch { DrawCanvas.forceUpdate.emit(null) }
                 isAttachmentDialogOpen = false
             },
@@ -729,7 +729,7 @@ fun SharedToolbar(
                 // AI-enhanced: formatted text with spans
                 voiceResultText = plainText
                 voiceResultSpans = spansJson.ifEmpty { null }
-                toolbarLog.i("Voice text received (formatted): $plainText, spans: ${spansJson.take(100)}...")
+                toolbarLog.i("Voice text received (formatted): ${plainText.length} chars, spans=${spansJson.length} chars")
                 isVoiceInputDialogOpen = false
             },
             onDismiss = { isVoiceInputDialogOpen = false }
@@ -747,7 +747,7 @@ fun SharedToolbar(
                         val clip = android.content.ClipData.newPlainText("Voice Text", action.text)
                         clipboard.setPrimaryClip(clip)
                         android.widget.Toast.makeText(context, "Text copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
-                        toolbarLog.i("Voice text copied: ${action.text}")
+                        toolbarLog.i("Voice text copied (${action.text.length} chars)")
                     }
                     is VoiceTextAction.PlaceOnCurrentPage -> {
                         val pageId = state?.currentPageId ?: return@VoiceTextResultDialog
@@ -787,7 +787,7 @@ fun SharedToolbar(
                         }
 
                         android.widget.Toast.makeText(context, "Text placed on page", android.widget.Toast.LENGTH_SHORT).show()
-                        toolbarLog.i("Voice text placed on current page: ${action.text}")
+                        toolbarLog.i("Voice text placed on current page (${action.text.length} chars)")
                     }
                     is VoiceTextAction.PlaceOnNewPage -> {
                         // Create new page in current day and place text there
@@ -831,7 +831,7 @@ fun SharedToolbar(
                             controlTower?.navigateToPage(newPageId)
 
                             android.widget.Toast.makeText(context, "Text placed on new page", android.widget.Toast.LENGTH_SHORT).show()
-                            toolbarLog.i("Voice text placed on new page: ${action.text}")
+                            toolbarLog.i("Voice text placed on new page (${action.text.length} chars)")
                         } else {
                             // Fallback: copy to clipboard if not in calendar mode
                             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -871,7 +871,7 @@ fun SharedToolbar(
                         val clip = android.content.ClipData.newPlainText("Recognized Text", action.text)
                         clipboard.setPrimaryClip(clip)
                         android.widget.Toast.makeText(context, "Text copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
-                        toolbarLog.i("Recognized text copied: ${action.text}")
+                        toolbarLog.i("Recognized text copied (${action.text.length} chars)")
                     }
                     is RecognitionAction.ReplaceHandwriting -> {
                         // Calculate bounding box from the strokes being processed
@@ -929,7 +929,7 @@ fun SharedToolbar(
                             DrawCanvas.forceUpdate.emit(null)
                         }
 
-                        toolbarLog.i("Handwriting replaced: ${action.text}")
+                        toolbarLog.i("Handwriting replaced (${action.text.length} chars)")
                     }
                     is RecognitionAction.PlaceOnCurrentPage -> {
                         // Only restore selection if this was from lasso (strokes hidden during selection)
@@ -1109,7 +1109,7 @@ fun SharedToolbar(
                         val clip = android.content.ClipData.newPlainText("Translation", action.translation)
                         clipboard.setPrimaryClip(clip)
                         android.widget.Toast.makeText(context, "Translation copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
-                        toolbarLog.i("Translation copied (${action.detectedLanguages}): ${action.translation.take(50)}...")
+                        toolbarLog.i("Translation copied (${action.detectedLanguages}, ${action.translation.length} chars)")
                     }
                     is TranslationAction.PlaceOnNewPage -> {
                         // Split text if needed and place on new page(s)

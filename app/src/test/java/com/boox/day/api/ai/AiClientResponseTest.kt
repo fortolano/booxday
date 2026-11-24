@@ -175,4 +175,21 @@ class AiClientResponseTest {
         // BooxDay's models: the feature's value as before
         assertEquals(2_000, aiRequest { model(model(false)); userMessage("Hi"); maxTokens(2_000) }.config.maxTokens)
     }
+
+    @Test
+    fun `raw HTTP error bodies never leak into AiResponse messages while 404 reasons stay classified`() {
+        val secretSnippet = "PRIVATE_CALENDAR_TITLE_CONFIDENTIAL_9981"
+        val badRequest = AiClient.handleErrorResponse(400, """{"error":{"message":"Rejected input: $secretSnippet"}}""")
+        assertTrue(badRequest is AiResponse.Error.InvalidRequest)
+        assertFalse((badRequest as AiResponse.Error).message.contains(secretSnippet))
+
+        val serverError = AiClient.handleErrorResponse(500, "Upstream echoed: $secretSnippet")
+        assertTrue(serverError is AiResponse.Error.ApiError)
+        assertFalse((serverError as AiResponse.Error).message.contains(secretSnippet))
+
+        val policy404 = AiClient.handleErrorResponse(404, """{"error":{"message":"No endpoints found matching your data policy ($secretSnippet)"}}""")
+        assertTrue(policy404 is AiResponse.Error.ApiError)
+        assertTrue((policy404 as AiResponse.Error).message.contains("data policy", ignoreCase = true))
+        assertFalse(policy404.message.contains(secretSnippet))
+    }
 }

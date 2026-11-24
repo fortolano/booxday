@@ -210,12 +210,12 @@ object AgenticPlanningService {
                 availableFreeMinutes = context.todayCapacity.freeMinutes
             )
         } catch (e: JsonSyntaxException) {
-            // Length only (Oct 2026): error lines stay in release builds and in crash reports
-            Log.e(TAG, "JSON parse error (${cleanJson.length} chars)", e)
+            // Length and class only: error lines stay in release builds and crash reports
+            Log.e(TAG, "JSON parse error (${cleanJson.length} chars, ${e.javaClass.simpleName})")
             AgenticPlanResult.error("Could not parse AI response")
         } catch (e: Exception) {
-            Log.e(TAG, "Unexpected parse error", e)
-            AgenticPlanResult.error("Processing error: ${e.message}")
+            Log.e(TAG, "Unexpected parse error (${e.javaClass.simpleName})")
+            AgenticPlanResult.error("Processing error")
         }
     }
 
@@ -249,7 +249,7 @@ object AgenticPlanningService {
                     try { LocalDate.parse(it, dateFormatter) } catch (e: Exception) { null }
                 }
                 if (targetDate == null) {
-                    Log.w(TAG, "Invalid target date: ${proposal.targetDate}")
+                    Log.w(TAG, "Invalid target date (${proposal.targetDate?.length ?: 0} chars)")
                     return null
                 }
                 val dueDate = com.boox.day.data.db.TaskDueDates.toLocalDate(task.dueDay)
@@ -300,13 +300,13 @@ object AgenticPlanningService {
                 val blockStart = try {
                     java.time.LocalTime.parse(timeBlock.startTime)
                 } catch (e: Exception) {
-                    Log.w(TAG, "Invalid time block start: ${timeBlock.startTime}")
+                    Log.w(TAG, "Invalid time block start (${timeBlock.startTime.length} chars)")
                     return null
                 }
                 val blockEnd = try {
                     java.time.LocalTime.parse(timeBlock.endTime)
                 } catch (e: Exception) {
-                    Log.w(TAG, "Invalid time block end: ${timeBlock.endTime}")
+                    Log.w(TAG, "Invalid time block end (${timeBlock.endTime.length} chars)")
                     return null
                 }
 

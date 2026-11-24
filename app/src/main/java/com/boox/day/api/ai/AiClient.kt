@@ -80,10 +80,12 @@ object AiClient {
             } else {
                 handleErrorResponse(response.code(), response.errorBody()?.string())
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Network error during AI request", e)
+            Log.e(TAG, "Network error during AI request: ${e.javaClass.simpleName}")
             AiResponse.Error.NetworkError(
-                message = "Network error: ${e.message}",
+                message = "Network error (${e.javaClass.simpleName})",
                 cause = e
             )
         }
@@ -135,19 +137,20 @@ object AiClient {
             // Check for API-level error in response body
             body?.error != null -> {
                 val code = body.error.code
-                val message = body.error.message ?: "Unknown API error"
-                Log.e(TAG, "API returned error: $code - $message")
+                val rawMessage = body.error.message
+                val safeMessage = safeErrorSummary(code, rawMessage)
+                Log.e(TAG, "API returned error: code=$code (${rawMessage?.length ?: 0} chars)")
 
                 when (code) {
                     429 -> AiResponse.Error.RateLimitError(
-                        message = message,
+                        message = safeMessage,
                         retryAfterSeconds = null
                     )
                     401 -> AiResponse.Error.KeyRejected()
                     402 -> outOfCredit(body.error)
                     else -> AiResponse.Error.ApiError(
                         code = code,
-                        message = message
+                        message = safeMessage
                     )
                 }
             }
@@ -225,31 +228,46 @@ object AiClient {
         }
     }
 
+    /** Maps upstream error payloads into fixed safe categories so raw bodies never enter release logs or UI. */
+    private fun safeErrorSummary(code: Int?, raw: String?): String = when {
+        code == 404 && raw?.contains("data policy", ignoreCase = true) == true ->
+            "No endpoints found matching data policy (HTTP 404)"
+        code == 404 && raw?.contains("No endpoints found", ignoreCase = true) == true ->
+            "No endpoints found (HTTP 404)"
+        code == 404 -> "Model not found (HTTP 404)"
+        code == 429 -> "Rate limit exceeded (HTTP 429)"
+        code == 400 -> "Invalid request (HTTP 400)"
+        code == 403 -> "Authentication error (HTTP 403)"
+        code != null -> "API error (HTTP $code)"
+        else -> "API error"
+    }
+
     /**
      * Handle HTTP error responses.
      */
     internal fun handleErrorResponse(code: Int, errorBody: String?): AiResponse<String> {
-        val message = errorBody ?: "Unknown error"
-        Log.e(TAG, "HTTP error $code: $message")
+        val safeMessage = safeErrorSummary(code, errorBody)
+        Log.e(TAG, "HTTP error $code (${errorBody?.length ?: 0} chars)")
+        Log.d(TAG, "HTTP error $code raw body: ${errorBody?.take(500)}")
 
         return when (code) {
             429 -> AiResponse.Error.RateLimitError(
-                message = "Rate limit exceeded: $message",
+                message = safeMessage,
                 retryAfterSeconds = null
             )
             400 -> AiResponse.Error.InvalidRequest(
-                message = message
+                message = safeMessage
             )
             // The user's own key: rejected, or no credit left on their account
             401 -> AiResponse.Error.KeyRejected()
             402 -> outOfCredit(parseErrorBody(errorBody))
             403 -> AiResponse.Error.ApiError(
                 code = code,
-                message = "Authentication error: $message"
+                message = safeMessage
             )
             else -> AiResponse.Error.ApiError(
                 code = code,
-                message = message
+                message = safeMessage
             )
         }
     }

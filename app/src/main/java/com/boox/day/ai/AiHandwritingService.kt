@@ -640,18 +640,17 @@ OUTPUT FORMAT:
 
         return when (val response = AiClient.execute(request)) {
             is AiResponse.Success -> {
-                log.i("${model.id} SUCCESS - Raw response (${response.data.length} chars):")
-                log.i("=== RESPONSE START ===")
+                log.i("${model.id} SUCCESS (${response.data.length} chars, tokens=${response.usage?.totalTokens})")
+                log.d("=== RESPONSE START ===")
                 response.data.chunked(500).forEachIndexed { idx, chunk ->
-                    log.i("[$idx]: $chunk")
+                    log.d("[$idx]: $chunk")
                 }
-                log.i("=== RESPONSE END ===")
-                log.i("Model used: ${response.model}, Tokens: ${response.usage?.totalTokens}")
+                log.d("=== RESPONSE END ===")
 
                 Result.success(parseStage1Text(response.data))
             }
             is AiResponse.Error -> {
-                log.e("${model.id} ERROR: ${response.message}")
+                log.e("${model.id} ERROR (${response.javaClass.simpleName})")
                 Result.failure(Exception(response.message))
             }
         }

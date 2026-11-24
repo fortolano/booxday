@@ -114,7 +114,7 @@ RULES:
                 blocks = if (hasText) text.split(Regex("\\n\\s*\\n")).count { it.isNotBlank() } else 0
             )
         } catch (e: Exception) {
-            Log.w(TAG, "Could not parse OCR answer: ${e.message}")
+            Log.w(TAG, "Could not parse OCR answer (${data.length} chars, ${e.javaClass.simpleName})")
             Result.Failed("unreadable answer")
         }
     }

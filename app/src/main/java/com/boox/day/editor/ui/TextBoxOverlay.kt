@@ -865,7 +865,7 @@ private fun deleteTextBox(
 ) {
     val selectedTextBox = textBoxState.selectedTextBox ?: return
 
-    log.w("DELETE_TEXTBOX: Deleting text box with content='${selectedTextBox.content.take(50)}'")
+    log.w("DELETE_TEXTBOX: Deleting text box id=${selectedTextBox.id} (${selectedTextBox.content.length} chars)")
 
     // Register with history BEFORE deletion for undo support
     // AddTextAnnotation is the reverse operation (to restore on undo)
