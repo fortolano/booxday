@@ -158,4 +158,25 @@ class DailyNoteMarkdownTest {
         assertEquals(1, Regex("booxday:start").findAll(text).count())
         assertFalse(File(DailyNoteWriter.defaultFolder(), "2026-10-24.md.tmp").exists())
     }
+
+    @Test
+    fun failedReplacementPreservesOriginalNote() {
+        val tempDir = File(ApplicationProvider.getApplicationContext<Application>().cacheDir, "daily-note-safe-replace").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        val target = File(tempDir, "2026-10-24.md").apply { writeText("User notes that must survive") }
+        val tmp = File(tempDir, "2026-10-24.md.tmp").apply { writeText("Replacement content") }
+
+        val result = runCatching {
+            DailyNoteWriter.replaceFileSafely(tmp, target) { from, to ->
+                if (from == tmp && to == target) false else from.renameTo(to)
+            }
+        }
+
+        assertTrue(result.isFailure)
+        assertEquals("User notes that must survive", target.readText())
+        assertFalse(tmp.exists())
+        tempDir.deleteRecursively()
+    }
 }

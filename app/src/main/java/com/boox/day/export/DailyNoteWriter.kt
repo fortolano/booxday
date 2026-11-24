@@ -74,10 +74,7 @@ object DailyNoteWriter {
             val tmp = File(dir, "$fileName.tmp")
             tmp.outputStream().use(write)
             val target = File(dir, fileName)
-            if (!tmp.renameTo(target)) {
-                target.delete()
-                check(tmp.renameTo(target)) { "Could not save ${target.absolutePath}" }
-            }
+            replaceFileSafely(tmp, target)
             return
         }
         val resolver = context.contentResolver
@@ -96,27 +93,58 @@ object DailyNoteWriter {
     }
 
     private fun writeFile(fileName: String, update: (String?) -> String) {
-        val dir = defaultFolder().apply { mkdirs() }
+        writeFileIn(defaultFolder(), fileName, update)
+    }
+
+    internal fun writeFileIn(dir: File, fileName: String, update: (String?) -> String) {
+        dir.mkdirs()
         val target = File(dir, fileName)
+        if (target.exists() && !target.isFile) {
+            error("Existing path is not a file: ${target.absolutePath}")
+        }
         val content = update(if (target.isFile) target.readText() else null)
         val tmp = File(dir, "$fileName.tmp")
         tmp.writeText(content)
-        if (!tmp.renameTo(target)) {
-            target.delete()
-            check(tmp.renameTo(target)) { "Could not save ${target.absolutePath}" }
+        replaceFileSafely(tmp, target)
+    }
+
+    internal fun replaceFileSafely(
+        tmp: File,
+        target: File,
+        renameOp: (File, File) -> Boolean = { from, to -> from.renameTo(to) },
+    ) {
+        if (renameOp(tmp, target)) return
+        val backup = File(target.parentFile, "${target.name}.bak")
+        if (backup.exists()) backup.delete()
+        val hadTarget = target.exists()
+        val backedUp = hadTarget && renameOp(target, backup)
+        if (hadTarget && !backedUp) {
+            tmp.delete()
+            error("Could not back up ${target.absolutePath} before replacing")
         }
+        if (renameOp(tmp, target)) {
+            if (backedUp) backup.delete()
+            return
+        }
+        if (backedUp) renameOp(backup, target)
+        tmp.delete()
+        error("Could not save ${target.absolutePath}")
     }
 
     private fun writeDocument(context: Context, tree: Uri, fileName: String, update: (String?) -> String) {
         val resolver = context.contentResolver
         val parent = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
         val existing = findChild(context, tree, fileName)
-        val old = existing?.let { uri -> resolver.openInputStream(uri)?.use { it.readBytes().decodeToString() } }
+        val old = existing?.let { uri ->
+            val stream = resolver.openInputStream(uri)
+                ?: error("Could not read existing $fileName")
+            stream.use { it.readBytes().decodeToString() }
+        }
         val content = update(old)
         // application/octet-stream: providers keep the name as given (no ".txt" added)
         val target = existing ?: DocumentsContract.createDocument(resolver, parent, "application/octet-stream", fileName)
             ?: error("The folder refused a new file")
-        resolver.openOutputStream(target, "wt")?.use { it.write(content.toByteArray()) }
+        resolver.openOutputStream(target, "wt")?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
             ?: error("Could not write $fileName")
     }
 

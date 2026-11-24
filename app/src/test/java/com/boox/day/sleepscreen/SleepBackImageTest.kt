@@ -58,6 +58,10 @@ class SleepBackImageTest {
     fun cleanUpTakesOnlyBooxDaysOwnFiles() {
         assertTrue(SleepScreenPublisher.isOurImage("booxday-today-1793904683043.png"))
         assertTrue(SleepScreenPublisher.isOurImage("booxday-back-1793904683043.jpg"))
+        assertTrue(SleepScreenPublisher.isOurImage("booxday-today.png"))
         assertFalse("the user's pictures in Pictures/ stay", SleepScreenPublisher.isOurImage("holiday.jpg"))
+        assertFalse("user file sharing prefix stays", SleepScreenPublisher.isOurImage("booxday-today-vacation.png"))
+        assertFalse("user file sharing back prefix stays", SleepScreenPublisher.isOurImage("booxday-back-cover.jpg"))
+        assertTrue("ledger-owned name is cleaned", SleepScreenPublisher.isOurImage("custom-owned.png", setOf("custom-owned.png")))
     }
 }

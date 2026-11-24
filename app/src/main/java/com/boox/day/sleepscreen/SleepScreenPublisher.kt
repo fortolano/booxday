@@ -37,11 +37,14 @@ object SleepScreenPublisher {
     private const val KEY_FINGERPRINT = "fingerprint"
     private const val KEY_DATE = "date"
     private const val KEY_FILE = "file"
+    private const val KEY_OWNED_FILES = "owned_files"
     private const val NAME_PREFIX = "booxday-today"
     /** The user's own image on its way back to BOOX ([handBack]). */
     private const val BACK_PREFIX = "booxday-back"
     /** The fixed name builds before 24 Oct 2026 used. */
     private const val OLD_FIXED_NAME = "booxday-today.png"
+    private val TODAY_FILE_PATTERN = Regex("^booxday-today-\\d{13}\\.png$")
+    private val BACK_FILE_PATTERN = Regex("^booxday-back-\\d{13}\\.jpg$")
 
     private val mutex = Mutex()
 
@@ -91,10 +94,14 @@ object SleepScreenPublisher {
             Log.i(TAG, "Sleep screen ${if (accepted) "set" else "refused"}: $today, ${sizeClass.name.lowercase()} ${width}x$height, ${file.name}")
             if (accepted) lastWrite.succeeded(app) else lastWrite.failed(app, "BOOX didn't take the image")
             if (accepted) {
+                val owned = ownedFiles(app) + file.name
                 prefs(app).edit()
-                    .putString(KEY_FINGERPRINT, fingerprint).putString(KEY_DATE, today.toString()).putString(KEY_FILE, file.name)
+                    .putString(KEY_FINGERPRINT, fingerprint)
+                    .putString(KEY_DATE, today.toString())
+                    .putString(KEY_FILE, file.name)
+                    .putStringSet(KEY_OWNED_FILES, owned)
                     .apply()
-                deleteImages(keep = setOf(file.name, previous))
+                deleteImages(app, keep = setOf(file.name, previous))
             } else {
                 file.delete()
             }
@@ -134,8 +141,10 @@ object SleepScreenPublisher {
      * so the sleep screen no longer shows a day that is over.
      */
     fun withdraw(context: Context) {
-        prefs(context).edit().clear().apply()
-        deleteImages(keep = emptySet())
+        val app = context.applicationContext
+        val owned = ownedFiles(app)
+        prefs(app).edit().clear().apply()
+        deleteImages(app, keep = emptySet(), extraOwned = owned)
         runCatching { File(folder(), "$NAME_PREFIX.tmp").delete() }  // left by a write that was cut short
     }
 
@@ -151,7 +160,13 @@ object SleepScreenPublisher {
             SleepBackImage.file(app).copyTo(target)
             val accepted = ScreenResourceManager.setScreensaver(app, target.absolutePath, false)
             Log.i(TAG, "Own image ${if (accepted) "handed back" else "refused"}")
-            if (accepted) deleteImages(keep = setOf(target.name)) else target.delete()
+            if (accepted) {
+                val owned = ownedFiles(app) + target.name
+                prefs(app).edit().putStringSet(KEY_OWNED_FILES, owned).apply()
+                deleteImages(app, keep = setOf(target.name))
+            } else {
+                target.delete()
+            }
             accepted
         } catch (t: Throwable) {
             Log.e(TAG, "Own image not handed back", t)
@@ -160,17 +175,33 @@ object SleepScreenPublisher {
     }
 
     /** Deletes BooxDay's sleep images, in its folder and BOOX's copies in Pictures/, except [keep]. */
-    private fun deleteImages(keep: Set<String>) {
+    private fun deleteImages(context: Context, keep: Set<String>, extraOwned: Set<String> = emptySet()) {
+        val owned = ownedFiles(context) + extraOwned
+        val stillPresent = mutableSetOf<String>()
         listOfNotNull(folder(), folder().parentFile).forEach { dir ->
             runCatching {
-                dir.listFiles { f -> isOurImage(f.name) && f.isFile && f.name !in keep }
-                    ?.forEach { if (!it.delete()) Log.w(TAG, "Could not delete ${it.absolutePath}") }
+                dir.listFiles { f -> isOurImage(f.name, owned) && f.isFile && f.name !in keep }
+                    ?.forEach {
+                        if (!it.delete()) {
+                            stillPresent += it.name
+                            Log.w(TAG, "Could not delete ${it.absolutePath}")
+                        }
+                    }
             }.onFailure { Log.w(TAG, "Old sleep images not cleaned up in $dir: ${it.message}") }
+        }
+        if (extraOwned.isEmpty()) {
+            val remainingOwned = owned.filterTo(mutableSetOf()) { it in keep || it in stillPresent }
+            if (remainingOwned != owned) {
+                prefs(context).edit().putStringSet(KEY_OWNED_FILES, remainingOwned).apply()
+            }
         }
     }
 
-    internal fun isOurImage(name: String): Boolean =
-        (name.startsWith(NAME_PREFIX) && name.endsWith(".png")) || (name.startsWith(BACK_PREFIX) && name.endsWith(".jpg"))
+    private fun ownedFiles(context: Context): Set<String> =
+        prefs(context).getStringSet(KEY_OWNED_FILES, emptySet())?.toSet() ?: emptySet()
+
+    internal fun isOurImage(name: String, owned: Set<String> = emptySet()): Boolean =
+        name in owned || name == OLD_FIXED_NAME || TODAY_FILE_PATTERN.matches(name) || BACK_FILE_PATTERN.matches(name)
 
     /** The panel's portrait size in pixels and its pixels per inch. */
     internal fun panel(context: Context): Triple<Int, Int, Int> {
