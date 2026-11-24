@@ -629,8 +629,16 @@ object PageDataManager {
     private var entrySizeMB = LinkedHashMap<String, Int>()
 
     private val jobLock = Mutex()
-    private val dataLoadingJobs = mutableMapOf<String, Job>()
+    private val dataLoadingJobs = java.util.concurrent.ConcurrentHashMap<String, Job>()
     val dataLoadingScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    @androidx.annotation.VisibleForTesting
+    internal suspend fun registerLoadingJobForTest(pageId: String, job: Job) {
+        jobLock.withLock { dataLoadingJobs[pageId] = job }
+    }
+
+    @androidx.annotation.VisibleForTesting
+    internal fun hasLoadingJobForTest(pageId: String): Boolean = dataLoadingJobs.containsKey(pageId)
 
     init {
         startFileInvalidationCollector()
@@ -948,7 +956,11 @@ object PageDataManager {
                 throw e
             } catch (e: Exception) {
                 log.e("PAGE_LOAD_FAILED: page $pageId was not loaded", e)
-                jobLock.withLock { dataLoadingJobs.remove(pageId) }
+                val currentJob = coroutineScope.coroutineContext[Job]
+                jobLock.withLock {
+                    if (currentJob != null) dataLoadingJobs.remove(pageId, currentJob)
+                    else dataLoadingJobs.remove(pageId)
+                }
                 return
             }
 
@@ -970,7 +982,7 @@ object PageDataManager {
             calculateMemoryUsage(pageId, 1)
         } catch (e: CancellationException) {
             log.w("Loading of page $pageId was cancelled.")
-            if (!validatePageDataLoaded(pageId)) removePage(pageId)
+            if (!validatePageDataLoaded(pageId)) removePageInternal(pageId, expectedJob = coroutineScope.coroutineContext[Job])
             throw e  // rethrow cancellation
         } finally {
             log.d("Loaded page $pageId")
@@ -1906,7 +1918,9 @@ object PageDataManager {
     @Volatile
     private var currentCacheSizeMB = 0
 
-    fun removePage(pageId: String): Boolean {
+    fun removePage(pageId: String): Boolean = removePageInternal(pageId, expectedJob = null)
+
+    private fun removePageInternal(pageId: String, expectedJob: Job?): Boolean {
         log.d("Removing page $pageId")
         // PERFORMANCE FIX: Check ALL protected pages, not just currentPage
         val isActive = protectedPages.contains(pageId)
@@ -1921,23 +1935,34 @@ object PageDataManager {
             log.d("Skipping removal of page $pageId: image save pending")
             return false
         }
+        if (expectedJob == null && dataLoadingJobs[pageId]?.isActive == true) {
+            log.d("Skipping removal of page $pageId: load job active")
+            return false
+        }
         synchronized(accessLock) {
             strokes.remove(pageId)
             images.remove(pageId)
             textAnnotations.remove(pageId)
             attachments.remove(pageId)
-               pageHigh.remove(pageId)
-               pageZoom.remove(pageId)
-               pageScroll.remove(pageId)
-               synchronized(bitmapCacheLock) {
-                   val keysToRemove = bitmapCache.keys.filter { it.pageId == pageId }
-                   keysToRemove.forEach { bitmapCache.remove(it) }
-               }
-               strokesById.remove(pageId)
-               imagesById.remove(pageId)
-               textAnnotationsById.remove(pageId)
+            pageHigh.remove(pageId)
+            pageZoom.remove(pageId)
+            pageScroll.remove(pageId)
+            synchronized(bitmapCacheLock) {
+                val keysToRemove = bitmapCache.keys.filter { it.pageId == pageId }
+                keysToRemove.forEach { bitmapCache.remove(it) }
+            }
+            strokesById.remove(pageId)
+            imagesById.remove(pageId)
+            textAnnotationsById.remove(pageId)
             attachmentsById.remove(pageId)
-            dataLoadingJobs.remove(pageId)
+            if (expectedJob != null) {
+                dataLoadingJobs.remove(pageId, expectedJob)
+            } else {
+                val job = dataLoadingJobs[pageId]
+                if (job != null && !job.isActive) {
+                    dataLoadingJobs.remove(pageId, job)
+                }
+            }
             currentCacheSizeMB -= entrySizeMB[pageId] ?: 0
             entrySizeMB.remove(pageId)
 
@@ -1957,13 +1982,24 @@ object PageDataManager {
      */
     fun cancelLoadingPage(pageId: String) {
         dataLoadingScope.launch {
-            log.d("Cancelling loading page: pageId=$pageId")
-            jobLock.withLock {
-                if (dataLoadingJobs[pageId]?.isActive == true) {
-                    dataLoadingJobs[pageId]?.cancel()
-                    removePage(pageId)
-                }
+            cancelLoadingPageNow(pageId)
+        }
+    }
+
+    internal suspend fun cancelLoadingPageNow(pageId: String) {
+        log.d("Cancelling loading page: pageId=$pageId")
+        val job = jobLock.withLock {
+            val existing = dataLoadingJobs[pageId]
+            if (existing?.isActive == true) {
+                dataLoadingJobs.remove(pageId, existing)
+                existing
+            } else {
+                null
             }
+        }
+        if (job != null) {
+            job.cancel()
+            removePageInternal(pageId, expectedJob = job)
         }
     }
 
@@ -1973,38 +2009,52 @@ object PageDataManager {
      */
     fun cancelLoadingPages(ignoredPageIds: List<String> = listOf()) {
         dataLoadingScope.launch {
-            log.d("Cancelling loading pages, ignoring: $ignoredPageIds")
-            val toCancel: List<String>
-            jobLock.withLock {
-                // Collect all pageIds with jobs that are not finished
-                toCancel = dataLoadingJobs.filter { (_, job) ->
-                    job.isActive
-                }.map { (pageId, _) -> pageId }
-                // Cancel and remove pages outside the lock
-                for (pageId in toCancel) {
-                    if (ignoredPageIds.contains(pageId)) continue
-                    val job = jobLock.withLock { dataLoadingJobs[pageId] }
-                    if (job != null && job.isActive) {
-                        job.cancel()
-                        log.d("Cancelled job for page $pageId")
-                    }
-                    log.d("Cancelling page $pageId")
-                    removePage(pageId)
+            cancelLoadingPagesNow(ignoredPageIds)
+        }
+    }
+
+    internal suspend fun cancelLoadingPagesNow(ignoredPageIds: List<String> = listOf()) {
+        log.d("Cancelling loading pages, ignoring: $ignoredPageIds")
+        val ignored = ignoredPageIds.toHashSet()
+        // Snapshot and detach under jobLock once; never re-enter jobLock or cancel/remove while holding it.
+        val toCancel = jobLock.withLock {
+            dataLoadingJobs.entries
+                .filter { (pageId, job) -> pageId !in ignored && job.isActive }
+                .map { (pageId, job) ->
+                    dataLoadingJobs.remove(pageId, job)
+                    pageId to job
                 }
-            }
+        }
+        for ((pageId, job) in toCancel) {
+            job.cancel()
+            log.d("Cancelled job for page $pageId")
+            log.d("Cancelling page $pageId")
+            removePageInternal(pageId, expectedJob = job)
         }
     }
 
     fun clearAllPages() {
         dataLoadingScope.launch {
-            log.d("Clearing loaded pages")
-            jobLock.withLock {
-                // Collect all pageIds with jobs that are not finished
-                dataLoadingJobs.forEach { (id, _) ->
-                    log.d("Clearing page $id, requested by clearAllPages")
-                    removePage(id)
+            clearAllPagesNow()
+        }
+    }
+
+    internal suspend fun clearAllPagesNow() {
+        log.d("Clearing loaded pages")
+        val entries = jobLock.withLock {
+            dataLoadingJobs.entries.map { it.key to it.value }.also { snapshot ->
+                for ((id, job) in snapshot) {
+                    if (id != currentPage && !protectedPages.contains(id) && !hasPendingPersist(id)) {
+                        dataLoadingJobs.remove(id, job)
+                    }
                 }
             }
+        }
+        for ((id, job) in entries) {
+            if (id == currentPage || protectedPages.contains(id) || hasPendingPersist(id)) continue
+            if (job.isActive) job.cancel()
+            log.d("Clearing page $id, requested by clearAllPages")
+            removePageInternal(id, expectedJob = job)
         }
     }
 
