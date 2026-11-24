@@ -2477,63 +2477,67 @@ class TaskRepository(internal val context: Context) {
         canvasHeight: Float,
         recordRecurringException: Boolean = true
     ) {
-        val sourcePageId = task.pageId
-        val sourceRowIndex = task.rowIndex
+        inTransaction {
+            val sourcePageId = task.pageId
+            val sourceRowIndex = task.rowIndex
 
-        // Cancel notification FIRST (before clearing dueDate) — after commit inside a transaction
-        if (task.dueDay != null) {
-            afterCommit { cancelTaskNotification(task.id) }
+            // Cancel notification FIRST (before clearing dueDate) — after commit inside a transaction
+            if (task.dueDay != null) {
+                afterCommit { cancelTaskNotification(task.id) }
+            }
+
+            if (recordRecurringException) {
+                markRecurringOccurrenceSkipped(task)
+            }
+
+            // If this task is a parent, orphan its children first
+            // This prevents dangling parentTaskId references
+            if (taskDao.hasChildren(task.id)) {
+                taskDao.orphanChildren(task.id)
+                Log.i(TAG, "CLEAR_SLOT: Orphaned children of parent task ${task.id}")
+            }
+
+            // Full screen Tasks (Oct 2026): pages of more rows of the same height (tasks/TaskPagination)
+            val rowCount = TaskPagination.rowsPerPage(task.dayDate)
+            val rowsHeight = TaskPagination.rowsHeight(canvasHeight, rowCount, tasksTopOffset())
+
+            // Calculate row bounds
+            val rowBounds = calculateRowBounds(
+                rowIndex = sourceRowIndex,
+                canvasHeight = rowsHeight,
+                rowCount = rowCount
+            )
+
+            // Get strokes in this row — from memory, or the DB when the page isn't loaded
+            // (plan §13.2-4, Oct 2026: a cleared row's ink used to stay behind on unloaded pages)
+            val strokeRepository = StrokeRepository(context)
+            val sourceRect = rowBounds.toRect()
+            val allStrokes = PageDataManager.getStrokesInRectangle(sourceRect, sourcePageId)
+                ?: strokeRepository.getAllForPage(sourcePageId)
+            val strokesInRow = extractStrokesForRow(allStrokes, rowBounds, rowsHeight, rowCount = rowCount)
+
+            // Delete strokes if any (page-scoped; cache and redraw follow strictly after commit)
+            if (strokesInRow.isNotEmpty()) {
+                val strokeIds = strokesInRow.map { it.id }
+                strokeRepository.deleteByIdsOnPage(sourcePageId, strokeIds)
+                afterCommit {
+                    PageDataManager.removeStrokes(strokeIds, sourcePageId)
+                    TasksCanvasRefresh.request()  // coalesced (plan §13.4)
+                }
+                Log.i(TAG, "CLEAR_SLOT: Deleted ${strokeIds.size} strokes from row $sourceRowIndex")
+            }
+
+            // Clear metadata (this also clears parentTaskId on the task itself)
+            taskDao.clearTaskMetadata(task.id)
+
+            // Invalidate cache and signal change only after the transaction commits
+            afterCommit {
+                invalidateTaskCache(task.dayDate)
+                _taskChanged.tryEmit(task.dayDate)
+            }
+
+            Log.i(TAG, "CLEAR_SLOT: Cleared task slot ${task.dayDate} row $sourceRowIndex")
         }
-
-        if (recordRecurringException) {
-            markRecurringOccurrenceSkipped(task)
-        }
-
-        // If this task is a parent, orphan its children first
-        // This prevents dangling parentTaskId references
-        if (taskDao.hasChildren(task.id)) {
-            taskDao.orphanChildren(task.id)
-            Log.i(TAG, "CLEAR_SLOT: Orphaned children of parent task ${task.id}")
-        }
-
-        // Full screen Tasks (Oct 2026): pages of more rows of the same height (tasks/TaskPagination)
-        val rowCount = TaskPagination.rowsPerPage(task.dayDate)
-        val rowsHeight = TaskPagination.rowsHeight(canvasHeight, rowCount, tasksTopOffset())
-
-        // Calculate row bounds
-        val rowBounds = calculateRowBounds(
-            rowIndex = sourceRowIndex,
-            canvasHeight = rowsHeight,
-            rowCount = rowCount
-        )
-
-        // Get strokes in this row — from memory, or the DB when the page isn't loaded
-        // (plan §13.2-4, Oct 2026: a cleared row's ink used to stay behind on unloaded pages)
-        val strokeRepository = StrokeRepository(context)
-        val sourceRect = rowBounds.toRect()
-        val allStrokes = PageDataManager.getStrokesInRectangle(sourceRect, sourcePageId)
-            ?: strokeRepository.getAllForPage(sourcePageId)
-        val strokesInRow = extractStrokesForRow(allStrokes, rowBounds, rowsHeight, rowCount = rowCount)
-
-        // Delete strokes if any (page-scoped; the cache follows after commit)
-        if (strokesInRow.isNotEmpty()) {
-            val strokeIds = strokesInRow.map { it.id }
-            strokeRepository.deleteByIdsOnPage(sourcePageId, strokeIds)
-            afterCommit { PageDataManager.removeStrokes(strokeIds, sourcePageId) }
-
-            // Trigger canvas refresh (non-blocking)
-            TasksCanvasRefresh.request()  // coalesced (plan §13.4)
-            Log.i(TAG, "CLEAR_SLOT: Deleted ${strokeIds.size} strokes from row $sourceRowIndex")
-        }
-
-        // Clear metadata (this also clears parentTaskId on the task itself)
-        taskDao.clearTaskMetadata(task.id)
-
-        // Invalidate cache and signal change
-        invalidateTaskCache(task.dayDate)
-        _taskChanged.tryEmit(task.dayDate)
-
-        Log.i(TAG, "CLEAR_SLOT: Cleared task slot ${task.dayDate} row $sourceRowIndex")
     }
 
     /**

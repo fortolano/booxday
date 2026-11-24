@@ -188,6 +188,34 @@ class TaskMoveSafetyTest {
         )
     }
 
+    @Test
+    fun clearTaskSlotAtomicallyClearsStrokesMetadataAndOrphansChildren() {
+        val (rows, _) = repo.getOrCreateTasksForPage(SOURCE, 0)
+        val pageId = rows[0].pageId
+        val parent = rows[0]
+        val child = rows[1]
+        repo.setTypedText(parent.id, "Parent task")
+        repo.setTypedText(child.id, "Child task")
+        tasks.setParentTask(child.id, parent.id)
+        val stroke = Stroke(
+            size = 4f,
+            pen = Pen.BALLPEN,
+            top = 20f,
+            bottom = 40f,
+            left = 20f,
+            right = 200f,
+            points = listOf(StrokePoint(20f, 30f), StrokePoint(200f, 30f)),
+            pageId = pageId,
+        )
+        AppDatabase.getDatabase(context).strokeDao().create(stroke)
+
+        repo.clearTaskSlot(tasks.getById(parent.id)!!, CANVAS_HEIGHT)
+
+        assertEquals(null, tasks.getById(parent.id)?.typedText)
+        assertEquals(null, tasks.getById(child.id)?.parentTaskId)
+        assertTrue(AppDatabase.getDatabase(context).strokeDao().getAllForPage(pageId).isEmpty())
+    }
+
     private fun deleteDatabaseFiles() {
         val file = File(getDbDir(context), APP_DATABASE_FILE_NAME)
         listOf("", "-wal", "-shm", "-journal").forEach { File(file.path + it).delete() }
