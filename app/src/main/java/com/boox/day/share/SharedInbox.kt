@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.File
@@ -18,7 +19,22 @@ object SharedInbox {
     const val MAX_AI_TEXT = 8_000
     const val MAX_IMAGE_BYTES = 20L * 1024 * 1024
 
-    data class Item(val id: String = UUID.randomUUID().toString(), val text: String = "", val image: String? = null)
+    data class Item(
+        val id: String = UUID.randomUUID().toString(),
+        val text: String = "",
+        val image: String? = null,
+        @Transient val fileName: String? = null,
+    )
+
+    /**
+     * Explicit JSON wire shape so R8 obfuscation cannot break queued shares across upgrades.
+     * Alternates "a"/"b"/"c" decode files written by release builds 1.0.63–1.0.65.
+     */
+    private data class StoredItem(
+        @SerializedName(value = "id", alternate = ["a"]) val id: String? = null,
+        @SerializedName(value = "text", alternate = ["b"]) val text: String? = null,
+        @SerializedName(value = "image", alternate = ["c"]) val image: String? = null,
+    )
 
     private val gson = Gson()
     private val _revision = MutableStateFlow(0)
@@ -32,25 +48,40 @@ object SharedInbox {
     /** Long text is cut here, once. */
     fun add(context: Context, text: String, image: String?) {
         val item = Item(text = text.take(MAX_TEXT), image = image)
+        val stored = StoredItem(id = item.id, text = item.text, image = item.image)
         val tmp = File(folder(context), "${item.id}.tmp")
-        tmp.writeText(gson.toJson(item))
+        tmp.writeText(gson.toJson(stored))
         check(tmp.renameTo(File(folder(context), "${System.currentTimeMillis()}-${item.id}.json")))
         _revision.value++
     }
 
     /** The oldest waiting: a second share waits its turn. */
     fun next(context: Context): Item? {
-        val file = folder(context).listFiles { f -> f.name.endsWith(".json") }?.minByOrNull { it.name } ?: return null
-        return runCatching { gson.fromJson(file.readText(), Item::class.java) }.getOrNull()
-            ?: run {
+        val dir = folder(context)
+        while (true) {
+            val file = dir.listFiles { f -> f.name.endsWith(".json") }?.minByOrNull { it.name } ?: return null
+            val stored = runCatching { gson.fromJson(file.readText(), StoredItem::class.java) }.getOrNull()
+            if (stored == null || (stored.text.isNullOrEmpty() && stored.image.isNullOrEmpty())) {
+                // Corrupt or unmapped file with no usable payload: discard so it never blocks later shares.
                 file.delete()
-                next(context)
+                continue
             }
+            val resolvedId = stored.id?.takeIf { it.isNotBlank() }
+                ?: file.name.substringAfter('-', "").removeSuffix(".json").ifBlank { UUID.randomUUID().toString() }
+            return Item(
+                id = resolvedId,
+                text = stored.text.orEmpty(),
+                image = stored.image,
+                fileName = file.name,
+            )
+        }
     }
 
     /** Done with [item]: it won't come back. */
     fun remove(context: Context, item: Item) {
-        folder(context).listFiles { f -> f.name.endsWith("-${item.id}.json") }?.forEach { it.delete() }
+        val dir = folder(context)
+        item.fileName?.let { File(dir, File(it).name).delete() }
+        dir.listFiles { f -> f.name.endsWith("-${item.id}.json") }?.forEach { it.delete() }
         item.image?.let { imageFile(context, it).delete() }
         _revision.value++
     }

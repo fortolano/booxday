@@ -121,4 +121,23 @@ class SharedInboxTest {
         assertEquals(300 to 200, ShareUi.fit(300, 200, 1000, 1400))
         assertNotNull(ShareUi.fit(1, 1, 1000, 1400))
     }
+
+    @Test
+    fun `obfuscated v1_0_63-65 shares decode cleanly and empty json never wedges the inbox`() {
+        val dir = File(context.filesDir, "shared").apply { mkdirs() }
+        // Unmapped empty JSON from an incompatible schema must be discarded rather than wedging the queue
+        File(dir, "0001-wedge.json").writeText("{}")
+        // Obfuscated field names (a=id, b=text, c=image) from release builds 1.0.63–1.0.65
+        File(dir, "0002-legacy-id.json").writeText("""{"a":"legacy-id","b":"Dinner at 7","c":null}""")
+
+        val item = SharedInbox.next(context)
+        assertNotNull(item)
+        assertEquals("legacy-id", item!!.id)
+        assertEquals("Dinner at 7", item.text)
+        assertFalse("empty unmapped file was discarded", File(dir, "0001-wedge.json").exists())
+
+        SharedInbox.remove(context, item)
+        assertNull(SharedInbox.next(context))
+        assertFalse(File(dir, "0002-legacy-id.json").exists())
+    }
 }
