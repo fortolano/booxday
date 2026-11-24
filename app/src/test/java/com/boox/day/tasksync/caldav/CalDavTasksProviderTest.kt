@@ -51,6 +51,7 @@ class CalDavTasksProviderTest {
 
     /** The server's collections: path → (file path → (change tag, text)). */
     private val collections = linkedMapOf(TASKS to linkedMapOf<String, Pair<Int, String>>(), WORK to linkedMapOf(), CAL to linkedMapOf())
+    private val failedQueryHrefs = mutableSetOf<String>()
     private var ctag = 1
     private val requests = mutableListOf<String>()
 
@@ -73,7 +74,13 @@ class CalDavTasksProviderTest {
                 val ifMatch = request.getHeader("If-Match")
                 return when (kind) {
                     "PROPFIND" -> if (request.getHeader("Depth") == "1") home() else collection(path)
-                    "query" -> multistatus(collections.getValue(path).entries.joinToString("") { (href, file) -> response(href, "<d:getetag>\"${file.first}\"</d:getetag>") })
+                    "query" -> multistatus(collections.getValue(path).entries.joinToString("") { (href, file) ->
+                        if (href in failedQueryHrefs) {
+                            "<d:response><d:href>$href</d:href><d:status>HTTP/1.1 500 Internal Server Error</d:status></d:response>"
+                        } else {
+                            response(href, "<d:getetag>\"${file.first}\"</d:getetag>")
+                        }
+                    })
                     "multiget" -> multistatus(Regex("<[^>]*href>([^<]+)</").findAll(body).map { it.groupValues[1] }.mapNotNull { href ->
                         collections.values.firstNotNullOfOrNull { it[href] }?.let { (tag, ics) ->
                             response(href, "<d:getetag>\"$tag\"</d:getetag><c:calendar-data>${xml(ics)}</c:calendar-data>")
@@ -224,6 +231,31 @@ class CalDavTasksProviderTest {
             provider().moveToList(TASKS, "$href#20261105", WORK)
             fail("a day can't leave its series")
         } catch (e: TaskSyncServiceException.Refused) {
+        }
+    }
+
+    @Test
+    fun partialTaskListingNeverReportsDeletionsOrAdvancesCursor(): Unit = runBlocking<Unit> {
+        put(TASKS, "a.ics", task("a", "Milk"))
+        put(TASKS, "d.ics", task("d", "Bread"))
+        val first = provider().changes(TASKS, null)
+        link("t-a", "${TASKS}a.ics", "1")
+        link("t-d", "${TASKS}d.ics", "1")
+        val savedCursor = first.nextCursor
+
+        // Server bumps ctag and fails d.ics inside 207 Multi-Status
+        ctag++
+        failedQueryHrefs += "${TASKS}d.ics"
+        val partial = provider().changes(TASKS, savedCursor)
+
+        assertTrue("partial listing must not report deleted tasks: ${partial.tasks}", partial.tasks.none { it.deleted })
+        assertEquals("cursor must not advance on partial listing", savedCursor, partial.nextCursor)
+        assertTrue("stored task file kept", db.calDavDao().getTaskFiles("acc-1", TASKS).any { it.href == "${TASKS}d.ics" })
+
+        try {
+            provider().allIds(TASKS)
+            fail("incomplete listing must not look authoritative to allIds")
+        } catch (_: CalDavConnection.Failure.Server) {
         }
     }
 

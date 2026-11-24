@@ -174,16 +174,52 @@ internal class CalDavConnection(
         }
     }
 
+    /**
+     * Result of a CalDAV member tag listing (RFC 4791 calendar-query).
+     * [complete] is false when any member (or SELF) fails with a non-2xx status other than 404/410,
+     * so callers never infer deletions or advance sync cursors from an incomplete listing.
+     */
+    data class TagListing(val tags: Map<String, String?>, val complete: Boolean = true)
+
+    /**
+     * Result of a CalDAV multiget download.
+     * [gone] holds hrefs authoritatively reported as 404/410; [complete] is false when any
+     * requested href failed with another error or was omitted without 404/410.
+     */
+    data class DownloadBatch(
+        val files: List<RemoteEventFile>,
+        val gone: Set<String> = emptySet(),
+        val complete: Boolean = true,
+    )
+
+    private fun isAuthoritativeMissing(response: Response): Boolean {
+        val code = response.status?.code
+        if (code == 404 || code == 410) return true
+        return code == null &&
+            response.propstat.isNotEmpty() &&
+            response.propstat.all { it.status.code == 404 || it.status.code == 410 }
+    }
+
     /** A task list's task files, path → change tag (RFC 4791 calendar-query for VTODO, no time range). */
-    suspend fun taskTags(listUrl: String): Map<String, String?> = call {
+    suspend fun taskTagListing(listUrl: String): TagListing = call {
         val found = LinkedHashMap<String, String?>()
+        var complete = true
         DavCalendar(client, httpsUrl(listUrl)).calendarQuery("VTODO", null, null) { response, relation ->
-            if (relation != Response.HrefRelation.SELF && response.isSuccess()) {
+            if (relation == Response.HrefRelation.SELF) {
+                if (!response.isSuccess() && !isAuthoritativeMissing(response)) complete = false
+                return@calendarQuery
+            }
+            if (response.isSuccess()) {
                 found[response.href.encodedPath] = response[GetETag::class.java]?.eTag
+            } else if (!isAuthoritativeMissing(response)) {
+                complete = false
             }
         }
-        found
+        TagListing(found, complete)
     }
+
+    /** A task list's task files, path → change tag (RFC 4791 calendar-query for VTODO, no time range). */
+    suspend fun taskTags(listUrl: String): Map<String, String?> = taskTagListing(listUrl).tags
 
     /**
      * Moves a file to another collection (WebDAV MOVE, never over an existing file). Servers that
@@ -202,15 +238,25 @@ internal class CalDavConnection(
      * maps to null, so it is always downloaded. A calendar removed on the server fails with
      * [Failure.Server] 404 or 410.
      */
-    suspend fun eventTags(calendarUrl: String, start: Date, end: Date): Map<String, String?> = call {
+    suspend fun eventTagListing(calendarUrl: String, start: Date, end: Date): TagListing = call {
         val found = LinkedHashMap<String, String?>()
+        var complete = true
         DavCalendar(client, httpsUrl(calendarUrl)).calendarQuery("VEVENT", start, end) { response, relation ->
-            if (relation != Response.HrefRelation.SELF && response.isSuccess()) {
+            if (relation == Response.HrefRelation.SELF) {
+                if (!response.isSuccess() && !isAuthoritativeMissing(response)) complete = false
+                return@calendarQuery
+            }
+            if (response.isSuccess()) {
                 found[response.href.encodedPath] = response[GetETag::class.java]?.eTag
+            } else if (!isAuthoritativeMissing(response)) {
+                complete = false
             }
         }
-        found
+        TagListing(found, complete)
     }
+
+    suspend fun eventTags(calendarUrl: String, start: Date, end: Date): Map<String, String?> =
+        eventTagListing(calendarUrl, start, end).tags
 
     /**
      * Saves an event file (step 3.5). [ifMatch] is the stored change tag: the server refuses with
@@ -236,20 +282,42 @@ internal class CalDavConnection(
         }
     }
 
-    /** The files at [hrefs] (paths in the calendar), [MULTIGET_BATCH] per request; files gone meanwhile are left out. */
-    suspend fun downloadEvents(calendarUrl: String, hrefs: List<String>): List<RemoteEventFile> = call {
+    /** The files at [hrefs] (paths in the calendar), [MULTIGET_BATCH] per request, distinguishing 404/410 from failed/missing entries. */
+    suspend fun downloadEventsResult(calendarUrl: String, hrefs: List<String>): DownloadBatch = call {
         val url = httpsUrl(calendarUrl)
         val files = mutableListOf<RemoteEventFile>()
+        val gone = mutableSetOf<String>()
+        val accounted = mutableSetOf<String>()
+        var complete = true
         for (batch in hrefs.chunked(MULTIGET_BATCH)) {
-            DavCalendar(client, url).multiget(batch.mapNotNull { url.resolve(it) }) { response, _ ->
+            val resolved = batch.mapNotNull { href -> url.resolve(href)?.let { href to it } }
+            if (resolved.size != batch.size) complete = false
+            val expectedPaths = resolved.map { it.second.encodedPath }.toSet()
+            DavCalendar(client, url).multiget(resolved.map { it.second }) { response, _ ->
+                val path = response.href.encodedPath
                 val ics = response[CalendarData::class.java]?.iCalendar
-                if (response.isSuccess() && ics != null) {
-                    files += RemoteEventFile(response.href.encodedPath, response[GetETag::class.java]?.eTag, ics)
+                when {
+                    response.isSuccess() && ics != null -> {
+                        files += RemoteEventFile(path, response[GetETag::class.java]?.eTag, ics)
+                        accounted += path
+                    }
+                    isAuthoritativeMissing(response) -> {
+                        gone += path
+                        accounted += path
+                    }
+                    else -> {
+                        complete = false
+                    }
                 }
             }
+            if (!expectedPaths.all { it in accounted }) complete = false
         }
-        files
+        DownloadBatch(files = files, gone = gone, complete = complete)
     }
+
+    /** The files at [hrefs] (paths in the calendar), [MULTIGET_BATCH] per request; files gone meanwhile are left out. */
+    suspend fun downloadEvents(calendarUrl: String, hrefs: List<String>): List<RemoteEventFile> =
+        downloadEventsResult(calendarUrl, hrefs).files
 
     // ── Discovery steps ──
 

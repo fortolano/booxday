@@ -105,9 +105,11 @@ internal class CalDavTasksProvider(
         val today = Instant.ofEpochMilli(now()).atZone(zone()).toLocalDate()
         val tag = connection.collectionTag(url(listId))?.let { "$it|$today" }
         if (tag != null && tag == cursor) return@call RemoteChanges(emptyList(), cursor)
-        val listed = connection.taskTags(url(listId))
+        val listing = connection.taskTagListing(url(listId))
+        val listed = listing.tags
         val stored = io { files.getTaskFiles(accountId, listId) }.associateBy { it.href }
-        val fresh = download(listId, listed.filter { (href, etag) -> etag == null || stored[href]?.etag != etag }.keys)
+        val downloads = downloadResult(listId, listed.filter { (href, etag) -> etag == null || stored[href]?.etag != etag }.keys)
+        val fresh = downloads.files
         val links = io { sync.getLinksInList(provider, accountEmail, serverUrl, listId) }.associateBy { it.remoteId }
         val dayLinks = links.filterKeys { dayKeyOf(it) != null }.entries.groupBy({ fileOf(it.key) }, { it.value })
 
@@ -127,16 +129,25 @@ internal class CalDavTasksProvider(
             if (link == null && (state.completed || state.title.isBlank())) continue
             tasks += state
         }
-        // Gone from the server: a copy linked to it is reported deleted, again at later pulls while its
-        // merge waits (the link stays until then); its stored file stays as long, so the report can
-        // say whether it was ticked (owner decision 26)
+        // Gone from the server: only infer deletions when the listing was complete, or when a
+        // requested file was authoritatively reported 404/410 during multiget.
         val waiting = links.values.filter { !it.keptOnTablet }.map { fileOf(it.remoteId) }.toSet()
-        val forgotten = (stored.keys - listed.keys).filter { it !in waiting }
-        io { db.runInTransaction<Unit> { forgotten.forEach { files.deleteTaskFile(accountId, it) } } }
-        for ((remoteId, link) in links) {
-            if (fileOf(remoteId) !in listed && !link.keptOnTablet) tasks += goneState(listId, remoteId, stored[fileOf(remoteId)])
+        val missingHrefs = if (listing.complete) {
+            (stored.keys - listed.keys) + downloads.gone
+        } else {
+            downloads.gone
         }
-        RemoteChanges(tasks, tag)
+        val forgotten = (missingHrefs intersect stored.keys).filter { it !in waiting }
+        if (forgotten.isNotEmpty()) {
+            io { db.runInTransaction<Unit> { forgotten.forEach { files.deleteTaskFile(accountId, it) } } }
+        }
+        for ((remoteId, link) in links) {
+            val href = fileOf(remoteId)
+            val isDeleted = (listing.complete && href !in listed) || href in downloads.gone
+            if (isDeleted && !link.keptOnTablet) tasks += goneState(listId, remoteId, stored[href])
+        }
+        val allComplete = listing.complete && downloads.complete
+        RemoteChanges(tasks, if (allComplete) tag else cursor)
     }
 
     /**
@@ -183,7 +194,11 @@ internal class CalDavTasksProvider(
 
     /** The files, and the days on the tablet of repeating tasks still there (a day removed from its series is caught by [changes]). */
     override suspend fun allIds(listId: String): Set<String> = call(listId) {
-        val listed = connection.taskTags(url(listId)).keys
+        val listing = connection.taskTagListing(url(listId))
+        if (!listing.complete) {
+            throw CalDavConnection.Failure.Server(500)
+        }
+        val listed = listing.tags.keys
         val days = io { sync.getLinksInList(provider, accountEmail, serverUrl, listId) }
             .map { it.remoteId }.filter { dayKeyOf(it) != null && fileOf(it) in listed }
         listed + days
@@ -357,15 +372,27 @@ internal class CalDavTasksProvider(
 
     // ── Steps ──
 
-    /** The files at [hrefs] of [listId], stored as the server now has them; gone ones are left out. */
-    private suspend fun download(listId: String, hrefs: Collection<String>): Map<String, CalDavTaskFile> {
-        if (hrefs.isEmpty()) return emptyMap()
-        val got = connection.downloadEvents(url(listId), hrefs.toList()).map { file ->
+    private data class DownloadedFiles(
+        val files: Map<String, CalDavTaskFile>,
+        val gone: Set<String> = emptySet(),
+        val complete: Boolean = true,
+    )
+
+    private suspend fun downloadResult(listId: String, hrefs: Collection<String>): DownloadedFiles {
+        if (hrefs.isEmpty()) return DownloadedFiles(emptyMap())
+        val batch = connection.downloadEventsResult(url(listId), hrefs.toList())
+        val got = batch.files.map { file ->
             CalDavTaskFile(accountId, file.href, listId, file.etag, file.ics, CalDavTasks.read(file.ics, zone())?.uid, now())
         }
-        io { db.runInTransaction<Unit> { got.forEach(files::upsertTaskFile) } }
-        return got.associateBy { it.href }
+        if (got.isNotEmpty()) {
+            io { db.runInTransaction<Unit> { got.forEach(files::upsertTaskFile) } }
+        }
+        return DownloadedFiles(files = got.associateBy { it.href }, gone = batch.gone, complete = batch.complete)
     }
+
+    /** The files at [hrefs] of [listId], stored as the server now has them; gone ones are left out. */
+    private suspend fun download(listId: String, hrefs: Collection<String>): Map<String, CalDavTaskFile> =
+        downloadResult(listId, hrefs).files
 
     /**
      * Stores what was just written. With a change tag the text sent is the server's; without one

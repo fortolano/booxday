@@ -48,8 +48,8 @@ internal class CalDavReader(
         val start = Date.from(from.atStartOfDay(zone).toInstant())
         val end = Date.from(to.plusDays(1).atStartOfDay(zone).toInstant())
 
-        val tags = try {
-            connection.eventTags(calendarUrl, start, end)
+        val listing = try {
+            connection.eventTagListing(calendarUrl, start, end)
         } catch (e: CalDavConnection.Failure.Server) {
             if (e.code != 404 && e.code != 410) throw e
             withContext(Dispatchers.IO) {
@@ -61,15 +61,22 @@ internal class CalDavReader(
             return Outcome.Gone
         }
 
+        val tags = listing.tags
         val stored = withContext(Dispatchers.IO) { dao.getResources(accountId, calendarHref) }.associateBy { it.href }
         val changed = tags.filter { (href, tag) -> stored[href].let { it == null || tag == null || it.etag != tag } }.keys
-        val files = if (changed.isEmpty()) emptyList() else connection.downloadEvents(calendarUrl, changed.toList())
-        val gone = stored.keys - tags.keys
+        val download = if (changed.isEmpty()) {
+            CalDavConnection.DownloadBatch(emptyList())
+        } else {
+            connection.downloadEventsResult(calendarUrl, changed.toList())
+        }
+        // Only infer deletions from absence when the server's listing was complete; authoritative
+        // 404/410 entries during multiget are always safe to remove.
+        val gone = (if (listing.complete) stored.keys - tags.keys else emptySet()) + (download.gone intersect stored.keys)
 
         val kept = withContext(Dispatchers.IO) {
             val syncedAt = now()
             db.runInTransaction {
-                for (file in files) {
+                for (file in download.files) {
                     dao.upsertResource(
                         CalDavResource(accountId, file.href, calendarHref, file.etag, file.ics, CalDavEvents.uidOf(file.ics), syncedAt)
                     )
@@ -79,6 +86,6 @@ internal class CalDavReader(
             dao.getResources(accountId, calendarHref)
         }
         val events = kept.flatMap { CalDavEvents.occurrences(accountId, calendarHref, it.href, it.ics, from, to, readOnly, zone) }
-        return Outcome.Read(events, downloaded = files.size, removed = gone.size)
+        return Outcome.Read(events, downloaded = download.files.size, removed = gone.size)
     }
 }

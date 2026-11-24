@@ -45,6 +45,7 @@ class CalDavReaderTest {
 
     /** The server's calendar /cal/: path → (change tag, file). */
     private val files = linkedMapOf<String, Pair<String, String>>()
+    private val failedQueryHrefs = mutableSetOf<String>()
     private val downloadsAsked = mutableListOf<String>()
 
     @Before
@@ -63,7 +64,11 @@ class CalDavReaderTest {
                 return when {
                     request.method != "REPORT" || request.path != "/cal/" -> MockResponse().setResponseCode(404)
                     "calendar-query" in body -> multistatus(files.entries.joinToString("") { (href, file) ->
-                        response(href, "<d:getetag>\"${file.first}\"</d:getetag>")
+                        if (href in failedQueryHrefs) {
+                            "<d:response><d:href>$href</d:href><d:status>HTTP/1.1 500 Internal Server Error</d:status></d:response>"
+                        } else {
+                            response(href, "<d:getetag>\"${file.first}\"</d:getetag>")
+                        }
                     })
                     else -> {
                         val asked = Regex("<[^>]*href>([^<]+)</").findAll(body).map { it.groupValues[1] }.toList()
@@ -124,6 +129,21 @@ class CalDavReaderTest {
 
         assertEquals(CalDavReader.Outcome.Gone, read(calendarHref = "/old/"))
         assertTrue(db.calDavDao().getResources("acc-1", "/old/").isEmpty())
+    }
+
+    @Test
+    fun partialCalendarQueryPreservesCachedEventsInsteadOfDeletingThem(): Unit = runBlocking<Unit> {
+        files["/cal/a.ics"] = "1" to event("a", "Dentist", "20261102T150000Z")
+        files["/cal/b.ics"] = "1" to event("b", "Review", "20261103T150000Z")
+        val first = read() as CalDavReader.Outcome.Read
+        assertEquals(2, first.events.size)
+
+        // Server returns 500 for b.ics inside 207 Multi-Status
+        failedQueryHrefs += "/cal/b.ics"
+        val partial = read() as CalDavReader.Outcome.Read
+        assertEquals(0, partial.removed)
+        assertEquals(listOf("Dentist", "Review"), partial.events.sortedBy { it.startTime }.map { it.title })
+        assertTrue(db.calDavDao().getResource("acc-1", "/cal/b.ics") != null)
     }
 
     // ── Helpers ──
