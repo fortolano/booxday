@@ -172,50 +172,54 @@ class MainActivity : ComponentActivity() {
         // Update GlobalAppSettings with initial values (Router can now decide correctly)
         GlobalAppSettings.update(initialSettings)
 
-        // Load full settings async from Room database
+        // Load full settings async from Room database (Phase 1 H11 / Decision D7: isolate key reads
+        // from Room reads, and route settings read/decode failures to StartupFailureScreen instead
+        // of marking loaded on defaults and overwriting saved settings).
         this.lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                // The user's OpenRouter key lives in encrypted storage (Phase 3, Oct 2026), read
-                // here off the main thread
-                val savedApiKey = UserApiKeyStore.getOpenRouterKey(appContext)
-                val fullSettings = KvProxy(appContext).get(APP_SETTINGS_KEY, AppSettings.serializer())
-                if (fullSettings == null && savedApiKey != null) {
-                    GlobalAppSettings.update(GlobalAppSettings.current.copy(userOpenRouterApiKey = savedApiKey))
+            when (val outcome = com.boox.day.startup.StartupSettingsLoader.load(appContext)) {
+                is com.boox.day.startup.StartupSettingsLoader.Outcome.Failed -> {
+                    StartupDiagnostics.reportFatal(
+                        stage = com.boox.day.startup.StartupStage.SETTINGS_LOAD,
+                        throwable = outcome.error,
+                        summary = "BooxDay couldn't read your saved settings. Tap Retry so your settings aren't reset to defaults."
+                    )
+                    com.boox.day.diagnostics.StartReport.mark("Settings load failed", outcome.error)
+                    return@launch
                 }
-                if (fullSettings != null) {
-                    // Merge: keep the API key, use everything else from Room
-                    val mergedSettings = if (savedApiKey != null) {
-                        fullSettings.copy(userOpenRouterApiKey = savedApiKey)
-                    } else {
-                        fullSettings
-                    }
+                is com.boox.day.startup.StartupSettingsLoader.Outcome.Loaded -> {
+                    val mergedSettings = outcome.settings
                     GlobalAppSettings.update(mergedSettings)
-                    Log.i(TAG, "Full settings loaded async from Room")
-
-                    // Phase 3 (Oct 2026): older versions also kept the OpenRouter key in the stored
-                    // settings JSON; save once without it (the key stays in UserApiKeyStore)
-                    val storedJson = KvRepository(appContext).get(APP_SETTINGS_KEY)?.value
-                    if (storedJson?.contains(KvProxy.OPENROUTER_KEY_FIELD) == true) {
-                        KvProxy(appContext).setAppSettings(mergedSettings)
+                    GlobalAppSettings.loaded = true
+                    com.boox.day.diagnostics.StartReport.mark("Settings loaded")
+                    if (outcome.fromStorage) {
+                        Log.i(TAG, "Full settings loaded async from Room")
                     }
 
-                    // Sync handwriting language from settings (restore user's language preference)
-                    DigitalInkModelManager.syncLanguageFromSettings()
+                    // Post-load maintenance runs in isolated guards so secondary errors never block startup
+                    if (outcome.fromStorage) {
+                        runCatching {
+                            // Phase 3 (Oct 2026): older versions also kept the OpenRouter key in the stored
+                            // settings JSON; save once without it (the key stays in UserApiKeyStore)
+                            val storedJson = KvRepository(appContext).get(APP_SETTINGS_KEY)?.value
+                            if (storedJson?.contains(KvProxy.OPENROUTER_KEY_FIELD) == true) {
+                                KvProxy(appContext).setAppSettings(mergedSettings)
+                            }
+                        }.onFailure { Log.w(TAG, "Legacy key strip skipped: ${it.javaClass.simpleName}") }
 
-                    // Schedule notifications based on full settings (now that we have them)
-                    if (mergedSettings.taskNotificationsEnabled) {
-                        TaskRepository(appContext).scheduleNotificationsForExistingTasks()
-                    }
-                    if (mergedSettings.eventNotificationsEnabled) {
-                        LocalEventRepository(appContext).scheduleNotificationsForUpcomingEvents()
+                        runCatching {
+                            DigitalInkModelManager.syncLanguageFromSettings()
+                        }.onFailure { Log.w(TAG, "Handwriting language sync skipped: ${it.javaClass.simpleName}") }
+
+                        runCatching {
+                            if (mergedSettings.taskNotificationsEnabled) {
+                                TaskRepository(appContext).scheduleNotificationsForExistingTasks()
+                            }
+                            if (mergedSettings.eventNotificationsEnabled) {
+                                LocalEventRepository(appContext).scheduleNotificationsForUpcomingEvents()
+                            }
+                        }.onFailure { Log.w(TAG, "Startup reminder scheduling skipped: ${it.javaClass.simpleName}") }
                     }
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load full settings: ${e.message ?: e.javaClass.simpleName}", e)
-            } finally {
-                // The main screen waits for this (Router): set on every path, found, none or failed
-                GlobalAppSettings.loaded = true
-                com.boox.day.diagnostics.StartReport.mark("Settings loaded")
             }
         }
         }

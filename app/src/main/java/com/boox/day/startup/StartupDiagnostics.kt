@@ -15,6 +15,7 @@ import java.util.Locale
 enum class StartupStage(val label: String) {
     HIDDEN_API("Hidden API setup"),
     RX_MANAGER("Onyx SDK setup"),
+    SETTINGS_LOAD("Loading settings"),
     CANVAS_INIT("Canvas initialization"),
     CANVAS_SURFACE("Canvas surface activation")
 }
