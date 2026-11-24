@@ -7,7 +7,6 @@ import com.boox.day.data.ai.PreferenceConstraints
 import com.boox.day.data.db.LocalEvent
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneId
 import kotlin.math.max
 
@@ -223,7 +222,7 @@ object CapacityAnalyzer {
      */
     private fun epochToMinutesSinceMidnight(epochMillis: Long): Int {
         val instant = Instant.ofEpochMilli(epochMillis)
-        val localTime = LocalTime.ofInstant(instant, ZoneId.systemDefault())
+        val localTime = instant.atZone(ZoneId.systemDefault()).toLocalTime()
         return localTime.hour * 60 + localTime.minute
     }
 

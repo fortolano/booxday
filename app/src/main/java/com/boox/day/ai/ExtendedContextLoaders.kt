@@ -14,7 +14,6 @@ import com.boox.day.data.ai.WorkLifeBalance
 import com.boox.day.data.db.Task
 import com.boox.day.data.db.TaskRepository
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
@@ -132,7 +131,7 @@ object ExtendedContextLoaders {
     private fun formatTime(epochMillis: Long): String {
         return try {
             val instant = java.time.Instant.ofEpochMilli(epochMillis)
-            val localTime = LocalTime.ofInstant(instant, java.time.ZoneId.systemDefault())
+            val localTime = instant.atZone(java.time.ZoneId.systemDefault()).toLocalTime()
             localTime.format(timeFormatter)
         } catch (e: Exception) {
             null

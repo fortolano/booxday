@@ -1,5 +1,6 @@
 package com.boox.day.editor.ui
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.text.Editable
 import android.text.TextWatcher
@@ -314,6 +315,7 @@ fun InlineRichTextEditor(
  * Custom EditText that disables the standard selection/copy/paste toolbar
  * while still allowing text selection handles for formatting.
  */
+@SuppressLint("AppCompatCustomView")
 private class RichEditText(context: Context) : EditText(context) {
 
     var onSelectionChangedListener: ((Int, Int) -> Unit)? = null
