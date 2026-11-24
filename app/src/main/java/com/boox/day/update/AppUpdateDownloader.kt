@@ -86,22 +86,25 @@ object AppUpdateDownloader {
                     // 206 = the server continued where we stopped; 200 = it sent the whole file again
                     val resumed = response.code == 206
                     val body = response.body ?: return@withContext Result.Failed("The download did not start. Try again later.")
-                    var written = if (resumed) alreadyHave else 0L
-                    var lastStep = -1
+                    val startOffset = if (resumed) alreadyHave else 0L
+                    val contentLength = body.contentLength()
+                    if (contentLength >= 0L && startOffset + contentLength > info.sizeBytes) {
+                        partFile.delete()
+                        return@withContext Result.Failed("The download was larger than expected. Try again.")
+                    }
                     body.byteStream().use { input ->
                         FileOutputStream(partFile, resumed).use { output ->
-                            val buffer = ByteArray(64 * 1024)
-                            while (true) {
-                                ensureActive()
-                                val read = input.read(buffer)
-                                if (read < 0) break
-                                output.write(buffer, 0, read)
-                                written += read
-                                val step = (written * 100 / info.sizeBytes).toInt().coerceIn(0, 100) / 5
-                                if (step != lastStep) {
-                                    lastStep = step
-                                    onProgress(step * 5)
-                                }
+                            val copied = copyBounded(
+                                input = input,
+                                output = output,
+                                alreadyHave = startOffset,
+                                expectedBytes = info.sizeBytes,
+                                checkActive = { ensureActive() },
+                                onProgress = onProgress,
+                            )
+                            if (copied < 0L) {
+                                partFile.delete()
+                                return@withContext Result.Failed("The download was larger than expected. Try again.")
                             }
                             output.fd.sync()
                         }
@@ -130,6 +133,39 @@ object AppUpdateDownloader {
             }
             checkPackage(context, finalFile)
         }
+
+    /**
+     * Copies [input] to [output] while enforcing [expectedBytes] mid-stream so a misbehaving or
+     * oversized response can never fill storage. Returns total bytes ([alreadyHave] + copied), or
+     * -1L if the stream exceeded [expectedBytes].
+     */
+    internal fun copyBounded(
+        input: java.io.InputStream,
+        output: java.io.OutputStream,
+        alreadyHave: Long,
+        expectedBytes: Long,
+        checkActive: () -> Unit = {},
+        onProgress: (Int) -> Unit = {},
+    ): Long {
+        if (expectedBytes <= 0L || alreadyHave > expectedBytes) return -1L
+        var written = alreadyHave
+        var lastStep = -1
+        val buffer = ByteArray(64 * 1024)
+        while (true) {
+            checkActive()
+            val read = input.read(buffer)
+            if (read < 0) break
+            if (written + read > expectedBytes) return -1L
+            output.write(buffer, 0, read)
+            written += read
+            val step = (written * 100 / expectedBytes).toInt().coerceIn(0, 100) / 5
+            if (step != lastStep) {
+                lastStep = step
+                onProgress(step * 5)
+            }
+        }
+        return written
+    }
 
     /**
      * Checks that [apk] is BooxDay, newer than the installed version and signed with the same key.

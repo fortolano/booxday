@@ -58,7 +58,6 @@ object AppUpdateChecker {
     )
 
     private val json = Json { ignoreUnknownKeys = true }
-    private val apkName = Regex("""^booxday-[0-9][0-9A-Za-z.\-]*\.apk$""")
     private val versionPrefix = Regex("""^[vV]?(\d+(?:\.\d+)*)""")
     private val sha256Hex = Regex("^[0-9a-f]{64}$")
 
@@ -122,7 +121,8 @@ object AppUpdateChecker {
         }
         if (release.draft || release.prerelease) return null
         val version = parseVersion(release.tagName)?.joinToString(".") ?: return null
-        val asset = release.assets.firstOrNull { apkName.matches(it.name) } ?: return null
+        val expectedAssetName = "booxday-$version.apk"
+        val asset = release.assets.firstOrNull { it.name == expectedAssetName } ?: return null
         val sha256 = asset.digest?.removePrefix("sha256:")?.lowercase()?.takeIf { sha256Hex.matches(it) } ?: return null
         if (asset.size <= 0 || !asset.downloadUrl.startsWith("https://")) return null
         return UpdateInfo(

@@ -78,9 +78,23 @@ class AppUpdateCheckerTest {
         assertNull(AppUpdateChecker.parseRelease(release(digest = null)))
         assertNull(AppUpdateChecker.parseRelease(release(digest = "md5:abc")))
         assertNull(AppUpdateChecker.parseRelease(release(assetName = "notes.zip")))
+        assertNull(AppUpdateChecker.parseRelease(release(tag = "v1.0.33", assetName = "booxday-1.0.32.apk")))
         assertNull(AppUpdateChecker.parseRelease(release(size = 0)))
         assertNull(AppUpdateChecker.parseRelease(release(tag = "latest")))
         assertNull(AppUpdateChecker.parseRelease("not json"))
+    }
+
+    @Test
+    fun downloaderStopsMidStreamWhenResponseExceedsExpectedSize() {
+        val output = java.io.ByteArrayOutputStream()
+        val exact = ByteArray(128) { 7 }
+        assertEquals(128L, AppUpdateDownloader.copyBounded(exact.inputStream(), output, alreadyHave = 0L, expectedBytes = 128L))
+        assertEquals(128, output.size())
+
+        val oversized = ByteArray(200) { 9 }
+        val overflowOut = java.io.ByteArrayOutputStream()
+        assertEquals(-1L, AppUpdateDownloader.copyBounded(oversized.inputStream(), overflowOut, alreadyHave = 0L, expectedBytes = 128L))
+        assertTrue("must abort without writing oversized chunk", overflowOut.size() <= 128)
     }
 
     @Test
