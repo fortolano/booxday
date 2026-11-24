@@ -274,7 +274,7 @@ class TranscriptionService(
                 Log.d(TAG, "SpeechRecognizer resumed")
             }
             TranscriptionSource.GEMINI -> {
-                audioRecorder.startRecording()
+                audioRecorder.resumeRecording()
                 Log.d(TAG, "AudioRecorder resumed")
             }
             null -> Log.w(TAG, "resume() called but no active source")
@@ -432,7 +432,7 @@ class TranscriptionService(
             // What went wrong in plain words (Oct 2026: OpenRouter timeouts said "No internet
             // connection", other errors showed OpenRouter's raw HTTP answer)
             is AiResponse.Error -> {
-                Log.e(TAG, "Gemini error: ${response.message}")
+                Log.e(TAG, "Gemini error (${response.javaClass.simpleName}, ${AiProblem.of(response)})")
                 _state.value = TranscriptionState.ERROR
                 TranscriptionResult.Error(AiProblem.messageFor(response))
             }

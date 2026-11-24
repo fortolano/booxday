@@ -122,6 +122,8 @@ class AudioRecorder(private val context: Context) {
     private var speechStartTime: Long = 0
     private var lastSpeechTime: Long = 0
     private var hasSpeechStarted = false
+    private var accumulatedDurationMs: Long = 0L
+    private var segmentStartTimeMs: Long = 0L
 
     // Auto-complete callback
     private var onAutoComplete: ((String) -> Unit)? = null
@@ -134,10 +136,45 @@ class AudioRecorder(private val context: Context) {
     }
 
     /**
-     * Start recording audio.
+     * Start a new recording session (clears any previous PCM data).
      */
     fun startRecording() {
-        Log.i(TAG, "████ startRecording() ENTER - current state: ${_state.value}")
+        startInternal(clearExisting = true)
+    }
+
+    /**
+     * Resume recording after [pauseRecording], preserving previously captured PCM audio and
+     * elapsed recording duration while resetting silence-detection timers for the resumed segment.
+     */
+    fun resumeRecording() {
+        startInternal(clearExisting = false)
+    }
+
+    internal fun prepareSessionBuffers(clearExisting: Boolean) {
+        if (clearExisting) {
+            synchronized(bufferLock) {
+                pcmBuffer.reset()
+            }
+            accumulatedDurationMs = 0L
+        }
+        // Reset silence timers on both fresh start and resume so pause time never triggers immediate auto-stop
+        hasSpeechStarted = false
+        speechStartTime = 0
+        lastSpeechTime = 0
+    }
+
+    @androidx.annotation.VisibleForTesting
+    internal fun appendPcmForTest(bytes: ByteArray) {
+        synchronized(bufferLock) {
+            pcmBuffer.write(bytes)
+        }
+    }
+
+    @androidx.annotation.VisibleForTesting
+    internal fun bufferedByteCountForTest(): Int = synchronized(bufferLock) { pcmBuffer.size() }
+
+    private fun startInternal(clearExisting: Boolean) {
+        Log.i(TAG, "████ startInternal(clearExisting=$clearExisting) ENTER - current state: ${_state.value}")
 
         if (_state.value is State.Recording || _state.value is State.Speaking) {
             Log.w(TAG, "████ Already recording - returning early")
@@ -151,6 +188,17 @@ class AudioRecorder(private val context: Context) {
             return
         }
         Log.i(TAG, "████ Permission granted ✓")
+
+        // Ensure any prior paused/stopped recorder instance is released before allocating a new one
+        val staleRecord = audioRecord
+        val staleJob = recordingJob
+        audioRecord = null
+        recordingJob = null
+        runCatching { staleRecord?.stop() }
+        staleJob?.cancel()
+        if (staleJob == null) {
+            runCatching { staleRecord?.release() }
+        }
 
         try {
             Log.i(TAG, "████ Getting minBufferSize...")
@@ -167,36 +215,30 @@ class AudioRecorder(private val context: Context) {
             Log.i(TAG, "████ Using bufferSize = $bufferSize")
 
             Log.i(TAG, "████ Creating AudioRecord instance...")
-            audioRecord = AudioRecord(
+            val recorder = AudioRecord(
                 MediaRecorder.AudioSource.MIC,
                 SAMPLE_RATE,
                 CHANNEL_CONFIG,
                 AUDIO_FORMAT,
                 bufferSize
             )
-            Log.i(TAG, "████ AudioRecord created, state = ${audioRecord?.state} (expected STATE_INITIALIZED=1)")
+            audioRecord = recorder
+            Log.i(TAG, "████ AudioRecord created, state = ${recorder.state} (expected STATE_INITIALIZED=1)")
 
-            if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-                Log.e(TAG, "████ AudioRecord NOT initialized! state=${audioRecord?.state}")
+            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                Log.e(TAG, "████ AudioRecord NOT initialized! state=${recorder.state}")
                 _state.value = State.Error("Failed to initialize AudioRecord")
-                audioRecord?.release()
+                recorder.release()
                 audioRecord = null
                 return
             }
             Log.i(TAG, "████ AudioRecord initialized ✓")
 
-            // Clear previous data
-            Log.i(TAG, "████ Clearing previous data...")
-            synchronized(bufferLock) {
-                pcmBuffer.reset()
-            }
-            hasSpeechStarted = false
-            speechStartTime = 0
-            lastSpeechTime = 0
+            prepareSessionBuffers(clearExisting)
 
             Log.i(TAG, "████ Calling audioRecord.startRecording()...")
-            audioRecord?.startRecording()
-            Log.i(TAG, "████ audioRecord.startRecording() returned, recordingState = ${audioRecord?.recordingState} (expected RECORDSTATE_RECORDING=3)")
+            recorder.startRecording()
+            Log.i(TAG, "████ audioRecord.startRecording() returned, recordingState = ${recorder.recordingState} (expected RECORDSTATE_RECORDING=3)")
 
             // ═══════════════════════════════════════════════════════════════════
             // NO-TOUCH ZONE: Recording Start Verification (Jan 2026)
@@ -208,30 +250,32 @@ class AudioRecorder(private val context: Context) {
             // BUG FIXED: Without this check, dialog would appear to start but
             // recording loop would never receive audio data, causing UI to hang.
             // ═══════════════════════════════════════════════════════════════════
-            if (audioRecord?.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-                Log.e(TAG, "████ AudioRecord.startRecording() FAILED! recordingState is ${audioRecord?.recordingState}, expected RECORDSTATE_RECORDING (3)")
+            if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                Log.e(TAG, "████ AudioRecord.startRecording() FAILED! recordingState is ${recorder.recordingState}, expected RECORDSTATE_RECORDING (3)")
                 _state.value = State.Error("Microphone busy or unavailable")
-                audioRecord?.release()
+                recorder.release()
                 audioRecord = null
                 return
             }
             Log.i(TAG, "████ AudioRecord recording confirmed ✓")
 
             _state.value = State.Recording
+            segmentStartTimeMs = System.currentTimeMillis()
             Log.i(TAG, "████ State set to Recording ✓")
             Log.i(TAG, "████ Recording started successfully - about to launch recording loop")
 
             // Start recording loop
-            recordingJob = recordingScope.launch {
+            var launchedJob: Job? = null
+            launchedJob = recordingScope.launch {
                 Log.i(TAG, "████ Recording loop STARTED on IO thread")
                 val buffer = ShortArray(minBufferSize / 2)  // 16-bit samples
-                val recordingStartTime = System.currentTimeMillis()
+                val recordingStartTime = segmentStartTimeMs
                 var loopCount = 0
 
                 try {
-                    Log.i(TAG, "████ Entering while loop - isActive=$isActive, recordingState=${audioRecord?.recordingState}")
-                    while (isActive && audioRecord?.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
-                        val readCount = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+                    Log.i(TAG, "████ Entering while loop - isActive=$isActive, recordingState=${recorder.recordingState}")
+                    while (isActive && recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                        val readCount = recorder.read(buffer, 0, buffer.size)
                         loopCount++
 
                         // Log first few iterations and then every 50th
@@ -280,8 +324,8 @@ class AudioRecorder(private val context: Context) {
                             // Check for auto-stop conditions
                             val now = System.currentTimeMillis()
 
-                            // Safety limit - stop after max duration
-                            if (now - recordingStartTime > MAX_RECORDING_DURATION_MS) {
+                            // Safety limit - stop after max total duration (including prior segments)
+                            if (accumulatedDurationMs + (now - recordingStartTime) > MAX_RECORDING_DURATION_MS) {
                                 Log.i(TAG, "Max recording duration reached")
                                 triggerAutoComplete()
                                 break
@@ -304,6 +348,11 @@ class AudioRecorder(private val context: Context) {
                     }
                     Log.i(TAG, "████ Recording loop exited normally after $loopCount iterations")
                 } finally {
+                    runCatching { recorder.stop() }
+                    runCatching { recorder.release() }
+                    if (audioRecord === recorder) {
+                        audioRecord = null
+                    }
                     // ═══════════════════════════════════════════════════════════
                     // NO-TOUCH ZONE: Recording Loop State Reset (Jan 2026)
                     // ═══════════════════════════════════════════════════════════
@@ -311,17 +360,12 @@ class AudioRecorder(private val context: Context) {
                     // recording loop exits unexpectedly (e.g., coroutine cancelled,
                     // AudioRecord released externally, or unexpected errors).
                     //
-                    // BUG FIXED: Without this reset, state would remain "Recording"
-                    // even after loop exited, blocking subsequent startRecording()
-                    // calls and making the UI appear permanently stuck.
-                    //
-                    // The check for Recording/Speaking states ensures we don't
-                    // interfere with normal stop/pause/cancel paths that set
-                    // their own final states.
+                    // Guard with launchedJob identity so a paused/stopped previous
+                    // loop unwinding asynchronously never resets a newly resumed loop.
                     // ═══════════════════════════════════════════════════════════
                     val currentState = _state.value
-                    Log.i(TAG, "████ Recording loop FINALLY block - loopCount=$loopCount, currentState=$currentState, isActive=$isActive, recordingState=${audioRecord?.recordingState}")
-                    if (currentState is State.Recording || currentState is State.Speaking) {
+                    Log.i(TAG, "████ Recording loop FINALLY block - loopCount=$loopCount, currentState=$currentState, isActive=$isActive")
+                    if (recordingJob === launchedJob && (currentState is State.Recording || currentState is State.Speaking)) {
                         Log.w(TAG, "████ Recording loop exited unexpectedly (state was $currentState) - resetting to Idle")
                         _state.value = State.Idle
                         _rmsLevel.value = 0f
@@ -330,7 +374,8 @@ class AudioRecorder(private val context: Context) {
                     }
                 }
             }
-            Log.i(TAG, "████ startRecording() EXIT - recordingJob launched")
+            recordingJob = launchedJob
+            Log.i(TAG, "████ startInternal() EXIT - recordingJob launched")
         } catch (e: SecurityException) {
             Log.e(TAG, "Security exception starting recording", e)
             _state.value = State.Error("Permission denied")
@@ -341,15 +386,25 @@ class AudioRecorder(private val context: Context) {
     }
 
     /**
-     * Pause recording (keeps accumulated data).
+     * Pause recording (keeps accumulated PCM data and elapsed duration).
      */
     fun pauseRecording() {
-        audioRecord?.stop()
-        recordingJob?.cancel()
+        if (segmentStartTimeMs > 0L) {
+            accumulatedDurationMs += (System.currentTimeMillis() - segmentStartTimeMs).coerceAtLeast(0L)
+            segmentStartTimeMs = 0L
+        }
+        val currentRecord = audioRecord
+        val currentJob = recordingJob
+        audioRecord = null
         recordingJob = null
         _state.value = State.Idle
         _rmsLevel.value = 0f
-        Log.i(TAG, "Recording paused")
+        runCatching { currentRecord?.stop() }
+        currentJob?.cancel()
+        if (currentJob == null) {
+            runCatching { currentRecord?.release() }
+        }
+        Log.i(TAG, "Recording paused (accumulated=${accumulatedDurationMs}ms)")
     }
 
     /**
@@ -359,9 +414,17 @@ class AudioRecorder(private val context: Context) {
         _state.value = State.Processing
 
         try {
-            audioRecord?.stop()
-            recordingJob?.cancel()
+            val currentRecord = audioRecord
+            val currentJob = recordingJob
+            audioRecord = null
             recordingJob = null
+            accumulatedDurationMs = 0L
+            segmentStartTimeMs = 0L
+            runCatching { currentRecord?.stop() }
+            currentJob?.cancel()
+            if (currentJob == null) {
+                runCatching { currentRecord?.release() }
+            }
 
             val pcmData: ByteArray
             synchronized(bufferLock) {
@@ -395,14 +458,22 @@ class AudioRecorder(private val context: Context) {
      * Cancel recording and discard data.
      */
     fun cancel() {
-        audioRecord?.stop()
-        recordingJob?.cancel()
+        val currentRecord = audioRecord
+        val currentJob = recordingJob
+        audioRecord = null
         recordingJob = null
+        accumulatedDurationMs = 0L
+        segmentStartTimeMs = 0L
+        _state.value = State.Idle
+        _rmsLevel.value = 0f
+        runCatching { currentRecord?.stop() }
+        currentJob?.cancel()
+        if (currentJob == null) {
+            runCatching { currentRecord?.release() }
+        }
         synchronized(bufferLock) {
             pcmBuffer.reset()
         }
-        _state.value = State.Idle
-        _rmsLevel.value = 0f
         Log.i(TAG, "Recording cancelled")
     }
 
@@ -411,8 +482,6 @@ class AudioRecorder(private val context: Context) {
      */
     fun release() {
         cancel()
-        audioRecord?.release()
-        audioRecord = null
         onAutoComplete = null
     }
 
@@ -426,6 +495,8 @@ class AudioRecorder(private val context: Context) {
         hasSpeechStarted = false
         speechStartTime = 0
         lastSpeechTime = 0
+        accumulatedDurationMs = 0L
+        segmentStartTimeMs = 0L
     }
 
     /**
