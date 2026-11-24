@@ -10,6 +10,8 @@ import com.boox.day.ui.dialogs.calendarForNewEvent
 import com.boox.day.ui.dialogs.eventSaveTargets
 import com.boox.day.sync.EventOperationResult
 import com.boox.day.viewmodel.EventsViewModel
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 /** Where a new event goes when nobody picks: what Add Event starts with. */
 data class EventTarget(
@@ -86,6 +88,41 @@ object DefaultEventTarget {
 }
 
 object EventDraftSaver {
+    data class CreateOutcome(val succeeded: Boolean, val errorMessage: String? = null)
+
+    /** Suspends until [viewModel] finishes saving [draft], returning the actual outcome (Phase 1 H3). */
+    suspend fun createAwait(viewModel: EventsViewModel, draft: EventDraft): CreateOutcome =
+        suspendCancellableCoroutine { cont ->
+            viewModel.createEvent(
+                calendarId = draft.calendarId,
+                title = draft.title,
+                date = draft.date,
+                startTimeHour = draft.startHour,
+                startTimeMinute = draft.startMinute,
+                endTimeHour = draft.endHour,
+                endTimeMinute = draft.endMinute,
+                isAllDay = draft.isAllDay,
+                location = draft.location?.takeIf { it.isNotBlank() },
+                description = draft.description?.takeIf { it.isNotBlank() },
+                attendees = draft.attendees?.takeIf { it.isNotBlank() },
+                syncEnabled = draft.syncEnabled,
+                syncProviderId = draft.syncProviderId,
+                syncAccountId = draft.syncAccountId,
+                localCalendarId = draft.localCalendarId
+            ) { result ->
+                if (!cont.isActive) return@createEvent
+                when (result) {
+                    is EventOperationResult.Success -> cont.resume(CreateOutcome(true))
+                    is EventOperationResult.Error -> cont.resume(
+                        CreateOutcome(false, viewModel.lastOperationMessage.value ?: result.message)
+                    )
+                    else -> cont.resume(
+                        CreateOutcome(false, viewModel.lastOperationMessage.value ?: "Could not create event")
+                    )
+                }
+            }
+        }
+
     /** Saves a new event and says how it went, as Add Event always has. [onCreated] runs on success only. */
     fun create(viewModel: EventsViewModel, draft: EventDraft, successText: String? = "Event created", onFailed: (() -> Unit)? = null, onCreated: () -> Unit) {
         viewModel.createEvent(

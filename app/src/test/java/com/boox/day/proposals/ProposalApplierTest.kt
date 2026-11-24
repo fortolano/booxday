@@ -63,4 +63,26 @@ class ProposalApplierTest {
         assertEquals("Conference", draft.title)
         assertEquals("l1", draft.localCalendarId)
     }
+
+    @Test
+    fun partialFailureReportsExactSuccessesAndRetainsFailedItemsForRetry() = runBlocking {
+        val items = listOf(
+            Proposal.Event("e1", "Dentist", day, 540, 600, allDay = false, location = null),
+            Proposal.Task("t1", "Bring insurance card", day, day, null),
+            Proposal.Note("n1", accepted = true),
+        )
+        val outcome = ProposalApplier.applySelected(
+            kept = items,
+            memoDay = day,
+            saveEvent = { false to "No internet connection" },
+            saveTask = { true },
+            saveNote = { false },
+        )
+
+        assertEquals(listOf("t1"), outcome.succeededIds)
+        assertEquals(listOf("e1", "n1"), outcome.failedIds)
+        assertEquals(false, outcome.allSucceeded)
+        assertEquals(true, outcome.anyTaskAdded)
+        assertEquals("No internet connection", outcome.lastError)
+    }
 }

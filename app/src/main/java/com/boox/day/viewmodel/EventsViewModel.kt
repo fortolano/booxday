@@ -407,63 +407,72 @@ class EventsViewModel(application: Application) : AndroidViewModel(application) 
             }
 
             if (!isOnline()) {
-                val now = System.currentTimeMillis()
-                val startDateTime = LocalDateTime.of(
-                    LocalDate.parse(date),
-                    if (isAllDay) LocalTime.MIDNIGHT else LocalTime.of(startTimeHour, startTimeMinute)
-                )
-                val startMillis = startDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-
-                val endMillis = if (isAllDay) {
-                    null
-                } else if (endTimeHour != null && endTimeMinute != null) {
-                    val endDateTime = LocalDateTime.of(
+                try {
+                    val now = System.currentTimeMillis()
+                    val startDateTime = LocalDateTime.of(
                         LocalDate.parse(date),
-                        LocalTime.of(endTimeHour, endTimeMinute)
+                        if (isAllDay) LocalTime.MIDNIGHT else LocalTime.of(startTimeHour, startTimeMinute)
                     )
-                    endDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                } else {
-                    startMillis + 60 * 60 * 1000
+                    val startMillis = startDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+                    val endMillis = if (isAllDay) {
+                        null
+                    } else if (endTimeHour != null && endTimeMinute != null) {
+                        val endDateTime = LocalDateTime.of(
+                            LocalDate.parse(date),
+                            LocalTime.of(endTimeHour, endTimeMinute)
+                        )
+                        endDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    } else {
+                        startMillis + 60 * 60 * 1000
+                    }
+
+                    val account = accountDao.getById(syncAccountId!!)
+                    val selection = if (calendarId.isNotBlank()) {
+                        selectionDao.getByAccountAndCalendarId(syncAccountId, calendarId)
+                    } else {
+                        null
+                    }
+
+                    val pendingEvent = LocalEvent(
+                        title = title,
+                        dayId = date,
+                        endDayId = date,
+                        startTime = startMillis,
+                        endTime = endMillis,
+                        isAllDay = isAllDay,
+                        location = location,
+                        description = description,
+                        attendees = attendees,
+                        providerId = syncProviderId!!.key,
+                        accountId = syncAccountId,
+                        accountEmail = account?.email,
+                        providerEventId = null,
+                        providerCalendarId = calendarId.ifBlank { null },
+                        providerCalendarName = selection?.calendarName,
+                        googleEventId = null,
+                        googleCalendarId = if (syncProviderId == ProviderId.GOOGLE) calendarId.ifBlank { null } else null,
+                        googleCalendarName = if (syncProviderId == ProviderId.GOOGLE) selection?.calendarName else null,
+                        syncEnabled = true,
+                        syncStatus = SyncStatus.PENDING_CREATE,
+                        createdAt = now,
+                        updatedAt = now
+                    )
+
+                    localEventRepository.createEvent(pendingEvent)
+                    syncScheduler.requestPendingPush()
+                    _lastOperationMessage.value = "Event created (will sync when online)"
+                    _lastOperationSuccess.value = true
+                    _operationInProgress.value = false
+                    onResult(EventOperationResult.Success(pendingEvent.toCalendarEvent()))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to save offline pending event", e)
+                    val message = "Failed: ${e.message ?: "Unknown error"}"
+                    _lastOperationMessage.value = message
+                    _lastOperationSuccess.value = false
+                    _operationInProgress.value = false
+                    onResult(EventOperationResult.Error(message, e))
                 }
-
-                val account = accountDao.getById(syncAccountId!!)
-                val selection = if (calendarId.isNotBlank()) {
-                    selectionDao.getByAccountAndCalendarId(syncAccountId, calendarId)
-                } else {
-                    null
-                }
-
-                val pendingEvent = LocalEvent(
-                    title = title,
-                    dayId = date,
-                    endDayId = date,
-                    startTime = startMillis,
-                    endTime = endMillis,
-                    isAllDay = isAllDay,
-                    location = location,
-                    description = description,
-                    attendees = attendees,
-                    providerId = syncProviderId!!.key,
-                    accountId = syncAccountId,
-                    accountEmail = account?.email,
-                    providerEventId = null,
-                    providerCalendarId = calendarId.ifBlank { null },
-                    providerCalendarName = selection?.calendarName,
-                    googleEventId = null,
-                    googleCalendarId = if (syncProviderId == ProviderId.GOOGLE) calendarId.ifBlank { null } else null,
-                    googleCalendarName = if (syncProviderId == ProviderId.GOOGLE) selection?.calendarName else null,
-                    syncEnabled = true,
-                    syncStatus = SyncStatus.PENDING_CREATE,
-                    createdAt = now,
-                    updatedAt = now
-                )
-
-                localEventRepository.createEvent(pendingEvent)
-                syncScheduler.requestPendingPush()
-                _lastOperationMessage.value = "Event created (will sync when online)"
-                _lastOperationSuccess.value = true
-                _operationInProgress.value = false
-                onResult(EventOperationResult.Success(pendingEvent.toCalendarEvent()))
                 return@launch
             }
 

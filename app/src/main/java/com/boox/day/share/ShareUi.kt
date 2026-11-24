@@ -214,19 +214,22 @@ private fun ShareFlow(item: SharedInbox.Item) {
                     saving = true
                     scope.launch {
                         val saved = save()
-                        MainScreenRequests.request(MainScreenRequest.ReloadMemoPages)
-                        done()
-                        SnackState.globalSnackFlow.tryEmit(
-                            if (saved == null) {
-                                SnackConf(text = "This picture can't be opened.", duration = SnackConf.DURATION_ERROR)
-                            } else {
+                        if (saved != null) {
+                            MainScreenRequests.request(MainScreenRequest.ReloadMemoPages)
+                            done()
+                            SnackState.globalSnackFlow.tryEmit(
                                 SnackConf(
                                     text = "Saved to today's Memos",
                                     duration = SnackConf.DURATION_STANDARD,
                                     actions = listOf("Open" to { MeetingNotesUi.showPage(saved.day, saved.pageId) })
                                 )
-                            }
-                        )
+                            )
+                        } else {
+                            saving = false
+                            SnackState.globalSnackFlow.tryEmit(
+                                SnackConf(text = "This picture can't be opened.", duration = SnackConf.DURATION_ERROR)
+                            )
+                        }
                     }
                 }
             },
@@ -237,8 +240,13 @@ private fun ShareFlow(item: SharedInbox.Item) {
                             text = item.text.take(SharedInbox.MAX_AI_TEXT),
                             picture = item.image?.let { SharedInbox.imageFile(context, it) },
                             saveNote = {
-                                save()
-                                MainScreenRequests.request(MainScreenRequest.ReloadMemoPages)
+                                val saved = save()
+                                if (saved != null) {
+                                    MainScreenRequests.request(MainScreenRequest.ReloadMemoPages)
+                                    true
+                                } else {
+                                    false
+                                }
                             },
                             done = ::done
                         )

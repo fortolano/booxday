@@ -69,8 +69,8 @@ object ScheduleUi {
     /** [ready]: items found elsewhere (a recap's action items), to review with no reading. */
     data class Job(val strokes: List<Stroke>, val memoDay: LocalDate, val ready: ScheduleResult.Found? = null, val shared: Shared? = null)
 
-    /** From another app. [done] once something was kept: until then the share stays in its inbox. */
-    data class Shared(val text: String, val picture: File?, val saveNote: suspend () -> Unit, val done: () -> Unit)
+    /** From another app. [done] once everything kept was saved: until then the share stays in its inbox. */
+    data class Shared(val text: String, val picture: File?, val saveNote: suspend () -> Boolean, val done: () -> Unit)
 
     var job by mutableStateOf<Job?>(null)
         private set
@@ -183,29 +183,57 @@ private fun ScheduleFlow(job: ScheduleUi.Job) {
         val kept = order.mapNotNull { items[it] }.filter { it.accepted }
         if (kept.isEmpty() || saving) return
         saving = true
-        val events = kept.filterIsInstance<Proposal.Event>()
-        val tasks = kept.filterIsInstance<Proposal.Task>()
         FullScreenState.exitThen {
             scope.launch {
-                events.forEach { event ->
-                    EventDraftSaver.create(eventsViewModel, ProposalApplier.draft(event, memoDay, target), successText = null) {}
-                }
-                withContext(Dispatchers.IO) {
-                    ProposalApplier.addTasks(TaskRepository(context.applicationContext), tasks, memoDay, GlobalAppSettings.tasksCanvasHeight)
-                }
-                if (kept.any { it is Proposal.Note }) job.shared?.saveNote?.invoke()
-                val first = (kept.first() as? Proposal.Event)?.date ?: (kept.first() as? Proposal.Task)?.day ?: memoDay
-                val label = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()).format(LocalDate.parse(first))
-                SnackState.globalSnackFlow.tryEmit(
-                    SnackConf(
-                        text = if (kept.size == 1) "Added to $label" else "Added ${kept.size}",
-                        duration = SnackConf.DURATION_STANDARD,
-                        actions = listOf("Open" to { MainScreenRequests.request(MainScreenRequest.ShowDay(first)) })
-                    )
+                val taskRepo = TaskRepository(context.applicationContext)
+                val outcome = ProposalApplier.applySelected(
+                    kept = kept,
+                    memoDay = memoDay,
+                    saveEvent = { event ->
+                        val res = EventDraftSaver.createAwait(eventsViewModel, ProposalApplier.draft(event, memoDay, target))
+                        res.succeeded to res.errorMessage
+                    },
+                    saveTask = { task ->
+                        withContext(Dispatchers.IO) {
+                            ProposalApplier.addTask(taskRepo, task, memoDay, GlobalAppSettings.tasksCanvasHeight)
+                        }
+                    },
+                    saveNote = { job.shared?.saveNote?.invoke() == true }
                 )
-                MainScreenRequests.request(MainScreenRequest.ReloadTasks)
-                job.shared?.done?.invoke()
-                ScheduleUi.close()
+
+                if (outcome.anyTaskAdded) {
+                    MainScreenRequests.request(MainScreenRequest.ReloadTasks)
+                }
+
+                if (outcome.allSucceeded) {
+                    val openDay = outcome.firstSavedDay ?: memoDay
+                    val label = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()).format(LocalDate.parse(openDay))
+                    SnackState.globalSnackFlow.tryEmit(
+                        SnackConf(
+                            text = if (outcome.succeededIds.size == 1) "Added to $label" else "Added ${outcome.succeededIds.size}",
+                            duration = SnackConf.DURATION_STANDARD,
+                            actions = listOf("Open" to { MainScreenRequests.request(MainScreenRequest.ShowDay(openDay)) })
+                        )
+                    )
+                    job.shared?.done?.invoke()
+                    ScheduleUi.close()
+                } else {
+                    // Drop already-saved items so retry never duplicates them; keep failed items and shared inbox intact.
+                    outcome.succeededIds.forEach { id ->
+                        items.remove(id)
+                        order = order.filterNot { it == id }
+                    }
+                    val remainingPages = maxOf(1, (order.size + perPage - 1) / perPage)
+                    if (page > remainingPages) page = remainingPages
+                    saving = false
+                    val msg = when {
+                        outcome.succeededIds.isNotEmpty() ->
+                            "Added ${outcome.succeededIds.size}; ${outcome.failedIds.size} couldn't be saved. Try again or untick them."
+                        !outcome.lastError.isNullOrBlank() -> outcome.lastError
+                        else -> "Couldn't save. Check your connection and try again."
+                    }
+                    SnackState.globalSnackFlow.tryEmit(SnackConf(text = msg, duration = SnackConf.DURATION_ERROR))
+                }
             }
         }
     }
