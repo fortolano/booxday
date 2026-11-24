@@ -150,12 +150,16 @@ fun ApiKeySettingsCard(modifier: Modifier = Modifier) {
                     "That isn't a working key. If it's a connection code, it may have expired: tap Connect OpenRouter again."
                 }
             } else {
-                withContext(Dispatchers.IO) { UserOpenRouterKey.save(context, key) }
-                lastCheck = result
-                input = ""
-                showKey = false
-                replacing = false
-                entryMessage = null
+                val saved = withContext(Dispatchers.IO) { UserOpenRouterKey.save(context, key) }
+                if (saved) {
+                    lastCheck = result
+                    input = ""
+                    showKey = false
+                    replacing = false
+                    entryMessage = null
+                } else {
+                    entryMessage = "This tablet's encrypted storage isn't available right now, so BooxDay couldn't save your key safely. Restart the tablet and try again."
+                }
             }
             checking = false
         }

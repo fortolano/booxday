@@ -280,7 +280,13 @@ object OpenRouterConnect {
     }
 
     private fun saved(context: Context, key: String, connected: Status.Connected): Status {
-        UserOpenRouterKey.save(context, key)
+        if (!UserOpenRouterKey.save(context, key)) {
+            Log.e(TAG, "Encrypted storage unavailable; OpenRouter key not saved")
+            return fail(
+                "This tablet's encrypted storage isn't available right now, so BooxDay couldn't save your key safely. Restart the tablet and try again.",
+                canRetry = true
+            )
+        }
         clearPending(context)
         Log.i(TAG, "OpenRouter connected, key saved")
         status = connected

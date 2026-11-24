@@ -42,15 +42,19 @@ object UserOpenRouterKey {
         }
     }
 
-    /** Saves [key] (null removes it). Call off the main thread (the Android Keystore can be slow). */
-    fun save(context: Context, key: String?) {
+    /**
+     * Saves [key] (null removes it). Call off the main thread (the Android Keystore can be slow).
+     * Returns false if encrypted storage is unavailable and a non-null key could not be saved.
+     */
+    fun save(context: Context, key: String?): Boolean {
         val cleaned = key?.trim()?.takeIf { it.isNotEmpty() }
-        UserApiKeyStore.setOpenRouterKey(context, cleaned)
+        if (!UserApiKeyStore.setOpenRouterKey(context, cleaned)) return false
         synchronized(this) {
             value = cleaned
             isLoaded = true
         }
         // The model list for this account (which models it allows), at once rather than at next start
         if (cleaned != null) com.boox.day.api.OpenRouterModelCatalog.onKeySaved()
+        return true
     }
 }
