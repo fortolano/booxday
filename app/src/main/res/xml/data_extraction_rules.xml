@@ -11,15 +11,21 @@
         <exclude domain="sharedpref" path="api_key_prefs.xml" />
         <exclude domain="sharedpref" path="user_api_key_encrypted.xml" />
         <exclude domain="sharedpref" path="account_secrets.xml" />
+        <exclude domain="sharedpref" path="openrouter_connect.xml" />
+        <exclude domain="sharedpref" path="event_reminder_chain.xml" />
         <exclude domain="sharedpref" path="task_sync.xml" />
         <exclude domain="file" path="pages/previews/" />
+        <exclude domain="file" path="crash/" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="boox_day_google_auth.xml" />
         <exclude domain="sharedpref" path="api_key_prefs.xml" />
         <exclude domain="sharedpref" path="user_api_key_encrypted.xml" />
         <exclude domain="sharedpref" path="account_secrets.xml" />
+        <exclude domain="sharedpref" path="openrouter_connect.xml" />
+        <exclude domain="sharedpref" path="event_reminder_chain.xml" />
         <exclude domain="sharedpref" path="task_sync.xml" />
         <exclude domain="file" path="pages/previews/" />
+        <exclude domain="file" path="crash/" />
     </device-transfer>
 </data-extraction-rules>
