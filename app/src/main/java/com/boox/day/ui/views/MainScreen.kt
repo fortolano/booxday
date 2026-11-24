@@ -3277,10 +3277,16 @@ fun MainScreen(
                                 memoToTasksProcessingState = MemoToTasksProcessingState.Processing("Starting...")
                                 memoToTasksProcessingStartTime = System.currentTimeMillis()
 
-                                // Fetch semantic context for prompt enrichment
+                                // Fetch semantic context for prompt enrichment (tasks + memos only; never calendar events or BOOX notes)
                                 val dayContext = withContext(Dispatchers.IO) {
                                     try {
-                                        semanticGeniusService.getDateContext(memoToTasksTargetDate)
+                                        semanticGeniusService.getDateContext(
+                                            memoToTasksTargetDate,
+                                            includeSourceTypes = setOf(
+                                                com.boox.day.ocr.model.OcrSource.TASK,
+                                                com.boox.day.ocr.model.OcrSource.MEMO
+                                            )
+                                        )
                                     } catch (e: Exception) {
                                         null
                                     }
@@ -5348,10 +5354,16 @@ fun MainScreen(
             memoToTasksProcessingStartTime = System.currentTimeMillis()
 
             scope.launch {
-                // Fetch semantic context for prompt enrichment
+                // Fetch semantic context for prompt enrichment (tasks + memos only; never calendar events or BOOX notes)
                 val dayContext = withContext(Dispatchers.IO) {
                     try {
-                        semanticGeniusService.getDateContext(memoToTasksTargetDate)
+                        semanticGeniusService.getDateContext(
+                            memoToTasksTargetDate,
+                            includeSourceTypes = setOf(
+                                com.boox.day.ocr.model.OcrSource.TASK,
+                                com.boox.day.ocr.model.OcrSource.MEMO
+                            )
+                        )
                     } catch (e: Exception) {
                         null  // Proceed without context if unavailable
                     }
