@@ -79,7 +79,9 @@ internal class MicrosoftTodoProvider(
     private val linksIn: suspend (listId: String) -> List<TaskSyncLink> = { emptyList() },
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     /** The done copies that already proved a phone tick (owner decision 100); null: within one round only. */
-    private val usedDoneCopies: UsedDoneCopies? = null
+    private val usedDoneCopies: UsedDoneCopies? = null,
+    /** Old copies a move left behind, to be deleted only as they were ([deleteLeftCopy]). */
+    private val leftCopies: LeftCopies? = null
 ) : TaskSyncService {
 
     override val provider: String = TaskSyncProvider.MICROSOFT_TODO
@@ -128,6 +130,7 @@ internal class MicrosoftTodoProvider(
         }
         val links = linksIn(listId).filter { !it.keptOnTablet }
         val linked = links.mapTo(HashSet()) { it.remoteId }
+        leftCopies?.done(listId, linked)  // a left copy linked to a tablet task of its own is that task now
         val linkOf = links.associateBy { it.remoteId }
         val stepLinks = links.filter { TodoFields.isStep(it.remoteId) }.groupBy { TodoFields.taskOf(it.remoteId) }
         val out = mutableListOf<RemoteTaskState>()
@@ -320,9 +323,39 @@ internal class MicrosoftTodoProvider(
      * the next one by now (ticked on the phone, To Do keeps the id for it). One already gone is done.
      */
     override suspend fun delete(listId: String, remoteId: String) = call {
+        if (leftCopies?.isLeft(listId, remoteId) == true) return@call deleteLeftCopy(listId, remoteId)
         val task = taskOfCopy(listId, remoteId) ?: return@call
         if (task.obj("recurrence") != null) return@call
         deleteCopy(listId, remoteId)
+    }
+
+    /**
+     * An old copy a move left ([LeftCopies]): deleted only while it is as it was when copied, the
+     * delete itself sent as read (If-Match; a step has no etag, so its words and tick are compared).
+     * Changed since, or not known: it stays, so no edit made on it is lost, and comes in as a task of
+     * its own ([TaskSyncServiceException.LeftCopyChanged]): doubled at worst.
+     */
+    private suspend fun deleteLeftCopy(listId: String, remoteId: String) {
+        val left = leftCopies!!
+        val step = TodoFields.isStep(remoteId)
+        val path = copyPath(listId, remoteId)
+        val now = try {
+            readOrNull(listId, path)
+        } catch (e: TaskSyncServiceException.ListGone) {
+            null
+        } ?: return left.done(listId, listOf(remoteId))  // gone already
+        val was = left.wasOf(listId, remoteId)
+        if (was != null && was == (if (step) TodoFields.stepVersion(now) else now.str(ETAG))) {
+            try {
+                graph.call("DELETE", path, ifMatch = if (step) null else was)
+                return left.done(listId, listOf(remoteId))
+            } catch (e: GraphException.Http) {
+                if (isGone(e)) return left.done(listId, listOf(remoteId))
+                if (e.status != PRECONDITION_FAILED) throw e
+            }
+        }
+        left.kept(listId, remoteId)
+        throw TaskSyncServiceException.LeftCopyChanged(listId)
     }
 
     override suspend fun keepsOnDelete(listId: String, remoteId: String): Boolean = call {
@@ -451,7 +484,7 @@ internal class MicrosoftTodoProvider(
         // A step of a repeating task stays where it is: moving it would delete it there (owner
         // decision 89), so its parent there stays the one it has
         val kept = wanted != taskId && readOrNull(listId, taskPath(listId, taskId))?.obj("recurrence") != null
-        if (wanted != taskId && !kept) return regroupStep(listId, link.remoteId, task, wanted)
+        if (wanted != taskId && !kept) return regroupStep(listId, link.remoteId, task, wanted, was = TodoFields.stepVersion(before))
 
         val patch = buildJsonObject {
             if (task.title != link.syncedTitle) put("displayName", task.title)
@@ -467,24 +500,29 @@ internal class MicrosoftTodoProvider(
         return stepTaskOf(listId, taskId, after).copy(parentKept = kept)
     }
 
-    /** A step to another task ([parent]) or to a task of its own (null): made there first, then deleted here. */
-    private suspend fun regroupStep(listId: String, remoteId: String, task: OutgoingTask, parent: String?): RemoteTask {
+    /**
+     * A step to another task ([parent]) or to a task of its own (null): made there first, then deleted
+     * here. [was]: the step as it was read ([TodoFields.stepVersion]).
+     */
+    private suspend fun regroupStep(listId: String, remoteId: String, task: OutgoingTask, parent: String?, was: String): RemoteTask {
         val fresh = task.copy(createRetry = false)
         val made = if (parent == null) createTask(listId, fresh.copy(parentRemoteId = null)) else createStep(listId, parent, fresh)
-        return made.copy(oldCopyLeft = remoteId.takeUnless { replaced(listId, remoteId, listId, made.remoteId) })
+        return made.copy(oldCopyLeft = remoteId.takeUnless { replaced(listId, remoteId, listId, made.remoteId, was) })
     }
 
     /**
-     * Deletes [oldId] in [oldList] now that [newId] in [newList] holds it, never losing the only copy.
-     * Refused for certain (a 4xx; gone counts as deleted): the old one is whole, so the new one goes
-     * and the failure is passed on. Any other failure (no answer, a server error, busy) may still
-     * delete the old one later, so the new one is never deleted: the old one read gone, the move is
-     * done; else false: the new one is the copy from now on and the old one is deleted later through
-     * the outbox ([RemoteTask.oldCopyLeft]), so it is never copied again or taken as a new task.
+     * Deletes [oldId] in [oldList] now that [newId] in [newList] holds it, never losing the only copy
+     * nor an edit made on the old one: [was] is the old one as it was copied (a task's etag, sent as
+     * If-Match; a step's [TodoFields.stepVersion]). Refused for certain (a 4xx, 412 for an edit made
+     * since; gone counts as deleted): the old one is whole, so the new one goes and the failure is
+     * passed on. Any other failure (no answer, a server error, busy) may still delete the old one
+     * later, so the new one is never deleted: the old one read gone, the move is done; else false:
+     * the new one is the copy from now on and the old one is deleted later through the outbox, only
+     * while it is still as it was ([RemoteTask.oldCopyLeft], [LeftCopies]).
      */
-    private suspend fun replaced(oldList: String, oldId: String, newList: String, newId: String): Boolean {
+    private suspend fun replaced(oldList: String, oldId: String, newList: String, newId: String, was: String?): Boolean {
         val failure = try {
-            deleteCopy(oldList, oldId)
+            deleteCopy(oldList, oldId, ifMatch = was.takeUnless { TodoFields.isStep(oldId) })
             return true
         } catch (e: CancellationException) {
             throw e
@@ -501,38 +539,37 @@ internal class MicrosoftTodoProvider(
             }
             throw failure
         }
-        return try {
+        val gone = try {
             !exists(oldList, oldId)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             false  // can't tell
         }
+        if (!gone) leftCopies?.left(oldList, oldId, was)
+        return gone
     }
 
     /** Whether the task or step is there; a failure to tell is thrown. */
-    private suspend fun exists(listId: String, remoteId: String): Boolean {
-        val path = if (TodoFields.isStep(remoteId)) stepPath(listId, TodoFields.taskOf(remoteId), TodoFields.stepOf(remoteId))
-        else taskPath(listId, remoteId)
-        return try {
-            get(path)
-            true
+    private suspend fun exists(listId: String, remoteId: String): Boolean = try {
+        get(copyPath(listId, remoteId))
+        true
+    } catch (e: GraphException.Http) {
+        if (!isGone(e)) throw e
+        false
+    }
+
+    /** One already gone counts as deleted. [ifMatch]: only as it was read (412 otherwise). */
+    private suspend fun deleteCopy(listId: String, remoteId: String, ifMatch: String? = null) {
+        try {
+            graph.call("DELETE", copyPath(listId, remoteId), ifMatch = ifMatch)
         } catch (e: GraphException.Http) {
             if (!isGone(e)) throw e
-            false
         }
     }
 
-    /** One already gone counts as deleted. */
-    private suspend fun deleteCopy(listId: String, remoteId: String) {
-        val path = if (TodoFields.isStep(remoteId)) stepPath(listId, TodoFields.taskOf(remoteId), TodoFields.stepOf(remoteId))
-        else taskPath(listId, remoteId)
-        try {
-            graph.call("DELETE", path)
-        } catch (e: GraphException.Http) {
-            if (!isGone(e)) throw e
-        }
-    }
+    private fun copyPath(listId: String, remoteId: String) =
+        if (TodoFields.isStep(remoteId)) stepPath(listId, TodoFields.taskOf(remoteId), TodoFields.stepOf(remoteId)) else taskPath(listId, remoteId)
 
     /**
      * To another list (owner decision 83): a copy there with the words, notes, dates, reminder, star,
@@ -568,7 +605,7 @@ internal class MicrosoftTodoProvider(
             }
             throw e
         }
-        val oldGone = replaced(fromListId, remoteId, toListId, newId)
+        val oldGone = replaced(fromListId, remoteId, toListId, newId, was = before.str(ETAG))
         movedSteps.putAll(newSteps)
         taskState(toListId, onTask(toListId) { get(taskPath(toListId, newId)) }).copy(oldCopyLeft = remoteId.takeUnless { oldGone })
     }
@@ -592,7 +629,7 @@ internal class MicrosoftTodoProvider(
             } ?: throw IllegalStateException("No answer to a moved step")
             taskState(toListId, made)
         }
-        return moved.copy(oldCopyLeft = remoteId.takeUnless { replaced(fromListId, remoteId, toListId, moved.remoteId) })
+        return moved.copy(oldCopyLeft = remoteId.takeUnless { replaced(fromListId, remoteId, toListId, moved.remoteId, was = TodoFields.stepVersion(step)) })
     }
 
     // ── Graph's shapes ──
@@ -818,7 +855,8 @@ internal class MicrosoftTodoProvider(
                 linksIn = { listId ->
                     withContext(Dispatchers.IO) { sync.getLinksInList(TaskSyncProvider.MICROSOFT_TODO, accountEmail, "", listId) }
                 },
-                usedDoneCopies = UsedDoneCopies(TaskSync.prefs(app), accountEmail)
+                usedDoneCopies = UsedDoneCopies(TaskSync.prefs(app), accountEmail),
+                leftCopies = LeftCopies(TaskSync.prefs(app), accountEmail)
             )
         }
 

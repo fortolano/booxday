@@ -1,6 +1,8 @@
 package com.boox.day.tasksync.microsoft
 
 import android.app.Application
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import com.boox.day.data.db.TaskSyncLink
 import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.sync.microsoft.MicrosoftGraph
@@ -57,10 +59,11 @@ class MicrosoftTodoProviderTest {
     @After
     fun stop() = server.shutdown()
 
-    private fun provider() = MicrosoftTodoProvider(
+    private fun provider(leftCopies: LeftCopies? = null) = MicrosoftTodoProvider(
         MicrosoftGraph(token = { "token" }, baseUrl = server.url("/v1.0").toString().trimEnd('/')),
         linksIn = { listId -> links.filter { it.listId == listId } },
-        zone = { zone }
+        zone = { zone },
+        leftCopies = leftCopies
     )
 
     // ── Lists (owner decision 84) ──
@@ -286,6 +289,24 @@ class MicrosoftTodoProviderTest {
         assertEquals("nothing written", writesBefore, todo.writes.size)
         assertEquals(2, todo.tasksIn(TASKS).size)
         assertEquals("the step stays in its series", 1, todo.stepsOf(repeating).size)
+    }
+
+    @Test
+    fun aCopyAMoveLeftIsNeverDeletedWhenHowItWasCopiedIsNotKnown() = runBlocking {
+        val prefs = ApplicationProvider.getApplicationContext<Context>().getSharedPreferences("left-copies-test", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+        val left = LeftCopies(prefs, "me@outlook.com")
+        val id = todo.addTask(TASKS, task("Plan trip"))
+        left.left(TASKS, id, was = null)  // no etag saved with it
+
+        try {
+            provider(left).delete(TASKS, id)
+            fail("expected LeftCopyChanged")
+        } catch (e: TaskSyncServiceException.LeftCopyChanged) {
+            assertEquals("its list is read in full next, so it comes in", TASKS, e.listId)
+        }
+        assertTrue("not deleted", todo.task(TASKS, id) != null)
+        assertTrue(todo.writes.none { it.startsWith("DELETE") })
     }
 
     // ── Repeats (owner decision 100): the next date, only when it can be worked out ──

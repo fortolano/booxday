@@ -89,7 +89,8 @@ class MicrosoftTodoSyncTest {
         ),
         linksIn = { listId -> sync.getLinksInList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", listId) },
         zone = { ZoneId.of("Europe/Warsaw") },
-        usedDoneCopies = UsedDoneCopies(TaskSync.prefs(context), EMAIL)
+        usedDoneCopies = UsedDoneCopies(TaskSync.prefs(context), EMAIL),
+        leftCopies = LeftCopies(TaskSync.prefs(context), EMAIL)
     )
 
     @After
@@ -647,6 +648,32 @@ class MicrosoftTodoSyncTest {
         assertEquals(1, todo.stepsOf(copy).size)
         assertEquals("one row each here", listOf(1, 1), listOf("Plan trip", "Book hotel").map { w -> tasks.getTasksForDay(DAY).count { it.typedText == w } })
         assertTrue(sync.getOutbox().isEmpty())
+    }
+
+    @Test
+    fun aMoveCleanupNeverDeletesAnEditMadeOnTheOldCopy() = runBlocking {
+        todo.addList(WORK, "Work")
+        sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", WORK, "Work"))
+        val trip = row(0, "Plan trip")
+        row(1, "Book hotel") { repo.setParentTask(it, trip) }
+        run()
+        val oldId = todo.tasksIn(TASKS).single().text("id")
+        todo.drop = { method, path -> method == "DELETE" && path.endsWith("/tasks/$oldId") }
+        assertEquals(TaskSyncListMover.Outcome.MOVED, TaskSyncListMover(db, provider, EMAIL).move(trip, WORK))
+        todo.drop = { _, _ -> false }
+
+        // Edited on the phone before its cleanup goes
+        todo.patchTask(TASKS, oldId, mapOf("title" to JsonPrimitive("Plan trip to Rome")))
+        run()
+        assertEquals("the edit is kept: not deleted", "Plan trip to Rome", todo.task(TASKS, oldId)!!.text("title"))
+        assertTrue("the cleanup is dropped", sync.getOutbox().none { it.op == "DELETE" })
+
+        run()  // its list read in full: it comes in as a task of its own
+        val own = linkedTo(oldId)!!
+        assertEquals("Plan trip to Rome", task(own.taskId).typedText)
+        assertEquals("the moved task stays on the new copy", WORK, sync.getLink(trip)!!.listId)
+        run()
+        assertTrue("never deleted later either: ${todo.writes}", todo.task(TASKS, oldId) != null)
     }
 
     @Test

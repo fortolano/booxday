@@ -111,7 +111,14 @@ internal class TaskSyncSender(
         for (child in sync.getChildLinks(service.provider, accountEmail, serverUrl, listId, remoteId)) {
             if (!sendUpsert(child.taskId, leavingParent = remoteId)) tasks.dropQueuedSyncUpsert(child.taskId)
         }
-        service.delete(listId, remoteId)
+        try {
+            service.delete(listId, remoteId)
+        } catch (e: TaskSyncServiceException.LeftCopyChanged) {
+            // An old copy a move left, changed since: kept, so the edit isn't lost; read in full, its
+            // list brings it in as a task of its own at the next pull (doubled at worst)
+            sync.setPullCursor(service.provider, accountEmail, serverUrl, e.listId, null)
+            Log.i(TAG, "An old copy a move left changed since; kept, it comes in as a task of its own")
+        }
         return false
     }
 
