@@ -142,7 +142,9 @@ class OutlookAuthManager(private val context: Context) {
      */
     suspend fun signInInteractive(
         activity: Activity,
-        accountType: AccountType
+        accountType: AccountType,
+        /** The calendar's by default; OneDrive backup signs in with only its own (owner decision 86). */
+        scopes: List<String> = SCOPES.toList()
     ): Result<OutlookAuthResult> = withContext(Dispatchers.Main) {
         val app = msalApp ?: return@withContext Result.failure(
             IllegalStateException("MSAL not initialized. Call initialize() first.")
@@ -160,7 +162,7 @@ class OutlookAuthManager(private val context: Context) {
             val authResult = suspendCancellableCoroutine<IAuthenticationResult> { continuation ->
                 val params = AcquireTokenParameters.Builder()
                     .startAuthorizationFromActivity(activity)
-                    .withScopes(SCOPES.toList())
+                    .withScopes(scopes)
                     .fromAuthority(authority)
                     .withCallback(object : AuthenticationCallback {
                         override fun onSuccess(authenticationResult: IAuthenticationResult) {
@@ -217,7 +219,18 @@ class OutlookAuthManager(private val context: Context) {
      * @param msalAccountId The MSAL account identifier
      * @return Result containing the access token string, or failure
      */
-    suspend fun getAccessToken(msalAccountId: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun getAccessToken(msalAccountId: String): Result<String> = getAccessToken(msalAccountId, SCOPES.toList())
+
+    /**
+     * A token for [scopes] (Microsoft To Do, OneDrive backup: owner decisions 79-88, Nov 2026),
+     * without showing anything. Fails with [MsalUiRequiredException] while the user hasn't agreed to
+     * them yet ([requestScopes]). [forceRefresh] after Microsoft refused the cached token.
+     */
+    suspend fun getAccessToken(
+        msalAccountId: String,
+        scopes: List<String>,
+        forceRefresh: Boolean = false
+    ): Result<String> = withContext(Dispatchers.IO) {
         val app = msalApp ?: return@withContext Result.failure(
             IllegalStateException("MSAL not initialized")
         )
@@ -230,7 +243,7 @@ class OutlookAuthManager(private val context: Context) {
                 )
 
             // Try to acquire token silently
-            val authResult = acquireTokenSilent(msalAccount)
+            val authResult = acquireTokenSilent(msalAccount, scopes, forceRefresh)
             Result.success(authResult.accessToken)
 
         } catch (e: MsalUiRequiredException) {
@@ -248,14 +261,19 @@ class OutlookAuthManager(private val context: Context) {
     /**
      * Acquire token silently for an MSAL account.
      */
-    private suspend fun acquireTokenSilent(account: IAccount): IAuthenticationResult {
+    private suspend fun acquireTokenSilent(
+        account: IAccount,
+        scopes: List<String>,
+        forceRefresh: Boolean
+    ): IAuthenticationResult {
         val app = msalApp ?: throw IllegalStateException("MSAL not initialized")
 
         return suspendCancellableCoroutine { continuation ->
             val params = AcquireTokenSilentParameters.Builder()
                 .forAccount(account)
                 .fromAuthority(account.authority)
-                .withScopes(SCOPES.toList())
+                .withScopes(scopes)
+                .forceRefresh(forceRefresh)
                 .withCallback(object : AuthenticationCallback {
                     override fun onSuccess(authenticationResult: IAuthenticationResult) {
                         continuation.resume(authenticationResult)
@@ -274,6 +292,57 @@ class OutlookAuthManager(private val context: Context) {
                 .build()
 
             app.acquireTokenSilentAsync(params)
+        }
+    }
+
+    /**
+     * Asks the user, once, to let BooxDay use [scopes] with an account already signed in (Microsoft
+     * shows its own consent page; the calendar permissions stay as they are). Returns the account's
+     * MSAL id. Microsoft may hand back a different account if the user picks one on its page: the
+     * caller checks the id.
+     */
+    suspend fun requestScopes(
+        activity: Activity,
+        msalAccountId: String,
+        scopes: List<String>
+    ): Result<String> = withContext(Dispatchers.Main) {
+        val app = msalApp ?: return@withContext Result.failure(
+            IllegalStateException("MSAL not initialized. Call initialize() first.")
+        )
+        try {
+            val account = withContext(Dispatchers.IO) { app.accounts.find { it.id == msalAccountId } }
+                ?: return@withContext Result.failure(AccountNotFoundException("Account not found: $msalAccountId"))
+            val result = suspendCancellableCoroutine<IAuthenticationResult> { continuation ->
+                val params = AcquireTokenParameters.Builder()
+                    .startAuthorizationFromActivity(activity)
+                    .forAccount(account)
+                    .fromAuthority(account.authority)
+                    .withScopes(scopes)
+                    .withCallback(object : AuthenticationCallback {
+                        override fun onSuccess(authenticationResult: IAuthenticationResult) {
+                            continuation.resume(authenticationResult)
+                        }
+
+                        override fun onError(exception: MsalException) {
+                            continuation.resumeWithException(exception)
+                        }
+
+                        override fun onCancel() {
+                            continuation.resumeWithException(SignInCancelledException("Consent cancelled by user"))
+                        }
+                    })
+                    .build()
+                app.acquireToken(params)
+            }
+            Result.success(result.account.id)
+        } catch (e: SignInCancelledException) {
+            Result.failure(e)
+        } catch (e: MsalException) {
+            Log.e(TAG, "Consent for more permissions failed: ${e.errorCode}", e)
+            Result.failure(e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error asking for more permissions", e)
+            Result.failure(e)
         }
     }
 
