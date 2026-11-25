@@ -1,11 +1,12 @@
 package com.boox.day.tasksync
 
 import android.content.SharedPreferences
+import java.security.MessageDigest
 import java.util.UUID
 
 /**
  * H15: the mark of a new task's create, in the device-only Task Sync prefs. Written before each send
- * of the create (its op id, kept across tries, and the parent and words of that send); cleared once
+ * of the create (its op id, kept across tries, and a hash of the parent and words of that send); cleared once
  * the task's link is saved, by the send itself or by a pull that links the copy the create made when
  * its answer was lost (TaskSyncMerger). The key is the one TaskSyncSender used before (Oct 2026).
  */
@@ -38,5 +39,13 @@ internal class CreateMarks(
 
     private fun scopeKey(taskId: String) = key(taskId) + "_sent"
 
-    private fun scope(parentRemoteId: String?, words: String) = parentRemoteId.orEmpty() + "\u0000" + words
+    /**
+     * The parent and words of a send, by hash: a task's words are never stored. A send that never
+     * reached the service and an identical step added on the phone under the same parent then look
+     * alike, and the two identical steps become one row: accepted, nothing is lost.
+     */
+    private fun scope(parentRemoteId: String?, words: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest((parentRemoteId.orEmpty() + "\u0000" + words).toByteArray(Charsets.UTF_8))
+        return digest.take(16).joinToString("") { "%02x".format(it) }
+    }
 }

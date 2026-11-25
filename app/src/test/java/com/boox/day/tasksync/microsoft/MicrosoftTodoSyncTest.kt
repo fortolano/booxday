@@ -768,6 +768,7 @@ class MicrosoftTodoSyncTest {
         run()  // the step is made, its answer lost
         todo.loseReplyTo = { _, _ -> false }
         assertTrue("its create is marked", marks().opIdOf(hotel) != null)
+        assertTrue("never its words", TaskSync.prefs(context).all.values.none { "Book hotel" in it.toString() })
 
         TaskSyncPuller(db, provider, merger(), EMAIL, clock = { now }).pull()  // the pull links it first
         val parent = todo.tasksIn(TASKS).single().text("id")
