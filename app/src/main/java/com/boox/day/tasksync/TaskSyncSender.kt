@@ -237,6 +237,8 @@ internal class TaskSyncSender(
                     dueDay ?: task.dayDate, parentRemoteId, serviceParent, sentHash, staysUndated,
                     keptPriority, extras?.reminderMinute, now
                 )
+                // The copy it replaces may still be there: deleted later, retried until certain
+                if (current != null) remote.oldCopyLeft?.let { queueDelete(task.id, current.listId, it, now) }
             }
         }
         if (createOpId != null) {
@@ -245,6 +247,15 @@ internal class TaskSyncSender(
         // Changed while it was being sent: keep the entry, the newer state goes next
         val after = tasks.getById(task.id) ?: return false
         return TaskSyncRules.contentHash(after, hashParentId, service.carriesExtras) != sentHash
+    }
+
+    private fun queueDelete(taskId: String, listId: String, remoteId: String, now: Long) {
+        sync.insertOutboxEntry(
+            TaskSyncOutboxEntry(
+                op = TaskSyncOp.DELETE, taskId = taskId, provider = service.provider, accountEmail = accountEmail,
+                serverUrl = serverUrl, listId = listId, remoteId = remoteId, createdAt = now
+            )
+        )
     }
 
     private fun pendingCreateKey(taskId: String): String = pendingCreateKey(service.provider, accountEmail, serverUrl, taskId)

@@ -613,30 +613,58 @@ class MicrosoftTodoSyncTest {
     }
 
     @Test
-    fun aSourceDeleteThatMayStillHappenNeverTakesTheNewCopyBack() = runBlocking {
+    fun aSourceDeleteWithNoClearAnswerLeavesTheNewCopyLinkedAndIsSentAgain() = runBlocking {
         todo.addList(WORK, "Work")
         sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", WORK, "Work"))
         val trip = row(0, "Plan trip")
         val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
         run()
         val oldId = todo.tasksIn(TASKS).single().text("id")
-        // A server error: the old one is still there when read again, but the delete may go through late
-        todo.refuse = { method, path -> if (method == "DELETE" && path.endsWith("/tasks/$oldId")) 500 else null }
+        // The delete times out before it reaches Microsoft: the old one is still there
+        todo.drop = { method, path -> method == "DELETE" && path.endsWith("/tasks/$oldId") }
 
-        val failed = runCatching { TaskSyncListMover(db, provider, EMAIL).move(trip, WORK) }
+        assertEquals(TaskSyncListMover.Outcome.MOVED, TaskSyncListMover(db, provider, EMAIL).move(trip, WORK))
+        todo.drop = { _, _ -> false }
 
-        assertTrue(failed.isFailure)
         val copy = todo.tasksIn(WORK).single().text("id")
-        assertEquals("the new one is never deleted", 1, todo.stepsOf(copy).size)
-        assertEquals("nor the old one", 1, todo.stepsOf(oldId).size)
+        assertEquals("the link on the new copy, whole", WORK to copy, sync.getLink(trip)!!.let { it.listId to it.remoteId })
+        assertEquals("its step taken along, not copied again", listOf(copy), listOf(TodoFields.taskOf(sync.getLink(hotel)!!.remoteId)))
+        assertEquals(1, todo.stepsOf(copy).size)
+        assertTrue("the old one is still there", todo.task(TASKS, oldId) != null)
+        assertEquals("its delete waits in the outbox", listOf(TASKS to oldId), sync.getOutbox().filter { it.op == "DELETE" }.map { it.listId to it.remoteId })
 
-        // It did go through late: the next pull follows the one copy left (owner decision 49)
-        todo.refuse = { _, _ -> null }
-        todo.deleteTask(TASKS, oldId)
+        // A full round of the old list before the delete goes: the old copy and its step aren't new tasks
+        sync.getListsFor(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "").single { it.listId == TASKS }.pullCursor
+            ?.let { todo.expired += it.substringAfter("deltatoken=") }
         run()
-        assertEquals("one copy, never none, the link on it", WORK to copy, sync.getLink(trip)!!.let { it.listId to it.remoteId })
-        assertEquals(copy, TodoFields.taskOf(sync.getLink(hotel)!!.remoteId))
-        assertEquals("nothing doubled here", 1, tasks.getTasksForDay(DAY).count { it.typedText == "Plan trip" })
+
+        assertNull("deleted by the next send", todo.task(TASKS, oldId))
+        assertTrue(todo.tasksIn(TASKS).isEmpty())
+        assertEquals("no third copy", listOf(copy), todo.tasksIn(WORK).map { it.text("id") })
+        assertEquals(1, todo.stepsOf(copy).size)
+        assertEquals("one row each here", listOf(1, 1), listOf("Plan trip", "Book hotel").map { w -> tasks.getTasksForDay(DAY).count { it.typedText == w } })
+        assertTrue(sync.getOutbox().isEmpty())
+    }
+
+    @Test
+    fun aStepMadeATaskWhoseOldStepHadNoClearDeleteIsNeverCopiedAgain() = runBlocking {
+        val trip = row(0, "Plan trip")
+        val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
+        run()
+        val parent = todo.tasksIn(TASKS).single().text("id")
+        todo.drop = { method, path -> method == "DELETE" && "/checklistItems/" in path }
+
+        repo.setParentTask(hotel, null)  // a task of its own here: a task of its own in To Do
+        run()  // the new task made; the old step's delete gets no answer
+        todo.drop = { _, _ -> false }
+        val own = todo.tasksIn(TASKS).single { it.text("title") == "Book hotel" }.text("id")
+        assertEquals("the link on the new task", own, sync.getLink(hotel)?.remoteId)
+
+        run()
+        assertTrue("the old step deleted by the next send", todo.stepsOf(parent).isEmpty())
+        assertEquals("never copied again", 1, todo.tasksIn(TASKS).count { it.text("title") == "Book hotel" })
+        assertEquals(1, tasks.getTasksForDay(DAY).count { it.typedText == "Book hotel" })
+        assertTrue(sync.getOutbox().isEmpty())
     }
 
     @Test

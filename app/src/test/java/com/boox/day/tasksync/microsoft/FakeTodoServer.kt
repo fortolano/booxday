@@ -52,6 +52,8 @@ internal class FakeTodoServer : Dispatcher() {
     var loseReplyTo: (String, String) -> Boolean = { _, _ -> false }
     /** The status Microsoft refuses a request ("DELETE", decoded path) with, without doing it; null: done. */
     var refuse: (String, String) -> Int? = { _, _ -> null }
+    /** A request that gets no answer and never reached Microsoft (a timeout before it took effect). */
+    var drop: (String, String) -> Boolean = { _, _ -> false }
     /** A change on the phone made just before Microsoft gets this request ("PATCH", decoded path). */
     var meanwhile: (String, String) -> Unit = { _, _ -> }
     /** Every If-Match BooxDay sent. */
@@ -111,6 +113,7 @@ internal class FakeTodoServer : Dispatcher() {
         if (path.lastOrNull() == "delta" && url.queryParameter("\$top") != null) return error(400, "BadRequest")
         val decoded = "/" + path.joinToString("/")
         refuse(request.method!!, decoded)?.let { status -> return error(status, if (status >= 500) "ErrorInternalServerError" else "ErrorInvalidRequest") }
+        if (drop(request.method!!, decoded)) return MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST)
         meanwhile(request.method!!, decoded)
         // A change made only if the task is as it was read (measured 25 Nov 2026)
         request.getHeader("If-Match")?.let { sent ->

@@ -471,8 +471,7 @@ internal class MicrosoftTodoProvider(
     private suspend fun regroupStep(listId: String, remoteId: String, task: OutgoingTask, parent: String?): RemoteTask {
         val fresh = task.copy(createRetry = false)
         val made = if (parent == null) createTask(listId, fresh.copy(parentRemoteId = null)) else createStep(listId, parent, fresh)
-        replaced(listId, remoteId, listId, made.remoteId)
-        return made
+        return made.copy(oldCopyLeft = remoteId.takeUnless { replaced(listId, remoteId, listId, made.remoteId) })
     }
 
     /**
@@ -480,13 +479,13 @@ internal class MicrosoftTodoProvider(
      * Refused for certain (a 4xx; gone counts as deleted): the old one is whole, so the new one goes
      * and the failure is passed on. Any other failure (no answer, a server error, busy) may still
      * delete the old one later, so the new one is never deleted: the old one read gone, the move is
-     * done; else both stay, the failure is passed on and the next pull follows the copy (owner
-     * decision 49), doubled at worst.
+     * done; else false: the new one is the copy from now on and the old one is deleted later through
+     * the outbox ([RemoteTask.oldCopyLeft]), so it is never copied again or taken as a new task.
      */
-    private suspend fun replaced(oldList: String, oldId: String, newList: String, newId: String) {
+    private suspend fun replaced(oldList: String, oldId: String, newList: String, newId: String): Boolean {
         val failure = try {
             deleteCopy(oldList, oldId)
-            return
+            return true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -502,14 +501,13 @@ internal class MicrosoftTodoProvider(
             }
             throw failure
         }
-        val gone = try {
+        return try {
             !exists(oldList, oldId)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             false  // can't tell
         }
-        if (!gone) throw failure
     }
 
     /** Whether the task or step is there; a failure to tell is thrown. */
@@ -570,9 +568,9 @@ internal class MicrosoftTodoProvider(
             }
             throw e
         }
-        replaced(fromListId, remoteId, toListId, newId)
+        val oldGone = replaced(fromListId, remoteId, toListId, newId)
         movedSteps.putAll(newSteps)
-        taskState(toListId, onTask(toListId) { get(taskPath(toListId, newId)) })
+        taskState(toListId, onTask(toListId) { get(taskPath(toListId, newId)) }).copy(oldCopyLeft = remoteId.takeUnless { oldGone })
     }
 
     /**
@@ -594,8 +592,7 @@ internal class MicrosoftTodoProvider(
             } ?: throw IllegalStateException("No answer to a moved step")
             taskState(toListId, made)
         }
-        replaced(fromListId, remoteId, toListId, moved.remoteId)
-        return moved
+        return moved.copy(oldCopyLeft = remoteId.takeUnless { replaced(fromListId, remoteId, toListId, moved.remoteId) })
     }
 
     // ── Graph's shapes ──

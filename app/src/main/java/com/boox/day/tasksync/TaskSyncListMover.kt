@@ -3,6 +3,8 @@ package com.boox.day.tasksync
 import android.util.Log
 import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.TaskSyncLink
+import com.boox.day.data.db.TaskSyncOp
+import com.boox.day.data.db.TaskSyncOutboxEntry
 
 /**
  * Moves a synced task to another list of its account (owner decisions 47 and 53, 31 Oct 2026). The
@@ -47,25 +49,41 @@ internal class TaskSyncListMover(
         db.runInTransaction {
             sync.moveLinkToList(taskId, toListId, moved.remoteId)
             sync.setMovedVersion(taskId, moved.version, clock())
+            moved.oldCopyLeft?.let { queueDelete(taskId, link.listId, it) }
         }
         for (subtask in subtasks) bringAlong(subtask, link, toListId, moved.remoteId)
         Log.i(TAG, "Moved a task with ${subtasks.size} subtask(s) to another list")
         return Outcome.MOVED
     }
 
-    /** One subtask of the moved task ([parent]: its link before the move): moved under it, or followed. */
+    /**
+     * One subtask of the moved task ([parent]: its link before the move): followed where the service
+     * took it along (To Do: as new steps of the copy, also when the old copy is still there), else
+     * moved under it; else under a new id the next pull follows it (owner decision 49).
+     */
     private suspend fun bringAlong(subtask: TaskSyncLink, parent: TaskSyncLink, toListId: String, newParentRemoteId: String) {
-        val now = if (service.fetch(parent.listId, subtask.remoteId) != null) {
-            service.moveToList(parent.listId, subtask.remoteId, toListId, newParentRemoteId)
-        } else {
-            // Taken along (To Do: as new steps of the copy); else under a new id the next pull follows it (owner decision 49)
-            service.takenAlong(toListId, subtask.remoteId) ?: return
-        }
+        val now = service.takenAlong(toListId, subtask.remoteId)
+            ?: if (service.fetch(parent.listId, subtask.remoteId) != null) {
+                service.moveToList(parent.listId, subtask.remoteId, toListId, newParentRemoteId)
+            } else {
+                return
+            }
         db.runInTransaction {
             sync.moveLinkToList(subtask.taskId, toListId, now.remoteId)
             sync.setMovedVersion(subtask.taskId, now.version, clock())
             sync.setMovedParent(subtask.taskId, parent.remoteId, newParentRemoteId)
+            now.oldCopyLeft?.let { queueDelete(subtask.taskId, parent.listId, it) }
         }
+    }
+
+    /** The old copy may still be there (its delete had no clear answer): deleted later, retried until certain. */
+    private fun queueDelete(taskId: String, listId: String, remoteId: String) {
+        sync.insertOutboxEntry(
+            TaskSyncOutboxEntry(
+                op = TaskSyncOp.DELETE, taskId = taskId, provider = service.provider, accountEmail = accountEmail,
+                serverUrl = serverUrl, listId = listId, remoteId = remoteId, createdAt = clock()
+            )
+        )
     }
 
     private companion object {

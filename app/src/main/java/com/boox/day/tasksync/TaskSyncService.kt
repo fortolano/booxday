@@ -66,7 +66,8 @@ internal interface TaskSyncService {
     /**
      * Moves a copy to another list of the account (owner decision 47), under [parentRemoteId] there
      * if given; returns it as it is now (the service may give it a new id). [TaskSyncServiceException.Refused]:
-     * the service won't move this one (Google: repeating tasks).
+     * the service won't move this one (Google: repeating tasks). [RemoteTaskState.oldCopyLeft]: the
+     * copy in [fromListId] may still be there, to be deleted through the outbox.
      */
     suspend fun moveToList(fromListId: String, remoteId: String, toListId: String, parentRemoteId: String? = null): RemoteTaskState =
         throw UnsupportedOperationException("Moving between lists")
@@ -117,7 +118,9 @@ internal data class RemoteTaskState(
      * It was ticked in the service and rolled over: it is the next one now, on clear evidence (owner
      * decision 100). The tablet's task stays ticked on its day; this one comes in as a new task.
      */
-    val rolledOver: Boolean = false
+    val rolledOver: Boolean = false,
+    /** After [TaskSyncService.moveToList]: the copy it replaces, which may still be there ([RemoteTask.oldCopyLeft]). */
+    val oldCopyLeft: String? = null
 )
 
 /**
@@ -161,7 +164,13 @@ internal data class RemoteTask(
      * The service kept the copy under its parent though the tablet's grouping changed (a step of a To
      * Do repeating task stays one, owner decision 89): its parent there is still the one it had.
      */
-    val parentKept: Boolean = false
+    val parentKept: Boolean = false,
+    /**
+     * The copy in the same list this one replaces (a To Do step made a task of its own or put under
+     * another one): its delete had no clear answer, so it may still be there. It is deleted through
+     * the outbox, retried until certain, and never taken as a new task meanwhile.
+     */
+    val oldCopyLeft: String? = null
 )
 
 /** Failures a service reports so the sender can react; anything else is retried with growing waits. */

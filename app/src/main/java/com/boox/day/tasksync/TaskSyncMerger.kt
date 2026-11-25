@@ -136,7 +136,7 @@ internal class TaskSyncMerger(
      * decision 49): its link moves with it and the merge goes on as for any change. Null: it isn't.
      */
     private suspend fun movedHere(remote: RemoteTaskState): TaskSyncLink? {
-        if (remote.deleted) return null
+        if (remote.deleted || deleteWaits(remote)) return null
         val elsewhere = sync.getLinksElsewhere(provider, accountEmail, serverUrl, remote.listId, remote.remoteId, remote.title)
         val moved = elsewhere.firstOrNull { it.remoteId == remote.remoteId }
             ?: elsewhere.firstOrNull {
@@ -329,10 +329,18 @@ internal class TaskSyncMerger(
     private fun keptExtras(task: Task, dueDay: String?): TaskExtras =
         TaskSyncRules.extras(task, dueDay).let { it.copy(priority = keptPriority(it.priority)) }
 
+    /**
+     * A delete of this copy waits to be sent, or of the copy it is part of (a To Do step goes with
+     * its task; a Google subtask is a task of its own): cleared here (the pull runs first), or left
+     * behind by a move whose delete had no clear answer. Not a new task.
+     */
+    private fun deleteWaits(remote: RemoteTaskState): Boolean =
+        sync.hasQueuedDelete(provider, accountEmail, serverUrl, remote.listId, remote.remoteId) ||
+            (!remote.carriesDue && remote.parentRemoteId?.let { sync.hasQueuedDelete(provider, accountEmail, serverUrl, remote.listId, it) } == true)
+
     private suspend fun incoming(remote: RemoteTaskState): Result {
         if (remote.deleted) return Result.UNCHANGED
-        // Cleared here and its delete not sent yet (the pull runs first): not a new task
-        if (sync.hasQueuedDelete(provider, accountEmail, serverUrl, remote.listId, remote.remoteId)) return Result.UNCHANGED
+        if (deleteWaits(remote)) return Result.UNCHANGED
         // On its due day; undated, on the day it first comes (owner decision 1); a To Do step, on its
         // parent's day (owner decision 79)
         val day = if (remote.carriesDue) remote.dueDay ?: today() else parentDay(remote) ?: today()
