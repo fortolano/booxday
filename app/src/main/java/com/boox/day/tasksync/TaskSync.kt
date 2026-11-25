@@ -36,7 +36,7 @@ object TaskSync {
     internal const val DEBUG_TEST_LIST = "BooxDay test"
     private const val KEY_LAST_SYNCED_AT = "last_synced_at"
     private const val KEY_NEEDS_RECONNECT = "needs_reconnect"
-    // The service (plan step 4.0): "google" (also when missing: set before CalDAV tasks) or "caldav"
+    // The service (plan step 4.0): "google" (also when missing: set before CalDAV tasks), "caldav" or "microsoft"
     private const val KEY_SERVICE = "service"
     private const val KEY_SERVER_URL = "server_url"
     private const val KEY_ACCOUNT_ID = "account_id"
@@ -134,28 +134,48 @@ object TaskSync {
 
     // ── The Task Sync card (plan step 2.6) ──────────────────────────────────────────────────
 
-    /** The account task sync uses (its Google address or CalDAV sign-in name). */
+    /** The account task sync uses (its Google or Microsoft address, or CalDAV sign-in name). */
     fun account(context: Context): String? = target(context)?.accountEmail
 
-    /** The service and account task sync uses; changed only while it is off (owner decision 32). */
+    /**
+     * The service and account task sync uses; changed only while it is off (owner decision 32).
+     * A saved service that isn't CalDAV or Microsoft reads as Google, as before CalDAV tasks.
+     */
     internal fun target(context: Context): TaskSyncTarget? {
         val prefs = prefs(context)
         val email = prefs.getString(KEY_ACCOUNT, null) ?: return null
-        if (prefs.getString(KEY_SERVICE, SERVICE_GOOGLE) != SERVICE_CALDAV) return TaskSyncTarget.google(email)
-        return TaskSyncTarget(
-            provider = TaskSyncProvider.CALDAV,
-            accountEmail = email,
-            serverUrl = prefs.getString(KEY_SERVER_URL, null).orEmpty(),
-            accountId = prefs.getString(KEY_ACCOUNT_ID, null) ?: return null,
-            serviceName = prefs.getString(KEY_SERVICE_NAME, null) ?: "CalDAV"
-        )
+        return when (prefs.getString(KEY_SERVICE, SERVICE_GOOGLE)) {
+            SERVICE_CALDAV -> TaskSyncTarget(
+                provider = TaskSyncProvider.CALDAV,
+                accountEmail = email,
+                serverUrl = prefs.getString(KEY_SERVER_URL, null).orEmpty(),
+                accountId = prefs.getString(KEY_ACCOUNT_ID, null) ?: return null,
+                serviceName = prefs.getString(KEY_SERVICE_NAME, null) ?: "CalDAV"
+            )
+            SERVICE_MICROSOFT -> TaskSyncTarget(
+                provider = TaskSyncProvider.MICROSOFT_TODO,
+                accountEmail = email,
+                accountId = prefs.getString(KEY_ACCOUNT_ID, null) ?: return null,
+                serviceName = TaskSyncTarget.MICROSOFT_TODO_NAME
+            )
+            else -> TaskSyncTarget.google(email)
+        }
     }
 
     private const val SERVICE_GOOGLE = "google"
     private const val SERVICE_CALDAV = "caldav"
+    /** Microsoft To Do (Nov 2026, owner decisions 79-84). */
+    private const val SERVICE_MICROSOFT = "microsoft"
 
     private fun save(edit: android.content.SharedPreferences.Editor, target: TaskSyncTarget) = edit
-        .putString(KEY_SERVICE, if (target.isGoogle) SERVICE_GOOGLE else SERVICE_CALDAV)
+        .putString(
+            KEY_SERVICE,
+            when {
+                target.isGoogle -> SERVICE_GOOGLE
+                target.isMicrosoft -> SERVICE_MICROSOFT
+                else -> SERVICE_CALDAV
+            }
+        )
         .putString(KEY_ACCOUNT, target.accountEmail)
         .putString(KEY_SERVER_URL, target.serverUrl)
         .putString(KEY_ACCOUNT_ID, target.accountId)
@@ -346,8 +366,8 @@ object TaskSync {
         sharedScanner ?: run {
             val app = context.applicationContext
             val db = AppDatabase.getDatabase(app)
-            // Priority and reminder count as changes where the service carries them (a CalDAV list)
-            TaskSyncScanner(db, extras = { target(app)?.isGoogle == false }, inkReader = inkReader(app, db)).also { sharedScanner = it }
+            // Priority and reminder count as changes where the service carries them (CalDAV, To Do)
+            TaskSyncScanner(db, extras = { target(app)?.carriesExtras == true }, inkReader = inkReader(app, db)).also { sharedScanner = it }
         }
     }
 

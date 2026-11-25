@@ -1,6 +1,8 @@
 package com.boox.day.ui.components
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +29,7 @@ import com.boox.day.tasksync.TaskSyncRun
 import com.boox.day.tasksync.TaskSyncServiceException
 import com.boox.day.tasksync.TaskSyncStart
 import com.boox.day.tasksync.TaskSyncTarget
+import com.boox.day.tasksync.microsoft.MicrosoftTodoAccess
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,12 +128,34 @@ fun TaskSyncSetting(modifier: Modifier = Modifier) {
         }
     }
 
+    /**
+     * Microsoft's Tasks permission for the Outlook account [target], then [then]; Microsoft's own page
+     * first only if it asks (owner decisions 79-84). Not allowed: Task Sync stays as it was, with a line.
+     */
+    fun withMicrosoftPermission(target: TaskSyncTarget, turningOn: Boolean, then: suspend () -> Unit) {
+        val accountId = target.accountId ?: return
+        scope.launch {
+            working = "Connecting to Microsoft…"
+            message = null
+            val result = MicrosoftTodoAccess.ensure(context, context.findActivity(), accountId)
+            if (result == MicrosoftTodoAccess.Result.Granted) {
+                then()
+                return@launch
+            }
+            working = null
+            message = microsoftRefusal(result, target.accountEmail, turningOn)
+        }
+    }
+
     val actions = TaskSyncCardActions(
         turnOn = { on ->
             val target = loaded?.chosenTarget
             if (on && target != null) {
-                if (target.isGoogle) withPermission(target.accountEmail) { turnOn(target) }
-                else scope.launch { message = null; turnOn(target) }
+                when {
+                    target.isGoogle -> withPermission(target.accountEmail) { turnOn(target) }
+                    target.isMicrosoft -> withMicrosoftPermission(target, turningOn = true) { turnOn(target) }
+                    else -> scope.launch { message = null; turnOn(target) }
+                }
             }
             if (!on) {
                 TaskSync.turnOff(context)
@@ -165,16 +190,21 @@ fun TaskSyncSetting(modifier: Modifier = Modifier) {
             }
         },
         syncNow = { syncNow() },
-        // Google only: a CalDAV password is signed in again in Calendar Accounts (owner decision 68)
+        // Google and Microsoft: a CalDAV password is signed in again in Calendar Accounts (owner decision 68)
         reconnect = {
-            val email = loaded?.chosenTarget?.takeIf { it.isGoogle }?.accountEmail
-            if (email != null) withPermission(email) {
+            val target = loaded?.chosenTarget
+            val afterReconnect: suspend () -> Unit = {
                 working = "Syncing…"
                 withContext(Dispatchers.IO) { TaskSyncRun.run(context, changedAt = System.currentTimeMillis()) }
                 working = null
                 serviceLists = null  // read while the access was gone: only the ticked lists
                 listsAttempt++
                 reloads++
+            }
+            when {
+                target == null -> Unit
+                target.isGoogle -> withPermission(target.accountEmail, afterReconnect)
+                target.isMicrosoft -> withMicrosoftPermission(target, turningOn = false, afterReconnect)
             }
         },
         keepInService = {
@@ -193,11 +223,36 @@ fun TaskSyncSetting(modifier: Modifier = Modifier) {
 
     SettingCard(
         title = "Task Sync",
-        description = "Keep your tasks in step with Google Tasks or a CalDAV server (Nextcloud, Fastmail and others). Off until you turn it on.",
+        description = TASK_SYNC_DESCRIPTION,
         modifier = modifier
     ) {
         state?.let { TaskSyncCardContent(it, actions) }
     }
+}
+
+/** The card's description (Microsoft To Do added Nov 2026). */
+internal const val TASK_SYNC_DESCRIPTION =
+    "Keep your tasks in step with Google Tasks, Microsoft To Do or a CalDAV server (Nextcloud, Fastmail and others). Off until you turn it on."
+
+/** Why Microsoft's Tasks permission wasn't given, in plain words; [turningOn]: not on Reconnect. */
+private fun microsoftRefusal(result: MicrosoftTodoAccess.Result, email: String, turningOn: Boolean): String = when (result) {
+    MicrosoftTodoAccess.Result.Cancelled ->
+        if (turningOn) "Microsoft To Do wasn't allowed, so Task Sync stays off."
+        else "Microsoft To Do wasn't allowed, so tasks can't sync yet."
+    MicrosoftTodoAccess.Result.OtherAccount -> "Microsoft answered for another account. Try again and choose $email."
+    MicrosoftTodoAccess.Result.SignInGone -> "Sign in to $email again in Settings → Calendar Accounts, then try again."
+    MicrosoftTodoAccess.Result.Offline -> "No connection to Microsoft. Try again when the tablet is online."
+    else -> "Microsoft didn't answer as expected. Try again in a moment."
+}
+
+/** The screen a Compose context belongs to (Microsoft's page opens from it). */
+private fun Context.findActivity(): Activity? {
+    var current: Context? = this
+    while (current != null) {
+        if (current is Activity) return current
+        current = (current as? ContextWrapper)?.baseContext
+    }
+    return null
 }
 
 /** What the card shows, and the service behind each of its choices. */
@@ -210,10 +265,12 @@ internal suspend fun loadTaskSyncCard(context: Context, serviceLists: List<Remot
     val app = context.applicationContext
     val db = AppDatabase.getDatabase(app)
     val google = db.connectedAccountDao().getAccountsByProvider(ProviderId.GOOGLE.key).map { TaskSyncTarget.google(it.email) }
+    // An Outlook account's Microsoft To Do (owner decisions 79-84)
+    val microsoft = db.connectedAccountDao().getAccountsByProvider(ProviderId.OUTLOOK.key).map { TaskSyncTarget.microsoft(it.toDomainModel()) }
     val calDav = db.connectedAccountDao().getAccountsByProvider(ProviderId.CALDAV.key).map { it.toDomainModel() }
     // iCloud has CalDAV calendars but no task lists for other apps (owner decision 68)
     val iCloud = calDav.any { it.accountType == AccountType.CALDAV_ICLOUD }
-    val targets = (google + calDav.filter { it.accountType != AccountType.CALDAV_ICLOUD }.map(TaskSyncTarget::calDav))
+    val targets = (google + microsoft + calDav.filter { it.accountType != AccountType.CALDAV_ICLOUD }.map(TaskSyncTarget::calDav))
         .associateBy { it.key }
     val settings = workerAppSettings(app)
     val on = TaskSync.isOn(app)
@@ -223,8 +280,8 @@ internal suspend fun loadTaskSyncCard(context: Context, serviceLists: List<Remot
     val cantTurnOn = when {
         settings.syncMode != AppSettings.SyncMode.HYBRID -> "Task Sync works with Cloud Sync. Turn on Cloud Sync in the Settings menu first."
         targets.isEmpty() && iCloud -> "iCloud can't be used: Apple doesn't share Reminders with other apps. " +
-            "Connect Google, Nextcloud, Fastmail or another CalDAV server in Settings → Calendar Accounts."
-        targets.isEmpty() -> "Connect Google, Nextcloud, Fastmail or another CalDAV server first: Settings → Calendar Accounts."
+            "Connect Google, Outlook, Nextcloud, Fastmail or another CalDAV server in Settings → Calendar Accounts."
+        targets.isEmpty() -> "Connect Google, Outlook, Nextcloud, Fastmail or another CalDAV server first: Settings → Calendar Accounts."
         else -> null
     }
     val sync = db.taskSyncDao()
@@ -238,8 +295,8 @@ internal suspend fun loadTaskSyncCard(context: Context, serviceLists: List<Remot
     val state = TaskSyncCardState(
         on = on,
         cantTurnOn = cantTurnOn,
-        chosen = chosen?.let { TaskSyncChoice(it.key, it.serviceName, it.accountEmail, it.isGoogle) },
-        choices = targets.values.map { TaskSyncChoice(it.key, it.serviceName, it.accountEmail, it.isGoogle) },
+        chosen = chosen?.let(::choiceOf),
+        choices = targets.values.map(::choiceOf),
         notListed = if (iCloud) "iCloud isn't listed: Apple doesn't share Reminders with other apps." else null,
         lists = lists,
         newTasksListId = rows.firstOrNull { it.isDefaultForNew }?.listId,
@@ -253,6 +310,9 @@ internal suspend fun loadTaskSyncCard(context: Context, serviceLists: List<Remot
     )
     return TaskSyncCardModel(state, targets)
 }
+
+private fun choiceOf(target: TaskSyncTarget) =
+    TaskSyncChoice(target.key, target.serviceName, target.accountEmail, target.isGoogle, isMicrosoft = target.isMicrosoft)
 
 private fun statusLine(status: TaskSync.Status, use24Hour: Boolean, service: String): String = when (status.lastRun) {
     null -> "Not synced yet"

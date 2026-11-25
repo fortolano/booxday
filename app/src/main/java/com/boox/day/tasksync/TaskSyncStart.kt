@@ -42,7 +42,11 @@ internal object TaskSyncStart {
         } catch (e: TaskSyncServiceException.Offline) {
             "No connection to $name. Try again when the tablet is online."
         } catch (e: TaskSyncServiceException.SignInNeeded) {
-            "$name refused the password. Sign in again in Settings → Calendar Accounts."
+            if (target.isMicrosoft) "Microsoft needs you to sign in again. Turn Task Sync on again to sign in."
+            else "$name refused the password. Sign in again in Settings → Calendar Accounts."
+        } catch (e: TaskSyncServiceException.NotAvailable) {
+            // A work or school account without To Do, or a mailbox outside Microsoft's cloud
+            "This Microsoft account has no Microsoft To Do. At work or school, your admin may have turned it off."
         } catch (e: TaskSyncServiceException) {
             "$name didn't answer as expected. Try again in a moment."
         } catch (e: Exception) {

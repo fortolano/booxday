@@ -23,6 +23,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 object TaskSyncProvider {
     const val GOOGLE_TASKS = "GOOGLE_TASKS"
     const val CALDAV = "CALDAV"
+    /** Microsoft To Do through an Outlook account of Calendar Accounts (Nov 2026, owner decisions 79-84). */
+    const val MICROSOFT_TODO = "MICROSOFT_TODO"
 }
 
 object TaskSyncOp {

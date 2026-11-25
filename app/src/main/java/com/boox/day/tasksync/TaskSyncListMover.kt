@@ -58,8 +58,8 @@ internal class TaskSyncListMover(
         val now = if (service.fetch(parent.listId, subtask.remoteId) != null) {
             service.moveToList(parent.listId, subtask.remoteId, toListId, newParentRemoteId)
         } else {
-            // Taken along under the same id; under a new one the next pull follows it (owner decision 49)
-            service.fetch(toListId, subtask.remoteId) ?: return
+            // Taken along (To Do: as new steps of the copy); else under a new id the next pull follows it (owner decision 49)
+            service.takenAlong(toListId, subtask.remoteId) ?: return
         }
         db.runInTransaction {
             sync.moveLinkToList(subtask.taskId, toListId, now.remoteId)

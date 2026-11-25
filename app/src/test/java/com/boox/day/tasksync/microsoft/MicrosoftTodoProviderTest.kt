@@ -1,0 +1,290 @@
+package com.boox.day.tasksync.microsoft
+
+import android.app.Application
+import com.boox.day.data.db.TaskSyncLink
+import com.boox.day.data.db.TaskSyncProvider
+import com.boox.day.sync.microsoft.MicrosoftGraph
+import com.boox.day.tasksync.OutgoingTask
+import com.boox.day.tasksync.RemoteList
+import com.boox.day.tasksync.TaskExtras
+import com.boox.day.tasksync.TaskSyncServiceException
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import java.time.ZoneId
+import java.time.ZoneOffset
+
+/**
+ * Microsoft To Do as task sync's service (owner decisions 79-84), against Graph's answers as
+ * measured on 25 Nov 2026 (FakeTodoServer): the lists offered, delta's pages and cursor, dates
+ * across time zones, reminders, the star, moving between lists, and failures.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class)
+class MicrosoftTodoProviderTest {
+
+    private val server = MockWebServer()
+    private val todo = FakeTodoServer()
+    private var zone: ZoneId = WARSAW
+    private val links = mutableListOf<TaskSyncLink>()
+
+    @Before
+    fun start() {
+        server.dispatcher = todo
+        server.start()
+        todo.addList(TASKS, "Tasks", wellKnown = "defaultList")
+    }
+
+    @After
+    fun stop() = server.shutdown()
+
+    private fun provider() = MicrosoftTodoProvider(
+        MicrosoftGraph(token = { "token" }, baseUrl = server.url("/v1.0").toString().trimEnd('/')),
+        linksIn = { listId -> links.filter { it.listId == listId } },
+        zone = { zone },
+        pause = {}
+    )
+
+    // ── Lists (owner decision 84) ──
+
+    @Test
+    fun flaggedEmailIsNotOfferedAndTasksIsTheMainList() = runBlocking {
+        todo.addList("flagged", "Flagged email", wellKnown = "flaggedEmails")
+        todo.addList("groceries", "Groceries")
+
+        assertEquals(listOf(RemoteList(TASKS, "Tasks"), RemoteList("groceries", "Groceries")), provider().lists())
+        assertEquals(RemoteList(TASKS, "Tasks"), provider().mainList())
+    }
+
+    // ── Reading ──
+
+    @Test
+    fun deltaFollowsEveryPageAndTheNextRoundStartsWhereItEnded() = runBlocking {
+        todo.deltaPageSize = 2
+        repeat(5) { todo.addTask(TASKS, task("Task $it")) }
+
+        val first = provider().changes(TASKS, null)
+        assertEquals((0 until 5).map { "Task $it" }, first.tasks.map { it.title })
+        assertEquals("three pages", 3, todo.requests.count { "/delta" in it })
+        assertTrue("the round's end is the cursor: ${first.nextCursor}", first.nextCursor!!.contains("deltatoken"))
+
+        todo.patchTask(TASKS, todo.tasksIn(TASKS)[1].str("id"), buildJsonObject { put("title", "Task 1 later") })
+        val next = provider().changes(TASKS, first.nextCursor)
+        assertEquals("only what changed since", listOf("Task 1 later"), next.tasks.map { it.title })
+        assertTrue("delta refuses \$top (measured 25 Nov 2026)", todo.requests.filter { "/delta" in it }.none { "top" in it })
+    }
+
+    @Test
+    fun aCursorMicrosoftForgotStartsAgainFromTheBeginning() = runBlocking {
+        todo.addTask(TASKS, task("Call Anna"))
+        val first = provider().changes(TASKS, null)
+        todo.expired += first.nextCursor!!.substringAfter("deltatoken=")
+
+        val again = provider().changes(TASKS, first.nextCursor)
+
+        assertEquals("everything again, which is harmless", listOf("Call Anna"), again.tasks.map { it.title })
+        assertEquals("a new round from the start", 2, todo.requests.count { "/delta" in it && "token" !in it })
+    }
+
+    @Test
+    fun aDeletedListIsListGoneAndAMailboxWithoutToDoSaysSo() = runBlocking {
+        try {
+            provider().changes("deleted-list", null)
+            fail("expected ListGone")
+        } catch (e: TaskSyncServiceException.ListGone) {
+            assertEquals("deleted-list", e.listId)
+        }
+        val noToDo = MockWebServer()
+        noToDo.enqueue(MockResponse().setResponseCode(403).setBody("""{"error":{"code":"ErrorAccessDenied"}}"""))
+        noToDo.start()
+        try {
+            MicrosoftTodoProvider(MicrosoftGraph(token = { "t" }, baseUrl = noToDo.url("/v1.0").toString().trimEnd('/'))).lists()
+            fail("expected NotAvailable")
+        } catch (e: TaskSyncServiceException.NotAvailable) {
+            // The card says the account has no To Do (TaskSyncStart)
+        } finally {
+            noToDo.shutdown()
+        }
+    }
+
+    // ── Dates (measured 25 Nov 2026): always UTC worked out on the tablet; a due day is midnight UTC ──
+
+    @Test
+    fun aDueDayGoesAsMidnightUtcAndAReminderAsItsMomentEastOfUtc() = runBlocking {
+        zone = WARSAW
+        val sent = provider().upsert(outgoing("Pay rent", due = "2026-11-26", reminder = 9 * 60 + 30), null)
+
+        val stored = todo.task(TASKS, sent.remoteId)!!
+        assertEquals("the day as To Do keeps due days", "2026-11-26T00:00:00.0000000", stored.obj("dueDateTime").str("dateTime"))
+        assertEquals("9:30 in Warsaw", "2026-11-26T08:30:00.0000000", stored.obj("reminderDateTime").str("dateTime"))
+        assertEquals("never a zone's name", listOf("UTC", "UTC"), todo.sentZones)
+        val read = provider().changes(TASKS, null).tasks.single()
+        assertEquals("2026-11-26", read.dueDay)
+        assertEquals(TaskExtras("", 9 * 60 + 30), read.extras)
+    }
+
+    @Test
+    fun aDueDayGoesAsMidnightUtcAndAReminderAsItsMomentWestOfUtc() = runBlocking {
+        zone = ZoneOffset.ofHours(-8)
+        val sent = provider().upsert(outgoing("Pay rent", due = "2026-11-26", reminder = 20 * 60), null)
+
+        val stored = todo.task(TASKS, sent.remoteId)!!
+        assertEquals("2026-11-26T00:00:00.0000000", stored.obj("dueDateTime").str("dateTime"))
+        assertEquals("the evening reminder is the next day in UTC", "2026-11-27T04:00:00.0000000", stored.obj("reminderDateTime").str("dateTime"))
+        assertEquals(listOf("UTC", "UTC"), todo.sentZones)
+        val read = provider().changes(TASKS, null).tasks.single()
+        assertEquals("2026-11-26", read.dueDay)
+        assertEquals("still on its due day here", 20 * 60, read.extras?.reminderMinute)
+    }
+
+    @Test
+    fun whatBooxDaySendsReadsBackAsTheSameDayInEveryZone() = runBlocking {
+        for (tabletZone in listOf(WARSAW, NEW_YORK, ZoneOffset.ofHours(-7), ZoneOffset.ofHours(-8), ZoneOffset.ofHours(13))) {
+            zone = tabletZone
+            val sent = provider().upsert(outgoing("Day in $tabletZone", due = "2026-11-26", reminder = 23 * 60 + 30), null)
+            val read = provider().fetch(TASKS, sent.remoteId)!!
+            assertEquals("$tabletZone", "2026-11-26", read.dueDay)
+            assertEquals("$tabletZone", 23 * 60 + 30, read.extras?.reminderMinute)
+        }
+        assertTrue(todo.sentZones.all { it == "UTC" })
+    }
+
+    @Test
+    fun aDueDayReadsAsTheTabletsDayWhoeverWroteIt() {
+        val midnightUtc = FakeTodoServer.date("2026-11-26T00:00:00.0000000", "UTC")
+        assertEquals("To Do's own way, west of UTC", "2026-11-26", TodoFields.dayOf(midnightUtc, ZoneOffset.ofHours(-7)))
+        assertEquals("To Do's own way, east of UTC", "2026-11-26", TodoFields.dayOf(midnightUtc, WARSAW))
+        // Another app (or an older send) wrote the tablet's local midnight
+        assertEquals("2026-11-26", TodoFields.dayOf(FakeTodoServer.date("2026-11-25T23:00:00.0000000", "UTC"), WARSAW))
+        assertEquals("2026-11-26", TodoFields.dayOf(FakeTodoServer.date("2026-11-26T08:00:00.0000000", "UTC"), ZoneOffset.ofHours(-8)))
+    }
+
+    // ── Reminders (owner decision 81, like CalDAV's 69) ──
+
+    @Test
+    fun aReminderOnTheDueDayIsTheTasksOwnTimeAndAnyOtherIsTheUsualTime() = runBlocking {
+        zone = WARSAW
+        val due = FakeTodoServer.date("2026-11-25T23:00:00.0000000", "UTC")  // 26 Nov
+        todo.addTask(TASKS, task("On the day") + mapOf("dueDateTime" to due, "isReminderOn" to JsonPrimitive(true), "reminderDateTime" to FakeTodoServer.date("2026-11-26T07:15:00", "UTC")))
+        todo.addTask(TASKS, task("Day before") + mapOf("dueDateTime" to due, "isReminderOn" to JsonPrimitive(true), "reminderDateTime" to FakeTodoServer.date("2026-11-25T07:15:00", "UTC")))
+        todo.addTask(TASKS, task("Turned off") + mapOf("dueDateTime" to due, "isReminderOn" to JsonPrimitive(false), "reminderDateTime" to FakeTodoServer.date("2026-11-26T07:15:00", "UTC")))
+
+        val minutes = provider().changes(TASKS, null).tasks.associate { it.title to it.extras?.reminderMinute }
+
+        assertEquals(mapOf("On the day" to 8 * 60 + 15, "Day before" to null, "Turned off" to null), minutes)
+    }
+
+    @Test
+    fun theUsualTimeSendsNoReminderAndTurnsOffTheOneBooxDaySent() = runBlocking {
+        val p = provider()
+        val made = p.upsert(outgoing("Call Anna", due = "2026-11-26"), null)
+        assertEquals("the usual time: none sent", false, todo.task(TASKS, made.remoteId)!!["isReminderOn"]!!.jsonPrimitive.content.toBoolean())
+
+        // Its own time, then the usual time again
+        val link = linkOf(made, "Call Anna", due = "2026-11-26")
+        val withTime = p.upsert(outgoing("Call Anna", due = "2026-11-26", reminder = 10 * 60), link)
+        assertEquals("true", todo.task(TASKS, made.remoteId)!!["isReminderOn"]!!.jsonPrimitive.content)
+        p.upsert(outgoing("Call Anna", due = "2026-11-26"), link.copy(remoteVersion = withTime.version, syncedReminder = 10 * 60))
+        assertEquals("false", todo.task(TASKS, made.remoteId)!!["isReminderOn"]!!.jsonPrimitive.content)
+    }
+
+    // ── Priority (owner decision 80): one mapping ──
+
+    @Test
+    fun priorityAIsTheStarAndBAndCStayOnTheTablet() {
+        assertEquals(listOf("high", "normal", "normal", "normal"), listOf("A", "B", "C", "").map(TodoFields::importanceOf))
+        assertEquals(listOf("A", "", ""), listOf("high", "normal", "low").map(TodoFields::priorityOf))
+        assertEquals("B and C read back as none, so a copy without a star never clears them", listOf("A", "", "", ""), listOf("A", "B", "C", "").map(TodoFields::keptPriority))
+    }
+
+    // ── Moving to another list (owner decision 83) ──
+
+    @Test
+    fun aMoveCopiesEverythingWithItsStepsAndDeletesTheOldOne() = runBlocking {
+        todo.addList(WORK, "Work")
+        val id = todo.addTask(
+            TASKS,
+            task("Plan trip") + mapOf(
+                "importance" to JsonPrimitive("high"),
+                "body" to buildJsonObject { put("content", "Ask about the visa"); put("contentType", "text") },
+                "dueDateTime" to FakeTodoServer.date("2026-11-27T23:00:00", "UTC"),
+                "categories" to kotlinx.serialization.json.JsonArray(listOf(JsonPrimitive("Travel")))
+            )
+        )
+        val hotel = todo.addStep(TASKS, id, "Book hotel")
+        todo.addStep(TASKS, id, "Pack bags", ticked = true)
+        val p = provider()
+
+        val moved = p.moveToList(TASKS, id, WORK)
+
+        assertNull("the old one is deleted", todo.task(TASKS, id))
+        val copy = todo.task(WORK, moved.remoteId)!!
+        assertEquals("Ask about the visa", copy.obj("body").str("content"))
+        assertEquals("high", copy.str("importance"))
+        assertEquals("2026-11-27T23:00:00.0000000", copy.obj("dueDateTime").str("dateTime"))
+        assertEquals(listOf("Book hotel" to false, "Pack bags" to true), todo.stepsOf(moved.remoteId).map { it.str("displayName") to (it["isChecked"]!!.jsonPrimitive.content == "true") })
+        val along = p.takenAlong(WORK, TodoFields.stepRemoteId(id, hotel))!!
+        assertEquals("the step under its new id", "Book hotel", along.title)
+        assertEquals(moved.remoteId, along.parentRemoteId)
+    }
+
+    @Test
+    fun aRepeatingTaskOrOneWithAttachmentsIsNotMoved() = runBlocking {
+        todo.addList(WORK, "Work")
+        val repeating = todo.addTask(TASKS, task("Water plants") + ("recurrence" to FakeTodoServer.daily("2026-11-25")))
+        val withFile = todo.addTask(TASKS, task("Sign lease") + ("hasAttachments" to JsonPrimitive(true)))
+        val writesBefore = todo.writes.size
+
+        for (id in listOf(repeating, withFile)) {
+            try {
+                provider().moveToList(TASKS, id, WORK)
+                fail("expected Refused")
+            } catch (e: TaskSyncServiceException.Refused) {
+                // It stays in its list (TaskSyncListMover.Outcome.REFUSED)
+            }
+        }
+        assertEquals("nothing written", writesBefore, todo.writes.size)
+        assertEquals(2, todo.tasksIn(TASKS).size)
+    }
+
+    // ── Helpers ──
+
+    private fun task(title: String): JsonObject = buildJsonObject { put("title", title) }
+
+    private fun outgoing(title: String, due: String?, reminder: Int? = null, priority: String = "", parent: String? = null) = OutgoingTask(
+        taskId = "row-1", listId = TASKS, title = title, completed = false, dueDay = due, parentRemoteId = parent,
+        extras = TaskExtras(priority, reminder)
+    )
+
+    private fun linkOf(made: com.boox.day.tasksync.RemoteTask, title: String, due: String) = TaskSyncLink(
+        taskId = "row-1", provider = TaskSyncProvider.MICROSOFT_TODO, accountEmail = "me@outlook.com", listId = TASKS,
+        remoteId = made.remoteId, remoteVersion = made.version, syncedTitle = title, syncedDueDay = due,
+        syncedPriority = "", syncedReminder = null, syncedAt = 1
+    )
+
+    private fun JsonObject.str(key: String): String = this[key]!!.jsonPrimitive.content
+    private fun JsonObject.obj(key: String): JsonObject = this[key]!!.jsonObject
+
+    private companion object {
+        const val TASKS = "AAMk-tasks="
+        const val WORK = "AAMk-work="
+        val WARSAW: ZoneId = ZoneId.of("Europe/Warsaw")
+        val NEW_YORK: ZoneId = ZoneId.of("America/New_York")
+    }
+}

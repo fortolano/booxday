@@ -76,14 +76,17 @@ internal object TaskSyncRun {
                 if (sent) "Moved to $name." else "The words of this task aren't read yet. Try again in a moment."
             } else when (TaskSyncListMover(db, service, email, server).move(taskId, listId)) {
                 TaskSyncListMover.Outcome.MOVED, TaskSyncListMover.Outcome.ALREADY_THERE -> "Moved to $name."
-                TaskSyncListMover.Outcome.REFUSED -> "${target.shortName} doesn't move repeating tasks to another list. $stays"
+                // To Do: BooxDay copies a task to move it, which a repeat or an attachment wouldn't survive (owner decision 83)
+                TaskSyncListMover.Outcome.REFUSED ->
+                    if (target.isMicrosoft) "Repeating tasks and tasks with files attached stay in their To Do list. $stays"
+                    else "${target.shortName} doesn't move repeating tasks to another list. $stays"
                 TaskSyncListMover.Outcome.SUBTASK -> "A subtask moves with its main task."
                 TaskSyncListMover.Outcome.NOT_SYNCED -> "This task isn't synced with ${target.serviceName}."
             }
         } catch (e: TaskSyncServiceException.Offline) {
             "No connection to ${target.shortName}. $stays"
         } catch (e: TaskSyncServiceException.SignInNeeded) {
-            if (target.isGoogle) "Task Sync needs you to sign in again (Settings → Preferences → Task Sync). $stays"
+            if (!target.isCalDav) "Task Sync needs you to sign in again (Settings → Preferences → Task Sync). $stays"
             else "${target.shortName} refused the password. Sign in again in Settings → Calendar Accounts. $stays"
         } catch (e: TaskSyncServiceException.Busy) {
             "${target.shortName} is busy. Try again in a moment. $stays"
@@ -114,8 +117,14 @@ internal object TaskSyncRun {
         val db = AppDatabase.getDatabase(app)
         // The account was removed in Calendar Accounts: sync stops and asks for the user (plan 2.1).
         // Android may still hold a Google account, so Google would go on answering without this check.
-        val accountKey = if (target.isGoogle) ProviderId.GOOGLE.key else ProviderId.CALDAV.key
-        val accountGone = db.connectedAccountDao().getByEmail(accountKey, server, email) == null
+        // An Outlook account by its id, as the Task Sync card tells it apart (owner decision 41)
+        val accounts = db.connectedAccountDao()
+        val accountGone = when {
+            target.isGoogle -> accounts.getByEmail(ProviderId.GOOGLE.key, server, email) == null
+            target.isMicrosoft -> target.accountId?.let { accounts.getById(it) }
+                ?.takeIf { it.isActive && it.providerId == ProviderId.OUTLOOK.key } == null
+            else -> accounts.getByEmail(ProviderId.CALDAV.key, server, email) == null
+        }
         TaskSync.recordAccountGone(app, accountGone)
         if (accountGone) return TaskSync.recordRun(app, Result.NEEDS_RECONNECT)
         val provider = target.provider

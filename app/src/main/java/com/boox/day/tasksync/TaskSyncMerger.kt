@@ -47,8 +47,10 @@ internal class TaskSyncMerger(
     private val clock: () -> Long = System::currentTimeMillis,
     private val today: () -> String = { LocalDate.now().toString() },
     private val service: TaskSyncService? = null,
-    /** Priority and reminder sync too (a CalDAV list; owner decision 67). */
-    private val extras: Boolean = service?.carriesExtras == true
+    /** Priority and reminder sync too (a CalDAV or To Do list; owner decisions 67, 80, 81). */
+    private val extras: Boolean = service?.carriesExtras == true,
+    /** The part of a priority the service keeps ([TaskSyncService.keptPriority]: To Do only A). */
+    private val keptPriority: (String) -> String = { priority -> service?.keptPriority(priority) ?: priority }
 ) {
     enum class Result { APPLIED, UNCHANGED, WAITS }
 
@@ -60,6 +62,39 @@ internal class TaskSyncMerger(
 
     private val sync = db.taskSyncDao()
     private val tasks = db.taskDao()
+
+    /**
+     * [remote] replaces the copy [RemoteTaskState.takesOverRemoteId] (a To Do repeating task ticked
+     * on the phone, owner decision 82): the task linked to that copy is linked to [remote] instead,
+     * so it stays on its day and gets ticked by the merge; its subtasks go with it ([followReplacement]).
+     * The old id, now the next one, comes in as a new task with its subtasks. Nothing when that copy
+     * has no link, or [remote] already has one (ticked here). Called by the pull before the round is merged.
+     */
+    fun takeOver(remote: RemoteTaskState) {
+        val replaced = remote.takesOverRemoteId ?: return
+        if (remote.deleted || sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, remote.remoteId) != null) return
+        val link = sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, replaced)?.takeUnless { it.keptOnTablet } ?: return
+        db.runInTransaction {
+            sync.moveLinkToList(link.taskId, remote.listId, remote.remoteId)
+            followReplacement(remote.listId, replaced, remote.remoteId)
+        }
+        Log.i(TAG, "A repeating task ticked in the service: its done copy keeps the tablet's task")
+    }
+
+    /**
+     * The copy [replaced] is now [replacement] (in the same list): its subtasks' links follow where the
+     * service keeps them under it ([TaskSyncService.subtaskUnder]: To Do's done copy keeps the step ids),
+     * so subtasks ticked on the done day stay ticked. Run inside the caller's transaction.
+     */
+    fun followReplacement(listId: String, replaced: String, replacement: String) {
+        val service = service ?: return
+        for (child in sync.getChildLinks(provider, accountEmail, serverUrl, listId, replaced)) {
+            val moved = service.subtaskUnder(replacement, child.remoteId, replaced) ?: continue
+            if (sync.getLinkByRemote(provider, accountEmail, serverUrl, listId, moved) != null) continue
+            sync.moveLinkToList(child.taskId, listId, moved)
+            sync.setMovedParent(child.taskId, replaced, replacement)
+        }
+    }
 
     /** One task as the service has it now: from a pull, or a send that found it changed. */
     suspend fun merge(remote: RemoteTaskState): Result {
@@ -82,7 +117,9 @@ internal class TaskSyncMerger(
         if (remote.deleted) return null
         val elsewhere = sync.getLinksElsewhere(provider, accountEmail, serverUrl, remote.listId, remote.remoteId, remote.title)
         val moved = elsewhere.firstOrNull { it.remoteId == remote.remoteId }
-            ?: elsewhere.firstOrNull { it.syncedTitle == remote.title && dueOf(it) == remote.dueDay && oldCopyGone(it) }
+            ?: elsewhere.firstOrNull {
+                it.syncedTitle == remote.title && (!remote.carriesDue || dueOf(it) == remote.dueDay) && oldCopyGone(it)
+            }
             ?: return null
         sync.moveLinkToList(moved.taskId, remote.listId, remote.remoteId)
         Log.i(TAG, "A synced task was moved to another list in the service; followed")
@@ -180,12 +217,13 @@ internal class TaskSyncMerger(
             remote.title != text && !TaskSyncRules.isHandwrittenOnly(task) && serviceWins(text != link.syncedTitle)
         val takeDone = remote.completed != link.syncedCompleted && remote.completed != task.isCompleted &&
             serviceWins(task.isCompleted != link.syncedCompleted)
-        val takeDue = remote.dueDay != lastDue && remote.dueDay != dueHere && serviceWins(dueHere != lastDue)
+        // A copy without a due day of its own (a To Do step) never changes the tablet's
+        val takeDue = remote.carriesDue && remote.dueDay != lastDue && remote.dueDay != dueHere && serviceWins(dueHere != lastDue)
 
-        // Priority and reminder (a CalDAV list), by the same rules; a link from before they synced
-        // counts as in step with the tablet
+        // Priority and reminder (a CalDAV or To Do list), by the same rules; a link from before they
+        // synced counts as in step with the tablet. Priority as far as the service keeps it (To Do: A)
         val theirs = remote.extras?.takeIf { extras }
-        val ours = TaskSyncRules.extras(task, dueHere)
+        val ours = keptExtras(task, dueHere)
         val lastPriority = link.syncedPriority ?: ours.priority
         val lastReminder = if (link.syncedPriority != null) link.syncedReminder else ours.reminderMinute
         val takePriority = theirs != null && theirs.priority != lastPriority && theirs.priority != ours.priority &&
@@ -207,8 +245,8 @@ internal class TaskSyncMerger(
             remoteVersion = remote.version,
             title = remote.title,
             completed = remote.completed,
-            dueDay = remote.dueDay ?: after.dayDate,
-            remoteUndated = remote.dueDay == null,
+            dueDay = if (remote.carriesDue) remote.dueDay ?: after.dayDate else link.syncedDueDay,
+            remoteUndated = if (remote.carriesDue) remote.dueDay == null else link.remoteUndated,
             remoteParentId = remote.parentRemoteId,
             priority = theirs?.priority,
             reminder = theirs?.reminderMinute,
@@ -259,17 +297,24 @@ internal class TaskSyncMerger(
         val theirs = remote.extras?.takeIf { extras }
         val differs = (text != null && text != remote.title) ||
             task.isCompleted != remote.completed ||
-            due != remote.dueDay ||
+            (remote.carriesDue && due != remote.dueDay) ||
             tabletParent != link.syncedParentRemoteId ||
-            (theirs != null && TaskSyncRules.extras(task, due) != theirs)
+            (theirs != null && keptExtras(task, due) != theirs)
         if (differs) sync.queueUpsert(task.id, clock()) else tasks.dropQueuedSyncUpsert(task.id)
     }
+
+    /** Priority (as far as the service keeps it) and reminder, as the tablet would send them with [dueDay]. */
+    private fun keptExtras(task: Task, dueDay: String?): TaskExtras =
+        TaskSyncRules.extras(task, dueDay).let { it.copy(priority = keptPriority(it.priority)) }
 
     private suspend fun incoming(remote: RemoteTaskState): Result {
         if (remote.deleted) return Result.UNCHANGED
         // Cleared here and its delete not sent yet (the pull runs first): not a new task
         if (sync.hasQueuedDelete(provider, accountEmail, serverUrl, remote.listId, remote.remoteId)) return Result.UNCHANGED
-        findMatch(remote)?.let { match ->
+        // On its due day; undated, on the day it first comes (owner decision 1); a To Do step, on its
+        // parent's day (owner decision 79)
+        val day = if (remote.carriesDue) remote.dueDay ?: today() else parentDay(remote) ?: today()
+        findMatch(remote, day)?.let { match ->
             tablet.inTransaction {
                 sync.insertLink(linkFor(match, remote))
                 sendBackWhatDiffers(match, remote)
@@ -279,17 +324,21 @@ internal class TaskSyncMerger(
         // Unticked ones only (owner decision 27): also keeps old finished tasks, left in the service
         // at turn-on, off the tablet when they are touched there
         if (remote.completed || remote.title.isBlank()) return Result.UNCHANGED
-        // On its due day; undated, on the day it first comes (owner decision 1)
-        val day = remote.dueDay ?: today()
-        val added = tablet.add(day, remote.title, remote.dueDay, remote.extras?.takeIf { extras }) { row -> sync.insertLink(linkFor(row, remote)) }
+        val dueDay = remote.dueDay.takeIf { remote.carriesDue }
+        val added = tablet.add(day, remote.title, dueDay, remote.extras?.takeIf { extras }) { row -> sync.insertLink(linkFor(row, remote)) }
         return if (added) Result.APPLIED else Result.WAITS
     }
 
-    /** An unlinked tablet task with the same words and due day: the same task (match before create). */
-    private fun findMatch(remote: RemoteTaskState): Task? {
+    /** The day the task linked to [remote]'s parent copy sits on, if it is on the tablet. */
+    private fun parentDay(remote: RemoteTaskState): String? = remote.parentRemoteId
+        ?.let { sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, it) }
+        ?.let { tasks.getById(it.taskId) }?.dayDate
+
+    /** An unlinked tablet task due on [day] with the same words: the same task (match before create). */
+    private fun findMatch(remote: RemoteTaskState, day: String): Task? {
         val title = remote.title.trim().takeIf { it.isNotEmpty() } ?: return null
-        return sync.getUnlinkedTasksDue(remote.dueDay ?: today()).firstOrNull { task ->
-            TaskSyncRules.textToSend(task) == title && (remote.dueDay != null || task.dueDay == null)
+        return sync.getUnlinkedTasksDue(day).firstOrNull { task ->
+            TaskSyncRules.textToSend(task) == title && (!remote.carriesDue || remote.dueDay != null || task.dueDay == null)
         }
     }
 
@@ -299,7 +348,9 @@ internal class TaskSyncMerger(
             taskId = task.id, provider = provider, accountEmail = accountEmail, serverUrl = serverUrl,
             listId = remote.listId, remoteId = remote.remoteId, remoteVersion = remote.version,
             syncedTitle = remote.title, syncedCompleted = remote.completed,
-            syncedDueDay = remote.dueDay ?: task.dayDate, remoteUndated = remote.dueDay == null,
+            // A copy without a due day of its own: the tablet's, as the sender records it
+            syncedDueDay = if (remote.carriesDue) remote.dueDay ?: task.dayDate else TaskSyncRules.dueDay(task),
+            remoteUndated = remote.carriesDue && remote.dueDay == null,
             // Each side keeps its own grouping (owner decision 24)
             syncedParentRemoteId = parentLink?.takeIf { it.listId == remote.listId }?.remoteId,
             remoteParentId = remote.parentRemoteId,
