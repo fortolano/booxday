@@ -2253,7 +2253,7 @@ internal fun CloudRestoreFlowContent(
             ) {
                 Column {
                     Text(
-                        text = "Available Backups",
+                        text = "Backups on ${cloud.label}",
                         fontSize = EInkTheme.Preferences.cardTitleFontSize,
                         fontWeight = FontWeight.Bold,
                         color = EInkTheme.Colors.primary
@@ -2408,7 +2408,7 @@ private fun BackupListItem(
  * E-Ink optimized: Uses static icon instead of animated spinner.
  */
 @Composable
-private fun BackupProgressContent(message: String) {
+internal fun BackupProgressContent(message: String) {
     Box(
         modifier = Modifier.fillMaxWidth().padding(vertical = EInkTheme.Global.padding),
         contentAlignment = Alignment.Center
