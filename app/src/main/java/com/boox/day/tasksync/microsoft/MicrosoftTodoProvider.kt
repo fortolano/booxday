@@ -407,20 +407,25 @@ internal class MicrosoftTodoProvider(
         null
     }
 
+    /** A repeating task read without its etag: never changed without If-Match, so tried again later. */
+    private class NoEtag : Exception("A repeating task read without its etag")
+
     private suspend fun updateTask(task: OutgoingTask, link: TaskSyncLink): RemoteTask {
         val listId = link.listId
         val path = taskPath(listId, link.remoteId)
         val before = onTask(listId) { get(path) }
+        val repeats = before.obj("recurrence") != null
         // Ticking a repeating task (owner decision 100): To Do keeps its id for the next one, so the
         // tablet's task stays ticked on its day, kept there only, and the next one comes in as a new task
-        if (task.completed && !link.syncedCompleted && before.obj("recurrence") != null) {
+        if (task.completed && !link.syncedCompleted && repeats) {
             val lastDue = if (link.remoteUndated) null else link.syncedDueDay
             // Due on another day by now (an earlier tick went through, or the phone's): not ticked
             // again, which would tick the next one
             if (dueOf(before) == lastDue && before.str("status") != COMPLETED) {
+                // Only as read: a tick on the phone in between would make this one tick the next one
+                val etag = before.str(ETAG) ?: throw NoEtag()
                 try {
-                    // Only as read: a tick on the phone in between would make this one tick the next one
-                    onTask(listId) { graph.call("PATCH", path, buildJsonObject { put("status", COMPLETED) }, ifMatch = before.str(ETAG)) }
+                    onTask(listId) { graph.call("PATCH", path, buildJsonObject { put("status", COMPLETED) }, ifMatch = etag) }
                 } catch (e: GraphException.Http) {
                     if (e.status != PRECONDITION_FAILED) throw e
                     val again = onTask(listId) { get(path) }
@@ -436,8 +441,10 @@ internal class MicrosoftTodoProvider(
 
         val patch = changesOf(task, link)
         if (patch.isEmpty()) return remoteTaskOf(listId, before)
+        val etag = before.str(ETAG)
+        if (etag == null && repeats) throw NoEtag()  // a change landing on its next one instead
         val after = try {
-            onTask(listId) { graph.call("PATCH", path, patch, ifMatch = before.str(ETAG)) } ?: onTask(listId) { get(path) }
+            onTask(listId) { graph.call("PATCH", path, patch, ifMatch = etag) } ?: onTask(listId) { get(path) }
         } catch (e: GraphException.Http) {
             if (e.status != PRECONDITION_FAILED) throw e
             // Changed in To Do since it was read: nothing was written; merged first, then sent again

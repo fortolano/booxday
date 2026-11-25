@@ -337,6 +337,27 @@ class MicrosoftTodoSyncTest {
     }
 
     @Test
+    fun aRepeatingTaskIsNeverTickedWithoutItsEtag() = runBlocking {
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+        val plants = rowsOn(DAY, "Water plants").single()
+        todo.withoutEtags = true
+
+        repo.setCompleted(plants, true)
+        run()
+        assertEquals("no tick without If-Match", 0, patches())
+        assertEquals("tried again later", 1, sync.getOutbox().single { it.taskId == plants }.attempts)
+        assertTrue("not kept yet", !sync.getLink(plants)!!.keptOnTablet)
+
+        todo.withoutEtags = false
+        sendWaitingNow()
+        run()
+        assertEquals(1, patches())
+        assertEquals("sent as read", 1, todo.ifMatches.size)
+        assertKeptTicked(plants, DAY, original)
+    }
+
+    @Test
     fun aTickHereWhileThePhoneTickedItAndClearedTheDoneCopyNeverTicksTheNextOne() = runBlocking {
         val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
         run()
