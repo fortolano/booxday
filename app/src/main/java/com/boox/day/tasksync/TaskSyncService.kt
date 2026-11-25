@@ -4,16 +4,27 @@ import com.boox.day.data.db.TaskSyncLink
 
 /**
  * A task service as task sync sees it (Oct 2026): Google Tasks (google/GoogleTasksProvider), CalDAV
- * task lists later. Sending and reading; the merge of what is read comes with plan step 2.3.
+ * task lists (caldav/CalDavTasksProvider), Microsoft To Do (microsoft/MicrosoftTodoProvider, Nov 2026).
  */
 internal interface TaskSyncService {
     /** [com.boox.day.data.db.TaskSyncProvider] */
     val provider: String
 
-    /** Priority and reminder time sync too ([TaskExtras]): CalDAV yes, Google Tasks no (owner decision 67). */
+    /** Priority and reminder time sync too ([TaskExtras]): CalDAV and To Do yes, Google Tasks no (owner decision 67). */
     val carriesExtras: Boolean get() = false
 
-    /** Creates the task ([link] null) or updates the copy [link] points to; returns what it holds now. */
+    /**
+     * The part of a tablet priority the service keeps: what is compared with the copy's and recorded
+     * as synced. To Do keeps only A, its star (owner decision 80), so B and C stay on the tablet and a
+     * copy without a star never clears them.
+     */
+    fun keptPriority(priority: String): String = priority
+
+    /**
+     * Creates the task ([link] null) or updates the copy [link] points to; returns what it holds now.
+     * The copy returned may have another id than [link]'s (a To Do step that became a task, a ticked
+     * To Do repeating task's done copy): the link follows it.
+     */
     suspend fun upsert(task: OutgoingTask, link: TaskSyncLink?): RemoteTask
 
     /** Deletes a copy; one already gone counts as deleted. */
@@ -53,6 +64,12 @@ internal interface TaskSyncService {
      */
     suspend fun moveToList(fromListId: String, remoteId: String, toListId: String, parentRemoteId: String? = null): RemoteTaskState =
         throw UnsupportedOperationException("Moving between lists")
+
+    /**
+     * The copy in [toListId] of the subtask [remoteId] that [moveToList] of its main task took along,
+     * or null. The same id elsewhere; To Do gives a moved task's steps new ids.
+     */
+    suspend fun takenAlong(toListId: String, remoteId: String): RemoteTaskState? = fetch(toListId, remoteId)
 }
 
 internal data class RemoteList(val listId: String, val title: String)
@@ -73,7 +90,18 @@ internal data class RemoteTaskState(
     /** When it last changed in the service (epoch ms), for "the later change wins"; null if unknown. */
     val modifiedAt: Long? = null,
     /** Priority and reminder as the service has them; null when it doesn't carry them. */
-    val extras: TaskExtras? = null
+    val extras: TaskExtras? = null,
+    /**
+     * False: the copy has no due day of its own (a To Do step: words and tick only, owner decision
+     * 79). [dueDay] is null then and never changes the tablet's; a new one comes on its parent's day.
+     */
+    val carriesDue: Boolean = true,
+    /**
+     * This copy replaces [takesOverRemoteId] in the same list: a To Do repeating task ticked on the
+     * phone keeps its id for the next one and is now this new done copy (owner decision 82). The
+     * task linked to that id moves to this copy before the round is merged.
+     */
+    val takesOverRemoteId: String? = null
 )
 
 /**
@@ -129,6 +157,9 @@ internal sealed class TaskSyncServiceException(message: String, cause: Throwable
 
     /** The whole list is gone (deleted in the service): the user picks another. */
     class ListGone(val listId: String, cause: Throwable? = null) : TaskSyncServiceException("List gone from the service", cause)
+
+    /** The account can't use the service (a Microsoft account without To Do): signing in again won't help. */
+    class NotAvailable(cause: Throwable? = null) : TaskSyncServiceException("Not available for this account", cause)
 
     /**
      * The copy changed in the service since the last sync: nothing was written. The merge takes

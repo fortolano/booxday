@@ -206,6 +206,8 @@ internal class TaskSyncSender(
         // A new copy, or a parent move: the service's parent is now the one sent
         val moved = asLinked == null || parentRemoteId != asLinked.syncedParentRemoteId
         val serviceParent = if (moved) parentRemoteId else current?.remoteParentId
+        // The priority as the service keeps it (To Do: only A), so its copy's is compared with that
+        val keptPriority = extras?.priority?.let(service::keptPriority)
         val now = clock()
         db.runInTransaction<Unit> {
             if (sync.getLink(task.id) == null) {
@@ -215,15 +217,16 @@ internal class TaskSyncSender(
                         listId = remote.listId, remoteId = remote.remoteId, remoteVersion = remote.version,
                         syncedTitle = keptTitle, syncedCompleted = task.isCompleted, syncedDueDay = dueDay ?: task.dayDate,
                         syncedParentRemoteId = parentRemoteId, remoteParentId = serviceParent, contentHash = sentHash,
-                        remoteUndated = staysUndated, syncedPriority = extras?.priority, syncedReminder = extras?.reminderMinute,
+                        remoteUndated = staysUndated, syncedPriority = keptPriority, syncedReminder = extras?.reminderMinute,
                         syncedAt = now
                     )
                 )
             } else {
+                // The copy may have a new id now (a To Do step that became a task, a repeating task's done copy)
                 sync.updateSyncedLink(
                     task.id, remote.listId, remote.remoteId, remote.version, keptTitle, task.isCompleted,
                     dueDay ?: task.dayDate, parentRemoteId, serviceParent, sentHash, staysUndated,
-                    extras?.priority, extras?.reminderMinute, now
+                    keptPriority, extras?.reminderMinute, now
                 )
             }
         }
