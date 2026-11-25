@@ -125,7 +125,7 @@ class BackupPicturesRenderTest {
             }
             panel(d, "4b-onedrive-backup-while-google-on", "Cloud Backup") {
                 CloudBackupFlowContent(
-                    cloud = BackupCloud.ONEDRIVE, userEmail = "sam.lee@outlook.com", isAutoBackupOn = false, otherCloudOn = BackupCloud.GOOGLE_DRIVE,
+                    cloud = BackupCloud.ONEDRIVE, userEmail = "samantha.lee-whitfield@riverside-school.org", isAutoBackupOn = false, otherCloudOn = BackupCloud.GOOGLE_DRIVE,
                     backupFrequency = GoogleAuthManager.FREQUENCY_WEEKLY, lastBackupTime = 0L, isBackupInProgress = false,
                     statusMessage = null, onBackupEnabledChanged = {}, onBackupFrequencyChanged = {},
                     onBackupNowClick = {}, onTurnOffBackupClick = {}

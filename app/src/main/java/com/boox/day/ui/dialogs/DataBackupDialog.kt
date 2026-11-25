@@ -78,6 +78,7 @@ import com.boox.day.sync.PostRestore
 import com.boox.day.sync.SignInErrorText
 import com.boox.day.ui.components.CloudBackupCard
 import com.boox.day.ui.components.EInkToggle
+import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.components.ExistingBackupDetectedCard
 import com.boox.day.ui.components.LocalBackupCard
 import com.boox.day.ui.components.keyboardHeight
@@ -293,12 +294,15 @@ fun DataBackupDialog(
         coroutineScope.launch {
             isBackupInProgress = true
             status("Creating backup...")
+            // Only to the account on screen: Turn Off Backup or another account meanwhile stops it
+            val account = authManager.backupAccountOf(cloud)
 
             when (val exportResult = exportService.createBackup()) {
                 is ExportService.ExportResult.Success -> {
                     status("Uploading to ${cloud.label}...")
 
-                    when (val uploadResult = serviceFor(cloud).uploadBackup(exportResult.backupFile)) {
+                    val stillWanted = { account != null && authManager.backupAccountOf(cloud) == account }
+                    when (val uploadResult = serviceFor(cloud).uploadBackup(exportResult.backupFile, stillWanted)) {
                         is DriveBackupService.UploadResult.Success -> {
                             val now = System.currentTimeMillis()
                             if (cloud == BackupCloud.GOOGLE_DRIVE) lastBackupTime = now else oneDriveLastBackupTime = now
@@ -311,6 +315,8 @@ fun DataBackupDialog(
                         is DriveBackupService.UploadResult.Error -> {
                             status("Upload failed: ${uploadResult.message}")
                         }
+                        // Turned off or another account: the user has left this screen already
+                        is DriveBackupService.UploadResult.Stopped -> status(null)
                     }
                 }
                 is ExportService.ExportResult.Error -> {
@@ -343,9 +349,13 @@ fun DataBackupDialog(
                     oneDriveLastBackupTime = authManager.getLastBackupTime(BackupCloud.ONEDRIVE)
                     oneDriveStatus = "✓ Connected to OneDrive"
                     // Like Google Drive: automatic backup starts by itself only when no cloud is
-                    // chosen yet and there are no backups to restore first
-                    if (backupDestination == null && !oneDriveService.hasExistingBackups()) {
+                    // chosen yet and the folder was read and has no backups to restore first; never
+                    // on the way to restoring. A list that couldn't be read is said, Auto Backup stays off
+                    val lookup = if (!forRestore && backupDestination == null) oneDriveService.listBackups() else null
+                    if (OneDriveSignIn.turnsOnAutoBackup(forRestore, backupDestination, lookup)) {
                         setDestination(BackupCloud.ONEDRIVE)
+                    } else if (lookup is DriveBackupService.ListResult.Error) {
+                        oneDriveStatus = lookup.message
                     }
                     // Only from the account choice: the user may have gone elsewhere meanwhile
                     if (currentPhase is BackupDialogPhase.MicrosoftAccountChoice) {
@@ -2033,10 +2043,11 @@ internal fun CloudBackupFlowContent(
             // Header with account info
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -2068,12 +2079,11 @@ internal fun CloudBackupFlowContent(
                     }
                 }
 
-                // Turn off backup link
-                Text(
+                // Review, Nov 2026: a button of the standard 44 dp height; the text alone was a
+                // touch target well under the 42 dp minimum
+                EinkSecondaryButton(
                     text = "Turn Off Backup",
-                    fontSize = EInkTheme.Preferences.infoLabelFontSize,
-                    color = EInkTheme.Colors.gray,
-                    modifier = Modifier.noRippleClickable(onClick = onTurnOffBackupClick)
+                    onClick = onTurnOffBackupClick
                 )
             }
 

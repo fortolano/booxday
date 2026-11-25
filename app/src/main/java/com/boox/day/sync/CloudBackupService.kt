@@ -18,17 +18,19 @@ enum class BackupCloud(val key: String, val label: String) {
  * Google Drive backup already had, so both clouds are handled the same way.
  */
 interface CloudBackupService {
-    /** Uploads [localFile] as a new backup; every earlier backup is kept (owner decision 88). */
-    suspend fun uploadBackup(localFile: File): DriveBackupService.UploadResult
+    /**
+     * Uploads [localFile] as a new backup; every earlier backup is kept (owner decision 88). Asks
+     * [stillWanted] right before the upload starts (and between OneDrive's pieces): false stops it
+     * with [DriveBackupService.UploadResult.Stopped], nothing finished in the cloud. A switch to the
+     * other cloud or account while the backup was being made must never land in the old one.
+     */
+    suspend fun uploadBackup(localFile: File, stillWanted: () -> Boolean = { true }): DriveBackupService.UploadResult
 
-    /** The backups there, newest first. */
+    /** The backups there, newest first; an error when they couldn't be listed, never an empty list. */
     suspend fun listBackups(): DriveBackupService.ListResult
 
     /** The backup [fileId] in a temporary file the caller deletes. */
     suspend fun downloadBackupToFile(fileId: String): DriveBackupService.FileDownloadResult
-
-    /** True when at least one backup is there; false when none or it couldn't be checked. */
-    suspend fun hasExistingBackups(): Boolean
 }
 
 /** The backup service for [cloud]. */

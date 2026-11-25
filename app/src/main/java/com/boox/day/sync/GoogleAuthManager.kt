@@ -457,6 +457,15 @@ class GoogleAuthManager(private val context: Context) {
         BackupCloud.ONEDRIVE -> getOneDriveAccount() != null
     }
 
+    /** The account [cloud]'s backups go to now: the Google address, or OneDrive's MSAL account. */
+    fun backupAccountOf(cloud: BackupCloud): String? = when (cloud) {
+        BackupCloud.GOOGLE_DRIVE -> getUserEmail()
+        BackupCloud.ONEDRIVE -> getOneDriveAccount()?.msalAccountId
+    }
+
+    /** Where automatic backup goes now, with its account; null when nowhere. */
+    fun currentBackupTarget(): BackupTarget? = getBackupDestination()?.let { BackupTarget(it, backupAccountOf(it)) }
+
     /** The cloud an automatic backup is due for now, or null ([BackupPrefs.dueCloud]). */
     fun dueAutoBackupCloud(): BackupCloud? = readPrefs<BackupCloud?>(defaultValue = null) {
         BackupPrefs.dueCloud(this, ::isConnectedForBackup, System.currentTimeMillis())

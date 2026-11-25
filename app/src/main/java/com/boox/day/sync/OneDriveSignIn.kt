@@ -17,6 +17,8 @@ import com.microsoft.identity.client.exception.MsalClientException
 import com.microsoft.identity.client.exception.MsalDeclinedScopeException
 import com.microsoft.identity.client.exception.MsalIntuneAppProtectionPolicyRequiredException
 import com.microsoft.identity.client.exception.MsalUnsupportedBrokerException
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -30,27 +32,37 @@ internal object OneDriveSignIn {
     /** The Outlook accounts in Calendar Accounts this tablet is still signed in to, offered first. */
     suspend fun calendarAccounts(context: Context, outlook: OutlookAuthManager): List<OneDriveAccount> =
         withContext(Dispatchers.IO) {
-            if (outlook.initialize().isFailure) return@withContext emptyList()
-            AppDatabase.getDatabase(context).connectedAccountDao()
-                .getAccountsByProvider(ProviderId.OUTLOOK.key)
-                .mapNotNull { row ->
-                    OutlookCalendarProvider.msalAccountIdOf(context, row.id)
-                        ?.takeIf { outlook.hasAccount(it) }
-                        ?.let { OneDriveAccount(it, row.email) }
-                }
-                .distinctBy { it.msalAccountId }
+            try {
+                if (outlook.initialize().isFailure) return@withContext emptyList()
+                AppDatabase.getDatabase(context).connectedAccountDao()
+                    .getAccountsByProvider(ProviderId.OUTLOOK.key)
+                    .mapNotNull { row ->
+                        OutlookCalendarProvider.msalAccountIdOf(context, row.id)
+                            ?.takeIf { outlook.hasAccount(it) }
+                            ?.let { OneDriveAccount(it, row.email) }
+                    }
+                    .distinctBy { it.msalAccountId }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // MSAL's account list can throw; then only the new sign-ins are offered
+                Log.w(TAG, "Calendar accounts not read: ${e.javaClass.simpleName}")
+                emptyList()
+            }
         }
 
     /** Asks Microsoft to let [account] (from Calendar Accounts) keep BooxDay's backups too. */
     suspend fun useCalendarAccount(activity: Activity, outlook: OutlookAuthManager, account: OneDriveAccount): Result<OneDriveAccount> {
         outlook.initialize().onFailure { return Result.failure(it) }
-        return outlook.requestScopes(activity, account.msalAccountId, MicrosoftScopes.BACKUP).map { id ->
-            // The user may pick another account on Microsoft's page: keep the one that came back
-            if (id == account.msalAccountId) {
-                account
-            } else {
-                OneDriveAccount(id, outlook.getMsalAccounts().firstOrNull { it.id == id }?.username.orEmpty())
-            }
+        val id = outlook.requestScopes(activity, account.msalAccountId, MicrosoftScopes.BACKUP).getOrElse { return Result.failure(it) }
+        // The user may pick another account on Microsoft's page: keep the one that came back
+        if (id == account.msalAccountId) return Result.success(account)
+        return try {
+            Result.success(OneDriveAccount(id, outlook.getMsalAccounts().firstOrNull { it.id == id }?.username.orEmpty()))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -60,6 +72,16 @@ internal object OneDriveSignIn {
         return outlook.signInInteractive(activity, type, MicrosoftScopes.BACKUP)
             .map { OneDriveAccount(it.msalAccountId, it.email) }
     }
+
+    /**
+     * Signing in to OneDrive turns Auto Backup on, like Google Drive's sign-in, only when no cloud
+     * is chosen yet and OneDrive's folder was read and is empty: backups there are restored first.
+     * Never when the list couldn't be read ([lookup] an error, review 25 Nov 2026: that counted as
+     * "no backups"), and never on the way to restoring ([forRestore]; [lookup] is null there).
+     */
+    fun turnsOnAutoBackup(forRestore: Boolean, destination: BackupCloud?, lookup: DriveBackupService.ListResult?): Boolean =
+        !forRestore && destination == null &&
+            lookup is DriveBackupService.ListResult.Success && lookup.backups.isEmpty()
 
     /** Why the sign-in didn't work, in the user's words. */
     fun errorText(e: Throwable, network: NetworkState = NetworkStatus.current()): String = when {
@@ -76,4 +98,5 @@ internal object OneDriveSignIn {
     }
 
     private val NETWORK_CODES = setOf("device_network_not_available", "io_error")
+    private const val TAG = "OneDriveSignIn"
 }
