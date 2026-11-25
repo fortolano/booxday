@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
@@ -204,19 +203,11 @@ fun BackupFilePickerDialog(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        color = EInkTheme.Colors.darkGray,
-                                        strokeWidth = 2.dp
-                                    )
-                                    Spacer(Modifier.height(12.dp))
-                                    Text(
-                                        "Scanning for backups...",
-                                        fontSize = EInkTheme.Typography.bodySmall,
-                                        color = EInkTheme.Colors.gray
-                                    )
-                                }
+                                Text(
+                                    "Scanning for backups...",
+                                    fontSize = EInkTheme.Typography.bodyMedium,
+                                    color = EInkTheme.Colors.darkGray
+                                )
                             }
                         }
                         items.isEmpty() -> {

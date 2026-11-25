@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.boox.day.R
 import com.boox.day.ui.theme.EInkTheme
-import androidx.compose.ui.draw.alpha
 
 /**
  * Size scale for toolbar buttons and their icons. The compact toolbar's "…" popup provides a larger
@@ -42,6 +41,8 @@ fun ToolbarButton(
     modifier: Modifier = Modifier,
     isSelected: Boolean = false,
     enabled: Boolean = true,
+    /** Visually muted (solid disabled ink, no alpha) while staying clickable for self-teaching taps. */
+    muted: Boolean = false,
     onSelect: () -> Unit = {},
     iconId: Int? = null,
     vectorIcon: ImageVector? = null,
@@ -58,16 +59,16 @@ fun ToolbarButton(
     val scale = LocalToolbarIconScale.current
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Disabled: no selection, grayed out icon
+    // Disabled/muted: no selection, solid grayed-out ink (never Modifier.alpha on E-Ink)
     // Unselected: transparent background, icon tinted with penColor (or black)
     // Pressed/Selected: filled background with penColor (or black), white icon (inverted selection)
     val bgColor = when {
-        !enabled -> EInkTheme.Toolbar.buttonBackground
+        !enabled || muted -> EInkTheme.Toolbar.buttonBackground
         isPressed || isSelected -> (penColor ?: EInkTheme.Selection.background)
         else -> EInkTheme.Toolbar.buttonBackground
     }
     val tint = when {
-        !enabled -> EInkTheme.Toolbar.iconColorDisabled
+        !enabled || muted -> EInkTheme.Disabled.foreground
         isPressed || isSelected -> EInkTheme.Selection.foreground
         penColor != null -> penColor
         else -> EInkTheme.Toolbar.iconColor
@@ -85,7 +86,6 @@ fun ToolbarButton(
     Box(
         modifier
             .then(Modifier.size(EInkTheme.Toolbar.buttonSize * scale))  // Default size, but passed modifier's size takes precedence
-            .alpha(if (enabled) 1f else 0.35f)  // More obvious disabled state
             .clickable(
                 enabled = enabled,
                 indication = null,  // No ripple - E-Ink friendly

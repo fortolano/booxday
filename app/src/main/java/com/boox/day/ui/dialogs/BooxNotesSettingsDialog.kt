@@ -29,7 +29,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
 import androidx.compose.material.OutlinedButton
@@ -192,7 +191,6 @@ fun BooxNotesSettingsDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White.copy(alpha = 0.01f)) // Invisible scrim to catch clicks
                 .noRippleClickable { onDismiss() },
             contentAlignment = Alignment.Center
         ) {

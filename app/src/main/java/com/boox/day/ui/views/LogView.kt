@@ -501,8 +501,12 @@ private fun ReportPreviewCard(
         modifier = modifier
             .fillMaxWidth()
             .fillMaxHeight(0.7f),
-        elevation = 4.dp,
-        backgroundColor = MaterialTheme.colors.surface
+        elevation = 0.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            com.boox.day.ui.theme.EInkTheme.Global.borderWidth,
+            com.boox.day.ui.theme.EInkTheme.Colors.primary
+        ),
+        backgroundColor = com.boox.day.ui.theme.EInkTheme.Colors.background
     ) {
         Column(
             modifier = Modifier

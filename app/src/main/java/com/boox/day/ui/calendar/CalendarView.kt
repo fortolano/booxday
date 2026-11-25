@@ -4,12 +4,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.boox.day.ui.NestedPopupHost
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -57,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import com.boox.day.R
@@ -76,7 +69,6 @@ import com.boox.day.ui.theme.EInkTheme
 import com.boox.day.ui.theme.LayoutProfiles
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.LaunchedEffect
 import com.boox.day.ui.calendar.CalendarBadges
@@ -292,22 +284,26 @@ fun MonthHeaderWithToolbar(
         }
     }
 
-    // Voice input
+    // Voice input (no alpha on E-Ink; self-teaching tap when AI is off)
     val voiceButton: @Composable () -> Unit = {
-        // Voice input button (respects AI enabled setting)
         val aiEnabled = GlobalAppSettings.current.aiEnabled
         IconButton(
-            onClick = { if (aiEnabled) { isOverflowOpen = false; onVoiceInput() } },
-            enabled = aiEnabled,
+            onClick = {
+                isOverflowOpen = false
+                if (aiEnabled) {
+                    onVoiceInput()
+                } else {
+                    com.boox.day.ui.AiKeyGate.requireKey()
+                }
+            },
             modifier = Modifier
                 .size(EInkTheme.Global.touchTarget * LocalHeaderIconScale.current)
-                .alpha(if (aiEnabled) 1f else 0.35f)  // More obvious disabled state
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_voice_input),
-                contentDescription = "Voice input",
+                contentDescription = if (aiEnabled) "Voice input" else "Voice input (AI is off)",
                 modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard * LocalHeaderIconScale.current),
-                tint = if (aiEnabled) EInkTheme.Colors.primary else EInkTheme.Toolbar.iconColorDisabled
+                tint = if (aiEnabled) EInkTheme.Colors.primary else EInkTheme.Disabled.foreground
             )
         }
     }
@@ -324,25 +320,8 @@ fun MonthHeaderWithToolbar(
         }
     }
 
-    // Sync icon with spinning animation and pending badge (compact: on the header bar, layout B)
+    // Sync icon with static E-Ink state (no 1s continuous rotation), pending count badge, and monochrome-safe error badge
     val syncIcon: @Composable () -> Unit = {
-            // PERFORMANCE FIX: Only create animation when actively syncing
-            // Previously the infiniteTransition ran constantly even when not syncing
-            val rotation = if (isSyncing) {
-                val infiniteTransition = rememberInfiniteTransition(label = "sync_rotation")
-                infiniteTransition.animateFloat(
-                    initialValue = 0f,
-                    targetValue = 360f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1000, easing = LinearEasing),
-                        repeatMode = RepeatMode.Restart
-                    ),
-                    label = "sync_icon_rotation"
-                ).value
-            } else {
-                0f
-            }
-
             Box {
                 IconButton(onClick = { isOverflowOpen = false; onSyncClick() }, modifier = Modifier.size(EInkTheme.Global.touchTarget * LocalHeaderIconScale.current)) {
                     Icon(
@@ -355,21 +334,36 @@ fun MonthHeaderWithToolbar(
                             else -> "Synced"
                         },
                         modifier = Modifier
-                            .size(EInkTheme.CalendarToolbar.iconSizeStandard * LocalHeaderIconScale.current)
-                            .then(
-                                if (isSyncing) Modifier.graphicsLayer { rotationZ = rotation }
-                                else Modifier
-                            ),
+                            .size(EInkTheme.CalendarToolbar.iconSizeStandard * LocalHeaderIconScale.current),
                         tint = when {
-                            !isSignedIn -> EInkTheme.Colors.lightGray
-                            hasSyncError -> EInkTheme.CalendarToolbar.iconColorError
+                            !isSignedIn -> EInkTheme.Disabled.foreground
+                            hasSyncError -> EInkTheme.Colors.primary
                             else -> EInkTheme.Colors.primary
                         }
                     )
                 }
 
-                // Pending count badge
-                if (isSignedIn && pendingSyncCount > 0 && !isSyncing) {
+                // Monochrome-safe error badge (visible on both Carta B&W and Kaleido, including Go 6 without status text)
+                if (isSignedIn && hasSyncError && !isSyncing) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-2).dp, y = 4.dp)
+                            .size(EInkTheme.CalendarToolbar.badgeSize)
+                            .clip(CircleShape)
+                            .background(EInkTheme.Colors.primary)
+                            .border(1.dp, EInkTheme.Colors.background, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "!",
+                            color = EInkTheme.Colors.background,
+                            fontSize = EInkTheme.CalendarToolbar.badgeFontSize,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else if (isSignedIn && pendingSyncCount > 0 && !isSyncing) {
+                    // Pending count badge
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -407,7 +401,8 @@ fun MonthHeaderWithToolbar(
                         Text(
                             text = "Syncing...",
                             fontSize = EInkTheme.Typography.labelSmall,
-                            color = EInkTheme.Colors.gray,
+                            fontWeight = FontWeight.Medium,
+                            color = EInkTheme.Colors.primary,
                             maxLines = 1
                         )
                     }
@@ -415,7 +410,8 @@ fun MonthHeaderWithToolbar(
                         Text(
                             text = "Sync failed",
                             fontSize = EInkTheme.Typography.labelSmall,
-                            color = Color(0xFFB71C1C),
+                            fontWeight = FontWeight.Bold,
+                            color = EInkTheme.Colors.primary,
                             maxLines = 1
                         )
                     }
@@ -521,15 +517,15 @@ fun MonthHeaderWithToolbar(
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 4.dp, end = 4.dp)
-                            .size(16.dp)
+                            .padding(top = 3.dp, end = 3.dp)
+                            .size(EInkTheme.CalendarToolbar.badgeSize)
                             .background(EInkTheme.Colors.primary, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = pendingCount.toString(),
                             color = EInkTheme.Colors.white,
-                            fontSize = 10.sp,
+                            fontSize = EInkTheme.CalendarToolbar.badgeFontSize,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -788,18 +784,20 @@ fun MonthHeaderWithToolbar(
                 modifier = Modifier.background(EInkTheme.Colors.background)
             ) {
                 monthNames.forEachIndexed { index, monthName ->
+                    val isSelected = index == month
                     androidx.compose.material.DropdownMenuItem(
                         onClick = {
                             isMonthDropdownOpen = false
-                            if (index != month) {
+                            if (!isSelected) {
                                 onMonthYearSelected(year, index)
                             }
-                        }
+                        },
+                        modifier = if (isSelected) Modifier.background(EInkTheme.Selection.background) else Modifier
                     ) {
                         Text(
                             text = monthName,
-                            fontWeight = if (index == month) FontWeight.Bold else FontWeight.Normal,
-                            color = if (index == month) EInkTheme.Colors.primary else EInkTheme.Colors.primary
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) EInkTheme.Selection.foreground else EInkTheme.Colors.primary
                         )
                     }
                 }
@@ -825,18 +823,20 @@ fun MonthHeaderWithToolbar(
                 modifier = Modifier.background(EInkTheme.Colors.background)
             ) {
                 years.forEach { yearOption ->
+                    val isSelected = yearOption == year
                     androidx.compose.material.DropdownMenuItem(
                         onClick = {
                             isYearDropdownOpen = false
-                            if (yearOption != year) {
+                            if (!isSelected) {
                                 onMonthYearSelected(yearOption, month)
                             }
-                        }
+                        },
+                        modifier = if (isSelected) Modifier.background(EInkTheme.Selection.background) else Modifier
                     ) {
                         Text(
                             text = yearOption.toString(),
-                            fontWeight = if (yearOption == year) FontWeight.Bold else FontWeight.Normal,
-                            color = if (yearOption == year) EInkTheme.Colors.primary else EInkTheme.Colors.primary
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) EInkTheme.Selection.foreground else EInkTheme.Colors.primary
                         )
                     }
                 }

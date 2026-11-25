@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
@@ -75,24 +74,17 @@ fun StorageInfoCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             if (isLoading) {
-                // Loading state
-                Row(
+                // Loading state (static E-Ink label)
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                    contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = EInkTheme.Colors.primary,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = "Calculating storage...",
                         fontSize = EInkTheme.Typography.bodyMedium,
-                        color = EInkTheme.Colors.gray
+                        color = EInkTheme.Colors.darkGray
                     )
                 }
             } else if (storageInfo != null) {

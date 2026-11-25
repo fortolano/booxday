@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
 import com.boox.day.ui.components.EInkToggle
@@ -138,22 +137,13 @@ fun CloudBackupCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    when {
-                        isLoading -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                color = EInkTheme.Colors.primary,
-                                strokeWidth = 2.dp
-                            )
-                        }
-                        isSuccess -> {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = EInkTheme.Colors.primary
-                            )
-                        }
+                    if (isSuccess) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = EInkTheme.Colors.primary
+                        )
                     }
                     Text(
                         text = if (isSuccess) statusMessage.removePrefix("✓ ") else statusMessage,
@@ -518,21 +508,12 @@ private fun BackupNowButton(
         contentAlignment = Alignment.Center
     ) {
         if (isInProgress) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    color = EInkTheme.Colors.primary,
-                    strokeWidth = 2.dp
-                )
-                Text(
-                    text = "Backing up...",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.primary
-                )
-            }
+            Text(
+                text = "Backing up...",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = EInkTheme.Colors.primary
+            )
         } else {
             Text(
                 text = if (backupType == BackupType.FULL_DATABASE) "Create Full Backup" else "Backup Now",

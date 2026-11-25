@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
@@ -179,7 +178,11 @@ fun ImagePickerDialog(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = EInkTheme.Colors.primary)
+                            Text(
+                                text = "Loading images...",
+                                fontSize = EInkTheme.Typography.bodyMedium,
+                                color = EInkTheme.Colors.darkGray
+                            )
                         }
                     }
                     images.isEmpty() -> {
@@ -300,10 +303,10 @@ private fun ImageThumbnail(
                         )
                     }
                     else -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(EInkTheme.Global.iconSize),
-                            color = EInkTheme.Colors.gray,
-                            strokeWidth = 2.dp
+                        Text(
+                            text = "Loading...",
+                            fontSize = EInkTheme.Typography.bodySmall,
+                            color = EInkTheme.Colors.gray
                         )
                     }
                 }

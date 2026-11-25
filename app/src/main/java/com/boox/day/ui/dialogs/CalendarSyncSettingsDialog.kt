@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
@@ -618,21 +617,11 @@ private fun GoogleTabContent(
                 .padding(EInkTheme.Global.padding),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
-            ) {
-                CircularProgressIndicator(
-                    color = EInkTheme.Colors.primary,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(24.dp)
-                )
-                Text(
-                    text = "Loading accounts...",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.gray
-                )
-            }
+            Text(
+                text = "Loading accounts...",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.darkGray
+            )
         }
         return
     }
@@ -748,21 +737,11 @@ private fun OutlookTabContent(
                 .padding(EInkTheme.Global.padding),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
-            ) {
-                CircularProgressIndicator(
-                    color = EInkTheme.Colors.primary,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(24.dp)
-                )
-                Text(
-                    text = "Loading accounts...",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.gray
-                )
-            }
+            Text(
+                text = "Loading accounts...",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.darkGray
+            )
         }
         return
     }

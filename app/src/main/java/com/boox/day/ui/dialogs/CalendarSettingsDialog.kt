@@ -932,15 +932,10 @@ private fun ConnectedAccountsSummary(
                 disabledContentColor = EInkTheme.Colors.darkGray
             )
         ) {
-            if (syncInProgress) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    color = EInkTheme.Button.primaryTextColor,
-                    strokeWidth = 2.dp
-                )
-            } else {
-                Text(text = "Sync Now", fontSize = EInkTheme.Typography.bodyMedium)
-            }
+            Text(
+                text = if (syncInProgress) "Syncing..." else "Sync Now",
+                fontSize = EInkTheme.Typography.bodyMedium
+            )
         }
 
         OutlinedButton(

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
@@ -223,21 +222,12 @@ private fun SaveToDeviceSection(
             contentAlignment = Alignment.Center
         ) {
             if (isInProgress) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        color = EInkTheme.Colors.primary,
-                        strokeWidth = 2.dp
-                    )
-                    Text(
-                        text = "Creating backup...",
-                        fontSize = EInkTheme.Typography.bodyMedium,
-                        color = EInkTheme.Colors.primary
-                    )
-                }
+                Text(
+                    text = "Creating backup...",
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = EInkTheme.Colors.primary
+                )
             } else {
                 Text(
                     text = "Save Backup to Device",
@@ -290,21 +280,12 @@ private fun RestoreFromFileSection(
             contentAlignment = Alignment.Center
         ) {
             if (isInProgress) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        color = EInkTheme.Colors.primary,
-                        strokeWidth = 2.dp
-                    )
-                    Text(
-                        text = "Restoring...",
-                        fontSize = EInkTheme.Typography.bodyMedium,
-                        color = EInkTheme.Colors.primary
-                    )
-                }
+                Text(
+                    text = "Restoring...",
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = EInkTheme.Colors.primary
+                )
             } else {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -349,22 +330,13 @@ private fun StatusMessage(status: String) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        when {
-            isLoading -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(14.dp),
-                    color = EInkTheme.Colors.primary,
-                    strokeWidth = 2.dp
-                )
-            }
-            isSuccess -> {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = EInkTheme.Colors.primary
-                )
-            }
+        if (!isLoading && isSuccess) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = EInkTheme.Colors.primary
+            )
         }
         Text(
             text = status,

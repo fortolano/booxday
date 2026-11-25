@@ -143,15 +143,14 @@ fun Router() {
         tagline
     }
 
-    // Pre-load data during splash screen with adaptive timing
-    // Minimum 3s for logo visibility, max ~5s (3000ms min + 2000ms timeout)
+    // Pre-load data during splash screen and dismiss as soon as settings + canvas are ready
+    // (Decision D3 / L1: no artificial 3s minimum floor; preserves the 1.0.54 black-frame guard).
     LaunchedEffect(Unit) {
         val startTime = System.currentTimeMillis()
         logRouter.i("PERF: Splash pre-loading START")
 
         // Launch non-blocking preloads in the LaunchedEffect scope so withTimeoutOrNull actually caps
         // splash exit (inside coroutineScope{}, the scope still waited for pagesJob after timeout: M7(3))
-        val minDuration = launch { delay(3000) }
         launch(Dispatchers.IO) {
             if (OpenRouterClient.hasApiKey()) {
                 logRouter.i("PERF: AI key available at startup")
@@ -180,9 +179,6 @@ fun Router() {
                 logRouter.e("PERF: Page pre-creation failed: ${e.message}")
             }
         }
-
-        // Wait for minimum duration (always)
-        minDuration.join()
 
         // Wait for critical page preload with a real 2s cap
         withTimeoutOrNull(2000) {

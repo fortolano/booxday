@@ -24,7 +24,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
@@ -397,20 +396,12 @@ fun ActionButton(
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                color = contentColor,
-                strokeWidth = 2.dp
-            )
-        } else {
-            Text(
-                text = text,
-                fontWeight = FontWeight.Bold,
-                color = contentColor,
-                fontSize = EInkTheme.Typography.button
-            )
-        }
+        Text(
+            text = if (isLoading) "Working..." else text,
+            fontWeight = FontWeight.Bold,
+            color = contentColor,
+            fontSize = EInkTheme.Typography.button
+        )
     }
 }
 

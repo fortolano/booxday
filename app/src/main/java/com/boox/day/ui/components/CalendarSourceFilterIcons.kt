@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -151,15 +150,14 @@ private fun FilterIconButton(
 ) {
     val shape = RoundedCornerShape(cornerRadius)
 
-    // Visual states for E-Ink clarity (no border for cleaner look)
-    val backgroundColor = if (isSelected) Color.White else Color(0xFFF0F0F0)
-    val iconAlpha = if (isSelected) 1f else 0.5f
+    // Solid E-Ink states (no Modifier.alpha compositing)
+    val backgroundColor = if (isSelected) EInkTheme.Colors.background else EInkTheme.Colors.offWhite
 
     // Determine icon tint
     val actualTint = when {
-        !isSelected -> EInkTheme.Colors.gray // Gray when unselected
-        tintColor != null -> tintColor // Use specified tint
-        else -> Color.Unspecified // No tint (multi-color icons)
+        !isSelected -> EInkTheme.Disabled.foreground
+        tintColor != null -> tintColor
+        else -> Color.Unspecified
     }
 
     Box(
@@ -175,15 +173,11 @@ private fun FilterIconButton(
         contentAlignment = Alignment.Center
     ) {
         if (mark != null) {
-            Box(Modifier.alpha(iconAlpha)) {
-                mark(iconSize, if (isSelected) EInkTheme.Colors.primary else EInkTheme.Colors.gray, backgroundColor)
-            }
+            mark(iconSize, if (isSelected) EInkTheme.Colors.primary else EInkTheme.Disabled.foreground, backgroundColor)
         } else if (iconRes != null) Icon(
             painter = painterResource(id = iconRes),
             contentDescription = null, // Handled by parent semantics
-            modifier = Modifier
-                .size(iconSize)
-                .alpha(iconAlpha),
+            modifier = Modifier.size(iconSize),
             tint = actualTint
         )
     }
@@ -205,11 +199,10 @@ private fun LocalCalendarFilterIcon(
 ) {
     val shape = RoundedCornerShape(cornerRadius)
 
-    // Visual states for E-Ink clarity
-    val backgroundColor = if (isSelected) Color.White else Color(0xFFF0F0F0)
-    val iconAlpha = if (isSelected) 1f else 0.5f
-    val iconTint = if (isSelected) Color.Black else EInkTheme.Colors.gray
-    val textColor = if (isSelected) Color.Black else EInkTheme.Colors.gray
+    // Solid E-Ink states (no Modifier.alpha compositing)
+    val backgroundColor = if (isSelected) EInkTheme.Colors.background else EInkTheme.Colors.offWhite
+    val iconTint = if (isSelected) EInkTheme.Colors.primary else EInkTheme.Disabled.foreground
+    val textColor = if (isSelected) EInkTheme.Colors.primary else EInkTheme.Disabled.foreground
 
     Box(
         modifier = Modifier
@@ -227,9 +220,7 @@ private fun LocalCalendarFilterIcon(
         Icon(
             painter = painterResource(id = R.drawable.calendar_today_thin),
             contentDescription = null,
-            modifier = Modifier
-                .size(iconSize)
-                .alpha(iconAlpha),
+            modifier = Modifier.size(iconSize),
             tint = iconTint
         )
         // Day number positioned inside the calendar icon (matching toolbar style)
@@ -238,9 +229,7 @@ private fun LocalCalendarFilterIcon(
             fontSize = if (large) EInkTheme.Typography.bodySmall else EInkTheme.Typography.labelSmall,  // 10.sp
             fontWeight = FontWeight.Bold,
             color = textColor,
-            modifier = Modifier
-                .alpha(iconAlpha)
-                .padding(top = if (large) 8.dp else 6.dp)  // Adjusted for 23dp icon (vs 7dp for 24dp toolbar icon)
+            modifier = Modifier.padding(top = if (large) 8.dp else 6.dp)  // Adjusted for 23dp icon (vs 7dp for 24dp toolbar icon)
         )
     }
 }

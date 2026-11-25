@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,6 +22,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.text.font.FontWeight
+import com.boox.day.ui.components.EinkLoadingDots
 import com.boox.day.ui.components.RotatingFunMessage
 import com.boox.day.ui.messages.AiFeedbackMessages
 import com.boox.day.ui.theme.EInkTheme
@@ -57,11 +57,8 @@ fun AiProcessingDialog(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(48.dp),
-                        color = EInkTheme.Colors.primary,
-                        strokeWidth = 4.dp
-                    )
+                    // Slow E-Ink dot cadence for multi-second AI wait (no spinning indicator)
+                    EinkLoadingDots()
                     Spacer(modifier = Modifier.height(20.dp))
 
                     // Fun/Entertaining Message (Primary) - uses EInkTheme.AiProcessingFeedback defaults

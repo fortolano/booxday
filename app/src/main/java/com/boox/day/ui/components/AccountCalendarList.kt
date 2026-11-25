@@ -330,10 +330,11 @@ private fun AccountHeader(
                         // Show status indicators (not the fun message - that goes below)
                         when {
                             isSyncing -> {
-                                androidx.compose.material.CircularProgressIndicator(
-                                    modifier = Modifier.size(12.dp),
-                                    color = EInkTheme.Colors.primary,
-                                    strokeWidth = 1.5.dp
+                                Text(
+                                    text = "• Syncing...",
+                                    fontSize = EInkTheme.Typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = EInkTheme.Colors.darkGray
                                 )
                             }
                             needsReauth -> {

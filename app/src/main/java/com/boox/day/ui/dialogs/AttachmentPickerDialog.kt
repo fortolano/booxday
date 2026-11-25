@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
@@ -326,21 +325,14 @@ fun AttachmentPickerDialog(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    CircularProgressIndicator(
-                                        color = EInkTheme.Colors.darkGray,
-                                        strokeWidth = 2.dp
-                                    )
-                                    Spacer(Modifier.height(12.dp))
-                                    Text(
-                                        if (selectedFolder == AttachmentFolder.LIBRARY)
-                                            "Extracting book titles..."
-                                        else
-                                            "Loading files...",
-                                        fontSize = EInkTheme.Typography.bodySmall,
-                                        color = EInkTheme.Colors.gray
-                                    )
-                                }
+                                Text(
+                                    if (selectedFolder == AttachmentFolder.LIBRARY)
+                                        "Extracting book titles..."
+                                    else
+                                        "Loading files...",
+                                    fontSize = EInkTheme.Typography.bodyMedium,
+                                    color = EInkTheme.Colors.darkGray
+                                )
                             }
                         }
                         items.isEmpty() && !canGoBack -> {

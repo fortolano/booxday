@@ -28,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.AutofillType
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -364,16 +363,16 @@ fun AddEditEventDialog(
                             if (!isEditMode && onVoiceInput != null) {
                                 val aiEnabled = GlobalAppSettings.current.aiEnabled
                                 IconButton(
-                                    onClick = { if (aiEnabled) onVoiceInput() },
-                                    enabled = aiEnabled,
-                                    modifier = Modifier
-                                        .size(EInkTheme.Global.touchTarget)
-                                        .alpha(if (aiEnabled) 1f else 0.35f)  // More obvious disabled state
+                                    onClick = {
+                                        if (aiEnabled) onVoiceInput()
+                                        else com.boox.day.ui.AiKeyGate.requireKey()
+                                    },
+                                    modifier = Modifier.size(EInkTheme.Global.touchTarget)
                                 ) {
                                     Icon(
                                         painter = painterResource(R.drawable.ic_voice_input),
-                                        contentDescription = "Voice input",
-                                        tint = if (aiEnabled) EInkTheme.Colors.primary else EInkTheme.Toolbar.iconColorDisabled,
+                                        contentDescription = if (aiEnabled) "Voice input" else "Voice input (AI is off)",
+                                        tint = if (aiEnabled) EInkTheme.Colors.primary else EInkTheme.Disabled.foreground,
                                         modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard)
                                     )
                                 }

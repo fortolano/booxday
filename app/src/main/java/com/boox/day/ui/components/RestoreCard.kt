@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.Card
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
@@ -163,43 +162,29 @@ fun RestoreCard(
                     modifier = Modifier.fillMaxWidth()
                 )
             } else if (isLoadingBackups) {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                    contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = EInkTheme.Colors.darkGray
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = "Loading backups...",
                         fontSize = EInkTheme.Typography.bodySmall,
-                        color = EInkTheme.Colors.gray
+                        color = EInkTheme.Colors.darkGray
                     )
                 }
             } else if (isRestoreInProgress) {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                    contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = EInkTheme.Colors.darkGray
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = "Restoring backup...",
                         fontSize = EInkTheme.Typography.bodySmall,
-                        color = EInkTheme.Colors.gray
+                        color = EInkTheme.Colors.darkGray
                     )
                 }
             } else if (backups.isEmpty() && fullBackups.isEmpty()) {

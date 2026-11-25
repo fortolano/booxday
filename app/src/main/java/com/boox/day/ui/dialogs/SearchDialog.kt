@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
@@ -114,60 +113,64 @@ fun SearchDialog(
     // Filtering is applied client-side after fetching.
     LaunchedEffect(query) {
         if (query.length < 2) {
+            isSearching = false
             allResults = emptyList()
             return@LaunchedEffect
         }
         isSearching = true
-        delay(300) // debounce
-        allResults = withContext(Dispatchers.IO) {
-            val collected = mutableListOf<UnifiedOcrSearchResult>()
-            val seenKeys = mutableSetOf<String>()
+        try {
+            delay(300) // debounce
+            allResults = withContext(Dispatchers.IO) {
+                val collected = mutableListOf<UnifiedOcrSearchResult>()
+                val seenKeys = mutableSetOf<String>()
 
-            // Helper to add a result with dedup
-            fun addResult(result: UnifiedOcrSearchResult, key: String) {
-                if (key !in seenKeys) {
-                    seenKeys.add(key)
-                    collected.add(result)
+                // Helper to add a result with dedup
+                fun addResult(result: UnifiedOcrSearchResult, key: String) {
+                    if (key !in seenKeys) {
+                        seenKeys.add(key)
+                        collected.add(result)
+                    }
                 }
+
+                // ═══════════════════════════════════════════════════════════════
+                // TIER 1 (score 2.0) and TIER 3 (score 0.5) for events and tasks,
+                // matched in memory (search/SearchCandidates), accents and case ignored:
+                // tier 1 = every typed word starts a word ("mar" finds "Meeting with Mary",
+                // not "primary"); tier 3 = every word is somewhere inside ("primary").
+                // ═══════════════════════════════════════════════════════════════
+                val eventAndTaskHits = try {
+                    searchCandidates.search(query)
+                } catch (_: Exception) { emptyList() }
+                eventAndTaskHits.filter { it.second.score >= 1.0 }.forEach { (key, r) -> addResult(r, key) }
+
+                // ═══════════════════════════════════════════════════════════════
+                // TIER 2: FTS4 for MEMO and BOOX_NOTE only (score = 1.0)
+                // Tasks and events are fully covered by direct queries above.
+                // FTS task/event results have generic titles and are ALWAYS excluded.
+                // ═══════════════════════════════════════════════════════════════
+                // Query each type separately so each gets its own result limit
+                try {
+                    ocrRepository.searchByType(query, OcrSource.MEMO, limit = 30).forEach { r ->
+                        addResult(r.copy(score = 1.0), "${r.sourceType}_${r.pageId}")
+                    }
+                } catch (_: Exception) {}
+                try {
+                    ocrRepository.searchByType(query, OcrSource.BOOX_NOTE, limit = 30).forEach { r ->
+                        addResult(r.copy(score = 1.0), "${r.sourceType}_${r.pageId}")
+                    }
+                } catch (_: Exception) {}
+
+                // TIER 3: partial matches, shown last with the "Partial match" label
+                eventAndTaskHits.filter { it.second.score < 1.0 }.forEach { (key, r) -> addResult(r, key) }
+
+                // Sort: Tier 1 (2.0) → Tier 2 (1.0) → Tier 3 (0.5), then by date
+                collected.sortedWith(compareByDescending<UnifiedOcrSearchResult> { it.score }
+                    .thenByDescending { it.sourceDate ?: "" })
+                    .take(50)
             }
-
-            // ═══════════════════════════════════════════════════════════════
-            // TIER 1 (score 2.0) and TIER 3 (score 0.5) for events and tasks,
-            // matched in memory (search/SearchCandidates), accents and case ignored:
-            // tier 1 = every typed word starts a word ("mar" finds "Meeting with Mary",
-            // not "primary"); tier 3 = every word is somewhere inside ("primary").
-            // ═══════════════════════════════════════════════════════════════
-            val eventAndTaskHits = try {
-                searchCandidates.search(query)
-            } catch (_: Exception) { emptyList() }
-            eventAndTaskHits.filter { it.second.score >= 1.0 }.forEach { (key, r) -> addResult(r, key) }
-
-            // ═══════════════════════════════════════════════════════════════
-            // TIER 2: FTS4 for MEMO and BOOX_NOTE only (score = 1.0)
-            // Tasks and events are fully covered by direct queries above.
-            // FTS task/event results have generic titles and are ALWAYS excluded.
-            // ═══════════════════════════════════════════════════════════════
-            // Query each type separately so each gets its own result limit
-            try {
-                ocrRepository.searchByType(query, OcrSource.MEMO, limit = 30).forEach { r ->
-                    addResult(r.copy(score = 1.0), "${r.sourceType}_${r.pageId}")
-                }
-            } catch (_: Exception) {}
-            try {
-                ocrRepository.searchByType(query, OcrSource.BOOX_NOTE, limit = 30).forEach { r ->
-                    addResult(r.copy(score = 1.0), "${r.sourceType}_${r.pageId}")
-                }
-            } catch (_: Exception) {}
-
-            // TIER 3: partial matches, shown last with the "Partial match" label
-            eventAndTaskHits.filter { it.second.score < 1.0 }.forEach { (key, r) -> addResult(r, key) }
-
-            // Sort: Tier 1 (2.0) → Tier 2 (1.0) → Tier 3 (0.5), then by date
-            collected.sortedWith(compareByDescending<UnifiedOcrSearchResult> { it.score }
-                .thenByDescending { it.sourceDate ?: "" })
-                .take(50)
+        } finally {
+            isSearching = false
         }
-        isSearching = false
     }
 
     // Client-side filter: allResults always has everything, filteredResults is what we display
@@ -412,23 +415,26 @@ private fun SearchInputField(
             }
         )
 
-        // Status / clear
-        when {
-            isSearching -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = EInkTheme.Colors.darkGray
-                )
-            }
-            query.isNotEmpty() -> {
+        // Status / clear (static E-Ink text instead of spinning indicator)
+        if (isSearching) {
+            Text(
+                text = "Searching...",
+                fontSize = EInkTheme.Typography.bodySmall,
+                color = EInkTheme.Colors.darkGray
+            )
+        }
+        if (query.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .size(EInkTheme.Global.touchTarget)
+                    .noRippleClickable { onQueryChange("") },
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Clear",
-                    modifier = Modifier
-                        .size(20.dp)
-                        .noRippleClickable { onQueryChange("") },
-                    tint = EInkTheme.Colors.gray
+                    modifier = Modifier.size(20.dp),
+                    tint = EInkTheme.Colors.darkGray
                 )
             }
         }

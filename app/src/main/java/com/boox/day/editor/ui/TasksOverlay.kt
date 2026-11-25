@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.res.painterResource
@@ -438,18 +439,19 @@ private fun EInkPriorityButton(
             )
         }
 
-        // Compact: small mark when a due date is set (red when overdue)
+        // Compact: mark when a due date is set (monochrome-safe inverted "!" badge when overdue, dot otherwise)
         if (onDueDateTap != null && dueDay != null) {
             val isOverdue = TaskDueDates.isOverdue(dueDay, isCompleted)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(7.dp)
-                    .background(
-                        if (isOverdue) EInkTheme.Colors.red else EInkTheme.Colors.primary,
-                        CircleShape
-                    )
-            )
+            if (isOverdue) {
+                OverdueAlertBadge(modifier = Modifier.align(Alignment.BottomEnd))
+            } else {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(7.dp)
+                        .background(EInkTheme.Colors.primary, CircleShape)
+                )
+            }
         }
 
         // E-Ink optimized priority popup (no scrim, no shadow, no animation)
@@ -585,14 +587,29 @@ private fun EInkDueDateButton(
             modifier = Modifier.size(iconSize)
         )
 
-        // Overdue badge (small dot)
+        // Overdue badge (monochrome-safe inverted "!" badge visible on Carta B&W and Kaleido)
         if (isOverdue) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .size(8.dp)
-                    .background(EInkTheme.Colors.red, CircleShape)
-            )
+            OverdueAlertBadge(modifier = Modifier.align(Alignment.TopEnd))
         }
+    }
+}
+
+/** Monochrome-safe overdue alert badge: solid high-contrast circle with bold "!" and white rim. */
+@Composable
+private fun OverdueAlertBadge(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(13.dp)
+            .background(EInkTheme.Colors.primary, CircleShape)
+            .border(1.dp, EInkTheme.Colors.background, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "!",
+            color = EInkTheme.Colors.background,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            lineHeight = 9.sp
+        )
     }
 }

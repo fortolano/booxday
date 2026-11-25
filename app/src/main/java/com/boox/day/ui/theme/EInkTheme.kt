@@ -432,8 +432,8 @@ object EInkTheme {
         val todayBorderWidth = 1.5.dp  // Today (not selected) is a black ring, no grey fill
         val todayBorderColor = Colors.primary
 
-        // Today (not selected) - light gray to distinguish from other days
-        val todayBackground = Color(0xFFE0E0E0)  // Lighter than lightGray (#C0C0C0)
+        // Today (not selected) - white background with black ring (no mid-gray dithering on E-Ink)
+        val todayBackground = Colors.background
         val todayTextColor = Colors.primary
 
         // Today + Selected - medium gray (distinguished from regular black selection)
@@ -550,12 +550,12 @@ object EInkTheme {
         val iconColorDisabled = Colors.gray
         val iconColorError = Color(0xFFB71C1C)
 
-        // Badge styling (sync count, unread count)
-        val badgeSize = 16.dp                // Standard badge (sync pending)
-        val badgeSizeSmall = 14.dp           // Smaller badge (unread count)
-        val badgeFontSize = 9.sp             // Badge count text
+        // Badge styling (sync count, alert count - enlarged for E-Ink legibility: L6)
+        val badgeSize = 18.dp                // Standard badge (sync pending, settings attention)
+        val badgeSizeSmall = 16.dp           // Smaller badge (unread count)
+        val badgeFontSize = 11.sp            // Legible E-Ink badge count text
         val badgeBackground = Colors.primary
-        val badgeBackgroundError = Colors.red
+        val badgeBackgroundError = Colors.primary
         val badgeTextColor = Colors.background
     }
 
@@ -634,7 +634,7 @@ object EInkTheme {
         val completedStrikethroughColor = Colors.lightGray      // Solid gray for strikethrough line
         val completedStrikethroughThickness = 0.3.dp            // Strikethrough line thickness
         val completedStrokeColor = Colors.lightGray             // Light gray for handwritten strokes when completed
-        val completedRowBackground = Colors.lightGray          // Keep row background solid white (NO alpha overlay!)
+        val completedRowBackground = Colors.background          // Keep row background solid white (NO alpha overlay!)
 
         // Typed text styling
         val typedTextFontSize = 18.sp                        // Larger font to match handwritten size

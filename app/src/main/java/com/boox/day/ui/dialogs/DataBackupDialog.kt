@@ -27,7 +27,6 @@ import androidx.compose.material.Card
 import androidx.compose.material.Icon
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -1499,10 +1498,10 @@ private fun StorageSummaryRow(
         )
 
         if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(14.dp),
-                color = EInkTheme.Colors.primary,
-                strokeWidth = 2.dp
+            Text(
+                text = "Loading...",
+                fontSize = EInkTheme.Preferences.explanationFontSize,
+                color = EInkTheme.Colors.darkGray
             )
         } else if (storageInfo != null) {
             Text(
@@ -1994,21 +1993,12 @@ private fun CloudBackupFlowContent(
                 contentAlignment = Alignment.Center
             ) {
                 if (isBackupInProgress) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = EInkTheme.Colors.primary,
-                            strokeWidth = 2.dp
-                        )
-                        Text(
-                            text = "Backing up...",
-                            fontSize = EInkTheme.Typography.bodyMedium,
-                            color = EInkTheme.Colors.primary
-                        )
-                    }
+                    Text(
+                        text = "Backing up...",
+                        fontSize = EInkTheme.Typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = EInkTheme.Colors.primary
+                    )
                 } else {
                     Text(
                         text = "Backup Now",
@@ -2086,13 +2076,7 @@ private fun CloudRestoreFlowContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (isRestoreInProgress) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(14.dp),
-                            color = EInkTheme.Colors.primary,
-                            strokeWidth = 2.dp
-                        )
-                    } else if (restoreStatus.startsWith("\u2713")) {
+                    if (!isRestoreInProgress && restoreStatus.startsWith("\u2713")) {
                         Icon(
                             Icons.Default.Check,
                             contentDescription = null,
@@ -2110,23 +2094,16 @@ private fun CloudRestoreFlowContent(
 
             // Loading state
             if (isLoadingBackups) {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = EInkTheme.Global.paddingLarge),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                    contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = EInkTheme.Colors.primary,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.size(8.dp))
                     Text(
                         text = "Loading backups...",
                         fontSize = EInkTheme.Preferences.explanationFontSize,
-                        color = EInkTheme.Colors.gray
+                        color = EInkTheme.Colors.darkGray
                     )
                 }
             } else if (backups.isEmpty()) {
