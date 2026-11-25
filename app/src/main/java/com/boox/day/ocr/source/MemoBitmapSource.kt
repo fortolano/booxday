@@ -66,7 +66,10 @@ class MemoBitmapSource(
      * @param pageId The page UUID
      * @return Loaded bitmap or null if not found or page has no real content
      */
-    override suspend fun renderPage(sourceId: String, pageId: String): Bitmap? = withContext(Dispatchers.IO) {
+    override suspend fun renderPage(sourceId: String, pageId: String): Bitmap? =
+        (renderPageOutcome(sourceId, pageId) as? OcrRenderOutcome.Rendered)?.bitmap
+
+    override suspend fun renderPageOutcome(sourceId: String, pageId: String): OcrRenderOutcome = withContext(Dispatchers.IO) {
         try {
             // Guard: verify page has actual content before loading bitmap.
             // Stale bitmap files can exist on disk (e.g. from EPD framebuffer capture)
@@ -76,7 +79,7 @@ class MemoBitmapSource(
 
             if (!hasStrokes && !hasAnnotations) {
                 Log.d(TAG, "Skipping empty memo page $pageId (date=$sourceId) — no strokes or annotations")
-                return@withContext null
+                return@withContext OcrRenderOutcome.Empty
             }
 
             // Load persisted bitmap from file system
@@ -91,7 +94,7 @@ class MemoBitmapSource(
 
             if (bitmap == null) {
                 Log.d(TAG, "No persisted bitmap found for memo page $pageId (date=$sourceId)")
-                return@withContext null
+                return@withContext OcrRenderOutcome.NotReady
             }
 
             Log.d(TAG, "Loaded memo bitmap $pageId: ${bitmap.width}x${bitmap.height}")
@@ -107,14 +110,14 @@ class MemoBitmapSource(
                 if (wholePage != null) {
                     Log.d(TAG, "Memo $pageId has content below its saved bitmap: using the whole page ${wholePage.width}x${wholePage.height}")
                     bitmap.recycle()
-                    return@withContext wholePage
+                    return@withContext OcrRenderOutcome.Rendered(wholePage)
                 }
             }
-            bitmap
+            OcrRenderOutcome.Rendered(bitmap)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load memo bitmap $pageId: ${e.message}", e)
-            null
+            Log.e(TAG, "Failed to load memo bitmap $pageId: ${e.javaClass.simpleName}", e)
+            OcrRenderOutcome.RenderFailed("memo bitmap load error: ${e.javaClass.simpleName}")
         }
     }
 

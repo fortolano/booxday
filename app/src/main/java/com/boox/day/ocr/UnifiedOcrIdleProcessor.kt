@@ -331,6 +331,7 @@ class UnifiedOcrIdleProcessor(private val context: Context) {
             val completedQueueIds = mutableSetOf<String>()
             val affectedBooxNoteDates = mutableSetOf<String>()
             var processedCount = 0
+            var attemptCount = 0
 
             for (item in queue) {
                 // CHECK 1: Abort check FIRST (before any work for this item)
@@ -351,9 +352,9 @@ class UnifiedOcrIdleProcessor(private val context: Context) {
                     break
                 }
 
-                // CHECK 4: Limit pages per session (from OcrQuotaManager)
-                if (processedCount >= maxPagesPerIdleSession) {
-                    Log.d(TAG, "Reached max pages per session ($maxPagesPerIdleSession), stopping")
+                // CHECK 4: Limit attempts per session (from OcrQuotaManager) so failures/not-ready pages cannot spin unboundedly
+                if (attemptCount >= maxPagesPerIdleSession) {
+                    Log.d(TAG, "Reached max page attempts per session ($maxPagesPerIdleSession, completed=$processedCount), stopping")
                     break
                 }
 
@@ -373,12 +374,14 @@ class UnifiedOcrIdleProcessor(private val context: Context) {
                     continue
                 }
 
+                attemptCount++
+
                 // Update UI state
                 _processingState.value = ProcessingState(
                     isProcessing = true,
                     currentSource = item.sourceType.name,
                     currentItem = "${item.sourceType.name}/${item.sourceId}",
-                    currentPage = processedCount + 1,
+                    currentPage = attemptCount,
                     totalPages = minOf(queue.size, maxPagesPerIdleSession)
                 )
 
@@ -426,10 +429,10 @@ class UnifiedOcrIdleProcessor(private val context: Context) {
                             break
                         }
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    Log.e(TAG, "Page processing failed: ${e.message}")
-                    // Remove from queue even on exception - prevents infinite retry
-                    completedQueueIds.add(item.stableQueueId())
+                    Log.e(TAG, "Page processing failed (${e.javaClass.simpleName}); leaving in queue for retry")
                 }
 
                 // MANDATORY: Yield to UI thread between pages
@@ -437,7 +440,7 @@ class UnifiedOcrIdleProcessor(private val context: Context) {
 
                 // MANDATORY: Cooldown between pages to let CPU/memory recover on e-ink devices
                 // Skip cooldown after last page or if we've hit the limit (from OcrQuotaManager)
-                if (processedCount < maxPagesPerIdleSession && !shouldAbort) {
+                if (attemptCount < maxPagesPerIdleSession && !shouldAbort) {
                     Log.d(TAG, "Cooldown ${cooldownBetweenPagesMs}ms before next page")
                     delay(cooldownBetweenPagesMs)
                 }

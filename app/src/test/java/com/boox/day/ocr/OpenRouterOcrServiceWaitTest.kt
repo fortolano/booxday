@@ -1,8 +1,10 @@
 package com.boox.day.ocr
 
 import com.boox.day.api.NetworkState
+import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiProblem
 import com.boox.day.api.ai.AiResponse
+import kotlinx.coroutines.runBlocking
 import java.net.ConnectException
 import java.net.UnknownHostException
 import org.junit.Assert.assertEquals
@@ -56,5 +58,36 @@ class OpenRouterOcrServiceWaitTest {
             val result = service.resultFor(error, NetworkState.ONLINE)
             assertEquals(OpenRouterOcrService.Result.Failed(error.message), result)
         }
+    }
+
+    @Test
+    fun `empty object or malformed OCR JSON falls through to backup model instead of storing empty text`() = runBlocking {
+        val caps = setOf(com.boox.day.api.ai.AiCapability.VISION, com.boox.day.api.ai.AiCapability.JSON_OUTPUT)
+        val m1 = AiModel.Custom("first/model", "First", caps, com.boox.day.api.ai.AiConfig())
+        val m2 = AiModel.Custom("second/model", "Second", caps, com.boox.day.api.ai.AiConfig())
+        val tried = mutableListOf<String>()
+
+        val result = service.recognizeWithModels(
+            base64 = "AA==",
+            models = listOf(m1, m2),
+            network = { NetworkState.ONLINE }
+        ) { req ->
+            tried += req.model.id
+            when (req.model.id) {
+                "first/model" -> AiResponse.Success("{}", req.model.id, null)
+                else -> AiResponse.Success("""{"hasText": true, "language": "en", "text": "Hello ink"}""", req.model.id, null)
+            }
+        }
+
+        assertEquals(listOf("first/model", "second/model"), tried)
+        assertTrue(result is OpenRouterOcrService.Result.Success)
+        assertEquals("Hello ink", (result as OpenRouterOcrService.Result.Success).text)
+    }
+
+    @Test
+    fun `explicit hasText false still succeeds as genuine blank page`() {
+        val parsed = service.parse("""{"hasText": false, "language": "", "text": ""}""")
+        assertTrue(parsed is OpenRouterOcrService.Result.Success)
+        assertEquals("", (parsed as OpenRouterOcrService.Result.Success).text)
     }
 }

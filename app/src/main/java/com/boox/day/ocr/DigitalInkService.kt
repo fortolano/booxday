@@ -174,9 +174,10 @@ class DigitalInkService(
     }
 
     /**
-     * Check if service is ready (model downloaded).
+     * Check if at least one on-device handwriting reader is ready (BOOX MyScript or downloaded ML Kit model).
      */
-    suspend fun isReady(): Boolean = DigitalInkModelManager.isModelReady()
+    suspend fun isReady(): Boolean =
+        BooxHandwritingReader.isAvailable(context) || DigitalInkModelManager.isModelReady()
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Generic Stroke Recognition (for lasso selection, etc.)

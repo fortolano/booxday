@@ -14,6 +14,17 @@ import com.boox.day.ocr.model.OcrSource
  * - NOT recycle the returned bitmap (caller is responsible)
  * - Be thread-safe (may be called from background threads)
  */
+/**
+ * Typed outcome from rendering an OCR page, distinguishing a genuinely blank page from a
+ * transient not-ready preview or a native/IO render error (H8).
+ */
+sealed interface OcrRenderOutcome {
+    data class Rendered(val bitmap: Bitmap) : OcrRenderOutcome
+    data object Empty : OcrRenderOutcome
+    data object NotReady : OcrRenderOutcome
+    data class RenderFailed(val reason: String) : OcrRenderOutcome
+}
+
 interface OcrBitmapSource {
 
     /**
@@ -31,6 +42,13 @@ interface OcrBitmapSource {
      * IMPORTANT: Caller is responsible for recycling the returned bitmap.
      */
     suspend fun renderPage(sourceId: String, pageId: String): Bitmap?
+
+    /**
+     * Render a page with a typed outcome so the pipeline never marks a failed or unavailable
+     * render as genuinely empty.
+     */
+    suspend fun renderPageOutcome(sourceId: String, pageId: String): OcrRenderOutcome =
+        renderPage(sourceId, pageId)?.let { OcrRenderOutcome.Rendered(it) } ?: OcrRenderOutcome.Empty
 
     /**
      * Get the last modification timestamp for a page.

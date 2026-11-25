@@ -208,39 +208,47 @@ class UnifiedOcrPipeline(private val context: Context) {
             // This also creates the page record if it doesn't exist (UPSERT)
             ocrRepository.markInProgress(source.sourceType, sourceId, pageId, sourceModified)
 
-            // Step 4: Render the page to bitmap
-            bitmap = source.renderPage(sourceId, pageId)
-            if (bitmap == null) {
-                // Check if page was recently modified - bitmap may still be saving to disk
-                val pageAgeMs = System.currentTimeMillis() - sourceModified
-                if (pageAgeMs < bitmapGracePeriodMs) {
-                    // Recent page without bitmap - likely still being persisted
-                    // Reset to PENDING so it gets retried later
-                    Log.d(TAG, "No bitmap for recent page $sourceId/$pageId (age=${pageAgeMs}ms) - will retry later")
-                    ocrRepository.resetToPending(source.sourceType, sourceId, pageId)
-                    return ProcessResult.BITMAP_NOT_READY
+            // Step 4: Render the page to bitmap with typed outcome (H8: never mark render errors as empty)
+            bitmap = when (val outcome = source.renderPageOutcome(sourceId, pageId)) {
+                is com.boox.day.ocr.source.OcrRenderOutcome.Rendered -> outcome.bitmap
+                is com.boox.day.ocr.source.OcrRenderOutcome.Empty -> {
+                    Log.d(TAG, "Confirmed empty page $sourceId/$pageId - marking as EMPTY")
+                    ocrRepository.storeOcrResult(
+                        sourceType = source.sourceType,
+                        sourceId = sourceId,
+                        pageId = pageId,
+                        sourceModifiedAt = sourceModified,
+                        text = null,
+                        confidence = 0f,
+                        language = null,
+                        semanticBundle = null,
+                        sourceDate = sourceDate
+                    )
+                    invalidateBooxNoteAggregateIfNeeded(source.sourceType, sourceId)
+                    return ProcessResult.EMPTY
                 }
-
-                // Page is old enough - truly empty (no content was ever drawn)
-                Log.d(TAG, "No bitmap for page $sourceId/$pageId - marking as EMPTY")
-                ocrRepository.storeOcrResult(
-                    sourceType = source.sourceType,
-                    sourceId = sourceId,
-                    pageId = pageId,
-                    sourceModifiedAt = sourceModified,
-                    text = null,
-                    confidence = 0f,
-                    language = null,
-                    semanticBundle = null,
-                    sourceDate = sourceDate
-                )
-                invalidateBooxNoteAggregateIfNeeded(source.sourceType, sourceId)
-
-                // Empty pages do NOT consume quota - no content to index
-                // They're still tracked in the database to avoid re-processing
-                Log.d(TAG, "Empty page - no quota consumed")
-
-                return ProcessResult.EMPTY
+                is com.boox.day.ocr.source.OcrRenderOutcome.NotReady -> {
+                    val pageAgeMs = System.currentTimeMillis() - sourceModified
+                    if (pageAgeMs < bitmapGracePeriodMs) {
+                        Log.d(TAG, "No bitmap for recent page $sourceId/$pageId (age=${pageAgeMs}ms) - will retry later")
+                        ocrRepository.resetToPending(source.sourceType, sourceId, pageId)
+                        return ProcessResult.BITMAP_NOT_READY
+                    }
+                    return handleRetryableFailure(
+                        sourceType = source.sourceType,
+                        sourceId = sourceId,
+                        pageId = pageId,
+                        error = "Persisted bitmap unavailable for non-empty page"
+                    )
+                }
+                is com.boox.day.ocr.source.OcrRenderOutcome.RenderFailed -> {
+                    return handleRetryableFailure(
+                        sourceType = source.sourceType,
+                        sourceId = sourceId,
+                        pageId = pageId,
+                        error = outcome.reason
+                    )
+                }
             }
 
             // Step 5: Preprocess bitmap for better OCR
@@ -334,8 +342,10 @@ class UnifiedOcrPipeline(private val context: Context) {
 
             return ProcessResult.SUCCESS
 
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Page processing failed: ${e.message}", e)
+            Log.e(TAG, "Page processing failed: ${e.javaClass.simpleName}", e)
 
             try {
                 return handleRetryableFailure(

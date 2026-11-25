@@ -7,17 +7,26 @@ import com.boox.day.ai.AiRetryExecutor
 import com.boox.day.ai.JsonExtractor
 import com.boox.day.ai.StructuredOutputSchemas
 import com.boox.day.api.AiJob
+import com.boox.day.api.AiPickStatus
 import com.boox.day.api.ModelConfigProvider
 import com.boox.day.api.NetworkState
 import com.boox.day.api.NetworkStatus
+import com.boox.day.api.OpenRouterAccount
 import com.boox.day.api.ReasoningConfig
+import com.boox.day.api.ai.AiClient
 import com.boox.day.api.ai.AiModel
 import com.boox.day.api.ai.AiProblem
+import com.boox.day.api.ai.AiRequest
 import com.boox.day.api.ai.AiResponse
 import com.boox.day.api.ai.aiRequest
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonObject
 import java.io.ByteArrayOutputStream
 
 /**
@@ -72,40 +81,92 @@ RULES:
         return if (problem.indexingWaits) Result.Paused(problem) else Result.Failed(error.message)
     }
 
-    suspend fun recognizeText(bitmap: Bitmap): Result {
-        val base64 = withContext(Dispatchers.Default) { encodeJpeg(bitmap) }
-        // The user's pick for search indexing, then BooxDay's model (Oct 2026); a model without a
-        // zero-data-retention provider fails here and the next one reads the page
-        val models = ModelConfigProvider.getChain(AiJob.SEARCH_INDEXING)
-        val response = AiRetryExecutor.executeWithBackup(models, promptForKey = false) { model ->
-            val request = aiRequest {
+    suspend fun recognizeText(bitmap: Bitmap): Result =
+        com.boox.day.api.ai.LastAiProblem.withScope("background_ocr") {
+            val base64 = withContext(Dispatchers.Default) { encodeJpeg(bitmap) }
+            val models = ModelConfigProvider.getChain(AiJob.SEARCH_INDEXING)
+            recognizeWithModels(base64, models)
+        }
+
+    /**
+     * Tries each model in [models] and validates the OCR JSON contract *inside* the fallback loop
+     * so malformed or empty-object (`{}`) answers fall through to the next model instead of being
+     * stored as empty page text (H8).
+     */
+    internal suspend fun recognizeWithModels(
+        base64: String,
+        models: List<AiModel>,
+        network: () -> NetworkState = { NetworkStatus.current() },
+        executeModel: suspend (AiRequest) -> AiResponse<String> = { req -> AiClient.execute(req, promptForKey = false) }
+    ): Result {
+        if (models.isEmpty()) return Result.Failed("no OCR models configured")
+        var creditRefusal: AiResponse.Error.OutOfCredit? = null
+        var lastError: AiResponse.Error? = null
+        var lastParseFailure: Result.Failed? = null
+
+        for (model in models) {
+            currentCoroutineContext().ensureActive()
+            if (creditRefusal != null && !OpenRouterAccount.isFreeModel(model.id)) continue
+            val baseRequest = aiRequest {
                 model(model)
                 systemPrompt(SYSTEM_PROMPT)
                 userMessageWithImage("Read the handwritten text:", base64)
                 jsonSchema("ocr_text", StructuredOutputSchemas.ocrTextWithLanguageSchema)
                 zeroDataRetention()
             }
-            // BooxDay's model reads with thinking off (not needed to read); a picked model uses
-            // the user's reasoning level
-            if ((model as? AiModel.Custom)?.userChoice == true) {
-                request
+            val request = if ((model as? AiModel.Custom)?.userChoice == true) {
+                baseRequest
             } else {
-                request.copy(overrideReasoning = ReasoningConfig.disabled())
+                baseRequest.copy(overrideReasoning = ReasoningConfig.disabled())
+            }
+
+            when (val response = executeModel(request)) {
+                is AiResponse.Success -> {
+                    when (val parsed = parse(response.data)) {
+                        is Result.Success -> return parsed
+                        is Result.Failed -> {
+                            AiPickStatus.noteUnusableAnswer(model)
+                            lastParseFailure = parsed
+                            Log.w(TAG, "Model ${model.displayName} returned unreadable OCR JSON; trying fallback")
+                        }
+                        is Result.Paused -> return parsed
+                    }
+                }
+                is AiResponse.Error.NoApiKey,
+                is AiResponse.Error.KeyRejected -> return resultFor(response, network())
+                is AiResponse.Error.OutOfCredit -> {
+                    creditRefusal = response
+                    lastError = response
+                }
+                is AiResponse.Error -> {
+                    lastError = response
+                }
             }
         }
 
-        return when (response) {
-            is AiResponse.Success -> parse(response.data)
-            is AiResponse.Error -> resultFor(response, NetworkStatus.current())
-        }
+        val error = creditRefusal ?: lastError
+        return error?.let { resultFor(it, network()) }
+            ?: lastParseFailure
+            ?: Result.Failed("all OCR models failed")
     }
 
-    private fun parse(data: String): Result {
+    internal fun parse(data: String): Result {
         return try {
-            val json = JSONObject(JsonExtractor.extract(data))
-            val text = json.optString("text", "").trim()
-            val hasText = json.optBoolean("hasText", text.isNotEmpty()) && text.isNotEmpty()
-            val language = json.optString("language", "").trim().lowercase().take(8).ifBlank { null }
+            val json = Json.parseToJsonElement(JsonExtractor.extract(data)).jsonObject
+            // Schema requires explicit boolean `hasText` and string `text`; `{}` or missing fields must fail over
+            val hasTextElem = json["hasText"] as? JsonPrimitive
+            val textElem = json["text"] as? JsonPrimitive
+            val hasTextBool = if (hasTextElem != null && !hasTextElem.isString) hasTextElem.booleanOrNull else null
+            if (hasTextBool == null || textElem == null || !textElem.isString) {
+                Log.w(TAG, "OCR JSON missing required fields (${data.length} chars)")
+                return Result.Failed("missing required OCR fields")
+            }
+            val text = textElem.content.trim()
+            val hasText = hasTextBool && text.isNotEmpty()
+            val langElem = json["language"] as? JsonPrimitive
+            val language = if (langElem != null && langElem.isString) {
+                langElem.content.trim().lowercase().take(8).ifBlank { null }
+            } else null
             Result.Success(
                 text = if (hasText) text else "",
                 language = if (hasText) language else null,

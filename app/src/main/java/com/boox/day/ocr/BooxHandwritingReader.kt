@@ -55,12 +55,32 @@ internal object BooxHandwritingReader {
     @Volatile private var service: IBinder? = null
     @Volatile private var connected = CompletableDeferred<IBinder?>()
     @Volatile private var bound = false
+    @Volatile private var boundAppContext: Context? = null
+    /** Cached check for whether the BOOX handwriting service component exists on this device. */
+    @Volatile private var servicePresentCache: Boolean? = null
     /** This tablet has no BOOX handwriting service: ML Kit reads */
     @Volatile private var absent = false
     /** The service didn't answer (9 Nov 2026: once for 3 min, likely the tablet sleeping mid-call): ML Kit reads until then */
     @Volatile private var pausedUntil = 0L
     @Volatile private var readyLanguage: String? = null
     private val refusedLanguages = mutableSetOf<String>()
+
+    /**
+     * True when BOOX's built-in MyScript handwriting service is installed and not absent/paused,
+     * allowing task pages to be read without waiting for ML Kit model downloads (M6(3)).
+     */
+    fun isAvailable(context: Context): Boolean {
+        if (absent || paused()) return false
+        if (service != null) return true
+        val cached = servicePresentCache
+        if (cached != null) return cached
+        val present = runCatching {
+            val intent = Intent().setComponent(ComponentName(PACKAGE, SERVICE))
+            context.applicationContext.packageManager.resolveService(intent, 0) != null
+        }.getOrDefault(false)
+        servicePresentCache = present
+        return present
+    }
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -76,7 +96,14 @@ internal object BooxHandwritingReader {
 
         override fun onNullBinding(name: ComponentName?) {
             absent = true
+            servicePresentCache = false
             connected.complete(null)
+            val app = boundAppContext
+            if (bound && app != null) {
+                runCatching { app.unbindService(this) }
+            }
+            bound = false
+            boundAppContext = null
         }
     }
 
@@ -127,8 +154,9 @@ internal object BooxHandwritingReader {
         readyLanguage = null
         service = null
         connected = CompletableDeferred()
-        if (bound) runCatching { context.applicationContext.unbindService(connection) }
+        if (bound) runCatching { (boundAppContext ?: context.applicationContext).unbindService(connection) }
         bound = false
+        boundAppContext = null
         Log.w(TAG, "$why: ML Kit reads for ${PAUSE_MS / 1000} s, then BOOX again")
     }
 
@@ -136,6 +164,7 @@ internal object BooxHandwritingReader {
         service?.let { return it }
         if (!bound) {
             val app = context.applicationContext
+            boundAppContext = app
             bound = try {
                 app.bindService(Intent().setComponent(ComponentName(PACKAGE, SERVICE)), connection, Context.BIND_AUTO_CREATE)
             } catch (e: SecurityException) {
@@ -143,7 +172,9 @@ internal object BooxHandwritingReader {
             }
             if (!bound) {
                 runCatching { app.unbindService(connection) }
+                boundAppContext = null
                 absent = true
+                servicePresentCache = false
                 Log.i(TAG, "No BOOX handwriting service on this tablet: ML Kit reads")
                 return null
             }
@@ -173,6 +204,8 @@ internal object BooxHandwritingReader {
             data.writeInt(1)  // force re-init
             data.writeStrongBinder(callback)
         }
+        // Close any unexpected descriptor returned by INIT so it never leaks
+        runCatching { answer.result?.close() }
         readyLanguage = language.takeIf { answer.activated }
         if (!answer.activated) Log.i(TAG, "BOOX can't read $language: ML Kit reads it")
         return answer.activated
@@ -199,15 +232,21 @@ internal object BooxHandwritingReader {
     }
 
     /** Sends one call and waits for the service's HWROutputCallback; [NoAnswer] when it doesn't answer */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private suspend fun call(binder: IBinder, code: Int, write: (Parcel, IBinder) -> Unit): Answer {
         val answer = CompletableDeferred<Answer>()
+        val deliveredToCaller = java.util.concurrent.atomic.AtomicBoolean(false)
         val callback = object : Binder() {
             init { attachInterface(null, CALLBACK_INTERFACE) }
 
             override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
                 if (code != IBinder.FIRST_CALL_TRANSACTION) return super.onTransact(code, data, reply, flags)
                 data.enforceInterface(CALLBACK_INTERFACE)
-                answer.complete(if (data.readInt() != 0) readAnswer(data) else Answer(null, false, "no output"))
+                val parsed = if (data.readInt() != 0) readAnswer(data) else Answer(null, false, "no output")
+                if (!answer.complete(parsed)) {
+                    // Timed out, cancelled, or duplicate reply: close abandoned PFD immediately
+                    runCatching { parsed.result?.close() }
+                }
                 reply?.writeNoException()
                 return true
             }
@@ -220,7 +259,19 @@ internal object BooxHandwritingReader {
         } finally {
             data.recycle()
         }
-        return withTimeoutOrNull(ANSWER_MS) { answer.await() } ?: throw NoAnswer("BOOX handwriting service didn't answer in ${ANSWER_MS / 1000} s")
+        return try {
+            val result = withTimeoutOrNull(ANSWER_MS) { answer.await() }
+                ?: throw NoAnswer("BOOX handwriting service didn't answer in ${ANSWER_MS / 1000} s")
+            deliveredToCaller.set(true)
+            result
+        } finally {
+            if (!deliveredToCaller.get()) {
+                answer.cancel()
+                if (answer.isCompleted && !answer.isCancelled) {
+                    runCatching { answer.getCompleted().result?.close() }
+                }
+            }
+        }
     }
 
     /** HWROutputArgs: result file, recognizer activated, compiled, error, … */

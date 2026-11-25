@@ -35,11 +35,29 @@ class BooxNoteBitmapSource : OcrBitmapSource {
      * @param pageId The page identifier
      * @return Android Bitmap or null if rendering failed
      */
-    override suspend fun renderPage(sourceId: String, pageId: String): Bitmap? = withContext(Dispatchers.IO) {
+    override suspend fun renderPage(sourceId: String, pageId: String): Bitmap? =
+        (renderPageOutcome(sourceId, pageId) as? OcrRenderOutcome.Rendered)?.bitmap
+
+    override suspend fun renderPageOutcome(sourceId: String, pageId: String): OcrRenderOutcome = withContext(Dispatchers.IO) {
         try {
             if (!BooxNative.isLibraryLoaded) {
                 Log.w(TAG, "BooxNative library not loaded: ${BooxNative.libraryLoadError}")
-                return@withContext null
+                return@withContext OcrRenderOutcome.RenderFailed("BooxNative library not loaded")
+            }
+
+            // Distinguish genuinely empty pages (point dir checked cleanly, zero point files) from render errors
+            val pointDir = File("${BooxNative.KSYNC_BASE_PATH}/point/$sourceId/$pageId")
+            val docDir = File("${BooxNative.KSYNC_BASE_PATH}/document/$sourceId")
+            if (docDir.exists() && docDir.isDirectory) {
+                if (!pointDir.exists()) {
+                    return@withContext OcrRenderOutcome.Empty
+                }
+                if (pointDir.isDirectory) {
+                    val files = pointDir.listFiles()
+                    if (files != null && files.none { it.name.endsWith("#points") }) {
+                        return@withContext OcrRenderOutcome.Empty
+                    }
+                }
             }
 
             // Use BooxNative JNI to render the page
@@ -51,7 +69,7 @@ class BooxNoteBitmapSource : OcrBitmapSource {
 
             if (booxBitmap == null || !booxBitmap.isValid()) {
                 Log.w(TAG, "BooxNative returned null or invalid bitmap for $sourceId/$pageId")
-                return@withContext null
+                return@withContext OcrRenderOutcome.RenderFailed("native renderer returned invalid bitmap")
             }
 
             // Convert BooxBitmap to Android Bitmap
@@ -63,11 +81,11 @@ class BooxNoteBitmapSource : OcrBitmapSource {
             androidBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(booxBitmap.buffer))
 
             Log.d(TAG, "Rendered page $sourceId/$pageId: ${booxBitmap.width}x${booxBitmap.height}")
-            androidBitmap
+            OcrRenderOutcome.Rendered(androidBitmap)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to render page $sourceId/$pageId: ${e.message}", e)
-            null
+            Log.e(TAG, "Failed to render page $sourceId/$pageId: ${e.javaClass.simpleName}", e)
+            OcrRenderOutcome.RenderFailed("native render error: ${e.javaClass.simpleName}")
         }
     }
 
