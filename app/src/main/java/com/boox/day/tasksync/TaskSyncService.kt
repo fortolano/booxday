@@ -108,7 +108,12 @@ internal data class RemoteTaskState(
      * phone keeps its id for the next one and is now this new done copy (owner decision 82). The
      * task linked to that id moves to this copy before the round is merged.
      */
-    val takesOverRemoteId: String? = null
+    val takesOverRemoteId: String? = null,
+    /**
+     * Ticking it rolls it over: the service keeps its id for the next one (a To Do repeating task,
+     * owner decision 82). While the tablet's tick of it hasn't gone, its next one isn't merged over it.
+     */
+    val rollsOver: Boolean = false
 )
 
 /**
@@ -164,6 +169,12 @@ internal sealed class TaskSyncServiceException(message: String, cause: Throwable
 
     /** The whole list is gone (deleted in the service): the user picks another. */
     class ListGone(val listId: String, cause: Throwable? = null) : TaskSyncServiceException("List gone from the service", cause)
+
+    /**
+     * A tick of a task that rolls over went (or may have) but its done copy isn't found yet: nothing
+     * is taken as sent. Tried again, and given up on after a while (TaskSyncSender).
+     */
+    class TickPending : TaskSyncServiceException("A tick waits for its done copy")
 
     /** The account can't use the service (a Microsoft account without To Do): signing in again won't help. */
     class NotAvailable(cause: Throwable? = null) : TaskSyncServiceException("Not available for this account", cause)

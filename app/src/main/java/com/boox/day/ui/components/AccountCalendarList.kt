@@ -542,7 +542,8 @@ private fun AccountHeader(
     if (showDisconnectConfirmation) {
         DisconnectAccountConfirmation(
             email = account.email,
-            mayRunTaskSync = account.providerId == ProviderId.GOOGLE,
+            // Google Tasks, or an Outlook account's Microsoft To Do (owner decision 90)
+            mayRunTaskSync = account.providerId == ProviderId.GOOGLE || account.providerId == ProviderId.OUTLOOK,
             onConfirm = {
                 showDisconnectConfirmation = false
                 onDisconnectAccount()
@@ -554,7 +555,7 @@ private fun AccountHeader(
 
 /**
  * Confirmation dialog for disconnecting an account: its events leave BooxDay, the calendars online
- * stay as they are. [mayRunTaskSync]: a Google account, which Task Sync may use.
+ * stay as they are. [mayRunTaskSync]: a Google or Outlook account, which Task Sync may use.
  */
 @Composable
 private fun DisconnectAccountConfirmation(

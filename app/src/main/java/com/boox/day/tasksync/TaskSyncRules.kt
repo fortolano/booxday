@@ -27,6 +27,12 @@ internal object TaskSyncRules {
     fun isTickedAtTurnOn(link: TaskSyncLink): Boolean = link.remoteId.startsWith(TICKED_AT_TURN_ON)
 
     /**
+     * The remote id of a tick given up on: its done copy never showed, so the task stays ticked on
+     * the tablet only (TaskSyncMerger.keepTickOnTablet) and its old id is free for the next one.
+     */
+    const val TICK_KEPT = "tick-kept:"
+
+    /**
      * The words to send: typed, else converted, else recognized handwriting (the canvas shows
      * typed over converted; recognized text is never shown but is what handwriting says).
      */

@@ -14,6 +14,7 @@ import kotlinx.serialization.json.put
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.RecordedRequest
+import okhttp3.mockwebserver.SocketPolicy
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -44,6 +45,15 @@ internal class FakeTodoServer : Dispatcher() {
     val requests = mutableListOf<String>()
     /** Every time-zone name BooxDay sent in a date. */
     val sentZones = mutableListOf<String>()
+    /** New done copies left out of title searches (a listing that lags) and, if set, of delta too. */
+    var hideDoneCopiesFromSearch = false
+    var hideDoneCopiesFromDelta = false
+    val hiddenFromSearch = HashSet<String>()
+    val hiddenFromDelta = HashSet<String>()
+    /** A request ("DELETE", decoded path) Microsoft carries out but whose answer is lost on the way. */
+    var loseReplyTo: (String, String) -> Boolean = { _, _ -> false }
+    /** A request Microsoft refuses (500) without doing it. */
+    var refuse: (String, String) -> Boolean = { _, _ -> false }
     /** Requests that change something. */
     val writes: List<String> get() = requests.filter { !it.startsWith("GET") }
 
@@ -77,6 +87,11 @@ internal class FakeTodoServer : Dispatcher() {
         touch(listId, taskId)
     }
 
+    fun deleteStep(listId: String, taskId: String, stepId: String) {
+        steps.getValue(taskId).remove(stepId)
+        touch(listId, taskId)
+    }
+
     fun task(listId: String, taskId: String): JsonObject? = tasks[listId]?.get(taskId)
     fun tasksIn(listId: String): List<JsonObject> = tasks.getValue(listId).values.toList()
     fun stepsOf(taskId: String): List<JsonObject> = steps[taskId]?.values?.toList().orEmpty()
@@ -92,11 +107,14 @@ internal class FakeTodoServer : Dispatcher() {
         body?.let { sent -> DATES.forEach { key -> (sent[key] as? JsonObject)?.str("timeZone")?.let { sentZones += it } } }
         // Delta takes no $top (measured 25 Nov 2026)
         if (path.lastOrNull() == "delta" && url.queryParameter("\$top") != null) return error(400, "BadRequest")
-        return try {
+        val decoded = "/" + path.joinToString("/")
+        if (refuse(request.method!!, decoded)) return error(500, "ErrorInternalServerError")
+        val answer = try {
             route(request.method!!, path, url.queryParameter("\$deltatoken"), url.queryParameter("\$skiptoken"), url.queryParameter("\$filter"), body)
         } catch (e: NoSuchElementException) {
             error(404, "ErrorItemNotFound")
         }
+        return if (loseReplyTo(request.method!!, decoded)) MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST) else answer
     }
 
     private fun route(method: String, path: List<String>, deltaToken: String?, skipToken: String?, filter: String?, body: JsonObject?): MockResponse {
@@ -109,7 +127,7 @@ internal class FakeTodoServer : Dispatcher() {
         val taskId = path.getOrNull(5)
         when {
             taskId == null && method == "GET" -> {
-                var all = tasks.getValue(listId).values.map { withSteps(it) }
+                var all = tasks.getValue(listId).values.filter { it.str("id") !in hiddenFromSearch }.map { withSteps(it) }
                 filter?.let { f -> val title = f.substringAfter("'").substringBeforeLast("'").replace("''", "'"); all = all.filter { it.str("title") == title } }
                 return ok(page(all))
             }
@@ -155,7 +173,7 @@ internal class FakeTodoServer : Dispatcher() {
         val from = skip?.substringBefore('_')?.toInt() ?: token?.toInt() ?: 0
         val offset = skip?.substringAfter('_')?.toInt() ?: 0
         // Each changed task once, as it is now (or removed)
-        val changed = changes[listId].orEmpty().filter { it.first > from }.map { it.second }.distinct()
+        val changed = changes[listId].orEmpty().filter { it.first > from }.map { it.second }.distinct().filter { it !in hiddenFromDelta }
         val items = changed.map { id ->
             tasks.getValue(listId)[id]?.let(::withSteps)
                 ?: buildJsonObject { put("id", id); put("@removed", buildJsonObject { put("reason", "deleted") }) }
@@ -222,6 +240,8 @@ internal class FakeTodoServer : Dispatcher() {
             steps[doneId] = LinkedHashMap(stepsBefore)
             steps[taskId] = LinkedHashMap(stepsBefore.mapValues { (_, step) -> JsonObject(step + ("isChecked" to JsonPrimitive(false))) })
             tasks.getValue(listId)[doneId] = done
+            if (hideDoneCopiesFromSearch) hiddenFromSearch += doneId
+            if (hideDoneCopiesFromDelta) hiddenFromDelta += doneId
             log(listId, doneId)
             val next = JsonObject(before + ("dueDateTime" to dayLater(due)) + ("reminderDateTime" to dayLater(before["reminderDateTime"])))
             tasks.getValue(listId)[taskId] = stamped(next)
