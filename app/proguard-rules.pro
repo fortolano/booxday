@@ -146,15 +146,7 @@
 -keep class com.boox.day.sync.BackupSchema$* { *; }
 -keep class com.boox.day.sync.FullDatabaseBackupMetadata { *; }
 
-# Keep serializer companions
--keepclassmembers class * {
-    *** Companion;
-}
--keepclasseswithmembers class * {
-    kotlinx.serialization.KSerializer serializer(...);
-}
-
-# Keep generated serializers
+# Keep generated serializers for BooxDay classes (kotlinx-serialization consumer rules handle library types)
 -keep,includedescriptorclasses class com.boox.day.**$$serializer { *; }
 -keepclassmembers class com.boox.day.** {
     *** Companion;
@@ -223,14 +215,12 @@
 #==============================================================================
 # JETPACK COMPOSE
 #==============================================================================
-# Compose compiler generates code that R8 needs to see
--keep class androidx.compose.** { *; }
+# Compose AARs ship their own consumer ProGuard rules (no blanket keep; lets R8 shake unused icons/widgets)
 -dontwarn androidx.compose.**
 
 #==============================================================================
 # GENERAL KOTLIN
 #==============================================================================
--keep class kotlin.** { *; }
 -keep class kotlin.Metadata { *; }
 -dontwarn kotlin.**
 -keepclassmembers class **$WhenMappings {
