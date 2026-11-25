@@ -335,16 +335,15 @@ class MicrosoftTodoProviderTest {
         assertEquals("the fourth Thursday of November", "2027-11-25",
             next(pattern("relativeYearly") { put("month", 11); put("daysOfWeek", days("thursday")); put("index", "fourth") }, "2026-11-26"))
 
-        // Several days: each day's own one ("the second Monday or Wednesday": both seconds), the earliest after
+        // Several days: one date a month, the first that fits (each day's own one, the earliest of them)
         val secondMonWed = pattern("relativeMonthly") { put("daysOfWeek", days("monday", "wednesday")); put("index", "second") }
-        assertEquals("the second Wednesday, after the second Monday", "2026-11-11", next(secondMonWed, "2026-11-09"))
-        assertEquals("next month's second Wednesday comes before its second Monday", "2026-12-09", next(secondMonWed, "2026-11-11"))
-        assertEquals("the last Friday", "2026-11-27", next(pattern("relativeMonthly") { put("daysOfWeek", days("friday")); put("index", "last") }, "2026-11-20"))
+        assertEquals("November's is the 9th (second Monday), never the 11th as well: December's, its second Wednesday",
+            "2026-12-09", next(secondMonWed, "2026-11-09"))
+        assertEquals("January's: its second Monday", "2027-01-11", next(secondMonWed, "2026-12-09"))
         val lastMonFri = pattern("relativeMonthly") { put("daysOfWeek", days("monday", "friday")); put("index", "last") }
-        assertEquals("2026-11-30", next(lastMonFri, "2026-11-27"))
-        assertEquals("next month's last Friday comes before its last Monday", "2026-12-25", next(lastMonFri, "2026-11-30"))
+        assertEquals("November's is the 27th (last Friday), never the 30th as well", "2026-12-25", next(lastMonFri, "2026-11-27"))
         assertEquals("yearly the same way", "2027-11-08",
-            next(pattern("relativeYearly") { put("month", 11); put("daysOfWeek", days("monday", "wednesday")); put("index", "second") }, "2026-11-11"))
+            next(pattern("relativeYearly") { put("month", 11); put("daysOfWeek", days("monday", "wednesday")); put("index", "second") }, "2026-11-09"))
 
         assertNull("a pattern To Do doesn't have", next(pattern("hourly"), "2026-11-25"))
         assertNull("weekly without its days", next(pattern("weekly"), "2026-11-25"))

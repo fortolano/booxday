@@ -1006,8 +1006,8 @@ internal object TodoFields {
                 val days = daysOf(pattern) ?: return null
                 val index = pattern.str("index") ?: "first"
                 val month = YearMonth.from(after)
-                val here = relativeDaysIn(month, days, index) ?: return null
-                here.firstOrNull { it > after } ?: relativeDaysIn(month.plusMonths(interval), days, index)?.firstOrNull()
+                val here = relativeDayIn(month, days, index) ?: return null
+                if (here > after) here else relativeDayIn(month.plusMonths(interval), days, index)
             }
             "absoluteYearly" -> {
                 val month = pattern.int("month")?.takeIf { it in 1..12 } ?: return null
@@ -1018,8 +1018,8 @@ internal object TodoFields {
                 val month = pattern.int("month")?.takeIf { it in 1..12 } ?: return null
                 val days = daysOf(pattern) ?: return null
                 val index = pattern.str("index") ?: "first"
-                val here = relativeDaysIn(YearMonth.of(after.year, month), days, index) ?: return null
-                here.firstOrNull { it > after } ?: relativeDaysIn(YearMonth.of(after.year + interval.toInt(), month), days, index)?.firstOrNull()
+                val here = relativeDayIn(YearMonth.of(after.year, month), days, index) ?: return null
+                if (here > after) here else relativeDayIn(YearMonth.of(after.year + interval.toInt(), month), days, index)
             }
             else -> null
         }
@@ -1029,11 +1029,12 @@ internal object TodoFields {
     private fun dayIn(month: YearMonth, day: Int): LocalDate = month.atDay(minOf(day, month.lengthOfMonth()))
 
     /**
-     * Graph's relative pattern in [month]: for each of [days] on its own, its [index] ("first" to
-     * "fourth", "last") one in the month ("the second Monday or Wednesday" is the second Monday and
-     * the second Wednesday), earliest first. Null for an index Graph doesn't have.
+     * Graph's relative pattern's one date in [month]: with several [days], "the first day that
+     * satisfies the pattern" (Graph's patternedRecurrence), so each day's own [index] ("first" to
+     * "fourth", "last") one, and the earliest of those ("the second Monday or Wednesday" in Nov 2026
+     * is the 9th, the second Monday; never the 11th as well). Null for an index Graph doesn't have.
      */
-    private fun relativeDaysIn(month: YearMonth, days: Set<DayOfWeek>, index: String): List<LocalDate>? {
+    private fun relativeDayIn(month: YearMonth, days: Set<DayOfWeek>, index: String): LocalDate? {
         val nth = when (index) {
             "first" -> 0
             "second" -> 1
@@ -1045,7 +1046,7 @@ internal object TodoFields {
         return days.mapNotNull { day ->
             val all = (1..month.lengthOfMonth()).map(month::atDay).filter { it.dayOfWeek == day }
             if (nth < 0) all.lastOrNull() else all.getOrNull(nth)
-        }.sorted()
+        }.minOrNull()
     }
 
     private fun daysOf(pattern: JsonObject): Set<DayOfWeek>? =
