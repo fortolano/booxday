@@ -51,8 +51,8 @@ internal class TaskSyncMerger(
     private val extras: Boolean = service?.carriesExtras == true,
     /** The part of a priority the service keeps ([TaskSyncService.keptPriority]: To Do only A). */
     private val keptPriority: (String) -> String = { priority -> service?.keptPriority(priority) ?: priority },
-    /** A create of the task was sent and its answer never recorded (TaskSyncSender's H15 marker). */
-    private val createTried: (taskId: String) -> Boolean = { false }
+    /** The H15 marks of creates sent and never recorded (TaskSyncSender); null: none taken as proof. */
+    private val createMarks: CreateMarks? = null
 ) {
     enum class Result { APPLIED, UNCHANGED, WAITS }
 
@@ -349,6 +349,7 @@ internal class TaskSyncMerger(
                 sync.insertLink(linkFor(match, remote))
                 sendBackWhatDiffers(match, remote)
             }
+            createMarks?.clear(match.id)  // linked: a create of it, if one went, is done with
             return Result.APPLIED
         }
         // Unticked ones only (owner decision 27): also keeps old finished tasks, left in the service
@@ -375,14 +376,16 @@ internal class TaskSyncMerger(
 
     /**
      * A To Do step is the tablet's own only with proof: an unlinked subtask of the task linked to the
-     * step's parent, with the same words, whose create was sent and its answer never recorded (lost
-     * on the way). Never one not sent yet, nor a task that merely has the same words on that day:
-     * those are the user's own.
+     * step's parent, with the same words, whose create was sent under that parent with those words
+     * and its answer never recorded (lost on the way). Never one not sent yet, one sent elsewhere or
+     * with other words, nor a task that merely has the same words on that day: those are the user's own.
      */
     private fun pendingSubtask(remote: RemoteTaskState, title: String): Task? {
-        val parentLink = remote.parentRemoteId?.let { sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, it) } ?: return null
+        val parentRemoteId = remote.parentRemoteId ?: return null
+        val parentLink = sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, parentRemoteId) ?: return null
         return tasks.getChildTasks(parentLink.taskId).firstOrNull { child ->
-            sync.getLink(child.id) == null && TaskSyncRules.textToSend(child) == title && createTried(child.id)
+            sync.getLink(child.id) == null && TaskSyncRules.textToSend(child) == title &&
+                createMarks?.sent(child.id, parentRemoteId, title) == true
         }
     }
 

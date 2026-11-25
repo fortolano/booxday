@@ -16,6 +16,7 @@ import com.boox.day.data.db.TaskSyncList
 import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.data.getDbDir
 import com.boox.day.sync.microsoft.MicrosoftGraph
+import com.boox.day.tasksync.CreateMarks
 import com.boox.day.tasksync.RepositoryTabletTasks
 import com.boox.day.tasksync.TaskSync
 import com.boox.day.tasksync.TaskSyncListMover
@@ -115,8 +116,10 @@ class MicrosoftTodoSyncTest {
     private fun merger() = TaskSyncMerger(
         db, RepositoryTabletTasks(context, repo, canvasHeight = { CANVAS_HEIGHT }, penOn = { false }),
         TaskSyncProvider.MICROSOFT_TODO, EMAIL, clock = { now }, today = { DAY }, service = provider,
-        createTried = TaskSyncSender.createTried(TaskSync.prefs(context), TaskSyncProvider.MICROSOFT_TODO, EMAIL)
+        createMarks = marks()
     )
+
+    private fun marks() = CreateMarks(TaskSync.prefs(context), TaskSyncProvider.MICROSOFT_TODO, EMAIL)
 
     // ── Priority (owner decision 80) ──
 
@@ -711,12 +714,34 @@ class MicrosoftTodoSyncTest {
         val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
         run()  // the step is made, its answer lost
         todo.loseReplyTo = { _, _ -> false }
+        assertTrue("its create is marked", marks().opIdOf(hotel) != null)
 
-        run()
+        TaskSyncPuller(db, provider, merger(), EMAIL, clock = { now }).pull()  // the pull links it first
         val parent = todo.tasksIn(TASKS).single().text("id")
         val step = todo.stepsOf(parent).single()
         assertEquals("its own send's step, waiting for its answer", TodoFields.stepRemoteId(parent, step.text("id")), sync.getLink(hotel)?.remoteId)
+        assertNull("linked by the pull: the mark is cleared", marks().opIdOf(hotel))
+        run()
+        assertEquals(1, todo.stepsOf(parent).size)
         assertEquals(1, tasks.getTasksForDay(DAY).count { it.typedText == "Book hotel" })
+    }
+
+    @Test
+    fun aCreateSentUnderAnotherParentOrWithOtherWordsIsNoProof() = runBlocking {
+        val trip = row(0, "Plan trip")
+        run()
+        val parent = todo.tasksIn(TASKS).single().text("id")
+        val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
+        val bags = row(2, "Pack bags") { repo.setParentTask(it, trip) }
+        marks().mark(hotel, "AAMk-another=", "Book hotel")  // its create went under another parent
+        marks().mark(bags, parent, "Pack the bags")  // and this one's with other words
+        val steps = listOf("Book hotel", "Pack bags").map { TodoFields.stepRemoteId(parent, todo.addStep(TASKS, parent, it)) }
+
+        TaskSyncPuller(db, provider, merger(), EMAIL, clock = { now }).pull()
+
+        assertNull("not taken by a step it wasn't sent as", sync.getLink(hotel))
+        assertNull(sync.getLink(bags))
+        for (step in steps) assertTrue("the phone's step is its own row", linkedTo(step)!!.taskId !in listOf(hotel, bags))
     }
 
     // ── Helpers ──

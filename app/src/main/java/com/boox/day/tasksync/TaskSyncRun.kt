@@ -73,7 +73,7 @@ internal object TaskSyncRun {
             if (db.taskSyncDao().getLink(taskId) == null) {
                 val merger = TaskSyncMerger(
                     db, RepositoryTabletTasks(app), provider, email, server, service = service,
-                    createTried = TaskSyncSender.createTried(TaskSync.prefs(app), provider, email, server)
+                    createMarks = CreateMarks(TaskSync.prefs(app), provider, email, server)
                 )
                 val sent = TaskSyncSender(db, service, merger, email, server, prefs = TaskSync.prefs(app)).sendNewTo(taskId, listId)
                 if (sent) "Moved to $name." else "The words of this task aren't read yet. Try again in a moment."
@@ -138,7 +138,7 @@ internal object TaskSyncRun {
             val service = target.service(app)
             val merger = TaskSyncMerger(
                 db, RepositoryTabletTasks(app), provider, email, server, service = service,
-                createTried = TaskSyncSender.createTried(TaskSync.prefs(app), provider, email, server)
+                createMarks = CreateMarks(TaskSync.prefs(app), provider, email, server)
             )
             val pulled = TaskSyncPuller(db, service, merger, email, server).pull()
             val sent = TaskSyncSender(db, service, merger, email, server, prefs = TaskSync.prefs(app)).sendDue()
