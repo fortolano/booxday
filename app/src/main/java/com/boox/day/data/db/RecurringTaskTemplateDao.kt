@@ -28,7 +28,7 @@ interface RecurringTaskTemplateDao {
     )
     fun getActiveTemplatesForDate(date: String): List<RecurringTaskTemplate>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     fun insert(template: RecurringTaskTemplate)
 
     /**
@@ -38,7 +38,7 @@ interface RecurringTaskTemplateDao {
     @Upsert
     fun upsert(template: RecurringTaskTemplate)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     fun insertAll(templates: List<RecurringTaskTemplate>)
 
     @Delete

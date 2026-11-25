@@ -28,9 +28,9 @@ internal class BooxNoteCreationTimes(
 
     fun loadNotes(): Map<String, BooxTreeNote> {
         val source = findNoteTreeDatabase() ?: return emptyMap()
-        val copyDir = File(workDir, COPY_DIR)
+        // Private per-invocation staging dir so concurrent callers never delete each other's WAL/DB copy (M5(8))
+        val copyDir = File(workDir, "$COPY_DIR-${java.util.UUID.randomUUID()}")
         return try {
-            copyDir.deleteRecursively()
             copyDir.mkdirs()
             val copy = File(copyDir, source.name)
             // WAL first: if Boox checkpoints in between, the database copy already holds those pages
@@ -38,7 +38,7 @@ internal class BooxNoteCreationTimes(
             source.copyTo(copy)
             readNotes(copy)
         } catch (e: Exception) {
-            Log.w(TAG, "Could not read Boox note creation dates: ${e.message}")
+            Log.w(TAG, "Could not read Boox note creation dates: ${e.javaClass.simpleName}")
             emptyMap()
         } finally {
             copyDir.deleteRecursively()

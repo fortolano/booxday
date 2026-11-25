@@ -54,6 +54,18 @@ class BooxDayApp : Application() {
         com.boox.day.diagnostics.StartReport.begin(this)
         com.boox.day.share.TasksFeedNotifier.start(this, applicationScope)
         PerfProbe.install(this)  // TEMPORARY: MainScreen JIT measurement
+        initializeApplication()
+    }
+
+    /**
+     * Runs (or retries after [com.boox.day.ui.views.StartupFailureScreen] Retry) the application-level
+     * startup stages. Safe to invoke again when a fatal stage failed before completing.
+     */
+    internal fun retryStartupInitialization() {
+        initializeApplication()
+    }
+
+    private fun initializeApplication() {
         if (!runFatalStartupStep(
                 stage = StartupStage.HIDDEN_API,
                 summary = "Failed to enable Onyx hidden API access."
@@ -85,8 +97,11 @@ class BooxDayApp : Application() {
         runSafeStartupStep("Digital Ink startup") { initDigitalInk() }
         runSafeStartupStep("Semantic indexing startup") { initSemanticIndexing() }
         runSafeStartupStep("Pending calendar push") { requestPendingCalendarPush() }
-        // Automatic Drive backup check (does nothing unless Drive backup is on and due)
-        runSafeStartupStep("Drive auto-backup schedule") { com.boox.day.sync.DriveAutoBackupWorker.schedule(this) }
+        // Automatic Drive backup check — only scheduled when Drive backup is enabled
+        runSafeStartupStep("Drive auto-backup schedule") {
+            val enabled = com.boox.day.sync.GoogleAuthManager(this).isDriveBackupEnabled()
+            com.boox.day.sync.DriveAutoBackupWorker.syncSchedule(this, enabled)
+        }
         // Calendars in the background on "Sync frequency" while an account is connected (Oct 2026)
         runSafeStartupStep("Background sync schedule") { scheduleBackgroundSync() }
         // Task sync's change watcher, only when the user turned task sync on (tasksync/TaskSync)

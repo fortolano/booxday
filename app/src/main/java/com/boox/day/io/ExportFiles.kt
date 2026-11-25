@@ -102,10 +102,29 @@ internal object ExportFiles {
         folder.mkdirs()
         val name = if (overwrite) displayName else uniqueName(displayName) { File(folder, it).exists() }
         val target = File(folder, name)
+        // Stage in the same folder before replacing so a failed write never corrupts an existing export (M5(8))
+        val staged = File(folder, ".${name}.${java.util.UUID.randomUUID()}.part")
         try {
-            temp.inputStream().use { input -> target.outputStream().use { input.copyTo(it) } }
+            temp.inputStream().use { input -> staged.outputStream().use { input.copyTo(it) } }
+            if (!staged.renameTo(target)) {
+                if (overwrite && target.isFile) {
+                    val backup = File(folder, ".${name}.${java.util.UUID.randomUUID()}.bak")
+                    if (target.renameTo(backup)) {
+                        if (staged.renameTo(target)) {
+                            backup.delete()
+                        } else {
+                            backup.renameTo(target)
+                            throw IOException("Could not replace existing export $name")
+                        }
+                    } else {
+                        throw IOException("Could not move existing export $name aside")
+                    }
+                } else {
+                    throw IOException("Could not finalize export $name")
+                }
+            }
         } catch (e: Exception) {
-            if (!overwrite && target.isFile) target.delete()
+            if (staged.exists()) staged.delete()
             throw e
         }
         return Saved(target.toUri(), name, folderUri)
@@ -114,6 +133,7 @@ internal object ExportFiles {
     private fun copyToPickedFolder(
         context: Context, temp: File, folderUri: Uri, displayName: String, mimeType: String, overwrite: Boolean
     ): Saved {
+        if (!temp.isFile || !temp.canRead()) throw IOException("Staged export file is unreadable")
         val resolver = context.contentResolver
         val isTree = DocumentsContract.isTreeUri(folderUri)
         val parentId = documentId(context, folderUri)
@@ -130,16 +150,18 @@ internal object ExportFiles {
         }
 
         val name = if (overwrite) displayName else uniqueName(displayName) { it in existing }
-        val document = (if (overwrite) existing[name] else null)?.let { DocumentsContract.buildDocumentUriUsingTree(folderUri, it) }
+        val existingDocId = if (overwrite) existing[name] else null
+        val document = existingDocId?.let { DocumentsContract.buildDocumentUriUsingTree(folderUri, it) }
             ?: DocumentsContract.createDocument(resolver, parent, mimeType, name)
             ?: throw IOException("Could not create the file in the folder")
+        val createdFresh = existingDocId == null
         try {
             temp.inputStream().use { input ->
                 (resolver.openOutputStream(document, "wt") ?: throw IOException("Could not open the file"))
                     .use { input.copyTo(it) }
             }
         } catch (e: Exception) {
-            if (!overwrite) runCatching { DocumentsContract.deleteDocument(resolver, document) }
+            if (createdFresh) runCatching { DocumentsContract.deleteDocument(resolver, document) }
             throw e
         }
         return Saved(document, name, folderUri)

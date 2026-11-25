@@ -138,16 +138,16 @@ class SnackState {
         }
     }
 
-    fun registerGlobalSnackObserver() {
-        CoroutineScope(Dispatchers.Main).launch {
+    fun registerGlobalSnackObserver(scope: CoroutineScope = CoroutineScope(Dispatchers.Main)) {
+        scope.launch(Dispatchers.Main) {
             globalSnackFlow.collect {
                 displaySnack(it)
             }
         }
     }
 
-    fun registerCancelGlobalSnackObserver() {
-        CoroutineScope(Dispatchers.Main).launch {
+    fun registerCancelGlobalSnackObserver(scope: CoroutineScope = CoroutineScope(Dispatchers.Main)) {
+        scope.launch(Dispatchers.Main) {
             cancelGlobalSnack.collect {
                 removeSnack(it)
             }

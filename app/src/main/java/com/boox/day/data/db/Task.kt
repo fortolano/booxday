@@ -12,6 +12,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import com.aventrix.jnanoid.jnanoid.NanoIdUtils
 import android.util.Log
 import com.boox.day.data.PageDataManager
@@ -483,16 +484,22 @@ interface TaskDao {
     fun getMaxRowIndex(date: String): Int?
 
     /**
-     * Insert a single task.
+     * Insert a single new task (ABORT on conflict: never REPLACE on the triggered task table, M5(7)).
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     fun insert(task: Task)
 
     /**
-     * Insert multiple tasks.
+     * Insert multiple new tasks (ABORT on conflict).
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     fun insertAll(tasks: List<Task>)
+
+    /**
+     * Update an existing task row in place without firing delete triggers.
+     */
+    @Update
+    fun update(task: Task)
 
     /**
      * Delete a task.

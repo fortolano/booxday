@@ -66,28 +66,24 @@ class DayDigestLoader(context: Context) {
     }
 
     private fun tasks(date: LocalDate, withFullText: Boolean): List<DigestTask> {
-        return try {
-            // Query Room directly through the shared TasksFeedQuery helper: bypasses the external
-            // opt-in ContentProvider gate (Decision D1) and removes the external 200-task cap.
-            TasksFeedQuery.query(
-                context = app,
-                mode = TasksFeedQuery.Mode.TODAY,
-                day = date.toString(),
-                today = date.toString(),
-                limit = null,
-            ).map { row ->
-                DigestTask(
-                    id = row.taskId,
-                    title = if (row.handwrittenOnly) null else row.title,
-                    completed = row.completed,
-                    priority = row.priority,
-                    isSubtask = row.parentTaskId != null,
-                    fullText = if (withFullText) row.fullText else null,
-                )
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Tasks for $date not read: ${e.message}")
-            emptyList()
+        // Query Room directly through the shared TasksFeedQuery helper: bypasses the external
+        // opt-in ContentProvider gate (Decision D1), has no external 200-task cap, and propagates
+        // DB read errors instead of silently exporting/rendering an empty task list (M5(4)).
+        return TasksFeedQuery.query(
+            context = app,
+            mode = TasksFeedQuery.Mode.TODAY,
+            day = date.toString(),
+            today = date.toString(),
+            limit = null,
+        ).map { row ->
+            DigestTask(
+                id = row.taskId,
+                title = if (row.handwrittenOnly) null else row.title,
+                completed = row.completed,
+                priority = row.priority,
+                isSubtask = row.parentTaskId != null,
+                fullText = if (withFullText) row.fullText else null,
+            )
         }
     }
 

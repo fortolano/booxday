@@ -118,7 +118,7 @@ class RecurringTaskMaterializer(
                     templateId = template.id,
                     updatedAt = Date()
                 )
-                taskDao.insert(taskToWrite)
+                taskDao.update(taskToWrite)
 
                 existingTemplateIds.add(template.id)
                 createdCount++

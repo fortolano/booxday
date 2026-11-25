@@ -373,6 +373,7 @@ class GoogleAuthManager(private val context: Context) {
      */
     fun setDriveBackupEnabled(enabled: Boolean) {
         editPrefs { putBoolean("drive_backup_enabled", enabled) }
+        runCatching { DriveAutoBackupWorker.syncSchedule(context, enabled) }
         Log.d(TAG, "Drive backup enabled: $enabled")
     }
 

@@ -81,16 +81,26 @@ object SleepAgenda {
         if (isSupported && GlobalAppSettings.current.sleepScreenAgendaEnabled) requestRefresh(context, delaySeconds = 0)
     }
 
+    private val toggleGeneration = java.util.concurrent.atomic.AtomicLong(0L)
+
+    internal fun currentGeneration(): Long = toggleGeneration.get()
+
     /** Preferences switch. On: draw now and keep it current. Off: stop, and take the image away. */
     fun setEnabled(context: Context, enabled: Boolean) {
         val app = context.applicationContext
+        val gen = toggleGeneration.incrementAndGet()
         if (enabled) {
             startFollowing(app)
-            requestRefresh(app, delaySeconds = 0, force = true)
+            requestRefresh(app, delaySeconds = 0, force = true, generation = gen)
         } else {
             stopFollowing(app)
             WorkManager.getInstance(app).cancelUniqueWork(WORK_REFRESH)
-            SleepScreenPublisher.withdraw(app)
+            val appScope = scope
+            if (appScope != null) {
+                appScope.launch(Dispatchers.IO) { SleepScreenPublisher.withdraw(app, gen) }
+            } else {
+                SleepScreenPublisher.withdrawBlocking(app)
+            }
         }
     }
 
@@ -100,22 +110,31 @@ object SleepAgenda {
      */
     fun turnOff(context: Context, done: (Boolean?) -> Unit) {
         val app = context.applicationContext
-        setEnabled(app, false)
+        val gen = toggleGeneration.incrementAndGet()
+        stopFollowing(app)
+        WorkManager.getInstance(app).cancelUniqueWork(WORK_REFRESH)
         val appScope = scope
-        if (!SleepBackImage.exists(app) || appScope == null) {
+        if (appScope == null) {
+            SleepScreenPublisher.withdrawBlocking(app)
             done(null)
             return
         }
         appScope.launch(Dispatchers.IO) {
-            val handed = SleepScreenPublisher.handBack(app)
+            SleepScreenPublisher.withdraw(app, gen)
+            val handed = if (SleepBackImage.exists(app)) SleepScreenPublisher.handBack(app, gen) else null
             withContext(Dispatchers.Main) { done(handed) }
         }
     }
 
-    fun requestRefresh(context: Context, delaySeconds: Long = 0, force: Boolean = false) {
+    fun requestRefresh(context: Context, delaySeconds: Long = 0, force: Boolean = false, generation: Long = currentGeneration()) {
         val request = OneTimeWorkRequestBuilder<SleepAgendaWorker>()
             .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
-            .setInputData(androidx.work.workDataOf(SleepAgendaWorker.KEY_FORCE to force))
+            .setInputData(
+                androidx.work.workDataOf(
+                    SleepAgendaWorker.KEY_FORCE to force,
+                    SleepAgendaWorker.KEY_GENERATION to generation
+                )
+            )
             .build()
         WorkManager.getInstance(context.applicationContext)
             .enqueueUniqueWork(WORK_REFRESH, ExistingWorkPolicy.REPLACE, request)
@@ -164,14 +183,16 @@ object SleepAgenda {
 /** Draws and hands over the sleep-screen agenda, when the setting is on. */
 class SleepAgendaWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        // Forced = just turned on (the saved settings may not say so yet); turning off cancels this work
         val force = inputData.getBoolean(KEY_FORCE, false)
-        if (!SleepAgenda.isSupported || !force && !SleepAgenda.isEnabled(applicationContext)) return Result.success()
-        SleepScreenPublisher.publish(applicationContext, force = force)
-        return Result.success()
+        val generation = inputData.getLong(KEY_GENERATION, -1L).takeIf { it >= 0L }
+        if (!SleepAgenda.isSupported || !SleepAgenda.isEnabled(applicationContext)) return Result.success()
+        if (generation != null && generation != SleepAgenda.currentGeneration()) return Result.success()
+        val ok = SleepScreenPublisher.publish(applicationContext, force = force, expectedGeneration = generation)
+        return if (ok || runAttemptCount >= 3) Result.success() else Result.retry()
     }
 
     companion object {
         const val KEY_FORCE = "force"
+        const val KEY_GENERATION = "generation"
     }
 }

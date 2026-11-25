@@ -151,36 +151,31 @@ class DayPageRepository(context: Context) {
             return cachedPageId
         }
 
-        val existing = dayPageDao.getByDate(date)
-        if (existing != null && existing.pageIds.isNotEmpty()) {
-            // Return the open page, or the first page if none is set
-            val pageId = existing.openPageId ?: existing.pageIds.first()
-            // Cache the result
-            pageIdCache[date] = pageId
-            Log.i(LOCAL_TAG, "PERF: getOrCreatePageForDate CACHE MISS (loaded) for $date (${System.currentTimeMillis() - start}ms)")
-            return pageId
+        val pageId = db.runInTransaction<String> {
+            val existing = dayPageDao.getByDate(date)
+            if (existing != null && existing.pageIds.isNotEmpty()) {
+                return@runInTransaction existing.openPageId ?: existing.pageIds.first()
+            }
+            val newPage = Page(
+                id = UUID.randomUUID().toString(),
+                background = "blank",
+                backgroundType = "native"
+            )
+            pageDao.create(newPage)
+            dayPageDao.insert(
+                DayPage(
+                    date = date,
+                    pageIds = listOf(newPage.id),
+                    openPageId = newPage.id
+                )
+            )
+            newPage.id
         }
 
-        // Create new page for this date
-        val newPage = Page(
-            id = UUID.randomUUID().toString(),
-            background = "blank",
-            backgroundType = "native"
-        )
-        pageDao.create(newPage)
-
-        // Create or update DayPage with this page
-        val dayPage = DayPage(
-            date = date,
-            pageIds = listOf(newPage.id),
-            openPageId = newPage.id
-        )
-        dayPageDao.insert(dayPage)
-
-        // Cache the new page ID
-        pageIdCache[date] = newPage.id
-        Log.i(LOCAL_TAG, "PERF: getOrCreatePageForDate CACHE MISS (created) for $date (${System.currentTimeMillis() - start}ms)")
-        return newPage.id
+        // Publish cache only after transaction commit
+        pageIdCache[date] = pageId
+        Log.i(LOCAL_TAG, "PERF: getOrCreatePageForDate CACHE MISS for $date (${System.currentTimeMillis() - start}ms)")
+        return pageId
     }
 
     /**
@@ -226,22 +221,26 @@ class DayPageRepository(context: Context) {
      * @throws IllegalStateException if date doesn't exist in database
      */
     fun createNewPageForDate(date: String): String {
-        val dayPage = dayPageDao.getByDate(date)
-            ?: throw IllegalStateException("Cannot add page to non-existent date: $date")
+        val (newPageId, totalPages) = db.runInTransaction<Pair<String, Int>> {
+            val dayPage = dayPageDao.getByDate(date)
+                ?: throw IllegalStateException("Cannot add page to non-existent date: $date")
 
-        val newPage = Page(
-            id = UUID.randomUUID().toString(),
-            background = "blank",
-            backgroundType = "native"
-        )
-        pageDao.create(newPage)
+            val newPage = Page(
+                id = UUID.randomUUID().toString(),
+                background = "blank",
+                backgroundType = "native"
+            )
+            pageDao.create(newPage)
 
-        val updatedPageIds = dayPage.pageIds + newPage.id
-        dayPageDao.setPageIds(date, updatedPageIds)
-        setOpenPageId(date, newPage.id)  // Use repository method to update BOTH DB and cache
+            val updatedPageIds = dayPage.pageIds + newPage.id
+            dayPageDao.setPageIds(date, updatedPageIds)
+            dayPageDao.setOpenPageId(date, newPage.id)
+            newPage.id to updatedPageIds.size
+        }
 
-        Log.i(TAG, "DayPageRepository: Created new page ${newPage.id} for date $date (now ${updatedPageIds.size} pages)")
-        return newPage.id
+        pageIdCache[date] = newPageId
+        Log.i(TAG, "DayPageRepository: Created new page $newPageId for date $date (now $totalPages pages)")
+        return newPageId
     }
 
     /**
@@ -287,40 +286,41 @@ class DayPageRepository(context: Context) {
      * Returns the page ID to navigate to after deletion, or null if no pages left.
      */
     fun removePage(date: String, pageId: String): String? {
-        val dayPage = dayPageDao.getByDate(date) ?: return null
-
-        val currentIndex = dayPage.pageIds.indexOf(pageId)
-        if (currentIndex < 0) return null
-
         return PagePersistenceGate.withDelete(pageId) {
-            // Delete strokes, images, and text annotations for this page
-            strokeDao.deleteAllForPage(pageId)
-            imageDao.deleteAllForPage(pageId)
-            textAnnotationDao.deleteAllForPage(pageId)
+            val newOpenPageId = db.runInTransaction<String?> {
+                val dayPage = dayPageDao.getByDate(date) ?: return@runInTransaction null
+                val currentIndex = dayPage.pageIds.indexOf(pageId)
+                if (currentIndex < 0) return@runInTransaction null
 
-            // Delete the page entity
-            pageDao.delete(pageId)
+                // Delete strokes, images, and text annotations for this page
+                strokeDao.deleteAllForPage(pageId)
+                imageDao.deleteAllForPage(pageId)
+                textAnnotationDao.deleteAllForPage(pageId)
 
-            // Remove from pageIds list
-            val updatedPageIds = dayPage.pageIds.filterNot { it == pageId }
+                // Delete the page entity
+                pageDao.delete(pageId)
 
-            if (updatedPageIds.isEmpty()) {
-                // No pages left - delete the DayPage entirely
-                dayPageDao.delete(date)
+                // Remove from pageIds list
+                val updatedPageIds = dayPage.pageIds.filterNot { it == pageId }
+                if (updatedPageIds.isEmpty()) {
+                    dayPageDao.delete(date)
+                    return@runInTransaction null
+                }
+
+                val nextOpen = if (currentIndex > 0) updatedPageIds[currentIndex - 1] else updatedPageIds.first()
+                dayPageDao.setPageIds(date, updatedPageIds)
+                dayPageDao.setOpenPageId(date, nextOpen)
+                nextOpen
+            }
+
+            // Update cache strictly after transaction commit (including clearing when last page was removed)
+            if (newOpenPageId == null) {
+                pageIdCache.remove(date)
                 Log.i(TAG, "DayPageRepository: Removed last page $pageId from date $date, deleted DayPage")
-                return@withDelete null
+            } else {
+                pageIdCache[date] = newOpenPageId
+                Log.i(TAG, "DayPageRepository: Removed page $pageId from date $date, open=$newOpenPageId")
             }
-
-            // Determine new open page
-            val newOpenPageId = when {
-                currentIndex > 0 -> updatedPageIds[currentIndex - 1]  // Go to previous
-                else -> updatedPageIds.first()  // Go to first
-            }
-
-            dayPageDao.setPageIds(date, updatedPageIds)
-            setOpenPageId(date, newOpenPageId)  // Use repository method to update BOTH DB and cache
-
-            Log.i(TAG, "DayPageRepository: Removed page $pageId from date $date, now ${updatedPageIds.size} pages")
             newOpenPageId
         }
     }
@@ -417,15 +417,27 @@ class DayPageRepository(context: Context) {
     }
 
     fun delete(date: String) {
-        // Delete all pages for this date first
-        val dayPage = dayPageDao.getByDate(date)
-        dayPage?.pageIds?.forEach { pageId ->
-            strokeDao.deleteAllForPage(pageId)
-            imageDao.deleteAllForPage(pageId)
-            textAnnotationDao.deleteAllForPage(pageId)
-            pageDao.delete(pageId)
+        val pageIds = dayPageDao.getByDate(date)?.pageIds.orEmpty()
+        fun deleteAllLocked(index: Int) {
+            if (index >= pageIds.size) {
+                db.runInTransaction {
+                    val freshIds = dayPageDao.getByDate(date)?.pageIds.orEmpty()
+                    freshIds.forEach { pageId ->
+                        strokeDao.deleteAllForPage(pageId)
+                        imageDao.deleteAllForPage(pageId)
+                        textAnnotationDao.deleteAllForPage(pageId)
+                        pageDao.delete(pageId)
+                    }
+                    dayPageDao.delete(date)
+                }
+                return
+            }
+            PagePersistenceGate.withDelete(pageIds[index]) {
+                deleteAllLocked(index + 1)
+            }
         }
-        dayPageDao.delete(date)
+        deleteAllLocked(0)
+        pageIdCache.remove(date)
     }
 
     /**

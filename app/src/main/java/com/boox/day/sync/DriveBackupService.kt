@@ -85,7 +85,7 @@ class DriveBackupService(private val context: Context) {
      */
     sealed class UploadResult {
         data class Success(val fileId: String, val fileName: String) : UploadResult()
-        data class Error(val message: String) : UploadResult()
+        data class Error(val message: String, val retryable: Boolean = true) : UploadResult()
     }
 
     /**
@@ -98,7 +98,7 @@ class DriveBackupService(private val context: Context) {
         try {
             val drive = getDriveService()
             if (drive == null) {
-                return@withContext UploadResult.Error("Not signed in to Google")
+                return@withContext UploadResult.Error("Not signed in to Google", retryable = false)
             }
 
             // Found or made here (Oct 2026): only some setup steps in the backup dialog made the
@@ -131,9 +131,16 @@ class DriveBackupService(private val context: Context) {
             } else {
                 UploadResult.Error("Upload returned no file ID")
             }
+        } catch (e: com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException) {
+            Log.e(TAG, "Upload requires re-auth: ${e.javaClass.simpleName}")
+            UploadResult.Error("Google Drive permission needed — please sign in again", retryable = false)
+        } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
+            val retryable = e.statusCode >= 500 || e.statusCode == 429
+            Log.e(TAG, "Upload HTTP ${e.statusCode} (retryable=$retryable)")
+            UploadResult.Error(e.details?.message ?: "Drive error (HTTP ${e.statusCode})", retryable = retryable)
         } catch (e: Exception) {
-            Log.e(TAG, "Upload failed: ${e.message}", e)
-            UploadResult.Error(e.message ?: "Unknown upload error")
+            Log.e(TAG, "Upload failed: ${e.javaClass.simpleName}", e)
+            UploadResult.Error(e.message ?: "Unknown upload error", retryable = true)
         }
     }
 

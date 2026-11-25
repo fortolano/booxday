@@ -151,8 +151,8 @@ class MainActivity : ComponentActivity() {
 
 
         val snackState = SnackState()
-        snackState.registerGlobalSnackObserver()
-        snackState.registerCancelGlobalSnackObserver()
+        snackState.registerGlobalSnackObserver(lifecycleScope)
+        snackState.registerCancelGlobalSnackObserver(lifecycleScope)
         PageDataManager.registerComponentCallbacks(this)
 
         // PERFORMANCE FIX: Hybrid settings loading
@@ -244,6 +244,7 @@ class MainActivity : ComponentActivity() {
 //        val intentData = intent.data?.lastPathSegment
 
         com.boox.day.notifications.NotificationNavigation.handleIntent(intent)
+        handleBooxDayDeepLink(intent)
         setBooxDayContent(snackState)
 
         // In-app updates (Oct 2026): checks GitHub for a newer release 15 s from now
@@ -256,6 +257,25 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         com.boox.day.notifications.NotificationNavigation.handleIntent(intent)
+        handleBooxDayDeepLink(intent)
+    }
+
+    /** Routes exported `booxday://page-<id>` links to the page's date in MainScreen (M7(5)). */
+    private fun handleBooxDayDeepLink(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (!"booxday".equals(uri.scheme, ignoreCase = true)) return
+        val target = (uri.host ?: uri.schemeSpecificPart)?.removePrefix("//").orEmpty()
+        if (target.startsWith("page-")) {
+            val pageId = target.removePrefix("page-").takeIf { it.isNotBlank() } ?: return
+            lifecycleScope.launch(Dispatchers.IO) {
+                val date = runCatching {
+                    com.boox.day.data.db.DayPageRepository(applicationContext).getDateByPageId(pageId)
+                }.getOrNull()
+                if (!date.isNullOrBlank()) {
+                    com.boox.day.ui.MainScreenRequests.request(com.boox.day.ui.MainScreenRequest.ShowDay(date))
+                }
+            }
+        }
     }
 
 
@@ -490,7 +510,13 @@ class MainActivity : ComponentActivity() {
                         StartupFailureScreen(
                             report = status.report,
                             onRetry = {
+                                val failedStage = status.report.stage
                                 StartupDiagnostics.clearFatalFailure()
+                                if (failedStage == com.boox.day.startup.StartupStage.HIDDEN_API ||
+                                    failedStage == com.boox.day.startup.StartupStage.RX_MANAGER
+                                ) {
+                                    (application as? BooxDayApp)?.retryStartupInitialization()
+                                }
                                 recreate()
                             }
                         )

@@ -45,8 +45,8 @@ class DriveAutoBackupWorker(
                     Result.success()
                 }
                 is DriveBackupService.UploadResult.Error -> {
-                    Log.w(TAG, "Automatic backup: upload failed (${upload.message})")
-                    Result.retry()
+                    Log.w(TAG, "Automatic backup: upload failed (retryable=${upload.retryable}, ${upload.message})")
+                    if (upload.retryable) Result.retry() else Result.failure()
                 }
             }
         } finally {
@@ -59,6 +59,15 @@ class DriveAutoBackupWorker(
         private const val TAG = "DriveAutoBackupWorker"
         private const val WORK_NAME = "drive_auto_backup"
         private const val CHECK_INTERVAL_HOURS = 6L
+
+        /** Keeps the periodic check enqueued when Drive backup is enabled, or cancels it when disabled. */
+        fun syncSchedule(context: Context, enabled: Boolean) {
+            if (enabled) schedule(context) else cancel(context)
+        }
+
+        fun cancel(context: Context) {
+            WorkManager.getInstance(context.applicationContext).cancelUniqueWork(WORK_NAME)
+        }
 
         /** Keeps the periodic check enqueued (safe to call on every app start). */
         fun schedule(context: Context) {

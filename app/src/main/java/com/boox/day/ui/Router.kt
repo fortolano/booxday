@@ -149,53 +149,44 @@ fun Router() {
         val startTime = System.currentTimeMillis()
         logRouter.i("PERF: Splash pre-loading START")
 
-        // Track completion of all preload tasks
-        val preloadComplete = CompletableDeferred<Unit>()
+        // Launch non-blocking preloads in the LaunchedEffect scope so withTimeoutOrNull actually caps
+        // splash exit (inside coroutineScope{}, the scope still waited for pagesJob after timeout: M7(3))
+        val minDuration = launch { delay(3000) }
+        launch(Dispatchers.IO) {
+            if (OpenRouterClient.hasApiKey()) {
+                logRouter.i("PERF: AI key available at startup")
+            } else {
+                logRouter.i("PERF: Startup without AI key - using local key prompt flow")
+            }
+        }
+        val pagesJob = launch(Dispatchers.IO) {
+            try {
+                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                val dayPageRepo = DayPageRepository(context)
+                val taskRepo = TaskRepository(context)
 
-        coroutineScope {
-            // 1. Minimum splash duration (ensures logo is visible, prevents flash)
-            val minDuration = launch { delay(3000) }
+                val memosPageId = dayPageRepo.getOrCreatePageForDate(today)
+                logRouter.i("PERF: Memos page pre-created: $memosPageId")
 
-            // 2. The user's own AI key (nothing is fetched)
-            val apiJob = launch(Dispatchers.IO) {
-                if (OpenRouterClient.hasApiKey()) {
-                    logRouter.i("PERF: AI key available at startup")
-                } else {
-                    logRouter.i("PERF: Startup without AI key - using local key prompt flow")
+                val (tasks, _) = taskRepo.getOrCreateTasksForPage(today, 0)
+                val tasksPageId = tasks.firstOrNull()?.pageId
+                logRouter.i("PERF: Tasks page pre-created: $tasksPageId")
+
+                if (memosPageId != null && tasksPageId != null) {
+                    GlobalAppSettings.setPreloadedPageIds(today, memosPageId, tasksPageId)
+                    logRouter.i("PERF: Page IDs stored in GlobalAppSettings")
                 }
+            } catch (e: Exception) {
+                logRouter.e("PERF: Page pre-creation failed: ${e.message}")
             }
+        }
 
-            // 3. Pre-create today's pages
-            val pagesJob = launch(Dispatchers.IO) {
-                try {
-                    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                    val dayPageRepo = DayPageRepository(context)
-                    val taskRepo = TaskRepository(context)
+        // Wait for minimum duration (always)
+        minDuration.join()
 
-                    val memosPageId = dayPageRepo.getOrCreatePageForDate(today)
-                    logRouter.i("PERF: Memos page pre-created: $memosPageId")
-
-                    val (tasks, _) = taskRepo.getOrCreateTasksForPage(today, 0)
-                    val tasksPageId = tasks.firstOrNull()?.pageId
-                    logRouter.i("PERF: Tasks page pre-created: $tasksPageId")
-
-                    if (memosPageId != null && tasksPageId != null) {
-                        GlobalAppSettings.setPreloadedPageIds(today, memosPageId, tasksPageId)
-                        logRouter.i("PERF: Page IDs stored in GlobalAppSettings")
-                    }
-                } catch (e: Exception) {
-                    logRouter.e("PERF: Page pre-creation failed: ${e.message}")
-                }
-            }
-
-            // Wait for minimum duration (always)
-            minDuration.join()
-
-            // Wait for critical preloads with timeout
-            // API key is non-critical (app works without it), pages are critical
-            withTimeoutOrNull(2000) {
-                pagesJob.join()
-            }
+        // Wait for critical page preload with a real 2s cap
+        withTimeoutOrNull(2000) {
+            pagesJob.join()
         }
         // The main screen appears only after the settings load (see shouldComposeNavHost): keep
         // the splash up until then, never a blank screen

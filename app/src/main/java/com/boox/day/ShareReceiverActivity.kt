@@ -53,11 +53,20 @@ class ShareReceiverActivity : ComponentActivity() {
         }
         val readable = stream?.takeIf { SharedInbox.accepts(intent.type, it.scheme) }
         val image = readable?.takeIf { intent.type?.startsWith("image/") == true }?.let { copy(it) }
-        // Some apps send text as a file
-        val words = text.ifBlank { readable?.takeIf { intent.type == "text/plain" }?.let { readText(it) }.orEmpty() }
-        if (words.isBlank() && image == null) return false
-        SharedInbox.add(this, words, image)
-        return true
+        try {
+            // Some apps send text as a file
+            val words = text.ifBlank { readable?.takeIf { intent.type == "text/plain" }?.let { readText(it) }.orEmpty() }
+            if (words.isBlank() && image == null) {
+                image?.let { SharedInbox.imageFile(this, it).delete() }
+                return false
+            }
+            SharedInbox.add(this, words, image)
+            return true
+        } catch (e: Exception) {
+            // Clean orphaned staged image if queue commit fails (L3)
+            image?.let { SharedInbox.imageFile(this, it).delete() }
+            throw e
+        }
     }
 
     private fun readText(uri: Uri): String? = contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
@@ -71,27 +80,35 @@ class ShareReceiverActivity : ComponentActivity() {
         String(buffer, 0, total)
     }
 
-    /** Only content:// is read; the copy stops at the size limit. */
+    /** Only content:// is read; the copy stops at the size limit and cleans partial bytes on error. */
     private fun copy(uri: Uri): String? {
         val name = "${UUID.randomUUID()}.image"
         val target = SharedInbox.imageFile(this, name)
-        contentResolver.openInputStream(uri)?.use { input ->
-            target.outputStream().use { output ->
-                val buffer = ByteArray(64 * 1024)
-                var total = 0L
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read < 0) break
-                    total += read
-                    if (total > SharedInbox.MAX_IMAGE_BYTES) {
-                        target.delete()
-                        return null
+        return try {
+            contentResolver.openInputStream(uri)?.use { input ->
+                target.outputStream().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        if (total > SharedInbox.MAX_IMAGE_BYTES) {
+                            target.delete()
+                            return null
+                        }
+                        output.write(buffer, 0, read)
                     }
-                    output.write(buffer, 0, read)
                 }
+            } ?: run {
+                target.delete()
+                return null
             }
-        } ?: return null
-        return name
+            name
+        } catch (e: Exception) {
+            target.delete()
+            throw e
+        }
     }
 
     /** The running app, brought forward (its existing MainActivity, not a new one). */

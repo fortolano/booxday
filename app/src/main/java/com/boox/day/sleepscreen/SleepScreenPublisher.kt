@@ -57,10 +57,25 @@ object SleepScreenPublisher {
     /** When the sleep screen was last updated (or found up to date), or why the last try failed. */
     val lastWrite = com.boox.day.today.LastWrite(PREFS)
 
-    /** Draws the agenda for now and hands it over when it changed. [force]: hand over even if unchanged. */
-    suspend fun publish(context: Context, force: Boolean = false): Boolean = mutex.withLock {
+    /**
+     * Draws the agenda for now and hands it over when it changed. [force]: hand over even if unchanged
+     * (never bypasses a later off toggle or newer generation).
+     */
+    suspend fun publish(
+        context: Context,
+        force: Boolean = false,
+        expectedGeneration: Long? = null
+    ): Boolean = mutex.withLock {
         val app = context.applicationContext
         try {
+            if (expectedGeneration != null && SleepAgenda.currentGeneration() != expectedGeneration) {
+                Log.i(TAG, "Sleep screen publish skipped: superseded toggle generation")
+                return@withLock true
+            }
+            if (!SleepAgenda.isEnabled(app)) {
+                Log.i(TAG, "Sleep screen publish skipped: disabled before render")
+                return@withLock true
+            }
             val nowMs = System.currentTimeMillis()
             val today = LocalDate.now()
             val (width, height, ppi) = panel(app)
@@ -86,6 +101,14 @@ object SleepScreenPublisher {
                 )
             )
             memo?.recycle()
+            // Re-check toggle generation right before handing to BOOX so a rapid off toggle never gets overwritten
+            if ((expectedGeneration != null && SleepAgenda.currentGeneration() != expectedGeneration) ||
+                !SleepAgenda.isEnabled(app)
+            ) {
+                bitmap.recycle()
+                Log.i(TAG, "Sleep screen hand-off aborted: disabled while rendering")
+                return@withLock true
+            }
             val previous = prefs(app).getString(KEY_FILE, null) ?: OLD_FIXED_NAME
             val file = write(bitmap, "$NAME_PREFIX-$nowMs.png")
             bitmap.recycle()
@@ -137,10 +160,18 @@ object SleepScreenPublisher {
     }
 
     /**
-     * The setting was turned off: the image files go, BooxDay's and BOOX's copy in Pictures/,
-     * so the sleep screen no longer shows a day that is over.
+     * The setting was turned off: serialized under [mutex] with [publish] and [handBack] so an
+     * in-flight publish cannot land on top of withdrawal (M7(6)).
      */
-    fun withdraw(context: Context) {
+    suspend fun withdraw(context: Context, expectedGeneration: Long? = null) = mutex.withLock {
+        if (expectedGeneration != null && SleepAgenda.currentGeneration() != expectedGeneration) return@withLock
+        withdrawLocked(context)
+    }
+
+    /** Synchronous withdrawal fallback for data-wipe/non-coroutine callers. */
+    fun withdrawBlocking(context: Context) = kotlinx.coroutines.runBlocking { withdraw(context) }
+
+    private fun withdrawLocked(context: Context) {
         val app = context.applicationContext
         val owned = ownedFiles(app)
         prefs(app).edit().clear().apply()
@@ -153,11 +184,16 @@ object SleepScreenPublisher {
      * under a new name (it ignores a name it already has). After a publish still running, so that
      * can't land on top. False when BOOX wouldn't take it.
      */
-    suspend fun handBack(context: Context): Boolean = mutex.withLock {
+    suspend fun handBack(context: Context, expectedGeneration: Long? = null): Boolean = mutex.withLock {
         val app = context.applicationContext
+        if (expectedGeneration != null && SleepAgenda.currentGeneration() != expectedGeneration) return@withLock false
         try {
             val target = File(folder().apply { mkdirs() }, "$BACK_PREFIX-${System.currentTimeMillis()}.jpg")
             SleepBackImage.file(app).copyTo(target)
+            if (expectedGeneration != null && SleepAgenda.currentGeneration() != expectedGeneration) {
+                target.delete()
+                return@withLock false
+            }
             val accepted = ScreenResourceManager.setScreensaver(app, target.absolutePath, false)
             Log.i(TAG, "Own image ${if (accepted) "handed back" else "refused"}")
             if (accepted) {
@@ -240,7 +276,11 @@ object SleepScreenPublisher {
     private fun write(bitmap: Bitmap, name: String): File {
         val dir = folder().apply { mkdirs() }
         val tmp = File(dir, "$NAME_PREFIX.tmp")
-        tmp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        val ok = tmp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        if (!ok) {
+            tmp.delete()
+            throw java.io.IOException("Failed to encode PNG for $name")
+        }
         val target = File(dir, name)
         if (!tmp.renameTo(target)) {
             target.delete()
