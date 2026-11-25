@@ -55,14 +55,22 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.boox.day.R
 import com.boox.day.data.StorageCalculator
 import com.boox.day.data.datastore.GlobalAppSettings
+import com.boox.day.data.model.AccountType
+import com.boox.day.sync.BackupCloud
 import com.boox.day.sync.BackupStateDetector
+import com.boox.day.sync.CloudBackupService
 import com.boox.day.sync.DriveBackupService
+import com.boox.day.sync.OneDriveAccount
+import com.boox.day.sync.OneDriveBackupService
+import com.boox.day.sync.OneDriveSignIn
+import com.boox.day.sync.outlook.OutlookAuthManager
 import com.boox.day.sync.ExportService
 import com.boox.day.sync.GoogleAuthManager
 import com.boox.day.sync.LocalBackupService
@@ -112,14 +120,17 @@ sealed class BackupDialogPhase {
     /** Restore flow: "Where is your backup?" */
     object RestoreSource : BackupDialogPhase()
 
-    /** Cloud backup configuration and execution */
-    object CloudBackupFlow : BackupDialogPhase()
+    /** Cloud backup configuration and execution, for Google Drive or OneDrive (Nov 2026) */
+    data class CloudBackupFlow(val cloud: BackupCloud) : BackupDialogPhase()
 
     /** Local backup execution (SAF file picker) */
     object LocalBackupFlow : BackupDialogPhase()
 
     /** Cloud restore: list backups, select, confirm */
-    object CloudRestoreFlow : BackupDialogPhase()
+    data class CloudRestoreFlow(val cloud: BackupCloud) : BackupDialogPhase()
+
+    /** Which Microsoft account keeps the OneDrive backups (owner decision 86) */
+    data class MicrosoftAccountChoice(val forRestore: Boolean) : BackupDialogPhase()
 
     /** Local restore: file picker, preview, confirm */
     object LocalRestoreFlow : BackupDialogPhase()
@@ -187,14 +198,34 @@ fun DataBackupDialog(
     var userEmail by remember { mutableStateOf(authManager.getUserEmail()) }
     // Why the last Google sign-in failed, shown in the Google Drive card in place of "Not connected"
     var signInError by remember { mutableStateOf<String?>(null) }
-    var isDriveBackupEnabled by remember { mutableStateOf(authManager.isDriveBackupEnabled()) }
+    // One backup cloud at a time (owner decision 85): Google Drive, OneDrive or none
+    var backupDestination by remember { mutableStateOf(authManager.getBackupDestination()) }
     var backupFrequency by remember { mutableStateOf(authManager.getBackupFrequency()) }
     var lastBackupTime by remember { mutableStateOf(authManager.getLastBackupTime()) }
     var isBackupInProgress by remember { mutableStateOf(false) }
     var folderStatus by remember { mutableStateOf<String?>(null) }
 
+    // OneDrive backup (owner decisions 85-88, Nov 2026)
+    val oneDriveService = remember { OneDriveBackupService.create(context) }
+    val outlookAuth = remember { OutlookAuthManager(context.applicationContext) }
+    var oneDriveAccount by remember { mutableStateOf(authManager.getOneDriveAccount()) }
+    var oneDriveSignInError by remember { mutableStateOf<String?>(null) }
+    var oneDriveLastBackupTime by remember { mutableStateOf(authManager.getLastBackupTime(BackupCloud.ONEDRIVE)) }
+    var oneDriveStatus by remember { mutableStateOf<String?>(null) }
+    var calendarMicrosoftAccounts by remember { mutableStateOf<List<OneDriveAccount>>(emptyList()) }
+    var isConnectingOneDrive by remember { mutableStateOf(false) }
+
+    fun serviceFor(cloud: BackupCloud): CloudBackupService =
+        if (cloud == BackupCloud.GOOGLE_DRIVE) driveBackupService else oneDriveService
+
+    fun setDestination(cloud: BackupCloud?) {
+        authManager.setBackupDestination(cloud)
+        backupDestination = cloud
+    }
+
     // Restore state
     var availableBackups by remember { mutableStateOf<List<DriveBackupService.BackupInfo>>(emptyList()) }
+    var listedCloud by remember { mutableStateOf<BackupCloud?>(null) }
     var isLoadingBackups by remember { mutableStateOf(false) }
     var isRestoreInProgress by remember { mutableStateOf(false) }
     var restoreStatus by remember { mutableStateOf<String?>(null) }
@@ -226,12 +257,18 @@ fun DataBackupDialog(
         }
     }
 
-    // Function to load backups from Drive (defined before enableBackupAfterOverwrite which calls it)
-    fun loadBackups() {
-        if (!isSignedIn) return
+    // Function to load backups from Drive (defined before enableBackupAfterOverwrite which calls it).
+    // Nov 2026: the list of the cloud being shown, loaded when its list opens; a late answer from
+    // the other cloud is dropped
+    fun loadBackups(cloud: BackupCloud) {
+        listedCloud = cloud
+        availableBackups = emptyList()
+        restoreStatus = null
         coroutineScope.launch {
             isLoadingBackups = true
-            when (val result = driveBackupService.listBackups()) {
+            val result = serviceFor(cloud).listBackups()
+            if (listedCloud != cloud) return@launch
+            when (result) {
                 is DriveBackupService.ListResult.Success -> {
                     availableBackups = result.backups
                 }
@@ -240,6 +277,85 @@ fun DataBackupDialog(
                 }
             }
             isLoadingBackups = false
+        }
+    }
+
+    // A cloud's list is read each time it opens (also back from a cancelled restore)
+    LaunchedEffect(currentPhase) {
+        (currentPhase as? BackupDialogPhase.CloudRestoreFlow)?.let { loadBackups(it.cloud) }
+    }
+
+    // "Back Up Now" for either cloud
+    fun backUpNow(cloud: BackupCloud) {
+        fun status(text: String?) {
+            if (cloud == BackupCloud.GOOGLE_DRIVE) folderStatus = text else oneDriveStatus = text
+        }
+        coroutineScope.launch {
+            isBackupInProgress = true
+            status("Creating backup...")
+
+            when (val exportResult = exportService.createBackup()) {
+                is ExportService.ExportResult.Success -> {
+                    status("Uploading to ${cloud.label}...")
+
+                    when (val uploadResult = serviceFor(cloud).uploadBackup(exportResult.backupFile)) {
+                        is DriveBackupService.UploadResult.Success -> {
+                            val now = System.currentTimeMillis()
+                            if (cloud == BackupCloud.GOOGLE_DRIVE) lastBackupTime = now else oneDriveLastBackupTime = now
+                            status("✓ Backup complete: ${uploadResult.fileName}")
+                            currentPhase = BackupDialogPhase.Success(
+                                title = if (exportResult.warnings.isEmpty()) "Backup Complete" else "Backup Complete (with notes)",
+                                details = listOf("Saved to ${cloud.label}: ${uploadResult.fileName}") + exportResult.warnings
+                            )
+                        }
+                        is DriveBackupService.UploadResult.Error -> {
+                            status("Upload failed: ${uploadResult.message}")
+                        }
+                    }
+                }
+                is ExportService.ExportResult.Error -> {
+                    status("Backup failed: ${exportResult.message}")
+                }
+            }
+
+            isBackupInProgress = false
+        }
+    }
+
+    // Microsoft accounts already in Calendar Accounts, offered first (owner decision 86)
+    LaunchedEffect(currentPhase) {
+        if (currentPhase is BackupDialogPhase.MicrosoftAccountChoice) {
+            calendarMicrosoftAccounts = OneDriveSignIn.calendarAccounts(context.applicationContext, outlookAuth)
+        }
+    }
+
+    // Signs in to Microsoft for OneDrive backup, then opens OneDrive's backup or restore screen
+    fun connectOneDrive(forRestore: Boolean, signIn: suspend (android.app.Activity) -> Result<OneDriveAccount>) {
+        val activity = context as? android.app.Activity ?: return
+        if (isConnectingOneDrive) return
+        coroutineScope.launch {
+            isConnectingOneDrive = true
+            oneDriveSignInError = null
+            signIn(activity).fold(
+                onSuccess = { account ->
+                    authManager.setOneDriveAccount(account)
+                    oneDriveAccount = account
+                    oneDriveLastBackupTime = authManager.getLastBackupTime(BackupCloud.ONEDRIVE)
+                    oneDriveStatus = "✓ Connected to OneDrive"
+                    // Like Google Drive: automatic backup starts by itself only when no cloud is
+                    // chosen yet and there are no backups to restore first
+                    if (backupDestination == null && !oneDriveService.hasExistingBackups()) {
+                        setDestination(BackupCloud.ONEDRIVE)
+                    }
+                    navigateBack()
+                    navigateTo(
+                        if (forRestore) BackupDialogPhase.CloudRestoreFlow(BackupCloud.ONEDRIVE)
+                        else BackupDialogPhase.CloudBackupFlow(BackupCloud.ONEDRIVE)
+                    )
+                },
+                onFailure = { oneDriveSignInError = OneDriveSignIn.errorText(it) }
+            )
+            isConnectingOneDrive = false
         }
     }
 
@@ -253,8 +369,7 @@ fun DataBackupDialog(
                 folderStatus = "Deleted $deletedCount old backup(s)"
 
                 // Enable backup
-                isDriveBackupEnabled = true
-                authManager.setDriveBackupEnabled(true)
+                setDestination(BackupCloud.GOOGLE_DRIVE)
 
                 // Reset detected state to show normal UI
                 detectedBackupState = null
@@ -268,9 +383,6 @@ fun DataBackupDialog(
                         folderStatus = "Folder setup failed: ${folderResult.message}"
                     }
                 }
-
-                // Load backups list (should be empty now)
-                loadBackups()
             } else {
                 folderStatus = "Failed to delete old backups: ${deleteResult.exceptionOrNull()?.message}"
             }
@@ -305,10 +417,10 @@ fun DataBackupDialog(
 
                     // If backup is already enabled OR no existing backups, proceed normally
                     val state = detectedBackupState
-                    if (state != null && state.uiState == BackupStateDetector.UIState.NO_BACKUPS) {
-                        // No existing backups - safe to enable backup automatically
-                        isDriveBackupEnabled = true
-                        authManager.setDriveBackupEnabled(true)
+                    if (state != null && state.uiState == BackupStateDetector.UIState.NO_BACKUPS && backupDestination == null) {
+                        // No existing backups - safe to enable backup automatically (never in place
+                        // of OneDrive's: one cloud at a time, the user switches on its screen)
+                        setDestination(BackupCloud.GOOGLE_DRIVE)
 
                         when (val folderResult = driveBackupService.ensureBackupFolder()) {
                             is DriveBackupService.FolderResult.Success -> {
@@ -329,9 +441,6 @@ fun DataBackupDialog(
                         // Existing backups detected - UI will show ExistingBackupDetectedCard
                         folderStatus = null
                     }
-
-                    // Load available backups for restore
-                    loadBackups()
                 }
             }
         } catch (e: Exception) {
@@ -381,7 +490,7 @@ fun DataBackupDialog(
     LaunchedEffect(isSignedIn) {
         if (isSignedIn) {
             // Check if backup is already enabled
-            if (isDriveBackupEnabled) {
+            if (backupDestination == BackupCloud.GOOGLE_DRIVE) {
                 // Backup enabled - verify folder and show normal UI
                 val existingFolderId = authManager.getBackupFolderId()
                 if (existingFolderId != null) {
@@ -408,13 +517,9 @@ fun DataBackupDialog(
                 detectedBackupState = backupStateDetector.detectState()
                 isDetectingState = false
 
-                if (detectedBackupState?.hasExistingBackups == false) {
-                    folderStatus = null // Clear status, no special UI needed
-                }
+                // Nov 2026: cleared either way; with backups found it stayed on "Checking..."
+                folderStatus = null
             }
-
-            // Load available backups for restore
-            loadBackups()
         }
     }
 
@@ -454,6 +559,7 @@ fun DataBackupDialog(
                     currentPhase is BackupDialogPhase.RestoreSource -> "Restore Backup"
                     currentPhase is BackupDialogPhase.CloudBackupFlow -> "Cloud Backup"
                     currentPhase is BackupDialogPhase.CloudRestoreFlow -> "Cloud Restore"
+                    currentPhase is BackupDialogPhase.MicrosoftAccountChoice -> "Microsoft Account"
                     currentPhase is BackupDialogPhase.LocalBackupFlow -> "Local Backup"
                     currentPhase is BackupDialogPhase.LocalRestoreFlow -> "Local Restore"
                     currentPhase is BackupDialogPhase.Processing -> "Processing"
@@ -561,108 +667,117 @@ fun DataBackupDialog(
                                     onRestoreSelected = { navigateTo(BackupDialogPhase.RestoreSource) }
                                 )
 
-                                is BackupDialogPhase.BackupDestination -> BackupDestinationContent(
-                                    isSignedIn = isSignedIn,
-                                    userEmail = userEmail,
-                                    signInError = signInError,
-                                    onCloudSelected = { navigateTo(BackupDialogPhase.CloudBackupFlow) },
-                                    onLocalSelected = {
-                                        createBackupLauncher.launch(localBackupService.generateBackupFileName())
-                                    },
-                                    onSignInClick = { signInLauncher.launch(authManager.getSignInIntent()) }
-                                )
+                                is BackupDialogPhase.BackupDestination, is BackupDialogPhase.RestoreSource -> {
+                                    val google = CloudCardInfo(BackupCloud.GOOGLE_DRIVE, isSignedIn, userEmail, signInError, backupDestination == BackupCloud.GOOGLE_DRIVE)
+                                    val oneDrive = CloudCardInfo(BackupCloud.ONEDRIVE, oneDriveAccount != null, oneDriveAccount?.address, oneDriveSignInError, backupDestination == BackupCloud.ONEDRIVE)
+                                    val forRestore = currentPhase is BackupDialogPhase.RestoreSource
+                                    val onConnect: (BackupCloud) -> Unit = { cloud ->
+                                        if (cloud == BackupCloud.GOOGLE_DRIVE) signInLauncher.launch(authManager.getSignInIntent())
+                                        else navigateTo(BackupDialogPhase.MicrosoftAccountChoice(forRestore))
+                                    }
+                                    if (forRestore) {
+                                        RestoreSourceContent(
+                                            clouds = listOf(google, oneDrive),
+                                            onCloudSelected = { navigateTo(BackupDialogPhase.CloudRestoreFlow(it)) },
+                                            onLocalSelected = { showBackupFilePicker = true },
+                                            onConnect = onConnect
+                                        )
+                                    } else {
+                                        BackupDestinationContent(
+                                            clouds = listOf(google, oneDrive),
+                                            onCloudSelected = { navigateTo(BackupDialogPhase.CloudBackupFlow(it)) },
+                                            onLocalSelected = {
+                                                createBackupLauncher.launch(localBackupService.generateBackupFileName())
+                                            },
+                                            onConnect = onConnect
+                                        )
+                                    }
+                                }
 
-                                is BackupDialogPhase.RestoreSource -> RestoreSourceContent(
-                                    isSignedIn = isSignedIn,
-                                    userEmail = userEmail,
-                                    signInError = signInError,
-                                    onCloudSelected = { navigateTo(BackupDialogPhase.CloudRestoreFlow) },
-                                    onLocalSelected = { showBackupFilePicker = true },
-                                    onSignInClick = { signInLauncher.launch(authManager.getSignInIntent()) }
-                                )
+                                is BackupDialogPhase.MicrosoftAccountChoice -> {
+                                    val forRestore = (currentPhase as BackupDialogPhase.MicrosoftAccountChoice).forRestore
+                                    MicrosoftAccountChoiceContent(
+                                        calendarAccounts = calendarMicrosoftAccounts,
+                                        isConnecting = isConnectingOneDrive,
+                                        error = oneDriveSignInError,
+                                        onUseAccount = { account ->
+                                            connectOneDrive(forRestore) { OneDriveSignIn.useCalendarAccount(it, outlookAuth, account) }
+                                        },
+                                        onSignIn = { type ->
+                                            connectOneDrive(forRestore) { OneDriveSignIn.signIn(it, outlookAuth, type) }
+                                        }
+                                    )
+                                }
 
-                                is BackupDialogPhase.CloudBackupFlow -> CloudBackupFlowContent(
-                                    userEmail = userEmail,
-                                    isDriveBackupEnabled = isDriveBackupEnabled,
-                                    backupFrequency = backupFrequency,
-                                    lastBackupTime = lastBackupTime,
-                                    isBackupInProgress = isBackupInProgress,
-                                    statusMessage = folderStatus,
-                                    onBackupEnabledChanged = { enabled ->
-                                        isDriveBackupEnabled = enabled
-                                        authManager.setDriveBackupEnabled(enabled)
-                                    },
-                                    onBackupFrequencyChanged = { frequency ->
-                                        backupFrequency = frequency
-                                        authManager.setBackupFrequency(frequency)
-                                    },
-                                    onBackupNowClick = {
-                                        coroutineScope.launch {
-                                            isBackupInProgress = true
-                                            folderStatus = "Creating backup..."
+                                is BackupDialogPhase.CloudBackupFlow -> {
+                                    val cloud = (currentPhase as BackupDialogPhase.CloudBackupFlow).cloud
+                                    val isGoogle = cloud == BackupCloud.GOOGLE_DRIVE
+                                    CloudBackupFlowContent(
+                                        cloud = cloud,
+                                        userEmail = if (isGoogle) userEmail else oneDriveAccount?.address,
+                                        isAutoBackupOn = backupDestination == cloud,
+                                        otherCloudOn = backupDestination?.takeIf { it != cloud },
+                                        backupFrequency = backupFrequency,
+                                        lastBackupTime = if (isGoogle) lastBackupTime else oneDriveLastBackupTime,
+                                        isBackupInProgress = isBackupInProgress,
+                                        statusMessage = if (isGoogle) folderStatus else oneDriveStatus,
+                                        // One cloud at a time (owner decision 85): on here stops the other's
+                                        onBackupEnabledChanged = { enabled ->
+                                            setDestination(if (enabled) cloud else backupDestination.takeIf { it != cloud })
+                                        },
+                                        onBackupFrequencyChanged = { frequency ->
+                                            backupFrequency = frequency
+                                            authManager.setBackupFrequency(frequency)
+                                        },
+                                        onBackupNowClick = { backUpNow(cloud) },
+                                        // Owner decision 74 (Nov 2026): stops backup on this tablet only. It was a
+                                        // "Sign Out" that withdrew every Google permission BooxDay had, so calendar
+                                        // sync and Task Sync stopped too, and reset the sync settings. OneDrive's
+                                        // forgets its account the same way, never signing it out of Microsoft.
+                                        onTurnOffBackupClick = {
+                                            if (backupDestination == cloud) setDestination(null)
+                                            if (isGoogle) {
+                                                authManager.setBackupFolderId(null)
+                                                detectedBackupState = null
+                                            } else {
+                                                authManager.setOneDriveAccount(null)
+                                                oneDriveAccount = null
+                                                oneDriveLastBackupTime = 0L
+                                                oneDriveStatus = null
+                                            }
+                                            resetToIntent()
+                                        }
+                                    )
+                                }
 
-                                            when (val exportResult = exportService.createBackup()) {
-                                                is ExportService.ExportResult.Success -> {
-                                                    folderStatus = "Uploading to Google Drive..."
-
-                                                    when (val uploadResult = driveBackupService.uploadBackup(exportResult.backupFile)) {
-                                                        is DriveBackupService.UploadResult.Success -> {
-                                                            lastBackupTime = System.currentTimeMillis()
-                                                            folderStatus = "\u2713 Backup complete: ${uploadResult.fileName}"
-                                                            currentPhase = BackupDialogPhase.Success(
-                                                                title = if (exportResult.warnings.isEmpty()) "Backup Complete" else "Backup Complete (with notes)",
-                                                                details = listOf("Saved to Google Drive: ${uploadResult.fileName}") + exportResult.warnings
-                                                            )
-                                                        }
-                                                        is DriveBackupService.UploadResult.Error -> {
-                                                            folderStatus = "Upload failed: ${uploadResult.message}"
-                                                        }
-                                                    }
-                                                }
-                                                is ExportService.ExportResult.Error -> {
-                                                    folderStatus = "Backup failed: ${exportResult.message}"
+                                is BackupDialogPhase.CloudRestoreFlow -> {
+                                    val cloud = (currentPhase as BackupDialogPhase.CloudRestoreFlow).cloud
+                                    CloudRestoreFlowContent(
+                                        cloud = cloud,
+                                        userEmail = if (cloud == BackupCloud.GOOGLE_DRIVE) userEmail else oneDriveAccount?.address,
+                                        backups = availableBackups,
+                                        isLoadingBackups = isLoadingBackups,
+                                        isRestoreInProgress = isRestoreInProgress,
+                                        restoreStatus = restoreStatus,
+                                        onRefreshBackups = { loadBackups(cloud) },
+                                        onRestoreBackup = { backup ->
+                                            coroutineScope.launch {
+                                                // Owner decision 87: downloaded and previewed, then the
+                                                // same "Restore from Backup?" as a device file. Cancel
+                                                // goes back to this list.
+                                                navigateTo(BackupDialogPhase.Processing("Downloading backup from ${cloud.label}..."))
+                                                val problem = pendingRestore.offerDownload(
+                                                    { serviceFor(cloud).downloadBackupToFile(backup.fileId) },
+                                                    { localBackupService.previewBackupFromFile(it) }
+                                                )
+                                                if (problem != null) {
+                                                    phaseHistory.clear()
+                                                    currentPhase = BackupDialogPhase.Error(problem)
                                                 }
                                             }
-
-                                            isBackupInProgress = false
                                         }
-                                    },
-                                    // Owner decision 74 (Nov 2026): stops backup on this tablet only. It was a
-                                    // "Sign Out" that withdrew every Google permission BooxDay had, so calendar
-                                    // sync and Task Sync stopped too, and reset the sync settings.
-                                    onTurnOffBackupClick = {
-                                        isDriveBackupEnabled = false
-                                        authManager.setDriveBackupEnabled(false)
-                                        authManager.setBackupFolderId(null)
-                                        detectedBackupState = null
-                                        resetToIntent()
-                                    }
-                                )
-
-                                is BackupDialogPhase.CloudRestoreFlow -> CloudRestoreFlowContent(
-                                    userEmail = userEmail,
-                                    backups = availableBackups,
-                                    isLoadingBackups = isLoadingBackups,
-                                    isRestoreInProgress = isRestoreInProgress,
-                                    restoreStatus = restoreStatus,
-                                    onRefreshBackups = { loadBackups() },
-                                    onRestoreBackup = { backup ->
-                                        coroutineScope.launch {
-                                            // Owner decision 87: downloaded and previewed, then the
-                                            // same "Restore from Backup?" as a device file. Cancel
-                                            // goes back to this list.
-                                            navigateTo(BackupDialogPhase.Processing("Downloading backup from Google Drive..."))
-                                            val problem = pendingRestore.offerDownload(
-                                                { driveBackupService.downloadBackupToFile(backup.fileId) },
-                                                { localBackupService.previewBackupFromFile(it) }
-                                            )
-                                            if (problem != null) {
-                                                phaseHistory.clear()
-                                                currentPhase = BackupDialogPhase.Error(problem)
-                                            }
-                                        }
-                                    }
-                                )
+                                    )
+                                }
 
                                 is BackupDialogPhase.LocalBackupFlow,
                                 is BackupDialogPhase.LocalRestoreFlow -> {
@@ -1039,7 +1154,7 @@ private fun WipeAllDataConfirmationDialog(
                 Text(
                     text = "Not erased: your Google, Outlook or iCloud calendars online, " +
                             (if (com.boox.day.BuildConfig.TASK_SYNC_ENABLED) "your tasks in Google Tasks or on your CalDAV server, " else "") +
-                            "Google Drive backups and " +
+                            "Google Drive and OneDrive backups and " +
                             "Android's own backup, files saved to Documents or Downloads (exports, backups, " +
                             "daily notes), and your OpenRouter key in your OpenRouter account " +
                             "(delete it at openrouter.ai/settings/keys).\n\nBooxDay closes when it's done.",
@@ -1447,17 +1562,53 @@ private fun StorageSummaryRow(
     }
 }
 
+/** One cloud's card on "where to save" and "where is your backup" (Nov 2026: Google Drive or OneDrive). */
+internal class CloudCardInfo(
+    val cloud: BackupCloud,
+    val isConnected: Boolean,
+    val address: String?,
+    /** Why the last sign-in failed, shown in place of "Not connected". */
+    val signInError: String?,
+    /** This cloud is where automatic backup goes (owner decision 85). */
+    val isAutoBackupOn: Boolean
+)
+
+@Composable
+private fun CloudCard(info: CloudCardInfo, forRestore: Boolean, onOpen: () -> Unit, onConnect: () -> Unit) {
+    val isGoogle = info.cloud == BackupCloud.GOOGLE_DRIVE
+    DestinationCard(
+        icon = Icons.Default.Cloud,
+        title = info.cloud.label,
+        subtitle = when {
+            !info.isConnected -> info.signInError ?: "Not connected"
+            info.isAutoBackupOn && !forRestore -> listOfNotNull(info.address, "Auto Backup on").joinToString(" · ")
+            else -> info.address
+        },
+        description = when {
+            forRestore && isGoogle -> listOf("Restore from your cloud backups")
+            forRestore -> listOf("Restore from OneDrive › Apps › BooxDay")
+            isGoogle -> listOf("Automatic backups", "Access from anywhere", "Syncs across devices")
+            else -> listOf("Automatic backups", "Kept in OneDrive › Apps › BooxDay", "Personal, work or school account")
+        },
+        isRecommended = !forRestore,
+        actionLabel = when {
+            !info.isConnected -> if (isGoogle) "Connect Google Account" else "Connect Microsoft Account"
+            forRestore -> "View Available Backups"
+            else -> "Configure Backup"
+        },
+        onClick = if (info.isConnected) onOpen else onConnect
+    )
+}
+
 /**
  * Backup destination selection: "Where do you want to save?"
  */
 @Composable
-private fun BackupDestinationContent(
-    isSignedIn: Boolean,
-    userEmail: String?,
-    signInError: String?,
-    onCloudSelected: () -> Unit,
+internal fun BackupDestinationContent(
+    clouds: List<CloudCardInfo>,
+    onCloudSelected: (BackupCloud) -> Unit,
     onLocalSelected: () -> Unit,
-    onSignInClick: () -> Unit
+    onConnect: (BackupCloud) -> Unit
 ) {
     ScrollableWithIndicator(
         modifier = Modifier.fillMaxWidth(),
@@ -1473,20 +1624,10 @@ private fun BackupDestinationContent(
                 color = EInkTheme.Colors.primary
             )
 
-            // Google Drive option
-            DestinationCard(
-                icon = Icons.Default.Cloud,
-                title = "Google Drive",
-                subtitle = if (isSignedIn) userEmail else signInError ?: "Not connected",
-                description = listOf(
-                    "Automatic backups",
-                    "Access from anywhere",
-                    "Syncs across devices"
-                ),
-                isRecommended = true,
-                actionLabel = if (isSignedIn) "Configure Backup" else "Connect Google Account",
-                onClick = if (isSignedIn) onCloudSelected else onSignInClick
-            )
+            // Google Drive and OneDrive
+            clouds.forEach { info ->
+                CloudCard(info, forRestore = false, onOpen = { onCloudSelected(info.cloud) }, onConnect = { onConnect(info.cloud) })
+            }
 
             // Device Storage option
             DestinationCard(
@@ -1515,13 +1656,11 @@ private fun BackupDestinationContent(
  * Restore source selection: "Where is your backup?"
  */
 @Composable
-private fun RestoreSourceContent(
-    isSignedIn: Boolean,
-    userEmail: String?,
-    signInError: String?,
-    onCloudSelected: () -> Unit,
+internal fun RestoreSourceContent(
+    clouds: List<CloudCardInfo>,
+    onCloudSelected: (BackupCloud) -> Unit,
     onLocalSelected: () -> Unit,
-    onSignInClick: () -> Unit
+    onConnect: (BackupCloud) -> Unit
 ) {
     ScrollableWithIndicator(
         modifier = Modifier.fillMaxWidth(),
@@ -1537,16 +1676,10 @@ private fun RestoreSourceContent(
                 color = EInkTheme.Colors.primary
             )
 
-            // Google Drive option
-            DestinationCard(
-                icon = Icons.Default.Cloud,
-                title = "Google Drive",
-                subtitle = if (isSignedIn) userEmail else signInError ?: "Not connected",
-                description = listOf("Restore from your cloud backups"),
-                isRecommended = false,
-                actionLabel = if (isSignedIn) "View Available Backups" else "Connect Google Account",
-                onClick = if (isSignedIn) onCloudSelected else onSignInClick
-            )
+            // Google Drive and OneDrive
+            clouds.forEach { info ->
+                CloudCard(info, forRestore = true, onOpen = { onCloudSelected(info.cloud) }, onConnect = { onConnect(info.cloud) })
+            }
 
             // Device File option
             DestinationCard(
@@ -1583,6 +1716,130 @@ private fun RestoreSourceContent(
                     color = EInkTheme.Colors.primary
                 )
             }
+        }
+    }
+}
+
+/**
+ * Which Microsoft account keeps the OneDrive backups (owner decision 86, Nov 2026): an Outlook
+ * account already in Calendar Accounts first (Microsoft then shows only its consent page), or a
+ * new sign-in with a personal or a work or school account.
+ */
+@Composable
+internal fun MicrosoftAccountChoiceContent(
+    calendarAccounts: List<OneDriveAccount>,
+    isConnecting: Boolean,
+    error: String?,
+    onUseAccount: (OneDriveAccount) -> Unit,
+    onSignIn: (AccountType) -> Unit
+) {
+    ScrollableWithIndicator(
+        modifier = Modifier.fillMaxWidth(),
+        wrapHeight = true
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
+        ) {
+            Text(
+                text = "Which Microsoft account should keep your backups?",
+                fontSize = EInkTheme.Preferences.cardTitleFontSize,
+                fontWeight = FontWeight.Medium,
+                color = EInkTheme.Colors.primary
+            )
+
+            if (calendarAccounts.isNotEmpty()) {
+                Text(
+                    text = "Already in Calendar Accounts, no password needed:",
+                    fontSize = EInkTheme.Preferences.explanationFontSize,
+                    color = EInkTheme.Colors.gray
+                )
+                calendarAccounts.forEach { account ->
+                    AccountChoiceButton(
+                        label = "Use ${account.address}",
+                        caption = null,
+                        filled = true,
+                        enabled = !isConnecting,
+                        onClick = { onUseAccount(account) }
+                    )
+                }
+                Text(
+                    text = "Or sign in with another account:",
+                    fontSize = EInkTheme.Preferences.explanationFontSize,
+                    color = EInkTheme.Colors.gray
+                )
+            }
+
+            AccountChoiceButton(
+                label = "Personal Account",
+                caption = "Outlook.com, Hotmail or Live",
+                filled = calendarAccounts.isEmpty(),
+                enabled = !isConnecting,
+                onClick = { onSignIn(AccountType.OUTLOOK_PERSONAL) }
+            )
+            AccountChoiceButton(
+                label = "Work or School Account",
+                caption = "Microsoft 365 at work or school",
+                filled = false,
+                enabled = !isConnecting,
+                onClick = { onSignIn(AccountType.OUTLOOK_WORK_SCHOOL) }
+            )
+
+            if (isConnecting) {
+                Text(
+                    text = "Finish signing in on Microsoft's page...",
+                    fontSize = EInkTheme.Preferences.explanationFontSize,
+                    color = EInkTheme.Colors.primary
+                )
+            } else if (error != null) {
+                Text(
+                    text = error,
+                    fontSize = EInkTheme.Preferences.explanationFontSize,
+                    fontWeight = FontWeight.Medium,
+                    color = EInkTheme.Colors.primary
+                )
+            }
+
+            Text(
+                text = "BooxDay can see only its own folder in your OneDrive: Apps › BooxDay.",
+                fontSize = EInkTheme.Preferences.explanationFontSize,
+                color = EInkTheme.Colors.gray,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(EInkTheme.Colors.offWhite, RoundedCornerShape(6.dp))
+                    .padding(12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccountChoiceButton(label: String, caption: String?, filled: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(EInkTheme.Button.height)
+                .background(if (filled) EInkTheme.Colors.primary else EInkTheme.Colors.background, RoundedCornerShape(6.dp))
+                .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(6.dp))
+                .then(if (enabled) Modifier.noRippleClickable(onClick = onClick) else Modifier)
+                .padding(horizontal = EInkTheme.Global.paddingMedium),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                fontSize = EInkTheme.Typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = if (filled) EInkTheme.Colors.white else EInkTheme.Colors.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (caption != null) {
+            Text(
+                text = caption,
+                fontSize = EInkTheme.Preferences.infoLabelFontSize,
+                color = EInkTheme.Colors.gray
+            )
         }
     }
 }
@@ -1747,9 +2004,13 @@ private fun WhatsIncludedSection() {
  * Cloud backup configuration flow.
  */
 @Composable
-private fun CloudBackupFlowContent(
+internal fun CloudBackupFlowContent(
+    cloud: BackupCloud,
     userEmail: String?,
-    isDriveBackupEnabled: Boolean,
+    /** This cloud is where automatic backup goes. */
+    isAutoBackupOn: Boolean,
+    /** The other cloud, when automatic backup goes there now (owner decision 85: one at a time). */
+    otherCloudOn: BackupCloud?,
     backupFrequency: String,
     lastBackupTime: Long,
     isBackupInProgress: Boolean,
@@ -1784,7 +2045,7 @@ private fun CloudBackupFlowContent(
                     )
                     Column {
                         Text(
-                            text = "Google Drive Backup",
+                            text = "${cloud.label} Backup",
                             fontSize = EInkTheme.Preferences.cardTitleFontSize,
                             fontWeight = FontWeight.Bold,
                             color = EInkTheme.Colors.primary
@@ -1794,6 +2055,13 @@ private fun CloudBackupFlowContent(
                             fontSize = EInkTheme.Preferences.infoLabelFontSize,
                             color = EInkTheme.Colors.gray
                         )
+                        if (cloud == BackupCloud.ONEDRIVE) {
+                            Text(
+                                text = "Kept in OneDrive › Apps › BooxDay",
+                                fontSize = EInkTheme.Preferences.infoLabelFontSize,
+                                color = EInkTheme.Colors.gray
+                            )
+                        }
                     }
                 }
 
@@ -1831,13 +2099,23 @@ private fun CloudBackupFlowContent(
                     )
                 }
                 EInkToggle(
-                    checked = isDriveBackupEnabled,
+                    checked = isAutoBackupOn,
                     onCheckedChange = { onBackupEnabledChanged(it) }
                 )
             }
 
+            // Said before the switch is turned on: one backup cloud at a time (owner decision 85)
+            if (otherCloudOn != null && !isAutoBackupOn) {
+                Text(
+                    text = "Auto Backup goes to ${otherCloudOn.label} now. Turning it on here stops that; " +
+                        "the backups on ${otherCloudOn.label} stay there.",
+                    fontSize = EInkTheme.Preferences.explanationFontSize,
+                    color = EInkTheme.Colors.primary
+                )
+            }
+
             // Frequency selector (if enabled)
-            if (isDriveBackupEnabled) {
+            if (isAutoBackupOn) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1950,7 +2228,8 @@ private fun CloudBackupFlowContent(
  * Cloud restore flow - list and select backups.
  */
 @Composable
-private fun CloudRestoreFlowContent(
+internal fun CloudRestoreFlowContent(
+    cloud: BackupCloud,
     userEmail: String?,
     backups: List<DriveBackupService.BackupInfo>,
     isLoadingBackups: Boolean,
@@ -2042,7 +2321,7 @@ private fun CloudRestoreFlowContent(
                 }
             } else if (backups.isEmpty()) {
                 Text(
-                    text = "No backups found on Google Drive.",
+                    text = "No backups found on ${cloud.label}.",
                     fontSize = EInkTheme.Typography.bodyMedium,
                     color = EInkTheme.Colors.gray,
                     modifier = Modifier.padding(vertical = EInkTheme.Global.paddingMedium)
