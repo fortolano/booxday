@@ -53,8 +53,6 @@ internal class TaskSyncPuller(
         val waitsIn = HashMap<String, Int>()
         val failedLists = HashSet<String>()
         merger.goneInThisPull = read.flatMap { it.second.tasks }.filter { it.deleted }.mapTo(HashSet()) { it.listId to it.remoteId }
-        // A To Do repeating task ticked on the phone: its done copy takes the tablet's task first (owner decision 82)
-        for ((_, changes) in read) for (remote in changes.tasks) if (remote.takesOverRemoteId != null) merger.takeOver(remote)
         try {
             for (deletedOnes in listOf(false, true)) for ((list, changes) in read) {
                 if (list.listId in failedLists) continue

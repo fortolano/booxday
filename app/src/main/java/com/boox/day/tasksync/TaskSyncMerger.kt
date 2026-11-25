@@ -50,7 +50,9 @@ internal class TaskSyncMerger(
     /** Priority and reminder sync too (a CalDAV or To Do list; owner decisions 67, 80, 81). */
     private val extras: Boolean = service?.carriesExtras == true,
     /** The part of a priority the service keeps ([TaskSyncService.keptPriority]: To Do only A). */
-    private val keptPriority: (String) -> String = { priority -> service?.keptPriority(priority) ?: priority }
+    private val keptPriority: (String) -> String = { priority -> service?.keptPriority(priority) ?: priority },
+    /** A create of the task was sent and its answer never recorded (TaskSyncSender's H15 marker). */
+    private val createTried: (taskId: String) -> Boolean = { false }
 ) {
     enum class Result { APPLIED, UNCHANGED, WAITS }
 
@@ -63,41 +65,6 @@ internal class TaskSyncMerger(
     private val sync = db.taskSyncDao()
     private val tasks = db.taskDao()
 
-    /**
-     * [remote] replaces the copy [RemoteTaskState.takesOverRemoteId] (a To Do repeating task ticked
-     * on the phone, owner decision 82): the task linked to that copy is linked to [remote] instead,
-     * so it stays on its day and gets ticked by the merge; its subtasks go with it ([followReplacement]).
-     * The old id, now the next one, comes in as a new task with its subtasks. Nothing when that copy
-     * has no link, or [remote] already has one (ticked here), or [remote] isn't due on the very day
-     * the link last had (not this task's done copy for certain). Called by the pull before the round is merged.
-     */
-    fun takeOver(remote: RemoteTaskState) {
-        val replaced = remote.takesOverRemoteId ?: return
-        if (remote.deleted || sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, remote.remoteId) != null) return
-        val link = sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, replaced)?.takeUnless { it.keptOnTablet } ?: return
-        if (link.remoteUndated || remote.dueDay == null || remote.dueDay != link.syncedDueDay) return
-        db.runInTransaction {
-            sync.moveLinkToList(link.taskId, remote.listId, remote.remoteId)
-            followReplacement(remote.listId, replaced, remote.remoteId)
-        }
-        Log.i(TAG, "A repeating task ticked in the service: its done copy keeps the tablet's task")
-    }
-
-    /**
-     * The copy [replaced] is now [replacement] (in the same list): its subtasks' links follow where the
-     * service keeps them under it ([TaskSyncService.subtaskUnder]: To Do's done copy keeps the step ids),
-     * so subtasks ticked on the done day stay ticked. Run inside the caller's transaction.
-     */
-    fun followReplacement(listId: String, replaced: String, replacement: String) {
-        val service = service ?: return
-        for (child in sync.getChildLinks(provider, accountEmail, serverUrl, listId, replaced)) {
-            val moved = service.subtaskUnder(replacement, child.remoteId, replaced) ?: continue
-            if (sync.getLinkByRemote(provider, accountEmail, serverUrl, listId, moved) != null) continue
-            sync.moveLinkToList(child.taskId, listId, moved)
-            sync.setMovedParent(child.taskId, replaced, replacement)
-        }
-    }
-
     /** One task as the service has it now: from a pull, or a send that found it changed. */
     suspend fun merge(remote: RemoteTaskState): Result {
         val link = sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, remote.remoteId)
@@ -108,37 +75,59 @@ internal class TaskSyncMerger(
         // Unchanged since the last sync: the pull's margin brings our own writes back too
         if (remote.version != null && remote.version == link.remoteVersion) return Result.UNCHANGED
         val task = tasks.getById(link.taskId) ?: return Result.UNCHANGED
-        if (tickWaits(task, link, remote)) return Result.WAITS
+        if (remote.rolledOver || tickOutrun(task, link, remote)) return rolledOver(task, link, remote)
         return notNowIsWaits { tablet.inTransaction { update(task, link, remote) } }
     }
 
     /**
-     * A repeating copy that rolled over to its next one while the tablet's tick of it hasn't gone yet
-     * (its done copy not found so far): merging the next one now would move the ticked task to its day
-     * and the tick would then tick the next one too. It waits, the pull's cursor with it, until the
-     * done copy is found (owner decision 82), or the sender gives up on it ([keepTickOnTablet]).
+     * The tablet's tick of a repeating copy hasn't gone and the copy's due day changed since the last
+     * sync (rolled over already, or moved on the phone): as the send would (owner decision 100), the
+     * tick stays on the tablet and the copy is never ticked. Merged as a date change, the ticked task
+     * would move to the next one's day and its tick would tick that one.
      */
-    private fun tickWaits(task: Task, link: TaskSyncLink, remote: RemoteTaskState): Boolean {
-        if (!remote.rollsOver || remote.completed || !task.isCompleted || link.syncedCompleted) return false
-        if (link.remoteUndated) return false
-        val lastDue = link.syncedDueDay ?: return false
-        val due = remote.dueDay ?: return false
-        return due > lastDue && sync.queuedUpsertAt(task.id) != null
+    private fun tickOutrun(task: Task, link: TaskSyncLink, remote: RemoteTaskState): Boolean =
+        remote.rollsOver && !remote.completed && task.isCompleted && !link.syncedCompleted && remote.dueDay != dueOf(link)
+
+    /**
+     * A repeating copy ticked and rolled over to its next one under the same id (owner decision 100):
+     * the task is ticked on its day and stays there with its subtasks that are part of the copy (To
+     * Do steps), kept on the tablet only ([keepRolledOver]); the id, the next one now, comes in as a
+     * new task with its subtasks.
+     */
+    private suspend fun rolledOver(task: Task, link: TaskSyncLink, remote: RemoteTaskState): Result {
+        val kept = notNowIsWaits {
+            tablet.inTransaction {
+                if (!task.isCompleted) tablet.setCompleted(task.id, true)
+                keepWithParts(link)
+            }
+            Result.APPLIED
+        }
+        if (kept == Result.WAITS) return kept
+        Log.i(TAG, "A repeating task was ticked in the service; kept ticked on the tablet, its next one comes in")
+        return incoming(remote)
     }
 
     /**
-     * A tick whose done copy never showed is given up on (TaskSyncSender's limit; owner, 25 Nov 2026):
-     * the task stays ticked on its day, kept on the tablet only like a ticked task deleted in the
-     * service (decision 26), and is never sent again, so the next one is never ticked. Its link leaves
-     * the copy's id, which holds the next one now, so that one comes in as a new task and the pull
-     * moves on.
+     * The tablet's tick made [link]'s copy the next one of its repeat, or it already was (a To Do
+     * repeating task, owner decision 100): the task stays ticked on its day with its subtasks that are
+     * part of the copy, kept on the tablet only (as a ticked task deleted in the service, decision 26)
+     * and never sent again, so the next one is never ticked. Their links leave the copies' ids, which
+     * hold the next one now: it comes in as a new task with its steps.
      */
-    fun keepTickOnTablet(taskId: String) {
-        val link = sync.getLink(taskId) ?: return
-        db.runInTransaction {
-            tasks.dropQueuedSyncUpsert(taskId)
-            sync.moveLinkToList(taskId, link.listId, TaskSyncRules.TICK_KEPT + taskId)
-            sync.markKeptOnTablet(taskId, TaskSyncKept.TICKED)
+    fun keepRolledOver(link: TaskSyncLink) {
+        db.runInTransaction { keepWithParts(link) }
+        Log.i(TAG, "A repeating task was ticked; kept ticked on the tablet, its next one comes in")
+    }
+
+    /** [keepRolledOver] inside the caller's transaction. */
+    private fun keepWithParts(link: TaskSyncLink) {
+        val parts = service?.let { s ->
+            sync.getLinksInList(provider, accountEmail, serverUrl, link.listId).filter { !it.keptOnTablet && s.isPartOf(it.remoteId, link.remoteId) }
+        }.orEmpty()
+        for (kept in parts + link) {
+            tasks.dropQueuedSyncUpsert(kept.taskId)
+            sync.moveLinkToList(kept.taskId, kept.listId, TaskSyncRules.ROLLED_OVER + kept.taskId)
+            sync.markKeptOnTablet(kept.taskId, TaskSyncKept.ROLLED_OVER)
         }
     }
 
@@ -378,13 +367,14 @@ internal class TaskSyncMerger(
 
     /**
      * A To Do step is the tablet's own only with proof: an unlinked subtask of the task linked to the
-     * step's parent, with the same words and its send still waiting (a create whose answer was lost).
-     * Never a task that merely has the same words on that day: that one is the user's own.
+     * step's parent, with the same words, whose create was sent and its answer never recorded (lost
+     * on the way). Never one not sent yet, nor a task that merely has the same words on that day:
+     * those are the user's own.
      */
     private fun pendingSubtask(remote: RemoteTaskState, title: String): Task? {
         val parentLink = remote.parentRemoteId?.let { sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, it) } ?: return null
         return tasks.getChildTasks(parentLink.taskId).firstOrNull { child ->
-            sync.getLink(child.id) == null && TaskSyncRules.textToSend(child) == title && sync.queuedUpsertAt(child.id) != null
+            sync.getLink(child.id) == null && TaskSyncRules.textToSend(child) == title && createTried(child.id)
         }
     }
 

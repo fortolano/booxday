@@ -92,6 +92,8 @@ object TaskSyncKept {
     const val TICKED_AT_TURN_ON = "TICKED_AT_TURN_ON"
     /** Moved in the service to a list that isn't synced (owner decision 49). */
     const val MOVED_TO_UNSYNCED_LIST = "MOVED_TO_UNSYNCED_LIST"
+    /** A repeating task ticked: the service made its copy the next one (a To Do repeating task, owner decision 100). */
+    const val ROLLED_OVER = "ROLLED_OVER"
 }
 
 /** Changes waiting to be sent. Device-only (not backed up). */

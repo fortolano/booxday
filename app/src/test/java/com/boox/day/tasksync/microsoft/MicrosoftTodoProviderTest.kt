@@ -9,7 +9,9 @@ import com.boox.day.tasksync.RemoteList
 import com.boox.day.tasksync.TaskExtras
 import com.boox.day.tasksync.TaskSyncServiceException
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
@@ -27,6 +29,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 
@@ -57,8 +60,7 @@ class MicrosoftTodoProviderTest {
     private fun provider() = MicrosoftTodoProvider(
         MicrosoftGraph(token = { "token" }, baseUrl = server.url("/v1.0").toString().trimEnd('/')),
         linksIn = { listId -> links.filter { it.listId == listId } },
-        zone = { zone },
-        pause = {}
+        zone = { zone }
     )
 
     // ── Lists (owner decision 84) ──
@@ -245,13 +247,15 @@ class MicrosoftTodoProviderTest {
     }
 
     @Test
-    fun aRepeatingTaskOrOneWithAttachmentsIsNotMoved() = runBlocking {
+    fun aRepeatingTaskOneOfItsStepsOrATaskWithAttachmentsIsNotMoved() = runBlocking {
         todo.addList(WORK, "Work")
         val repeating = todo.addTask(TASKS, task("Water plants") + ("recurrence" to FakeTodoServer.daily("2026-11-25")))
+        val step = TodoFields.stepRemoteId(repeating, todo.addStep(TASKS, repeating, "Kitchen"))
         val withFile = todo.addTask(TASKS, task("Sign lease") + ("hasAttachments" to JsonPrimitive(true)))
         val writesBefore = todo.writes.size
 
-        for (id in listOf(repeating, withFile)) {
+        // A step of a repeating task moved out would be deleted from the series (owner decision 89)
+        for (id in listOf(repeating, step, withFile)) {
             try {
                 provider().moveToList(TASKS, id, WORK)
                 fail("expected Refused")
@@ -261,6 +265,38 @@ class MicrosoftTodoProviderTest {
         }
         assertEquals("nothing written", writesBefore, todo.writes.size)
         assertEquals(2, todo.tasksIn(TASKS).size)
+        assertEquals("the step stays in its series", 1, todo.stepsOf(repeating).size)
+    }
+
+    // ── Repeats (owner decision 100): the next date, only when it can be worked out ──
+
+    @Test
+    fun theNextDateOfEachRepeatToDoHas() {
+        fun next(pattern: JsonObject, after: String) =
+            TodoFields.nextDue(buildJsonObject { put("pattern", pattern) }, LocalDate.parse(after))?.toString()
+        fun pattern(type: String, interval: Int = 1, more: JsonObjectBuilder.() -> Unit = {}) =
+            buildJsonObject { put("type", type); put("interval", interval); more() }
+        fun days(vararg names: String) = JsonArray(names.map(::JsonPrimitive))
+
+        assertEquals("2026-11-26", next(pattern("daily"), "2026-11-25"))
+        assertEquals("every 3 days", "2026-11-28", next(pattern("daily", 3), "2026-11-25"))
+        // 25 Nov 2026 is a Wednesday; weeks start on Sunday
+        val monWedFri = pattern("weekly") { put("daysOfWeek", days("monday", "wednesday", "friday")); put("firstDayOfWeek", "sunday") }
+        assertEquals("the next of its days that week", "2026-11-27", next(monWedFri, "2026-11-25"))
+        assertEquals("the week after", "2026-11-30", next(monWedFri, "2026-11-27"))
+        val everyOtherMonday = pattern("weekly", 2) { put("daysOfWeek", days("monday")); put("firstDayOfWeek", "sunday") }
+        assertEquals("2026-12-07", next(everyOtherMonday, "2026-11-23"))
+        assertEquals("the 31st in a shorter month: its last day", "2026-11-30", next(pattern("absoluteMonthly") { put("dayOfMonth", 31) }, "2026-10-31"))
+        assertEquals("every 2 months", "2027-01-15", next(pattern("absoluteMonthly", 2) { put("dayOfMonth", 15) }, "2026-11-15"))
+        assertEquals("the last Friday", "2026-12-25", next(pattern("relativeMonthly") { put("daysOfWeek", days("friday")); put("index", "last") }, "2026-11-27"))
+        assertEquals("the first Monday", "2026-12-07", next(pattern("relativeMonthly") { put("daysOfWeek", days("monday")); put("index", "first") }, "2026-11-02"))
+        assertEquals("2027-11-25", next(pattern("absoluteYearly") { put("month", 11); put("dayOfMonth", 25) }, "2026-11-25"))
+        assertEquals("the fourth Thursday of November", "2027-11-25",
+            next(pattern("relativeYearly") { put("month", 11); put("daysOfWeek", days("thursday")); put("index", "fourth") }, "2026-11-26"))
+
+        assertNull("a pattern To Do doesn't have", next(pattern("hourly"), "2026-11-25"))
+        assertNull("weekly without its days", next(pattern("weekly"), "2026-11-25"))
+        assertNull("no interval", next(buildJsonObject { put("type", "daily") }, "2026-11-25"))
     }
 
     // ── Deleting (owner decision 89) ──
