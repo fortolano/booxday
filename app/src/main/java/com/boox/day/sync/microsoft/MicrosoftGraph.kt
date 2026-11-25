@@ -62,11 +62,22 @@ internal class MicrosoftGraph(
      * GET, POST, PATCH or DELETE on [path]: a path after /v1.0 ("/me/todo/lists") or a whole URL
      * Graph handed out (nextLink, deltaLink). The answer's JSON, or null when it has none (204).
      */
-    suspend fun call(method: String, path: String, body: JsonObject? = null): JsonObject? {
+    suspend fun call(
+        method: String,
+        path: String,
+        body: JsonObject? = null,
+        /**
+         * The item's `@odata.etag` as last read: Microsoft then changes it only if nobody changed it
+         * since, else answers 412 (GraphException.Http, measured on To Do 25 Nov 2026).
+         */
+        ifMatch: String? = null
+    ): JsonObject? {
         val content = body?.toString()?.toRequestBody(JSON_TYPE)
             ?: if (method == "POST" || method == "PATCH") "{}".toRequestBody(JSON_TYPE) else null
         return authorized { auth ->
-            Request.Builder().url(urlOf(path)).header("Authorization", auth).method(method, content).build()
+            Request.Builder().url(urlOf(path)).header("Authorization", auth).method(method, content)
+                .apply { if (ifMatch != null) header("If-Match", ifMatch) }
+                .build()
         }.use { read(it) }
     }
 

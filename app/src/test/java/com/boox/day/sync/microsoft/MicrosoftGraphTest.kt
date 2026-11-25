@@ -90,6 +90,18 @@ class MicrosoftGraphTest {
     }
 
     @Test
+    fun ifMatchGoesWithTheChangeAndAStaleOneIsRefused() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(412).setBody("""{"error":{"code":"ErrorIrresolvableConflict","message":"x"}}"""))
+        try {
+            graph().call("PATCH", "/me/todo/lists/a/tasks/b", null, ifMatch = "W/\"old\"")
+            fail("expected Http")
+        } catch (e: GraphException.Http) {
+            assertEquals(412, e.status)
+        }
+        assertEquals("W/\"old\"", server.takeRequest().getHeader("If-Match"))
+    }
+
+    @Test
     fun noContentIsNull() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(204))
         assertEquals(null, graph().call("DELETE", "/me/todo/lists/a/tasks/b"))
