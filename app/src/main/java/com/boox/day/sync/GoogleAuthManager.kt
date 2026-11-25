@@ -75,6 +75,7 @@ class GoogleAuthManager(private val context: Context) {
         const val FREQUENCY_8_HOURS = "8 hours"
         const val FREQUENCY_DAILY = "Daily"
         const val FREQUENCY_WEEKLY = "Weekly"
+        const val FREQUENCY_MONTHLY = "Monthly"
         const val FREQUENCY_MANUAL = "Manual"
 
         val FREQUENCY_OPTIONS = listOf(
@@ -83,11 +84,18 @@ class GoogleAuthManager(private val context: Context) {
             FREQUENCY_DAILY
         )
 
+        // Monthly added Nov 2026: the backup screen offered it, but it wasn't in this list, so it read
+        // back as Weekly (and the screen then showed Weekly)
         val BACKUP_FREQUENCY_OPTIONS = listOf(
             FREQUENCY_DAILY,
             FREQUENCY_WEEKLY,
+            FREQUENCY_MONTHLY,
             FREQUENCY_MANUAL
         )
+
+        /** The saved backup frequency, or Weekly when none is saved or it isn't one BooxDay knows. */
+        internal fun backupFrequencyOf(stored: String?): String =
+            if (stored in BACKUP_FREQUENCY_OPTIONS) stored!! else FREQUENCY_WEEKLY
 
         fun getFrequencyMillis(frequency: String): Long {
             return when (frequency) {
@@ -97,6 +105,7 @@ class GoogleAuthManager(private val context: Context) {
                 FREQUENCY_8_HOURS -> 8 * 60 * 60 * 1000L
                 FREQUENCY_DAILY -> 24 * 60 * 60 * 1000L
                 FREQUENCY_WEEKLY -> 7 * 24 * 60 * 60 * 1000L
+                FREQUENCY_MONTHLY -> 30 * 24 * 60 * 60 * 1000L
                 FREQUENCY_MANUAL -> Long.MAX_VALUE  // Never auto-trigger
                 else -> 24 * 60 * 60 * 1000L
             }
@@ -387,10 +396,7 @@ class GoogleAuthManager(private val context: Context) {
     }
 
     fun getBackupFrequency(): String {
-        val stored = readPrefs(defaultValue = FREQUENCY_WEEKLY) {
-            getString("backup_frequency", FREQUENCY_WEEKLY) ?: FREQUENCY_WEEKLY
-        }
-        return if (stored in BACKUP_FREQUENCY_OPTIONS) stored else FREQUENCY_WEEKLY
+        return backupFrequencyOf(readPrefs<String?>(defaultValue = null) { getString("backup_frequency", null) })
     }
 
     fun setLastBackupTime(timestamp: Long) {
