@@ -347,11 +347,14 @@ fun DataBackupDialog(
                     if (backupDestination == null && !oneDriveService.hasExistingBackups()) {
                         setDestination(BackupCloud.ONEDRIVE)
                     }
-                    navigateBack()
-                    navigateTo(
-                        if (forRestore) BackupDialogPhase.CloudRestoreFlow(BackupCloud.ONEDRIVE)
-                        else BackupDialogPhase.CloudBackupFlow(BackupCloud.ONEDRIVE)
-                    )
+                    // Only from the account choice: the user may have gone elsewhere meanwhile
+                    if (currentPhase is BackupDialogPhase.MicrosoftAccountChoice) {
+                        navigateBack()
+                        navigateTo(
+                            if (forRestore) BackupDialogPhase.CloudRestoreFlow(BackupCloud.ONEDRIVE)
+                            else BackupDialogPhase.CloudBackupFlow(BackupCloud.ONEDRIVE)
+                        )
+                    }
                 },
                 onFailure = { oneDriveSignInError = OneDriveSignIn.errorText(it) }
             )
