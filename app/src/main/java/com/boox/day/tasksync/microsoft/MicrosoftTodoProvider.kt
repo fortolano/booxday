@@ -32,9 +32,11 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 /**
@@ -51,11 +53,13 @@ import java.time.format.DateTimeFormatter
  *   its parent's day (decision 24); a subtask's due day, reminder and priority stay on the tablet.
  * - **Priority A is To Do's star** (decision 80); B and C stay on the tablet ([TodoFields]).
  *   **Reminder** like CalDAV (decision 81): a task's own reminder time on its due day.
- * - **Dates** go as the time in the tablet's zone; Graph keeps and returns them in UTC, so every
- *   date read is converted to the tablet's zone first (measured 25 Nov 2026).
+ * - **Dates** always go as UTC, worked out on the tablet: Microsoft's time-zone rules and the
+ *   tablet's can differ, and BooxDay follows the tablet's clock. A due day is midnight UTC of the
+ *   day, as To Do itself keeps due days; a reminder is its real moment ([TodoFields], 25 Nov 2026).
  * - **Repeating tasks** (decision 82): the current one comes in. Ticked, To Do keeps the task's id
- *   for the next one and makes a new done copy (measured 25 Nov 2026): the tablet's task follows the
- *   done copy, ticked here ([upsert]) or on the phone ([RemoteTaskState.takesOverRemoteId]).
+ *   for the next one and makes a new done copy with the same step ids (measured 25 Nov 2026): the
+ *   tablet's task and its subtasks follow the done copy, ticked here ([upsert]) or on the phone
+ *   ([RemoteTaskState.takesOverRemoteId]); the next one comes in with its steps as new tasks.
  * - **Moving to another list** (decision 83): a copy in the new list and the old one deleted; a
  *   task with attachments or a repeat is refused.
  * - An update first reads the copy and stops with [TaskSyncServiceException.RemoteChanged] if it
@@ -68,7 +72,6 @@ internal class MicrosoftTodoProvider(
     /** The links of a list: which steps are on the tablet (a step deleted with its task has no delta entry of its own). */
     private val linksIn: suspend (listId: String) -> List<TaskSyncLink> = { emptyList() },
     private val zone: () -> ZoneId = ZoneId::systemDefault,
-    private val windowsZone: (ZoneId) -> String? = TodoFields::windowsZoneOf,
     private val pause: suspend (Long) -> Unit = { delay(it) }
 ) : TaskSyncService {
 
@@ -533,15 +536,13 @@ internal class MicrosoftTodoProvider(
         }
     }
 
-    /** Midnight of [day] in the tablet's zone, the way To Do's own apps send a due day. */
-    private fun dueFor(day: String): JsonObject = dateTimeOf(LocalDate.parse(day).atStartOfDay())
+    private fun dueFor(day: String): JsonObject = TodoFields.dueFor(LocalDate.parse(day))
 
+    /** The reminder minute on [day] in the tablet's zone, as its moment in UTC. */
     private fun reminderFor(day: String?, minute: Int?): JsonObject? {
         if (day == null || minute == null) return null
-        return dateTimeOf(LocalDate.parse(day).atTime(minute / 60, minute % 60))
+        return TodoFields.utc(LocalDate.parse(day).atTime(minute / 60, minute % 60).atZone(zone()))
     }
-
-    private fun dateTimeOf(at: LocalDateTime): JsonObject = zone().let { TodoFields.dateTime(at, it, windowsZone(it)) }
 
     private fun dueOf(task: JsonObject): String? = TodoFields.dayOf(task.obj("dueDateTime"), zone())
 
@@ -704,6 +705,7 @@ internal class MicrosoftTodoProvider(
         private const val NEXT_LINK = "@odata.nextLink"
         private const val DELTA_LINK = "@odata.deltaLink"
         private const val NO_MAILBOX = "MailboxNotEnabledForRESTAPI"
+        /** For the plain task list only: delta refuses any $top (400, measured 25 Nov 2026). */
         private const val PAGE_SIZE = 100
 
         /** Graph's answers for a delta cursor it no longer knows (410 Gone, or these codes). */
@@ -775,19 +777,40 @@ internal object TodoFields {
     /** The part of a tablet priority To Do keeps: B and C read back as none, so they never change. */
     fun keptPriority(priority: String): String = priorityOf(importanceOf(priority))
 
-    // ── Dates: Graph keeps and returns them in UTC (measured 25 Nov 2026) ──
+    // ── Dates (measured 25 Nov 2026): always sent as UTC worked out on the tablet, since Microsoft's
+    // time-zone rules and the tablet's can differ; Graph keeps and returns them in UTC ──
 
     private val WIRE: DateTimeFormatter = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss")
 
-    /** A Graph dateTimeTimeZone as a time in [zone]. */
-    fun localOf(value: JsonObject?, zone: ZoneId): LocalDateTime? {
+    /** The moment a Graph dateTimeTimeZone stands for. */
+    private fun momentOf(value: JsonObject?): ZonedDateTime? {
         val text = value?.str("dateTime") ?: return null
         val written = runCatching { LocalDateTime.parse(text.substring(0, minOf(19, text.length))) }.getOrNull() ?: return null
-        return written.atZone(zoneOf(value.str("timeZone"))).withZoneSameInstant(zone).toLocalDateTime()
+        return written.atZone(zoneOf(value.str("timeZone")))
     }
 
-    /** "yyyy-MM-dd" in [zone]. */
-    fun dayOf(value: JsonObject?, zone: ZoneId): String? = localOf(value, zone)?.toLocalDate()?.toString()
+    /** A Graph dateTimeTimeZone as a time in [zone]. */
+    fun localOf(value: JsonObject?, zone: ZoneId): LocalDateTime? = momentOf(value)?.withZoneSameInstant(zone)?.toLocalDateTime()
+
+    /**
+     * A due day, "yyyy-MM-dd": midnight UTC is a day as To Do keeps due days, taken as it is; any
+     * other moment (another app, or an older send, wrote a local midnight) is the day in [zone].
+     */
+    fun dayOf(value: JsonObject?, zone: ZoneId): String? {
+        val moment = momentOf(value) ?: return null
+        val utc = moment.withZoneSameInstant(ZoneOffset.UTC)
+        if (utc.toLocalTime() == LocalTime.MIDNIGHT) return utc.toLocalDate().toString()
+        return moment.withZoneSameInstant(zone).toLocalDate().toString()
+    }
+
+    /** A due day as To Do keeps it: midnight UTC of the day, whatever the tablet's zone. */
+    fun dueFor(day: LocalDate): JsonObject = utc(day.atStartOfDay(ZoneOffset.UTC))
+
+    /** A moment as Graph gets it from BooxDay: always in UTC, never a zone's name. */
+    fun utc(at: ZonedDateTime): JsonObject = buildJsonObject {
+        put("dateTime", at.withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime().format(WIRE))
+        put("timeZone", "UTC")
+    }
 
     /**
      * The task's own reminder time (owner decision 81, like CalDAV's 69): a reminder on its due day,
@@ -799,29 +822,13 @@ internal object TodoFields {
         return if (at.toLocalDate().toString() == dueDay) at.hour * 60 + at.minute else null
     }
 
-    /** [at] in [zone], under Windows' name for it when known, else as UTC. */
-    fun dateTime(at: LocalDateTime, zone: ZoneId, windowsName: String?): JsonObject = buildJsonObject {
-        if (windowsName != null) {
-            put("dateTime", at.format(WIRE))
-            put("timeZone", windowsName)
-        } else {
-            put("dateTime", at.atZone(zone).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime().format(WIRE))
-            put("timeZone", "UTC")
-        }
-    }
-
-    /** A zone Graph names: "UTC", an IANA id, or a Windows name. */
+    /** A zone Graph names in what it returns: "UTC" (always so far), else an IANA id or a Windows name. */
     fun zoneOf(name: String?): ZoneId {
         if (name.isNullOrBlank() || name.equals("UTC", ignoreCase = true)) return ZoneOffset.UTC
         runCatching { return ZoneId.of(name) }
         val iana = runCatching { android.icu.util.TimeZone.getIDForWindowsID(name, null) }.getOrNull()
         return iana?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneOffset.UTC
     }
-
-    /** Windows' name for [zone] ("Central European Standard Time"), the form Graph documents; null if none. */
-    fun windowsZoneOf(zone: ZoneId): String? = runCatching {
-        android.icu.util.TimeZone.getWindowsID(if (zone.normalized() == ZoneOffset.UTC) "Etc/UTC" else zone.id)
-    }.getOrNull()
 
     /** A step has no version of its own: its words and tick stand in for one. */
     fun stepVersion(step: JsonObject): String {

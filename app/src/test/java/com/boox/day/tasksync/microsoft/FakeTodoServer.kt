@@ -42,6 +42,8 @@ internal class FakeTodoServer : Dispatcher() {
     val expired = HashSet<String>()
     /** Every request: "METHOD /path?query". */
     val requests = mutableListOf<String>()
+    /** Every time-zone name BooxDay sent in a date. */
+    val sentZones = mutableListOf<String>()
     /** Requests that change something. */
     val writes: List<String> get() = requests.filter { !it.startsWith("GET") }
 
@@ -87,6 +89,9 @@ internal class FakeTodoServer : Dispatcher() {
         requests += "${request.method} ${url.encodedPath}$query"
         val path = url.pathSegments.drop(1)  // after v1.0
         val body = request.body.readUtf8().takeIf { it.isNotBlank() }?.let { Json.parseToJsonElement(it).jsonObject }
+        body?.let { sent -> DATES.forEach { key -> (sent[key] as? JsonObject)?.str("timeZone")?.let { sentZones += it } } }
+        // Delta takes no $top (measured 25 Nov 2026)
+        if (path.lastOrNull() == "delta" && url.queryParameter("\$top") != null) return error(400, "BadRequest")
         return try {
             route(request.method!!, path, url.queryParameter("\$deltatoken"), url.queryParameter("\$skiptoken"), url.queryParameter("\$filter"), body)
         } catch (e: NoSuchElementException) {
@@ -190,26 +195,35 @@ internal class FakeTodoServer : Dispatcher() {
         return task
     }
 
-    /** A ticked repeating task keeps its id for the next one; a new done copy holds this one. */
+    /**
+     * A ticked repeating task keeps its id for the next one; a new done copy holds this one. Both
+     * get the due day as midnight UTC of its date, and the same step ids: the done copy's ticked as
+     * they were, the next one's all unticked (measured 25 Nov 2026).
+     */
     private fun patch(listId: String, taskId: String, fields: JsonObject): JsonObject {
         val before = tasks.getValue(listId).getValue(taskId)
         val ticked = fields["status"]?.jsonPrimitive?.contentOrNull == "completed" && before["recurrence"] is JsonObject
         if (ticked) {
             val doneId = "AAMk-${++ids}="
             val at = stamp()
+            val due = midnightUtc(before["dueDateTime"])
             val done = JsonObject(
                 before + mapOf(
                     "id" to JsonPrimitive(doneId),
                     "status" to JsonPrimitive("completed"),
+                    "dueDateTime" to due,
                     "createdDateTime" to JsonPrimitive(at),
                     "lastModifiedDateTime" to JsonPrimitive(at),
                     "completedDateTime" to buildJsonObject { put("dateTime", wire(LocalDateTime.ofInstant(now, ZoneOffset.UTC))); put("timeZone", "UTC") },
                     "@odata.etag" to JsonPrimitive("W/\"$doneId-$rev\"")
                 )
             )
+            val stepsBefore = steps[taskId].orEmpty()
+            steps[doneId] = LinkedHashMap(stepsBefore)
+            steps[taskId] = LinkedHashMap(stepsBefore.mapValues { (_, step) -> JsonObject(step + ("isChecked" to JsonPrimitive(false))) })
             tasks.getValue(listId)[doneId] = done
             log(listId, doneId)
-            val next = JsonObject(before + ("dueDateTime" to dayLater(before["dueDateTime"])) + ("reminderDateTime" to dayLater(before["reminderDateTime"])))
+            val next = JsonObject(before + ("dueDateTime" to dayLater(due)) + ("reminderDateTime" to dayLater(before["reminderDateTime"])))
             tasks.getValue(listId)[taskId] = stamped(next)
             log(listId, taskId)
             return tasks.getValue(listId).getValue(taskId)
@@ -272,6 +286,12 @@ internal class FakeTodoServer : Dispatcher() {
             put("dateTime", wire(local.atZone(zone).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime()))
             put("timeZone", "UTC")
         }
+    }
+
+    /** Midnight UTC of a stored UTC date's day: how To Do keeps a due day. */
+    private fun midnightUtc(value: JsonElement?): JsonElement {
+        val date = (value as? JsonObject)?.str("dateTime") ?: return value ?: JsonNull
+        return buildJsonObject { put("dateTime", wire(LocalDateTime.parse(date.take(19)).toLocalDate().atStartOfDay())); put("timeZone", "UTC") }
     }
 
     private fun dayLater(value: JsonElement?): JsonElement {

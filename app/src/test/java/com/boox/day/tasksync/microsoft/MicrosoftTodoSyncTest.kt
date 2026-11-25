@@ -219,7 +219,7 @@ class MicrosoftTodoSyncTest {
 
     @Test
     fun aRepeatingTaskTickedHereStaysTickedOnItsDayAndTheNextOneComes() = runBlocking {
-        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-24T23:00:00"))  // 25 Nov in Warsaw
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))  // 25 Nov, as To Do keeps due days
         run()
         val plants = tasks.getTasksForDay(DAY).single { it.typedText == "Water plants" }.id
 
@@ -240,7 +240,7 @@ class MicrosoftTodoSyncTest {
 
     @Test
     fun aRepeatingTaskTickedOnThePhoneIsTickedHereAndTheNextOneComes() = runBlocking {
-        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-24T23:00:00"))
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
         run()
         val plants = tasks.getTasksForDay(DAY).single { it.typedText == "Water plants" }.id
 
@@ -262,7 +262,7 @@ class MicrosoftTodoSyncTest {
     @Test
     fun anOldDoneCopyInAFullRoundNeverTakesTheTabletsTask() = runBlocking {
         // Ticked on the phone before the tablet ever synced: an old done copy (25 Nov), the open one on 26 Nov
-        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-24T23:00:00"))
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
         todo.patchTask(TASKS, original, mapOf("status" to JsonPrimitive("completed")))
         run()
         val next = tasks.getTasksForDay(NEXT_DAY).single { it.typedText == "Water plants" }.id

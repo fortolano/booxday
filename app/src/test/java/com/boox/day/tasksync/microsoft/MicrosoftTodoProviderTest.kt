@@ -28,6 +28,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.ZoneId
+import java.time.ZoneOffset
 
 /**
  * Microsoft To Do as task sync's service (owner decisions 79-84), against Graph's answers as
@@ -86,6 +87,7 @@ class MicrosoftTodoProviderTest {
         todo.patchTask(TASKS, todo.tasksIn(TASKS)[1].str("id"), buildJsonObject { put("title", "Task 1 later") })
         val next = provider().changes(TASKS, first.nextCursor)
         assertEquals("only what changed since", listOf("Task 1 later"), next.tasks.map { it.title })
+        assertTrue("delta refuses \$top (measured 25 Nov 2026)", todo.requests.filter { "/delta" in it }.none { "top" in it })
     }
 
     @Test
@@ -121,41 +123,56 @@ class MicrosoftTodoProviderTest {
         }
     }
 
-    // ── Dates: Graph keeps UTC; the tablet's day in its own zone (measured 25 Nov 2026) ──
+    // ── Dates (measured 25 Nov 2026): always UTC worked out on the tablet; a due day is midnight UTC ──
 
     @Test
-    fun aDueDayStaysTheSameDayEastOfUtc() = runBlocking {
+    fun aDueDayGoesAsMidnightUtcAndAReminderAsItsMomentEastOfUtc() = runBlocking {
         zone = WARSAW
         val sent = provider().upsert(outgoing("Pay rent", due = "2026-11-26", reminder = 9 * 60 + 30), null)
 
         val stored = todo.task(TASKS, sent.remoteId)!!
-        assertEquals("as Graph keeps it", "2026-11-25T23:00:00.0000000", stored.obj("dueDateTime").str("dateTime"))
-        assertEquals("UTC", stored.obj("dueDateTime").str("timeZone"))
-        assertEquals("2026-11-26T08:30:00.0000000", stored.obj("reminderDateTime").str("dateTime"))
+        assertEquals("the day as To Do keeps due days", "2026-11-26T00:00:00.0000000", stored.obj("dueDateTime").str("dateTime"))
+        assertEquals("9:30 in Warsaw", "2026-11-26T08:30:00.0000000", stored.obj("reminderDateTime").str("dateTime"))
+        assertEquals("never a zone's name", listOf("UTC", "UTC"), todo.sentZones)
         val read = provider().changes(TASKS, null).tasks.single()
         assertEquals("2026-11-26", read.dueDay)
         assertEquals(TaskExtras("", 9 * 60 + 30), read.extras)
     }
 
     @Test
-    fun aDueDayStaysTheSameDayWestOfUtc() = runBlocking {
-        zone = NEW_YORK
+    fun aDueDayGoesAsMidnightUtcAndAReminderAsItsMomentWestOfUtc() = runBlocking {
+        zone = ZoneOffset.ofHours(-8)
         val sent = provider().upsert(outgoing("Pay rent", due = "2026-11-26", reminder = 20 * 60), null)
 
         val stored = todo.task(TASKS, sent.remoteId)!!
-        assertEquals("2026-11-26T05:00:00.0000000", stored.obj("dueDateTime").str("dateTime"))
-        assertEquals("the evening reminder is the next day in UTC", "2026-11-27T01:00:00.0000000", stored.obj("reminderDateTime").str("dateTime"))
+        assertEquals("2026-11-26T00:00:00.0000000", stored.obj("dueDateTime").str("dateTime"))
+        assertEquals("the evening reminder is the next day in UTC", "2026-11-27T04:00:00.0000000", stored.obj("reminderDateTime").str("dateTime"))
+        assertEquals(listOf("UTC", "UTC"), todo.sentZones)
         val read = provider().changes(TASKS, null).tasks.single()
         assertEquals("2026-11-26", read.dueDay)
         assertEquals("still on its due day here", 20 * 60, read.extras?.reminderMinute)
     }
 
     @Test
-    fun aDueDaySetOnThePhoneInWarsawIsThatDay() = runBlocking {
-        // Graph's own answer for a due day of 26 Nov set in Warsaw
-        todo.addTask(TASKS, task("Dentist") + ("dueDateTime" to FakeTodoServer.date("2026-11-25T23:00:00.0000000", "UTC")))
-        zone = WARSAW
-        assertEquals("taking the date as written would make it 25 Nov", "2026-11-26", provider().changes(TASKS, null).tasks.single().dueDay)
+    fun whatBooxDaySendsReadsBackAsTheSameDayInEveryZone() = runBlocking {
+        for (tabletZone in listOf(WARSAW, NEW_YORK, ZoneOffset.ofHours(-7), ZoneOffset.ofHours(-8), ZoneOffset.ofHours(13))) {
+            zone = tabletZone
+            val sent = provider().upsert(outgoing("Day in $tabletZone", due = "2026-11-26", reminder = 23 * 60 + 30), null)
+            val read = provider().fetch(TASKS, sent.remoteId)!!
+            assertEquals("$tabletZone", "2026-11-26", read.dueDay)
+            assertEquals("$tabletZone", 23 * 60 + 30, read.extras?.reminderMinute)
+        }
+        assertTrue(todo.sentZones.all { it == "UTC" })
+    }
+
+    @Test
+    fun aDueDayReadsAsTheTabletsDayWhoeverWroteIt() {
+        val midnightUtc = FakeTodoServer.date("2026-11-26T00:00:00.0000000", "UTC")
+        assertEquals("To Do's own way, west of UTC", "2026-11-26", TodoFields.dayOf(midnightUtc, ZoneOffset.ofHours(-7)))
+        assertEquals("To Do's own way, east of UTC", "2026-11-26", TodoFields.dayOf(midnightUtc, WARSAW))
+        // Another app (or an older send) wrote the tablet's local midnight
+        assertEquals("2026-11-26", TodoFields.dayOf(FakeTodoServer.date("2026-11-25T23:00:00.0000000", "UTC"), WARSAW))
+        assertEquals("2026-11-26", TodoFields.dayOf(FakeTodoServer.date("2026-11-26T08:00:00.0000000", "UTC"), ZoneOffset.ofHours(-8)))
     }
 
     // ── Reminders (owner decision 81, like CalDAV's 69) ──
