@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -64,7 +65,6 @@ import com.boox.day.sync.BackupStateDetector
 import com.boox.day.sync.DriveBackupService
 import com.boox.day.sync.ExportService
 import com.boox.day.sync.GoogleAuthManager
-import com.boox.day.sync.ImportService
 import com.boox.day.sync.LocalBackupService
 import com.boox.day.sync.PostRestore
 import com.boox.day.sync.SignInErrorText
@@ -177,11 +177,10 @@ fun DataBackupDialog(
     var storageInfo by remember { mutableStateOf<StorageCalculator.StorageInfo?>(null) }
     var isLoadingStorage by remember { mutableStateOf(true) }
 
-    // Google Auth Manager, Drive Backup Service, Export Service, and Import Service
+    // Google Auth Manager, Drive Backup Service and Export Service
     val authManager = remember { GoogleAuthManager(context) }
     val driveBackupService = remember { DriveBackupService(context) }
     val exportService = remember { ExportService(context) }
-    val importService = remember { ImportService(context) }
 
     // Cloud backup state
     var isSignedIn by remember { mutableStateOf(authManager.isSignedIn()) }
@@ -212,10 +211,9 @@ fun DataBackupDialog(
     var isLocalRestoreInProgress by remember { mutableStateOf(false) }
     var localSaveStatus by remember { mutableStateOf<String?>(null) }
     var localRestoreStatus by remember { mutableStateOf<String?>(null) }
-    var showLocalRestoreConfirmation by remember { mutableStateOf(false) }
-    var pendingRestorePreview by remember { mutableStateOf<ImportService.BackupPreview?>(null) }
-    var pendingRestoreFile by remember { mutableStateOf<java.io.File?>(null) }
-    var pendingRestoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    // A device file or a downloaded cloud backup waiting for "Restore from Backup?" (owner decision 87)
+    val pendingRestore = remember { PendingRestore() }
+    DisposableEffect(Unit) { onDispose { pendingRestore.cancel() } }
     var showBackupFilePicker by remember { mutableStateOf(false) }
     var lastLocalBackupTime by remember { mutableStateOf(GlobalAppSettings.current.lastLocalBackupTime) }
 
@@ -276,38 +274,6 @@ fun DataBackupDialog(
             } else {
                 folderStatus = "Failed to delete old backups: ${deleteResult.exceptionOrNull()?.message}"
             }
-        }
-    }
-
-    // Function to restore a backup
-    fun restoreBackup(backup: DriveBackupService.BackupInfo) {
-        coroutineScope.launch {
-            isRestoreInProgress = true
-            restoreStatus = "Downloading backup..."
-
-            // Step 1: Download from Drive
-            when (val downloadResult = driveBackupService.downloadBackup(backup.fileId)) {
-                is DriveBackupService.DownloadResult.Success -> {
-                    restoreStatus = "Restoring data..."
-
-                    // Step 2: Import the backup
-                    when (val importResult = importService.restoreBackup(downloadResult.content)) {
-                        is ImportService.ImportResult.Success -> {
-                            restoreStatus = "✓ Restore complete: ${importResult.eventsRestored} events, ${importResult.tasksRestored} tasks, ${importResult.strokesRestored} strokes"
-                            // Refresh storage info after restore
-                            storageInfo = StorageCalculator.calculateStorage(context)
-                        }
-                        is ImportService.ImportResult.Error -> {
-                            restoreStatus = "Restore failed: ${importResult.message}"
-                        }
-                    }
-                }
-                is DriveBackupService.DownloadResult.Error -> {
-                    restoreStatus = "Download failed: ${downloadResult.message}"
-                }
-            }
-
-            isRestoreInProgress = false
         }
     }
 
@@ -682,31 +648,17 @@ fun DataBackupDialog(
                                     onRefreshBackups = { loadBackups() },
                                     onRestoreBackup = { backup ->
                                         coroutineScope.launch {
-                                            // Navigate to Processing phase for clear feedback
-                                            currentPhase = BackupDialogPhase.Processing("Downloading backup from Google Drive...")
-                                            phaseHistory.clear()
-
-                                            when (val downloadResult = driveBackupService.downloadBackupToFile(backup.fileId)) {
-                                                is DriveBackupService.FileDownloadResult.Success -> {
-                                                    try {
-                                                        currentPhase = BackupDialogPhase.Processing("Restoring your data...")
-
-                                                        when (val r = importService.restoreBackup(downloadResult.file)) {
-                                                            is ImportService.ImportResult.Success -> {
-                                                                // Caches and page previews still hold the old data
-                                                                PostRestore.invalidateCachesAndRestart(context)
-                                                            }
-                                                            is ImportService.ImportResult.Error -> {
-                                                                currentPhase = BackupDialogPhase.Error("Restore failed: ${r.message}")
-                                                            }
-                                                        }
-                                                    } finally {
-                                                        downloadResult.file.delete()
-                                                    }
-                                                }
-                                                is DriveBackupService.FileDownloadResult.Error -> {
-                                                    currentPhase = BackupDialogPhase.Error("Download failed: ${downloadResult.message}")
-                                                }
+                                            // Owner decision 87: downloaded and previewed, then the
+                                            // same "Restore from Backup?" as a device file. Cancel
+                                            // goes back to this list.
+                                            navigateTo(BackupDialogPhase.Processing("Downloading backup from Google Drive..."))
+                                            val problem = pendingRestore.offerDownload(
+                                                { driveBackupService.downloadBackupToFile(backup.fileId) },
+                                                { localBackupService.previewBackupFromFile(it) }
+                                            )
+                                            if (problem != null) {
+                                                phaseHistory.clear()
+                                                currentPhase = BackupDialogPhase.Error(problem)
                                             }
                                         }
                                     }
@@ -809,9 +761,7 @@ fun DataBackupDialog(
 
                     when (val result = localBackupService.previewBackupFromFile(file)) {
                         is LocalBackupService.PreviewResult.Success -> {
-                            pendingRestorePreview = result.preview
-                            pendingRestoreFile = file
-                            showLocalRestoreConfirmation = true
+                            pendingRestore.offerFile(result.preview, file)
                             localRestoreStatus = null
                         }
                         is LocalBackupService.PreviewResult.Error -> {
@@ -827,48 +777,32 @@ fun DataBackupDialog(
         )
     }
 
-    // Local restore confirmation popup
-    if (showLocalRestoreConfirmation && pendingRestorePreview != null) {
+    // "Restore from Backup?" for a device file or a downloaded cloud backup (owner decision 87)
+    pendingRestore.waiting?.let { waiting ->
         LocalRestoreConfirmationPopup(
-            preview = pendingRestorePreview!!,
+            preview = waiting.preview,
             onConfirm = {
-                showLocalRestoreConfirmation = false
-                // Perform the actual restore (supports both File and Uri paths)
-                val file = pendingRestoreFile
-                val uri = pendingRestoreUri
-                if (file != null || uri != null) {
-                    coroutineScope.launch {
-                        // Navigate to Processing phase to show user we're working
-                        currentPhase = BackupDialogPhase.Processing("Restoring your data...")
-                        phaseHistory.clear() // Clear history so back button doesn't interfere
+                coroutineScope.launch {
+                    // Navigate to Processing phase to show user we're working
+                    currentPhase = BackupDialogPhase.Processing("Restoring your data...")
+                    phaseHistory.clear() // Clear history so back button doesn't interfere
 
-                        val restoreResult = if (file != null) {
-                            localBackupService.restoreBackupFromFile(file)
-                        } else {
-                            localBackupService.restoreBackupFromUri(uri!!)
+                    when (val restoreResult = pendingRestore.confirm { localBackupService.restoreBackupFromFile(it) }) {
+                        is LocalBackupService.RestoreResult.Success -> {
+                            // Caches and page previews still hold the old data
+                            PostRestore.invalidateCachesAndRestart(context)
                         }
-
-                        when (restoreResult) {
-                            is LocalBackupService.RestoreResult.Success -> {
-                                // Caches and page previews still hold the old data
-                                PostRestore.invalidateCachesAndRestart(context)
-                            }
-                            is LocalBackupService.RestoreResult.Error -> {
-                                currentPhase = BackupDialogPhase.Error("Restore failed: ${restoreResult.message}")
-                            }
+                        is LocalBackupService.RestoreResult.Error -> {
+                            currentPhase = BackupDialogPhase.Error("Restore failed: ${restoreResult.message}")
                         }
-
-                        pendingRestorePreview = null
-                        pendingRestoreFile = null
-                        pendingRestoreUri = null
+                        null -> resetToIntent()
                     }
                 }
             },
             onCancel = {
-                showLocalRestoreConfirmation = false
-                pendingRestorePreview = null
-                pendingRestoreFile = null
-                pendingRestoreUri = null
+                pendingRestore.cancel()
+                // A cloud backup was downloaded on the Processing screen: back to its list
+                if (waiting.isDownload && currentPhase is BackupDialogPhase.Processing) navigateBack()
             }
         )
     }
