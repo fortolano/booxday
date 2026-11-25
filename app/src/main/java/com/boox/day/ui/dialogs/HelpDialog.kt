@@ -578,12 +578,13 @@ private fun TaskManagementContent() {
         Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
         SectionSubheader("Task Sync (Settings → Preferences)")
-        BodyText("Keeps your tasks in step with Google Tasks or a CalDAV server (Nextcloud, Fastmail and others) on your phone. It's off until you turn it on, and it needs Cloud Sync and that account in Calendar Accounts.")
+        BodyText("Keeps your tasks in step with Google Tasks, Microsoft To Do or a CalDAV server (Nextcloud, Fastmail and others) on your phone. It's off until you turn it on, and it needs Cloud Sync and that account in Calendar Accounts (Outlook for Microsoft To Do).")
         BulletPoint("What syncs: a task's words (typed, or your handwriting as read), its done mark, its day or due date, and subtasks; with a CalDAV server also its priority and its own reminder time. Ink and time estimates stay on the tablet. Google Tasks deadlines and attachments stay on your phone: Google doesn't share them with other apps.")
+        BulletPoint("With Microsoft To Do, subtasks are steps: only their words and done marks sync. Priority A is the star; B and C stay on the tablet. A task's own reminder time syncs too. Notes and attachments stay in To Do, and the Flagged email list isn't offered.")
         BulletPoint("Tasks from your phone come to their due day; tasks with no date come to today.")
         BulletPoint("It syncs when you open BooxDay, about 10 seconds after you stop writing, with the cloud button, and in the background on Sync frequency while the tablet is awake (on BOOX, see Data & Troubleshooting).")
         BulletPoint("Clearing or deleting a synced task deletes it on your phone's service too; more than 20 at once waits for your OK. Ticked tasks deleted on your phone stay on the tablet.")
-        BulletPoint("iCloud can't be used: Apple doesn't share Reminders with other apps. Repeating tasks come to each day of the coming week with a CalDAV server, not with Google Tasks.")
+        BulletPoint("iCloud can't be used: Apple doesn't share Reminders with other apps. Repeating tasks come to each day of the coming week with a CalDAV server, not with Google Tasks. With Microsoft To Do the next one comes when you tick the current one.")
     }
 }
 
@@ -641,7 +642,7 @@ private fun CalendarSyncContent() {
     BulletPoint("Events sync from two months back to three months ahead.")
     BulletPoint(
         "BooxDay asks Google for little access to your calendar: only your events and your list of calendars." +
-            if (TASK_SYNC_AVAILABLE) " Task Sync asks Google separately for Google Tasks, only when you turn it on." else ""
+            if (TASK_SYNC_AVAILABLE) " Task Sync asks Google separately for Google Tasks, and Microsoft for Microsoft To Do, only when you turn it on." else ""
     )
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
@@ -658,7 +659,7 @@ private fun CalendarSyncContent() {
     SectionSubheader("Privacy")
     BodyText(
         if (TASK_SYNC_AVAILABLE) {
-            "Calendar sync sends and receives events. With Task Sync on (Preferences), your tasks' words, done marks and dates also sync with Google Tasks or your CalDAV server (with a CalDAV server also priority and reminder times); handwriting ink stays on the tablet. Memos are never synced. Drive backup, if you turn it on, copies memos and tasks to your own Google Drive. " +
+            "Calendar sync sends and receives events. With Task Sync on (Preferences), your tasks' words, done marks and dates also sync with Google Tasks, Microsoft To Do or your CalDAV server (with To Do or a CalDAV server also priority and reminder times); handwriting ink stays on the tablet. Memos are never synced. Drive backup, if you turn it on, copies memos and tasks to your own Google Drive. " +
                 CALDAV_PASSWORD_HELP
         } else {
             "Calendar sync sends and receives events only. Memos and tasks are never synced; Drive backup, if you turn it on, copies them to your own Google Drive. " +

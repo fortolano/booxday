@@ -68,17 +68,19 @@ internal data class TaskSyncCardState(
 
 internal data class TaskSyncCardList(val id: String, val title: String, val ticked: Boolean)
 
-/** A service tasks can sync with: a Google account, or a CalDAV account from Calendar Accounts. */
+/** A service tasks can sync with: a Google account, an Outlook account's To Do, or a CalDAV account from Calendar Accounts. */
 internal data class TaskSyncChoice(
-    /** "google:<email>" or "caldav:<account id>". */
+    /** "google:<email>", "microsoft:<account id>" or "caldav:<account id>". */
     val key: String,
-    /** "Google Tasks", "Nextcloud", "Fastmail", or the server for Other ("dav.example.com"). */
+    /** "Google Tasks", "Microsoft To Do", "Nextcloud", "Fastmail", or the server for Other ("dav.example.com"). */
     val service: String,
     /** The account's address or sign-in name. */
     val account: String,
-    val isGoogle: Boolean
+    val isGoogle: Boolean,
+    /** Microsoft To Do (owner decisions 79-84): signed in like Google, so Reconnect works here. */
+    val isMicrosoft: Boolean = false
 ) {
-    /** In sentences: "Google", "Nextcloud", the server. */
+    /** In sentences: "Google", "Microsoft To Do", "Nextcloud", the server. */
     val shortName: String get() = if (isGoogle) "Google" else service
     val label: String get() = "$service · $account"
 }
@@ -151,6 +153,10 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
                     Attention("Google needs you to sign in again before tasks can sync.") {
                         ActionButton(text = "Reconnect", onClick = actions.reconnect)
                     }
+                } else if (state.needsReconnect && chosen?.isMicrosoft == true) {
+                    Attention("Microsoft needs you to sign in again before tasks can sync.") {
+                        ActionButton(text = "Reconnect", onClick = actions.reconnect)
+                    }
                 } else if (state.needsReconnect) {
                     // The password is the calendar account's: fixed once there, for both
                     Attention("$name refused the password. Sign in again in Settings → Calendar Accounts.") {}
@@ -160,7 +166,11 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
                         "${state.deletesWaiting} tasks you cleared on the tablet would be deleted in ${chosen?.service ?: name}. " +
                             "Sync waits until you choose."
                     ) {
-                        val where = if (chosen?.isGoogle != false) "in Google" else "on Server"
+                        val where = when {
+                            chosen?.isGoogle != false -> "in Google"
+                            chosen?.isMicrosoft == true -> "in To Do"
+                            else -> "on Server"
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)) {
                             EinkSecondaryButton(text = "Keep $where", onClick = actions.keepInService, width = 180.dp)
                             ActionButton(text = "Delete $where", onClick = actions.deleteInService, modifier = Modifier.width(180.dp))
@@ -176,8 +186,12 @@ internal fun TaskSyncCardContent(state: TaskSyncCardState, actions: TaskSyncCard
         Section("Synced with") {
             Text(chosen?.label.orEmpty(), fontSize = EInkTheme.Typography.bodyMedium, color = EInkTheme.Colors.primary)
             Note(
-                if (chosen?.isGoogle != false) "Words, ticked, due date and subtasks."
-                else "Words, ticked, due date, reminder, priority and subtasks."
+                when {
+                    chosen?.isGoogle != false -> "Words, ticked, due date and subtasks."
+                    // Owner decisions 79-81: subtasks as steps, priority A as the star
+                    chosen?.isMicrosoft == true -> "Words, ticked, due date, reminder, priority A as a star, and subtasks as steps."
+                    else -> "Words, ticked, due date, reminder, priority and subtasks."
+                }
             )
         }
 

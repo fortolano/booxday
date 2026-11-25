@@ -186,6 +186,44 @@ class TaskSyncSetupTest {
     }
 
     @Test
+    fun theChosenServiceReadsBackForGoogleCalDavAndMicrosoft() {
+        val prefs = TaskSync.prefs(context)
+        // Saved before CalDAV tasks (no service): Google, as before
+        prefs.edit().putString("account", EMAIL).commit()
+        assertEquals(TaskSyncTarget.google(EMAIL), TaskSync.target(context))
+        // A CalDAV user of 1.0.53 to 1.0.66 reads back unchanged
+        prefs.edit().putString("service", "caldav").putString("account", "flavio").putString("server_url", "https://dav.example.com/")
+            .putString("account_id", "acc-n").putString("service_name", "Nextcloud").commit()
+        val nextcloud = TaskSyncTarget(TaskSyncProvider.CALDAV, "flavio", "https://dav.example.com/", "acc-n", "Nextcloud")
+        assertEquals(nextcloud, TaskSync.target(context))
+
+        val outlook = TaskSyncTarget(TaskSyncProvider.MICROSOFT_TODO, "me@outlook.com", "", "acc-o", TaskSyncTarget.MICROSOFT_TODO_NAME)
+        for (target in listOf(outlook, TaskSyncTarget.google(EMAIL), nextcloud, outlook)) {
+            TaskSync.choose(context, target)
+            assertEquals(target, TaskSync.target(context))
+        }
+        assertEquals("microsoft:acc-o", outlook.key)
+        assertTrue("priority and reminder count as changes", outlook.carriesExtras)
+    }
+
+    @Test
+    fun anOutlookAccountRemovedInCalendarAccountsStopsSync() = runBlocking {
+        // Owner decision 41 for Microsoft To Do: told apart by the account's id, as the card does
+        KvProxy(context).setKv(APP_SETTINGS_KEY, AppSettings(version = 1, syncMode = AppSettings.SyncMode.HYBRID), AppSettings.serializer())
+        val outlook = TaskSyncTarget(TaskSyncProvider.MICROSOFT_TODO, "me@outlook.com", "", "acc-o", TaskSyncTarget.MICROSOFT_TODO_NAME)
+        val todo = object : TaskSyncService {
+            override val provider = TaskSyncProvider.MICROSOFT_TODO
+            override suspend fun mainList() = RemoteList("tasks", "Tasks")
+            override suspend fun upsert(task: OutgoingTask, link: TaskSyncLink?): RemoteTask = error("not sent here")
+            override suspend fun delete(listId: String, remoteId: String) = error("not sent here")
+        }
+        TaskSync.turnOn(context, outlook, todo, today = TODAY, testList = null)  // no connected_accounts row for acc-o
+
+        assertEquals(TaskSyncRun.Result.NEEDS_RECONNECT, TaskSyncRun.run(context))
+        assertEquals("Task Sync's Microsoft To Do account isn't connected", TaskSync.attentionReason(context))
+    }
+
+    @Test
     fun theCardsListLineShowsWithTwoListsAndASubtaskGoesWithItsMainTask() = runBlocking {
         // Owner decisions 53 and 56
         TaskSync.turnOn(context, TaskSyncTarget.google(EMAIL), service, today = TODAY, testList = null)
