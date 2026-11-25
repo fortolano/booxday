@@ -178,7 +178,14 @@ class OneDriveBackupServiceTest {
     @Test
     fun emptyFolderHasNoBackups() = runBlocking {
         server.enqueue(MockResponse().setBody("""{"value":[]}"""))
-        assertFalse(service().hasExistingBackups())
+        assertEquals(DriveBackupService.ListResult.Success(emptyList()), service().listBackups())
+    }
+
+    /** Review 25 Nov 2026: a failed lookup counted as "no backups" and turned Auto Backup on. */
+    @Test
+    fun aFolderThatCouldNotBeReadIsAnErrorNotEmpty() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(503))
+        assertEquals(DriveBackupService.ListResult.Error("OneDrive is busy. Try again in a few minutes."), service().listBackups())
     }
 
     @Test

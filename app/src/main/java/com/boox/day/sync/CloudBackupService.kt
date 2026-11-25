@@ -26,14 +26,11 @@ interface CloudBackupService {
      */
     suspend fun uploadBackup(localFile: File, stillWanted: () -> Boolean = { true }): DriveBackupService.UploadResult
 
-    /** The backups there, newest first. */
+    /** The backups there, newest first; an error when they couldn't be listed, never an empty list. */
     suspend fun listBackups(): DriveBackupService.ListResult
 
     /** The backup [fileId] in a temporary file the caller deletes. */
     suspend fun downloadBackupToFile(fileId: String): DriveBackupService.FileDownloadResult
-
-    /** True when at least one backup is there; false when none or it couldn't be checked. */
-    suspend fun hasExistingBackups(): Boolean
 }
 
 /** The backup service for [cloud]. */

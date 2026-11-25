@@ -211,9 +211,6 @@ internal class OneDriveBackupService(
         }
     }
 
-    override suspend fun hasExistingBackups(): Boolean =
-        (listBackups() as? ListResult.Success)?.backups?.isNotEmpty() == true
-
     companion object {
         private const val TAG = "OneDriveBackupService"
         private const val APP_FOLDER = "/me/drive/special/approot"

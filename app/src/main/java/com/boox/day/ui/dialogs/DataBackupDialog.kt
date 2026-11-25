@@ -348,9 +348,13 @@ fun DataBackupDialog(
                     oneDriveLastBackupTime = authManager.getLastBackupTime(BackupCloud.ONEDRIVE)
                     oneDriveStatus = "✓ Connected to OneDrive"
                     // Like Google Drive: automatic backup starts by itself only when no cloud is
-                    // chosen yet and there are no backups to restore first
-                    if (backupDestination == null && !oneDriveService.hasExistingBackups()) {
+                    // chosen yet and the folder was read and has no backups to restore first; never
+                    // on the way to restoring. A list that couldn't be read is said, Auto Backup stays off
+                    val lookup = if (!forRestore && backupDestination == null) oneDriveService.listBackups() else null
+                    if (OneDriveSignIn.turnsOnAutoBackup(forRestore, backupDestination, lookup)) {
                         setDestination(BackupCloud.ONEDRIVE)
+                    } else if (lookup is DriveBackupService.ListResult.Error) {
+                        oneDriveStatus = lookup.message
                     }
                     // Only from the account choice: the user may have gone elsewhere meanwhile
                     if (currentPhase is BackupDialogPhase.MicrosoftAccountChoice) {

@@ -340,7 +340,7 @@ class DriveBackupService(private val context: Context) : CloudBackupService {
      * Used for quick state detection on dialog open.
      * Searches directly by folder name to work even without stored folder ID.
      */
-    override suspend fun hasExistingBackups(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun hasExistingBackups(): Boolean = withContext(Dispatchers.IO) {
         try {
             val drive = getDriveService()
             if (drive == null) {
