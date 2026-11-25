@@ -10,7 +10,10 @@ import androidx.work.WorkerParameters
 import com.boox.day.APP_SETTINGS_KEY
 import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.db.AppDatabase
+import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.db.KvProxy
+import com.boox.day.data.db.LocalEvent
+import com.boox.day.today.ShownEvents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -101,13 +104,21 @@ object EventReminderChain {
     /**
      * The queued job's work: shows what came due and queues the next reminder. With event
      * notifications off, or where alarms do the job, nothing is shown and the chain ends.
+     *
+     * Throws on settings/DB read failures so [EventReminderWorker] retries instead of ending
+     * the chain and dropping future reminders.
      */
-    suspend fun run(context: Context, now: Long = System.currentTimeMillis()) {
+    suspend fun run(
+        context: Context,
+        now: Long = System.currentTimeMillis(),
+        loadSettings: suspend (Context) -> AppSettings? = { KvProxy(it).get(APP_SETTINGS_KEY, AppSettings.serializer()) }
+    ) {
         val app = context.applicationContext
         running = true  // from here wakeBy only notes what it is asked; a failed run leaves the job due
         try {
-            // The saved settings: GlobalAppSettings holds defaults in a process started for this job
-            val settings = runCatching { KvProxy(app).get(APP_SETTINGS_KEY, AppSettings.serializer()) }.getOrNull()
+            // The saved settings: GlobalAppSettings holds defaults in a process started for this job.
+            // Do not swallow read errors as null — let EventReminderWorker retry instead of ending the chain.
+            val settings = loadSettings(app)
             if (settings?.eventNotificationsEnabled != true || !EventNotificationScheduler(app).usesQueuedJob()) {
                 finish(app, now, next = null, chainEnds = true)
                 return
@@ -142,13 +153,32 @@ object EventReminderChain {
         listOfNotNull(next, asked).minOrNull()?.let { queue(app, it, now) }
     }
 
-    /** Events that start from a little before [now] to a month ahead, from both tables. */
+    /** Deduplicates hybrid events (tablet copy + synced row) so each event fires once. */
+    internal fun mergeEvents(calendarEvents: List<CalendarEvent>, localEvents: List<LocalEvent>): List<Reminder> {
+        val tabletOnly = ShownEvents.tabletOnly(calendarEvents, localEvents)
+        return tabletOnly.map { Reminder(it.id, it.title, it.dayId, it.startTime) } +
+            calendarEvents.map { Reminder(it.id, it.title, it.dayId, it.startTime) }
+    }
+
+    /** Events that start from a little before [now] to a month ahead, deduplicated across both tables. */
     private suspend fun load(context: Context, now: Long, minutesBefore: Int): List<Reminder> {
         val db = AppDatabase.getDatabase(context)
         val from = now - GRACE_MS
         val to = now + LOOK_AHEAD_MS + minutesBefore * MINUTE_MS
-        return db.localEventDao().getUpcomingEventsBetween(from, to).map { Reminder(it.id, it.title, it.dayId, it.startTime) } +
-            db.calendarEventDao().getUpcomingEventsBetween(from, to).map { Reminder(it.id, it.title, it.dayId, it.startTime) }
+        val localEvents = db.localEventDao().getUpcomingEventsBetween(from, to)
+        val calendarEvents = db.calendarEventDao().getUpcomingEventsBetween(from, to)
+        return mergeEvents(calendarEvents, localEvents)
+    }
+
+    /**
+     * Clears the queued wake target without forgetting [KEY_HANDLED_UNTIL].
+     * Used when reminder lead time or timezone changes so subsequent [wakeBy] calls re-anchor cleanly.
+     */
+    @Synchronized
+    fun resetWake(context: Context) {
+        val app = context.applicationContext
+        WorkManager.getInstance(app).cancelUniqueWork(WORK_NAME)
+        prefs(app).edit().remove(KEY_WAKE_AT).remove(KEY_ASKED).apply()
     }
 
     /** Ends the chain: no job queued, nothing remembered. */

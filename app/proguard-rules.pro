@@ -159,6 +159,7 @@
 -keep class com.boox.day.notifications.DueDateNotificationWorker { *; }
 -keep class com.boox.day.notifications.EventNotificationWorker { *; }
 -keep class com.boox.day.notifications.EventReminderWorker { *; }
+-keep class com.boox.day.notifications.NotificationRescheduleWorker { *; }
 -keep class com.boox.day.ocr.semantic.EventSemanticIndexingWorker { *; }
 -keep class com.boox.day.sync.SyncWorker { *; }
 

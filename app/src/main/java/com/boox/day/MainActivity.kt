@@ -243,7 +243,7 @@ class MainActivity : ComponentActivity() {
         //EpdDeviceManager.enterAnimationUpdate(true);
 //        val intentData = intent.data?.lastPathSegment
 
-        readTaskFocusExtras(intent)
+        com.boox.day.notifications.NotificationNavigation.handleIntent(intent)
         setBooxDayContent(snackState)
 
         // In-app updates (Oct 2026): checks GitHub for a newer release 15 s from now
@@ -255,21 +255,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        readTaskFocusExtras(intent)
-    }
-
-    /** A reminder notification tap opens its task (plan T3, Oct 2026); MainScreen does the navigation. */
-    private fun readTaskFocusExtras(intent: Intent?) {
-        if (intent?.getStringExtra(com.boox.day.notifications.NotificationHelper.EXTRA_OPEN_TAB) !=
-            com.boox.day.notifications.NotificationHelper.TAB_TASKS
-        ) return
-        val date = intent.getStringExtra(com.boox.day.notifications.NotificationHelper.EXTRA_NAVIGATE_TO_DATE) ?: return
-        com.boox.day.ui.TaskFocusRequests.request(
-            com.boox.day.ui.TaskFocusRequest(
-                taskId = intent.getStringExtra(com.boox.day.notifications.NotificationHelper.EXTRA_TASK_ID),
-                dayDate = date
-            )
-        )
+        com.boox.day.notifications.NotificationNavigation.handleIntent(intent)
     }
 
 

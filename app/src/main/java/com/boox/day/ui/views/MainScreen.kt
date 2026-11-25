@@ -3769,20 +3769,16 @@ fun MainScreen(
                 onTaskNotificationsEnabledChanged = { newValue ->
                     val newSettings = GlobalAppSettings.current.copy(taskNotificationsEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
-                    if (newValue) {
-                        scope.launch(Dispatchers.IO) {
-                            appRepository.taskRepository.scheduleNotificationsForExistingTasks()
-                        }
+                    scope.launch(Dispatchers.IO) {
+                        appRepository.taskRepository.applyTaskNotificationsSetting(newSettings)
                     }
                 },
                 eventNotificationsEnabled = eventNotificationsEnabled,
                 onEventNotificationsEnabledChanged = { newValue ->
                     val newSettings = GlobalAppSettings.current.copy(eventNotificationsEnabled = newValue)
                     appRepository.kvProxy.setAppSettings(newSettings)
-                    if (newValue) {
-                        scope.launch(Dispatchers.IO) {
-                            appRepository.localEventRepository.scheduleNotificationsForUpcomingEvents()
-                        }
+                    scope.launch(Dispatchers.IO) {
+                        appRepository.localEventRepository.applyEventNotificationsSetting(newSettings)
                     }
                 },
                 defaultTaskReminderHour = defaultTaskReminderHour,
@@ -3793,11 +3789,21 @@ fun MainScreen(
                         defaultTaskReminderMinute = minute
                     )
                     appRepository.kvProxy.setAppSettings(newSettings)
+                    if (newSettings.taskNotificationsEnabled) {
+                        scope.launch(Dispatchers.IO) {
+                            appRepository.taskRepository.scheduleNotificationsForExistingTasks(newSettings)
+                        }
+                    }
                 },
                 defaultEventReminderMinutes = defaultEventReminderMinutes,
                 onDefaultEventReminderChanged = { minutes ->
                     val newSettings = GlobalAppSettings.current.copy(defaultEventReminderMinutes = minutes)
                     appRepository.kvProxy.setAppSettings(newSettings)
+                    if (newSettings.eventNotificationsEnabled) {
+                        scope.launch(Dispatchers.IO) {
+                            appRepository.localEventRepository.scheduleNotificationsForUpcomingEvents(newSettings)
+                        }
+                    }
                 },
                 onOpenAlarmSettings = {
                     NotificationPermissionHelper.openExactAlarmSettings(context)

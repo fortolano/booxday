@@ -1262,8 +1262,10 @@ class TaskRepository(internal val context: Context) {
      * Schedule notifications for existing tasks when task notifications are enabled.
      * Safe to call from background; no-op if task notifications are disabled.
      */
-    suspend fun scheduleNotificationsForExistingTasks() {
-        val settings = GlobalAppSettings.current
+    suspend fun scheduleNotificationsForExistingTasks(
+        settingsOverride: com.boox.day.data.datastore.AppSettings? = null
+    ) {
+        val settings = settingsOverride ?: GlobalAppSettings.current
         if (!settings.taskNotificationsEnabled) return
 
         try {
@@ -1279,6 +1281,29 @@ class TaskRepository(internal val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to schedule existing task notifications: ${e.message}")
+        }
+    }
+
+    /**
+     * Cancel daily scan and all pending task due-date alarms/fallbacks when disabled.
+     */
+    suspend fun cancelAllTaskNotifications() {
+        try {
+            notificationScheduler.cancelDailyScan()
+            taskDao.getIncompleteTasWithDueDates().forEach { task ->
+                notificationScheduler.cancelTaskAlarm(task.id)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to cancel task notifications: ${e.message}")
+        }
+    }
+
+    /** Apply an updated task-notification preference (toggle or default reminder time). */
+    suspend fun applyTaskNotificationsSetting(settings: com.boox.day.data.datastore.AppSettings) {
+        if (settings.taskNotificationsEnabled) {
+            scheduleNotificationsForExistingTasks(settings)
+        } else {
+            cancelAllTaskNotifications()
         }
     }
 

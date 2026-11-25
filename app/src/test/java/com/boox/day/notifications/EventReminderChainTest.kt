@@ -18,13 +18,23 @@ import com.boox.day.data.db.APP_DATABASE_FILE_NAME
 import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.CalendarEvent
 import com.boox.day.data.db.KvProxy
+import com.boox.day.data.db.LocalEvent
+import com.boox.day.data.db.Page
+import com.boox.day.data.db.Task
 import com.boox.day.data.getDbDir
 import com.boox.day.notifications.EventReminderChain.Reminder
+import com.boox.day.ui.MainScreenRequest
+import com.boox.day.ui.MainScreenRequests
+import com.boox.day.ui.TaskFocusRequests
+import android.content.Intent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -175,6 +185,123 @@ class EventReminderChainTest {
         EventReminderChain.retireOldJobs(context)
 
         assertEquals("only the shared job stays", 1, waitingJobs().size)
+    }
+
+    @Test
+    fun `hybrid event with both local and synced rows fires only one reminder`(): Unit = runBlocking(Dispatchers.IO) {
+        val realNow = System.currentTimeMillis()
+        KvProxy(context).setKv(
+            APP_SETTINGS_KEY,
+            AppSettings(version = 1).copy(eventNotificationsEnabled = true, defaultEventReminderMinutes = 15),
+            AppSettings.serializer()
+        )
+        val db = AppDatabase.getDatabase(context)
+        val startMs = realNow + 10 * MINUTE
+        db.calendarEventDao().upsertAll(listOf(event("g-standup", "Standup", startMs)))
+        db.localEventDao().insert(
+            LocalEvent(
+                id = "local-standup",
+                dayId = "2027-01-15",
+                title = "Standup",
+                startTime = startMs,
+                endTime = startMs + HOUR,
+                googleEventId = "g-standup"
+            )
+        )
+        EventReminderChain.wakeBy(context, realNow - 5 * MINUTE, realNow - 20 * MINUTE)
+
+        EventReminderChain.run(context, realNow)
+
+        assertEquals("hybrid event must notify once", listOf("Standup"), shownTitles())
+    }
+
+    @Test
+    fun `settings read error throws so worker retries without ending chain`(): Unit = runBlocking(Dispatchers.IO) {
+        val realNow = System.currentTimeMillis()
+        val originalWake = realNow + 2 * HOUR
+        EventReminderChain.wakeBy(context, originalWake, realNow)
+
+        var threw = false
+        try {
+            EventReminderChain.run(context, realNow, loadSettings = { throw IllegalStateException("db busy") })
+        } catch (_: IllegalStateException) {
+            threw = true
+        }
+
+        assertTrue("read failure must propagate to EventReminderWorker for retry", threw)
+        assertEquals("wake_at must remain set when settings read fails", originalWake, EventReminderChain.wakeAt(context))
+    }
+
+    @Test
+    fun `DueDateAlarmReceiver skips notification when task reminders are off`(): Unit = runBlocking(Dispatchers.IO) {
+        KvProxy(context).setKv(
+            APP_SETTINGS_KEY,
+            AppSettings(version = 1).copy(taskNotificationsEnabled = false),
+            AppSettings.serializer()
+        )
+        val db = AppDatabase.getDatabase(context)
+        db.pageDao().create(Page(id = "page-1"))
+        val task = Task(
+            id = "task-disabled-1",
+            dayDate = "2027-01-15",
+            pageId = "page-1",
+            taskPageIndex = 0,
+            rowIndex = 0,
+            typedText = "Pay bill",
+            dueDay = "2027-01-15"
+        )
+        db.taskDao().insert(task)
+
+        DueDateAlarmReceiver().validateAndShowNotification(context, task.id)
+
+        val shown = shadowOf(context.getSystemService(NotificationManager::class.java)).allNotifications
+        assertTrue("disabled task notifications must stay silent", shown.isEmpty())
+    }
+
+    @Test
+    fun `NotificationNavigation routes event taps to ShowDay and task taps to TaskFocusRequests`(): Unit = runBlocking {
+        TaskFocusRequests.consume()
+
+        val eventIntent = Intent().putExtra(NotificationHelper.EXTRA_NAVIGATE_TO_DATE, "2027-01-15")
+        assertTrue(NotificationNavigation.handleIntent(eventIntent))
+        assertEquals(MainScreenRequest.ShowDay("2027-01-15"), MainScreenRequests.next())
+        assertNull("event tap should not trigger task focus", TaskFocusRequests.pending.value)
+
+        val taskIntent = Intent()
+            .putExtra(NotificationHelper.EXTRA_NAVIGATE_TO_DATE, "2027-01-16")
+            .putExtra(NotificationHelper.EXTRA_OPEN_TAB, NotificationHelper.TAB_TASKS)
+            .putExtra(NotificationHelper.EXTRA_TASK_ID, "t-42")
+        assertTrue(NotificationNavigation.handleIntent(taskIntent))
+        val pendingTask = TaskFocusRequests.pending.value
+        assertNotNull(pendingTask)
+        assertEquals("t-42", pendingTask?.taskId)
+        assertEquals("2027-01-16", pendingTask?.dayDate)
+        TaskFocusRequests.consume()
+
+        val malformedIntent = Intent().putExtra(NotificationHelper.EXTRA_NAVIGATE_TO_DATE, "not-a-date")
+        assertFalse(NotificationNavigation.handleIntent(malformedIntent))
+    }
+
+    @Test
+    fun `NotificationRescheduleWorker skips daily task scan when task reminders are off`(): Unit = runBlocking(Dispatchers.IO) {
+        val realNow = System.currentTimeMillis()
+        KvProxy(context).setKv(
+            APP_SETTINGS_KEY,
+            AppSettings(version = 1).copy(taskNotificationsEnabled = false, eventNotificationsEnabled = true),
+            AppSettings.serializer()
+        )
+        AppDatabase.getDatabase(context).calendarEventDao().upsertAll(
+            listOf(event("future-1", "Review", realNow + 3 * HOUR))
+        )
+
+        val worker = androidx.work.testing.TestListenableWorkerBuilder<NotificationRescheduleWorker>(context).build()
+        worker.reschedule(context, NotificationRescheduleWorker.REASON_BOOT)
+
+        val dailyScan = WorkManager.getInstance(context)
+            .getWorkInfosForUniqueWork(TaskNotificationScheduler.WORK_NAME_DAILY_SCAN).get()
+            .filter { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING }
+        assertTrue("daily task scan must not be enqueued when task notifications are off", dailyScan.isEmpty())
+        assertNotNull("event reminder chain should still be scheduled", EventReminderChain.wakeAt(context))
     }
 
     private fun waitingJobs(): List<WorkInfo> = WorkManager.getInstance(context)

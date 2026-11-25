@@ -203,7 +203,7 @@ class NotificationHelper(private val appContext: Context) {
     @OptIn(ExperimentalAnimationApi::class, ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
     private fun createTaskTapIntent(dayDate: String, taskId: String? = null): PendingIntent {
         val intent = Intent(appContext, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         intent.putExtra(EXTRA_NAVIGATE_TO_DATE, dayDate)
         intent.putExtra(EXTRA_OPEN_TAB, TAB_TASKS)
         taskId?.let { intent.putExtra(EXTRA_TASK_ID, it) }
@@ -282,7 +282,7 @@ class NotificationHelper(private val appContext: Context) {
     @OptIn(ExperimentalAnimationApi::class, ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
     private fun createEventTapIntent(dayId: String): PendingIntent {
         val intent = Intent(appContext, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         intent.putExtra(EXTRA_NAVIGATE_TO_DATE, dayId)
 
         return PendingIntent.getActivity(
@@ -291,5 +291,33 @@ class NotificationHelper(private val appContext: Context) {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+}
+
+/**
+ * Routes notification tap intents into [com.boox.day.ui.TaskFocusRequests] (task reminders)
+ * or [com.boox.day.ui.MainScreenRequests] (event reminders) without recreating MainActivity.
+ */
+internal object NotificationNavigation {
+    fun handleIntent(intent: Intent?): Boolean {
+        val date = intent?.getStringExtra(NotificationHelper.EXTRA_NAVIGATE_TO_DATE)
+            ?.takeIf { it.isNotBlank() } ?: return false
+        if (runCatching { java.time.LocalDate.parse(date) }.isFailure) return false
+
+        val tab = intent.getStringExtra(NotificationHelper.EXTRA_OPEN_TAB)
+        if (tab == NotificationHelper.TAB_TASKS) {
+            com.boox.day.ui.TaskFocusRequests.request(
+                com.boox.day.ui.TaskFocusRequest(
+                    taskId = intent.getStringExtra(NotificationHelper.EXTRA_TASK_ID),
+                    dayDate = date
+                )
+            )
+            return true
+        }
+
+        com.boox.day.ui.MainScreenRequests.request(
+            com.boox.day.ui.MainScreenRequest.ShowDay(date)
+        )
+        return true
     }
 }

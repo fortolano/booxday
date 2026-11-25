@@ -4,7 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.boox.day.APP_SETTINGS_KEY
+import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.db.AppDatabase
+import com.boox.day.data.db.KvProxy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -51,14 +54,29 @@ class DueDateAlarmReceiver : BroadcastReceiver() {
     }
 
     /**
-     * Validate task state and show notification if appropriate.
+     * Validate settings and task state and show notification if appropriate.
      *
-     * Validation steps (CRITICAL - prevents stale notifications):
+     * Validation steps (CRITICAL - prevents stale/disabled notifications):
+     * 0. Task notifications must still be enabled in persistent settings
      * 1. Task must exist in database
      * 2. Task must not be completed
      * 3. Task must have a due date set
      */
-    private suspend fun validateAndShowNotification(context: Context, taskId: String) {
+    internal suspend fun validateAndShowNotification(context: Context, taskId: String) {
+        val settings = try {
+            KvProxy(context).get(APP_SETTINGS_KEY, AppSettings.serializer())
+                ?: AppSettings(version = 1)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load settings from storage: ${e.javaClass.simpleName}, skipping notification")
+            return
+        }
+
+        if (!settings.taskNotificationsEnabled) {
+            Log.d(TAG, "Task notifications disabled in settings, skipping task $taskId")
+            Log.i(TAG, "NOTIF_SKIP: task_notifications_disabled taskId=$taskId")
+            return
+        }
+
         val taskDao = AppDatabase.getDatabase(context).taskDao()
         val task = taskDao.getById(taskId)
 

@@ -3,8 +3,11 @@ package com.boox.day.data.db
 import android.content.Context
 import android.util.Log
 import com.boox.day.booxnotes.SmartLinkRefreshCoordinator
+import com.boox.day.data.datastore.AppSettings
 import com.boox.day.data.datastore.GlobalAppSettings
 import com.boox.day.notifications.EventNotificationScheduler
+import com.boox.day.notifications.EventReminderChain
+import com.boox.day.today.ShownEvents
 import com.boox.day.ocr.OcrQuotaManager
 import com.boox.day.ocr.model.OcrSource
 import com.boox.day.ocr.semantic.SemanticGeniusService
@@ -708,13 +711,11 @@ class LocalEventRepository(context: Context) {
 
     /**
      * Schedule notifications for all upcoming events.
-     * Called when event notifications are enabled in settings.
-     * Schedules events within the next 30 days from BOTH tables:
-     * - LocalEvent (standalone/local events)
-     * - CalendarEvent (synced Google/Outlook events)
+     * Called when event notifications are enabled or default reminder lead time changes.
+     * Deduplicates hybrid events via [ShownEvents] so synced events with tablet copies fire once.
      */
-    suspend fun scheduleNotificationsForUpcomingEvents() {
-        val settings = GlobalAppSettings.current
+    suspend fun scheduleNotificationsForUpcomingEvents(settingsOverride: AppSettings? = null) {
+        val settings = settingsOverride ?: GlobalAppSettings.current
         if (!settings.eventNotificationsEnabled) {
             Log.d(TAG, "NOTIF: Event notifications disabled, not scheduling upcoming events")
             return
@@ -724,16 +725,29 @@ class LocalEventRepository(context: Context) {
         val thirtyDaysFromNow = now + (30 * 24 * 60 * 60 * 1000L)
         Log.d(TAG, "NOTIF: Querying events between $now and $thirtyDaysFromNow")
 
-        // Query BOTH tables for upcoming events (Hybrid mode support)
+        // Query BOTH tables for upcoming events (Hybrid mode support) and deduplicate tablet copies
         val localEvents = dao.getUpcomingEventsBetween(now, thirtyDaysFromNow)
         val calendarEvents = calendarEventDao.getUpcomingEventsBetween(now, thirtyDaysFromNow)
+        val tabletOnlyEvents = ShownEvents.tabletOnly(calendarEvents, localEvents)
+        val tabletOnlyIds = tabletOnlyEvents.mapTo(HashSet()) { it.id }
 
-        Log.d(TAG, "NOTIF: Found ${localEvents.size} local events, ${calendarEvents.size} calendar events")
+        Log.d(TAG, "NOTIF: Found ${tabletOnlyEvents.size} tablet-only (${localEvents.size} total local), ${calendarEvents.size} calendar events")
+
+        if (eventNotificationScheduler.usesQueuedJob()) {
+            EventReminderChain.resetWake(appContext)
+        }
+
+        // Cancel any stale alarms for duplicated local copies
+        localEvents.forEach { event ->
+            if (event.id !in tabletOnlyIds) {
+                cancelEventNotification(event.id)
+            }
+        }
 
         var scheduledCount = 0
 
-        // Schedule LocalEvent notifications
-        localEvents.forEach { event ->
+        // Schedule tablet-only LocalEvent notifications
+        tabletOnlyEvents.forEach { event ->
             cancelEventNotification(event.id)
             val result = eventNotificationScheduler.scheduleEventAlarm(
                 event = event,
@@ -745,7 +759,7 @@ class LocalEventRepository(context: Context) {
             }
         }
 
-        // Schedule CalendarEvent notifications (synced Google/Outlook)
+        // Schedule CalendarEvent notifications (synced Google/Outlook/CalDAV)
         calendarEvents.forEach { event ->
             cancelEventNotification(event.id)
             val result = eventNotificationScheduler.scheduleCalendarEventAlarm(
@@ -758,6 +772,27 @@ class LocalEventRepository(context: Context) {
             }
         }
 
-        Log.i(TAG, "NOTIF: Scheduled $scheduledCount event notifications (${localEvents.size} local + ${calendarEvents.size} synced)")
+        Log.i(TAG, "NOTIF: Scheduled $scheduledCount event notifications (${tabletOnlyEvents.size} tablet-only + ${calendarEvents.size} synced)")
+    }
+
+    /**
+     * Cancel scheduled reminders for upcoming events and stop the queued reminder chain.
+     */
+    suspend fun cancelNotificationsForUpcomingEvents() {
+        EventReminderChain.stop(appContext)
+        val now = System.currentTimeMillis()
+        val thirtyDaysFromNow = now + (30 * 24 * 60 * 60 * 1000L)
+        dao.getUpcomingEventsBetween(now, thirtyDaysFromNow).forEach { cancelEventNotification(it.id) }
+        calendarEventDao.getUpcomingEventsBetween(now, thirtyDaysFromNow).forEach { cancelEventNotification(it.id) }
+        Log.i(TAG, "NOTIF: Cancelled upcoming event notifications")
+    }
+
+    /** Apply an updated event-notification preference (toggle or default lead time). */
+    suspend fun applyEventNotificationsSetting(settings: AppSettings) {
+        if (settings.eventNotificationsEnabled) {
+            scheduleNotificationsForUpcomingEvents(settings)
+        } else {
+            cancelNotificationsForUpcomingEvents()
+        }
     }
 }
