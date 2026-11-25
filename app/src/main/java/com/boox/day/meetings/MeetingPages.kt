@@ -57,22 +57,49 @@ object MeetingPages {
 
     /**
      * The notes' words, for the AI: a page's saved reading when nothing changed since, else the AI reads
-     * its picture. Typed boxes count too; the meeting header and any saved recap don't.
+     * its ink-only picture (excluding typed boxes and any saved recap box on hybrid pages).
+     * Stops before calling vision OCR on further pages once [maxChars] is already filled, and reports
+     * the actual count of read vs skipped pages (M6(4)).
      * @throws Exception with a plain message when no model could read a page.
      */
-    suspend fun readText(context: Context, date: String, pageIds: List<String>): Read {
-        val read = pageIds.take(MAX_PAGES)
-        val parts = read.map { pageId ->
+    suspend fun readText(
+        context: Context,
+        date: String,
+        pageIds: List<String>,
+        maxChars: Int = com.boox.day.ai.MeetingRecapService.MAX_TEXT_LENGTH
+    ): Read {
+        val candidates = pageIds.take(MAX_PAGES)
+        val parts = mutableListOf<String>()
+        var totalChars = 0
+        var pagesRead = 0
+
+        for (pageId in candidates) {
+            if (totalChars >= maxChars) break
             val typed = com.boox.day.actionitems.MemoPageText.pageLines(context, null, pageId)
             val saved = ExportText.savedText(context, date, pageId)
-            val ink = saved?.joinToString("\n") ?: if (MemoPageContent.load(context, pageId).strokes.isEmpty()) "" else readPicture(context, pageId)
-            (listOf(ink) + typed).filter { it.isNotBlank() }.joinToString("\n")
+            val ink = if (saved != null) {
+                saved.joinToString("\n")
+            } else {
+                val pageContent = MemoPageContent.load(context, pageId)
+                if (pageContent.strokes.isEmpty()) "" else readPicture(context, pageId)
+            }
+            val pageText = (listOf(ink) + typed).filter { it.isNotBlank() }.joinToString("\n")
+            pagesRead++
+            if (pageText.isNotBlank()) {
+                val sep = if (parts.isEmpty()) 0 else 2
+                parts += pageText
+                totalChars += sep + pageText.length
+            }
         }
-        return Read(parts.filter { it.isNotBlank() }.joinToString("\n\n"), read.size, pageIds.size - read.size)
+        return Read(
+            text = parts.joinToString("\n\n").take(maxChars),
+            pages = pagesRead,
+            skipped = (pageIds.size - pagesRead).coerceAtLeast(0)
+        )
     }
 
     private suspend fun readPicture(context: Context, pageId: String): String {
-        val picture = MemoPageContent.renderWholePage(context, pageId) ?: return ""
+        val picture = MemoPageContent.renderInkOnly(context, pageId) ?: return ""
         return try {
             MemoToTasksService.readHandwriting(picture)
         } finally {

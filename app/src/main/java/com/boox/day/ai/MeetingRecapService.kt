@@ -28,7 +28,10 @@ data class MeetingRecap(
     @SerializedName("decisions") val decisions: List<String> = emptyList(),
     @SerializedName("action_items") val actionItems: List<MeetingRecapAction> = emptyList(),
     @SerializedName("follow_ups") val followUps: List<String> = emptyList(),
-    @SerializedName("open_questions") val openQuestions: List<String> = emptyList()
+    @SerializedName("open_questions") val openQuestions: List<String> = emptyList(),
+    /** Persisted coverage metadata (null on older cached entries). */
+    @SerializedName("pages_read") val pagesRead: Int? = null,
+    @SerializedName("skipped_pages") val skippedPages: Int? = null
 )
 
 sealed interface MeetingRecapResult {
@@ -42,7 +45,7 @@ object MeetingRecapService {
     private const val TAG = "MeetingRecap"
     private const val FEATURE = "Meeting recap"
     private const val TYPE = "meeting_recap"
-    private const val MAX_TEXT_LENGTH = 16000
+    internal const val MAX_TEXT_LENGTH = 16000
     /** A saved recap isn't a day's summary: it stays until the notes change. */
     private const val VALID_HOURS = 24 * 365 * 10
     private val gson = Gson()
@@ -83,7 +86,16 @@ RULES:
     }
 
     /** One AI call on notes already read. [fingerprint] keeps the answer for the next visit. */
-    suspend fun make(context: Context, eventId: String, title: String, day: String, notes: String, fingerprint: String): MeetingRecapResult {
+    suspend fun make(
+        context: Context,
+        eventId: String,
+        title: String,
+        day: String,
+        notes: String,
+        fingerprint: String,
+        pagesRead: Int? = null,
+        skippedPages: Int? = null
+    ): MeetingRecapResult {
         val failures = MemoToTasksService.ModelFailures()
         val userPrompt = buildString {
             appendLine("Meeting: $title")
@@ -103,7 +115,7 @@ RULES:
                 }
                 val response = AiRetryExecutor.send(request, true)
                 if (response is AiResponse.Success) {
-                    val recap = parse(response.data)
+                    val recap = parse(response.data)?.copy(pagesRead = pagesRead, skippedPages = skippedPages)
                     if (recap != null) {
                         withContext(Dispatchers.IO) { remember(context, eventId, day, fingerprint, recap) }
                         return MeetingRecapResult.Done(recap)

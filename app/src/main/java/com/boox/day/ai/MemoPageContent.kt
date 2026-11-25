@@ -95,6 +95,17 @@ object MemoPageContent {
     }
 
     /**
+     * Renders only ink strokes and images on [pageId], omitting typed text boxes (headers, typed
+     * notes, and saved recaps) so hybrid pages don't double-read typed boxes or re-read saved recaps.
+     */
+    suspend fun renderInkOnly(context: Context, pageId: String): Bitmap? {
+        val page = load(context, pageId)
+        if (page.strokes.isEmpty() && page.images.isEmpty()) return null
+        val inkOnly = page.copy(textAnnotations = emptyList(), attachments = emptyList())
+        return withContext(Dispatchers.Default) { render(context, inkOnly) }
+    }
+
+    /**
      * A lasso selection's [strokes] as one picture, cropped to the ink with white space around it
      * (2 Nov 2026, Convert to Tasks), drawn as [render] draws them. Null when nothing was selected.
      * Off the main thread.

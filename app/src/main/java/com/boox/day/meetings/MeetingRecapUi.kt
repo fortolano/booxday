@@ -143,7 +143,10 @@ private fun RecapFlow(event: CalendarEvent) {
                 screen = RecapScreen.Blocked(NO_NOTES)
                 return
             }
-            screen = when (val result = MeetingRecapService.make(context, event.id, event.title, pages.date, read.text, fingerprint)) {
+            screen = when (val result = MeetingRecapService.make(
+                context, event.id, event.title, pages.date, read.text, fingerprint,
+                pagesRead = read.pages, skippedPages = read.skipped
+            )) {
                 is MeetingRecapResult.Done -> RecapScreen.Show(result.recap, changed = false)
                 MeetingRecapResult.Offline -> RecapScreen.Blocked(OFFLINE)
                 is MeetingRecapResult.Failed -> RecapScreen.Blocked(result.message)
@@ -237,8 +240,17 @@ private fun RecapFlow(event: CalendarEvent) {
                 val capacity = (((LayoutProfiles.screenHeightDp * 0.82f) - 190f) / 26f).toInt()
                 val pages = recapPages(now.recap, capacity)
                 val shown = page.coerceIn(1, pages.size)
-                val line = "${meetingLine(event).substringBeforeLast(" · ").ifBlank { meetingLine(event) }} · from $noteCount ${if (noteCount == 1) "page" else "pages"}" +
-                    if (skipped > 0) " (first ${MeetingPages.MAX_PAGES} read)" else ""
+                val baseMeeting = meetingLine(event).substringBeforeLast(" · ").ifBlank { meetingLine(event) }
+                val readCount = now.recap.pagesRead
+                val skippedCount = now.recap.skippedPages ?: skipped
+                val line = when {
+                    readCount != null && skippedCount > 0 ->
+                        "$baseMeeting · from first $readCount of ${readCount + skippedCount} pages"
+                    readCount != null ->
+                        "$baseMeeting · from $readCount ${if (readCount == 1) "page" else "pages"}"
+                    else ->
+                        "$baseMeeting · $noteCount ${if (noteCount == 1) "page" else "pages"} of notes"
+                }
                 MeetingRecapCard(
                     title = title,
                     line = line,

@@ -4,14 +4,14 @@ import android.content.Context
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import androidx.room.withTransaction
 import com.boox.day.SCREEN_HEIGHT
 import com.boox.day.SCREEN_WIDTH
 import com.boox.day.ai.MeetingRecap
 import com.boox.day.data.db.AppDatabase
 import com.boox.day.data.db.DayPageRepository
-import com.boox.day.data.db.PageRepository
+import com.boox.day.data.db.Page
 import com.boox.day.data.db.TextAnnotation
-import com.boox.day.data.db.TextAnnotationRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -82,52 +82,66 @@ object MeetingRecapSaver {
         return if (space > 0) space + 1 else low
     }
 
-    /** Writes the recap in place of any saved before it. Returns the first page's id. */
+    /** Writes the recap atomically in one Room transaction in place of any saved before it. Returns the first page's id. */
     suspend fun save(context: Context, eventId: String, title: String, pages: MeetingPages.Pages, recap: MeetingRecap): String = withContext(Dispatchers.IO) {
         val app = context.applicationContext
+        val db = AppDatabase.getDatabase(app)
         val dayPages = DayPageRepository(app)
-        val pageRepository = PageRepository(app)
-        val boxes = TextAnnotationRepository(app)
-        val dao = AppDatabase.getDatabase(app).dayPageDao()
+        val dayPageDao = db.dayPageDao()
+        val pageDao = db.pageDao()
+        val textDao = db.textAnnotationDao()
 
         val width = SCREEN_WIDTH - 2 * MARGIN
         val parts = pagesOf(text(title, recap)) { height(it, width) <= SCREEN_HEIGHT - 2 * MARGIN }
+        require(parts.isNotEmpty()) { "Recap produced no pages" }
 
-        // Old recap pages are used again, in order; extra ones are emptied, so nothing is deleted by surprise
-        val openBefore = dao.getByDate(pages.date)?.openPageId
-        val ids = parts.indices.map { index ->
-            pages.recap.getOrNull(index) ?: dayPages.createNewPageForDate(pages.date).also { pageRepository.setLinkedEventId(it, eventId) }
-        }
-        pages.recap.forEach { pageId -> boxes.getByPageId(pageId).filter { it.sourceType == MeetingPages.RECAP_SOURCE }.forEach { boxes.delete(it) } }
-        parts.forEachIndexed { index, part ->
-            boxes.insert(
-                TextAnnotation(
-                    id = UUID.randomUUID().toString(),
-                    content = part,
-                    x = MARGIN,
-                    y = MARGIN,
-                    width = width,
-                    height = height(part, width),
-                    fontSize = FONT_SIZE,
-                    fontWeight = 400,
-                    textColor = 0xFF000000.toInt(),
-                    backgroundColor = 0x00000000,
-                    textAlign = "left",
-                    padding = 0f,
-                    pageId = ids[index],
-                    sourceType = MeetingPages.RECAP_SOURCE
+        val firstId = db.withTransaction {
+            val openBefore = dayPageDao.getByDate(pages.date)?.openPageId
+            val existingPageIds = dayPageDao.getByDate(pages.date)?.pageIds.orEmpty().toMutableList()
+            val ids = parts.indices.map { index ->
+                pages.recap.getOrNull(index) ?: run {
+                    val newPage = Page(linkedEventId = eventId)
+                    pageDao.create(newPage)
+                    existingPageIds.add(newPage.id)
+                    newPage.id
+                }
+            }
+            pages.recap.forEach { pageId ->
+                textDao.getForPageNow(pageId)
+                    .filter { it.sourceType == MeetingPages.RECAP_SOURCE }
+                    .forEach { textDao.delete(it) }
+            }
+            parts.forEachIndexed { index, part ->
+                textDao.insert(
+                    TextAnnotation(
+                        id = UUID.randomUUID().toString(),
+                        content = part,
+                        x = MARGIN,
+                        y = MARGIN,
+                        width = width,
+                        height = height(part, width),
+                        fontSize = FONT_SIZE,
+                        fontWeight = 400,
+                        textColor = 0xFF000000.toInt(),
+                        backgroundColor = 0x00000000,
+                        textAlign = "left",
+                        padding = 0f,
+                        pageId = ids[index],
+                        sourceType = MeetingPages.RECAP_SOURCE
+                    )
                 )
-            )
-        }
+            }
 
-        // Right after the notes, not at the end of the day
-        val all = dao.getByDate(pages.date)?.pageIds.orEmpty()
-        val rest = all.filter { it !in ids }
-        val after = rest.indexOfLast { it in pages.notes }
-        dao.setPageIds(pages.date, rest.take(after + 1) + ids + rest.drop(after + 1))
+            // Right after the notes, not at the end of the day
+            val rest = existingPageIds.filter { it !in ids }
+            val after = rest.indexOfLast { it in pages.notes }
+            dayPageDao.setPageIds(pages.date, rest.take(after + 1) + ids + rest.drop(after + 1))
+            openBefore?.let { dayPageDao.setOpenPageId(pages.date, it) }
+            ids.first()
+        }
+        // Invalidate cache only after the transaction has committed
         dayPages.invalidatePageCache(pages.date)
-        openBefore?.let { dayPages.setOpenPageId(pages.date, it) }
-        ids.first()
+        firstId
     }
 
     internal fun height(text: String, width: Float): Float {
