@@ -1,5 +1,6 @@
 package com.boox.day.sync
 
+import android.content.Context
 import java.io.File
 
 /** A cloud that keeps BooxDay's backups (owner decisions 85-88, Nov 2026). */
@@ -28,4 +29,10 @@ interface CloudBackupService {
 
     /** True when at least one backup is there; false when none or it couldn't be checked. */
     suspend fun hasExistingBackups(): Boolean
+}
+
+/** The backup service for [cloud]. */
+internal fun cloudBackupService(context: Context, cloud: BackupCloud): CloudBackupService = when (cloud) {
+    BackupCloud.GOOGLE_DRIVE -> DriveBackupService(context)
+    BackupCloud.ONEDRIVE -> OneDriveBackupService.create(context)
 }

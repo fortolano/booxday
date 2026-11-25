@@ -97,9 +97,9 @@ class BooxDayApp : Application() {
         runSafeStartupStep("Digital Ink startup") { initDigitalInk() }
         runSafeStartupStep("Semantic indexing startup") { initSemanticIndexing() }
         runSafeStartupStep("Pending calendar push") { requestPendingCalendarPush() }
-        // Automatic Drive backup check — only scheduled when Drive backup is enabled
+        // Automatic backup check — only scheduled while Google Drive or OneDrive is the destination
         runSafeStartupStep("Drive auto-backup schedule") {
-            val enabled = com.boox.day.sync.GoogleAuthManager(this).isDriveBackupEnabled()
+            val enabled = com.boox.day.sync.GoogleAuthManager(this).getBackupDestination() != null
             com.boox.day.sync.DriveAutoBackupWorker.syncSchedule(this, enabled)
         }
         // Calendars in the background on "Sync frequency" while an account is connected (Oct 2026)
