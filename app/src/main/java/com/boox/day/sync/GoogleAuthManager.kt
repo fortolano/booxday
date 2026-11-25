@@ -407,6 +407,22 @@ class GoogleAuthManager(private val context: Context) {
         return readPrefs(defaultValue = 0L) { getLong("last_backup_time", 0L) }
     }
 
+    /** [cloud]'s own last backup time (Google Drive's is the one above). */
+    fun getLastBackupTime(cloud: BackupCloud): Long =
+        readPrefs(defaultValue = 0L) { getLong(BackupPrefs.lastBackupKey(cloud), 0L) }
+
+    fun setLastBackupTime(cloud: BackupCloud, timestamp: Long) {
+        editPrefs { putLong(BackupPrefs.lastBackupKey(cloud), timestamp) }
+    }
+
+    /** The Microsoft account OneDrive backup uses (owner decision 86), or null when none is connected. */
+    fun getOneDriveAccount(): OneDriveAccount? = readPrefs<OneDriveAccount?>(defaultValue = null) { BackupPrefs.oneDriveAccount(this) }
+
+    /** Saves the OneDrive backup account; null forgets it (never signs it out of Microsoft). */
+    fun setOneDriveAccount(account: OneDriveAccount?) {
+        editPrefs { BackupPrefs.putOneDriveAccount(this, account) }
+    }
+
     /**
      * Store the Drive folder ID where backups are stored
      */

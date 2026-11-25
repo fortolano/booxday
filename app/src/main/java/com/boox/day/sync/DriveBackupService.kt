@@ -23,7 +23,7 @@ import java.io.ByteArrayOutputStream
  *
  * Uses DRIVE_FILE scope (app-specific files only).
  */
-class DriveBackupService(private val context: Context) {
+class DriveBackupService(private val context: Context) : CloudBackupService {
 
     private val authManager = GoogleAuthManager(context)
 
@@ -94,7 +94,7 @@ class DriveBackupService(private val context: Context) {
      * @param localFile The local backup file to upload
      * @return UploadResult indicating success or failure
      */
-    suspend fun uploadBackup(localFile: java.io.File): UploadResult = withContext(Dispatchers.IO) {
+    override suspend fun uploadBackup(localFile: java.io.File): UploadResult = withContext(Dispatchers.IO) {
         try {
             val drive = getDriveService()
             if (drive == null) {
@@ -175,7 +175,7 @@ class DriveBackupService(private val context: Context) {
      *
      * @return ListResult with available backups sorted by date (newest first)
      */
-    suspend fun listBackups(): ListResult = withContext(Dispatchers.IO) {
+    override suspend fun listBackups(): ListResult = withContext(Dispatchers.IO) {
         try {
             val drive = getDriveService()
             if (drive == null) {
@@ -242,7 +242,7 @@ class DriveBackupService(private val context: Context) {
      * and legacy JSON backups without buffering the whole payload in RAM: M5(5)).
      * Caller owns deleting the returned file when finished.
      */
-    suspend fun downloadBackupToFile(fileId: String): FileDownloadResult = withContext(Dispatchers.IO) {
+    override suspend fun downloadBackupToFile(fileId: String): FileDownloadResult = withContext(Dispatchers.IO) {
         val dir = java.io.File(context.cacheDir, "drive-restore").apply { mkdirs() }
         val tempFile = java.io.File(dir, "drive-backup-${java.util.UUID.randomUUID()}.tmp")
         try {
@@ -335,7 +335,7 @@ class DriveBackupService(private val context: Context) {
      * Used for quick state detection on dialog open.
      * Searches directly by folder name to work even without stored folder ID.
      */
-    suspend fun hasExistingBackups(): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun hasExistingBackups(): Boolean = withContext(Dispatchers.IO) {
         try {
             val drive = getDriveService()
             if (drive == null) {
