@@ -441,10 +441,11 @@ internal class MicrosoftTodoProvider(
 
     /**
      * Deletes [oldId] in [oldList] now that [newId] in [newList] holds it, never losing the only copy.
-     * The delete failed: the old one is read again. Still there: the new one goes, so nothing is
-     * doubled, and the failure is passed on. Gone: the delete went through and only its answer was
-     * lost, so the move is done. Can't tell: both stay and the failure is passed on; the next pull
-     * follows the copy (owner decision 49).
+     * Refused for certain (a 4xx; gone counts as deleted): the old one is whole, so the new one goes
+     * and the failure is passed on. Any other failure (no answer, a server error, busy) may still
+     * delete the old one later, so the new one is never deleted: the old one read gone, the move is
+     * done; else both stay, the failure is passed on and the next pull follows the copy (owner
+     * decision 49), doubled at worst.
      */
     private suspend fun replaced(oldList: String, oldId: String, newList: String, newId: String) {
         val failure = try {
@@ -455,22 +456,24 @@ internal class MicrosoftTodoProvider(
         } catch (e: Exception) {
             e
         }
-        val stillThere = try {
-            exists(oldList, oldId)
+        if (failure is GraphException.Http && failure.status in 400..499) {
+            try {
+                deleteCopy(newList, newId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (ignored: Exception) {
+                // The next pull brings the second copy in as a new task: doubled, never lost
+            }
+            throw failure
+        }
+        val gone = try {
+            !exists(oldList, oldId)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            throw failure  // can't tell: keep both
+            false  // can't tell
         }
-        if (!stillThere) return
-        try {
-            deleteCopy(newList, newId)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (ignored: Exception) {
-            // The next pull brings the second copy in as a new task: doubled, never lost
-        }
-        throw failure
+        if (!gone) throw failure
     }
 
     /** Whether the task or step is there; a failure to tell is thrown. */

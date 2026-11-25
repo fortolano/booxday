@@ -525,14 +525,14 @@ class MicrosoftTodoSyncTest {
     }
 
     @Test
-    fun aSourceDeleteThatDidNotHappenTakesTheNewCopyBack() = runBlocking {
+    fun aSourceDeleteRefusedForCertainTakesTheNewCopyBack() = runBlocking {
         todo.addList(WORK, "Work")
         sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", WORK, "Work"))
         val trip = row(0, "Plan trip")
         row(1, "Book hotel") { repo.setParentTask(it, trip) }
         run()
         val oldId = todo.tasksIn(TASKS).single().text("id")
-        todo.refuse = { method, path -> method == "DELETE" && path.endsWith("/tasks/$oldId") }
+        todo.refuse = { method, path -> if (method == "DELETE" && path.endsWith("/tasks/$oldId")) 409 else null }
 
         val failed = runCatching { TaskSyncListMover(db, provider, EMAIL).move(trip, WORK) }
 
@@ -540,6 +540,33 @@ class MicrosoftTodoSyncTest {
         assertEquals("the old one stays whole", 1, todo.stepsOf(oldId).size)
         assertTrue("the new one is taken back: nothing doubled", todo.tasksIn(WORK).isEmpty())
         assertEquals(TASKS to oldId, sync.getLink(trip)!!.let { it.listId to it.remoteId })
+    }
+
+    @Test
+    fun aSourceDeleteThatMayStillHappenNeverTakesTheNewCopyBack() = runBlocking {
+        todo.addList(WORK, "Work")
+        sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", WORK, "Work"))
+        val trip = row(0, "Plan trip")
+        val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
+        run()
+        val oldId = todo.tasksIn(TASKS).single().text("id")
+        // A server error: the old one is still there when read again, but the delete may go through late
+        todo.refuse = { method, path -> if (method == "DELETE" && path.endsWith("/tasks/$oldId")) 500 else null }
+
+        val failed = runCatching { TaskSyncListMover(db, provider, EMAIL).move(trip, WORK) }
+
+        assertTrue(failed.isFailure)
+        val copy = todo.tasksIn(WORK).single().text("id")
+        assertEquals("the new one is never deleted", 1, todo.stepsOf(copy).size)
+        assertEquals("nor the old one", 1, todo.stepsOf(oldId).size)
+
+        // It did go through late: the next pull follows the one copy left (owner decision 49)
+        todo.refuse = { _, _ -> null }
+        todo.deleteTask(TASKS, oldId)
+        run()
+        assertEquals("one copy, never none, the link on it", WORK to copy, sync.getLink(trip)!!.let { it.listId to it.remoteId })
+        assertEquals(copy, TodoFields.taskOf(sync.getLink(hotel)!!.remoteId))
+        assertEquals("nothing doubled here", 1, tasks.getTasksForDay(DAY).count { it.typedText == "Plan trip" })
     }
 
     @Test

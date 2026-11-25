@@ -50,8 +50,8 @@ internal class FakeTodoServer : Dispatcher() {
     private val hiddenFromDelta = HashSet<String>()
     /** A request ("DELETE", decoded path) Microsoft carries out but whose answer is lost on the way. */
     var loseReplyTo: (String, String) -> Boolean = { _, _ -> false }
-    /** A request Microsoft refuses (500) without doing it. */
-    var refuse: (String, String) -> Boolean = { _, _ -> false }
+    /** The status Microsoft refuses a request ("DELETE", decoded path) with, without doing it; null: done. */
+    var refuse: (String, String) -> Int? = { _, _ -> null }
     /** Requests that change something. */
     val writes: List<String> get() = requests.filter { !it.startsWith("GET") }
 
@@ -106,7 +106,7 @@ internal class FakeTodoServer : Dispatcher() {
         // Delta takes no $top (measured 25 Nov 2026)
         if (path.lastOrNull() == "delta" && url.queryParameter("\$top") != null) return error(400, "BadRequest")
         val decoded = "/" + path.joinToString("/")
-        if (refuse(request.method!!, decoded)) return error(500, "ErrorInternalServerError")
+        refuse(request.method!!, decoded)?.let { status -> return error(status, if (status >= 500) "ErrorInternalServerError" else "ErrorInvalidRequest") }
         val answer = try {
             route(request.method!!, path, url.queryParameter("\$deltatoken"), url.queryParameter("\$skiptoken"), url.queryParameter("\$filter"), body)
         } catch (e: NoSuchElementException) {
