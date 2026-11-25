@@ -854,23 +854,20 @@ class DriveBackupService(private val context: Context) : CloudBackupService {
         }
 
         /**
-         * Search for an existing backup folder by name.
+         * Search for an existing backup folder by name: its ID, or null when Drive says there is
+         * none. A failed search is thrown (Nov 2026): it read as "no folder", so the restore list
+         * and the sign-in's "any backups?" said there were none, and an upload made a second folder.
          */
         private fun findExistingFolder(drive: Drive): String? {
-            return try {
-                val query = "mimeType='$FOLDER_MIME_TYPE' and name='$BACKUP_FOLDER_NAME' and trashed=false"
-                val result = drive.files().list()
-                    .setQ(query)
-                    .setSpaces("drive")
-                    .setFields("files(id, name)")
-                    .setPageSize(1)
-                    .execute()
+            val query = "mimeType='$FOLDER_MIME_TYPE' and name='$BACKUP_FOLDER_NAME' and trashed=false"
+            val result = drive.files().list()
+                .setQ(query)
+                .setSpaces("drive")
+                .setFields("files(id, name)")
+                .setPageSize(1)
+                .execute()
 
-                result.files?.firstOrNull()?.id
-            } catch (e: Exception) {
-                Log.w(TAG, "Error searching for folder: ${e.message}")
-                null
-            }
+            return result.files?.firstOrNull()?.id
         }
 
         /**
