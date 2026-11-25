@@ -58,6 +58,8 @@ internal class FakeTodoServer : Dispatcher() {
     var meanwhile: (String, String) -> Unit = { _, _ -> }
     /** Every If-Match BooxDay sent. */
     val ifMatches = mutableListOf<String>()
+    /** Answers without @odata.etag (not seen from Graph; a guard for its absence). */
+    var withoutEtags = false
     /** Requests that change something. */
     val writes: List<String> get() = requests.filter { !it.startsWith("GET") }
 
@@ -332,8 +334,15 @@ internal class FakeTodoServer : Dispatcher() {
 
     private fun page(items: List<JsonObject>) = buildJsonObject { put("value", JsonArray(items)) }
 
-    private fun ok(json: JsonObject) = MockResponse().setResponseCode(200).setBody(json.toString())
-    private fun created(json: JsonObject) = MockResponse().setResponseCode(201).setBody(json.toString())
+    private fun ok(json: JsonObject) = MockResponse().setResponseCode(200).setBody(answer(json).toString())
+    private fun created(json: JsonObject) = MockResponse().setResponseCode(201).setBody(answer(json).toString())
+
+    private fun answer(json: JsonObject): JsonObject {
+        if (!withoutEtags) return json
+        fun bare(o: JsonObject) = JsonObject(o - "@odata.etag")
+        val items = (json["value"] as? JsonArray)?.let { list -> JsonArray(list.map { (it as? JsonObject)?.let(::bare) ?: it }) }
+        return bare(if (items != null) JsonObject(json + ("value" to items)) else json)
+    }
     private fun error(status: Int, code: String) =
         MockResponse().setResponseCode(status).setBody("""{"error":{"code":"$code","message":"test"}}""")
 

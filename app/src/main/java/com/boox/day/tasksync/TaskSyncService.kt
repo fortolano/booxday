@@ -168,7 +168,8 @@ internal data class RemoteTask(
     /**
      * The copy in the same list this one replaces (a To Do step made a task of its own or put under
      * another one): its delete had no clear answer, so it may still be there. It is deleted through
-     * the outbox, retried until certain, and never taken as a new task meanwhile.
+     * the outbox, retried until certain, and never taken as a new task meanwhile; changed since it
+     * was copied, it stays ([TaskSyncServiceException.LeftCopyChanged]).
      */
     val oldCopyLeft: String? = null
 )
@@ -192,6 +193,13 @@ internal sealed class TaskSyncServiceException(message: String, cause: Throwable
 
     /** The whole list is gone (deleted in the service): the user picks another. */
     class ListGone(val listId: String, cause: Throwable? = null) : TaskSyncServiceException("List gone from the service", cause)
+
+    /**
+     * The old copy a move left behind ([RemoteTask.oldCopyLeft]) changed since it was copied, or how
+     * it was isn't known: it isn't deleted, so no edit is lost, and comes in as a task of its own when
+     * [listId] is read in full.
+     */
+    class LeftCopyChanged(val listId: String) : TaskSyncServiceException("A left copy changed; kept")
 
     /** The account can't use the service (a Microsoft account without To Do): signing in again won't help. */
     class NotAvailable(cause: Throwable? = null) : TaskSyncServiceException("Not available for this account", cause)
