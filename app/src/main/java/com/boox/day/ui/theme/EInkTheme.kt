@@ -676,7 +676,7 @@ object EInkTheme {
         val borderColor = Colors.primary
         val borderWidth = Global.borderWidth
         val width = 230.dp                   // Toolbar/compact dropdown menu width
-        val settingsWidth: Dp get() = minOf(320.dp, SCREEN_POPUP_MAX_WIDTH)  // Main Settings menu (fits labels + attention reasons cleanly)
+        val settingsWidth: Dp get() = minOf(260.dp, SCREEN_POPUP_MAX_WIDTH)  // Main Settings menu (fits all labels on one line)
         val maxHeight = 400.dp
         val padding = Global.paddingSmall
         val itemSpacing = 0.dp               // Menu items are usually contiguous

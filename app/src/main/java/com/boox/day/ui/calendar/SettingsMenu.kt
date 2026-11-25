@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,7 +68,7 @@ import com.boox.day.ui.theme.EInkTheme
  * - Data: Data & Backup, Boox Notes
  * - Info: Task streak (narrow screens), Help, About
  *
- * @param attention What needs the user's action (ui/attention): a dot and the reason on its entry
+ * @param attention What needs the user's action (ui/attention): a dot on its entry
  * @param isStandaloneMode When true, "Calendar Accounts" is grayed out and shows tooltip on tap
  */
 @Composable
@@ -92,11 +93,15 @@ fun SettingsMenu(
     // State for showing tooltip when tapping disabled Calendar Accounts
     var showStandaloneTooltip by remember { mutableStateOf(false) }
 
+    val popupOffset = with(LocalDensity.current) {
+        IntOffset((-8).dp.roundToPx(), (EInkTheme.Global.touchTarget + 4.dp).roundToPx())
+    }
+
     Popup(
         alignment = Alignment.TopEnd,
         onDismissRequest = onClose,
         properties = PopupProperties(focusable = true),
-        offset = IntOffset(-20, 120) + LocalNestedPopupOffset.current
+        offset = popupOffset + LocalNestedPopupOffset.current
     ) {
         Column(
             Modifier
@@ -297,7 +302,7 @@ private fun SettingsMenuItemWithIcon(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
     ) {
-        // Dot and reason when something here needs the user's action (ui/attention, Oct 2026)
+        // Dot when something here needs the user's action (ui/attention); tapping jumps straight to the card
         if (reason != null) {
             BadgeDot()
         }
@@ -307,20 +312,11 @@ private fun SettingsMenuItemWithIcon(
             tint = if (enabled) EInkTheme.Colors.darkGray else EInkTheme.Colors.gray,
             modifier = Modifier.size(20.dp)
         )
-        Column(modifier = Modifier.padding(vertical = if (reason != null) 4.dp else 0.dp)) {
-            Text(
-                text = label,
-                color = if (enabled) EInkTheme.MenuItem.textColor else EInkTheme.Colors.gray,
-                fontSize = EInkTheme.MenuItem.fontSize
-            )
-            if (reason != null) {
-                Text(
-                    text = reason,
-                    color = EInkTheme.Colors.primary,
-                    fontSize = EInkTheme.Typography.bodySmall
-                )
-            }
-        }
+        Text(
+            text = label,
+            color = if (enabled) EInkTheme.MenuItem.textColor else EInkTheme.Colors.gray,
+            fontSize = EInkTheme.MenuItem.fontSize
+        )
     }
 }
 
