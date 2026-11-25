@@ -34,7 +34,7 @@
     <ul>
       <li>BooxDay has no server and no user accounts of its own. The developer never receives your data.</li>
       <li>Your planner, including calendar data from Google, Outlook, iCloud or another calendar server you add, is stored on your tablet.</li>
-      <li>Data leaves your tablet only for features you use: to Google or Microsoft to sync your calendar or save backups, to the calendar server you add (such as iCloud) to sync its calendars, to Google Tasks or the calendar server you add to sync your tasks if you turn on Task Sync, and to OpenRouter when you use AI features with your own OpenRouter account.</li>
+      <li>Data leaves your tablet only for features you use: to Google or Microsoft to sync your calendar or save backups, to the calendar server you add (such as iCloud) to sync its calendars, to Google Tasks, Microsoft To Do or the calendar server you add to sync your tasks if you turn on Task Sync, and to OpenRouter when you use AI features with your own OpenRouter account.</li>
       <li>No ads, no analytics, no tracking. Your data is never sold.</li>
     </ul>
   </div>
@@ -82,6 +82,8 @@
 
   <h2>Microsoft Outlook data</h2>
   <p>If you connect an Outlook or Microsoft 365 account, BooxDay uses Microsoft sign-in with the permissions to read your basic profile and to read and write your calendars. It uses your calendars and events the same way as Google Calendar data above: stored on your tablet, synced with Microsoft, and sent to OpenRouter only by the AI features described below. Microsoft sign-in tokens are kept on the tablet by Microsoft's sign-in library.</p>
+  <p>If you turn on Task Sync with a Microsoft account, BooxDay asks Microsoft for permission to read and write your Microsoft To Do tasks. It brings in the tasks from the lists you tick (never the Flagged email list) and saves to them the words, done mark, due date, your own reminder time, a star for priority A, and subtasks as steps. It doesn't change task notes or attachments. A synced task you clear in BooxDay is deleted in To Do too, except a repeating one, which stays.</p>
+  <p>If you choose OneDrive for backups, BooxDay asks Microsoft for access to its own folder only (OneDrive › Apps › BooxDay). It saves backup files there and can't see or open any other file in your OneDrive.</p>
 
   <h2>iCloud and other calendar servers (CalDAV)</h2>
   <p>If you add an iCloud, Fastmail, Nextcloud or other calendar account (Settings → Calendar Accounts → iCloud &amp; more), BooxDay connects directly to that account's server with the address, name and password you type. It reads the list of your calendars (names and colours) and, on the calendars you choose to sync, each event from two months back to three months ahead. It keeps each event as the server sent it, so that a change saved in BooxDay keeps the parts BooxDay doesn't show, such as alarms and guests.</p>
@@ -114,7 +116,7 @@
   <p>Other apps that can read these folders, and any sync service you use for them, can see these files.</p>
 
   <h2>Other apps on your tablet</h2>
-  <p>Only if you turn on Tasks feed for other apps (Settings → Preferences, off by default): BooxDay offers a read-only task list that launchers, widgets and other apps on the tablet can read — your task text, due dates, priorities and whether tasks are done, including tasks from Google Tasks or your calendar server when Task Sync is on. It doesn't include calendar events, account details or handwriting.</p>
+  <p>Only if you turn on Tasks feed for other apps (Settings → Preferences, off by default): BooxDay offers a read-only task list that launchers, widgets and other apps on the tablet can read — your task text, due dates, priorities and whether tasks are done, including tasks from Google Tasks, Microsoft To Do or your calendar server when Task Sync is on. It doesn't include calendar events, account details or handwriting.</p>
 
   <h2>Crash reports</h2>
   <p>If BooxDay closes unexpectedly, it saves a report on the tablet and offers it at the next start. Nothing is sent unless you tap Copy Report or Report on GitHub. The report contains technical details and recent lines from the app's own log. Email addresses in it are partly hidden, but it can contain some calendar event titles. Read it before posting it: reports on GitHub are public.</p>
@@ -129,9 +131,9 @@
   <h2>Keeping and deleting your data</h2>
   <ul>
     <li>Your data stays on the tablet until you delete it or uninstall BooxDay.</li>
-    <li><strong>Removing a calendar account</strong> in BooxDay (Settings → Calendar Accounts) deletes the events BooxDay downloaded for that account, and the account's email address, name and calendar choices; for an iCloud or other calendar server, also its saved password and trusted certificate. Removing the last Google account also withdraws BooxDay's access to your Google account. Turning Task Sync off stops it. Your tasks stay on the tablet and in Google Tasks or on your server. Removing the account it uses stops it too.</li>
+    <li><strong>Removing a calendar account</strong> in BooxDay (Settings → Calendar Accounts) deletes the events BooxDay downloaded for that account, and the account's email address, name and calendar choices; for an iCloud or other calendar server, also its saved password and trusted certificate. Removing the last Google account also withdraws BooxDay's access to your Google account. Turning Task Sync off stops it. Your tasks stay on the tablet and in Google Tasks, Microsoft To Do or on your server. Removing the account it uses stops it too.</li>
     <li>You can withdraw BooxDay's access to your Google account at any time at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
-    <li>Backups in your Google Drive stay in the "BooxDay Backups" folder until you delete them there.</li>
+    <li>Backups in your Google Drive stay in the "BooxDay Backups" folder, and backups in OneDrive in Apps › BooxDay, until you delete them there.</li>
     <li>Uninstalling BooxDay deletes everything in its private storage. Files it saved in shared folders (sleep screen pictures, daily notes, exports) stay until you delete them.</li>
   </ul>
 
