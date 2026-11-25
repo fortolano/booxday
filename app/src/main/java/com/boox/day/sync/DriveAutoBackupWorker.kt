@@ -12,13 +12,15 @@ import android.util.Log
 import java.util.concurrent.TimeUnit
 
 /**
- * Automatic Google Drive backup (plan Phase 2, Oct 2026).
+ * Automatic backup (plan Phase 2, Oct 2026), to Google Drive or OneDrive since Nov 2026.
  *
  * The backup dialog offered an automatic frequency (daily/weekly) but nothing ever ran it.
  * This periodic check runs a few times a day while the device is online; it backs up only when
- * [GoogleAuthManager.shouldAutoBackup] says so (Drive backup on, signed in with the Drive scope,
- * the chosen interval elapsed) — the same steps as "Back up now": streaming v3 export, then
- * upload (which records the backup time).
+ * [GoogleAuthManager.dueAutoBackupCloud] names a cloud (the chosen destination, connected, the
+ * interval elapsed since its own last backup) — the same steps as "Back up now": streaming v3
+ * export, then upload (which records the backup time). Only the chosen cloud is backed up (owner
+ * decision 85). The class and work name stay from the Google-only version, so an upgrade keeps
+ * the one queued job instead of adding a second.
  */
 class DriveAutoBackupWorker(
     context: Context,
@@ -26,12 +28,9 @@ class DriveAutoBackupWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val authManager = GoogleAuthManager(applicationContext)
-        if (!authManager.shouldAutoBackup()) {
-            return Result.success()
-        }
+        val cloud = GoogleAuthManager(applicationContext).dueAutoBackupCloud() ?: return Result.success()
 
-        Log.i(TAG, "Automatic Drive backup due - exporting")
+        Log.i(TAG, "Automatic ${cloud.key} backup due - exporting")
         val export = ExportService(applicationContext).createBackup()
         if (export !is ExportService.ExportResult.Success) {
             Log.w(TAG, "Automatic backup: export failed (${(export as? ExportService.ExportResult.Error)?.message})")
@@ -39,7 +38,7 @@ class DriveAutoBackupWorker(
         }
 
         return try {
-            when (val upload = DriveBackupService(applicationContext).uploadBackup(export.backupFile)) {
+            when (val upload = cloudBackupService(applicationContext, cloud).uploadBackup(export.backupFile)) {
                 is DriveBackupService.UploadResult.Success -> {
                     Log.i(TAG, "Automatic backup uploaded: ${upload.fileName}")
                     Result.success()
@@ -50,7 +49,7 @@ class DriveAutoBackupWorker(
                 }
             }
         } finally {
-            // The copy lives on Drive; don't pile up a local file per automatic run
+            // The copy lives in the cloud; don't pile up a local file per automatic run
             export.backupFile.delete()
         }
     }
@@ -60,7 +59,7 @@ class DriveAutoBackupWorker(
         private const val WORK_NAME = "drive_auto_backup"
         private const val CHECK_INTERVAL_HOURS = 6L
 
-        /** Keeps the periodic check enqueued when Drive backup is enabled, or cancels it when disabled. */
+        /** Keeps the periodic check enqueued while a backup destination is chosen, or cancels it. */
         fun syncSchedule(context: Context, enabled: Boolean) {
             if (enabled) schedule(context) else cancel(context)
         }

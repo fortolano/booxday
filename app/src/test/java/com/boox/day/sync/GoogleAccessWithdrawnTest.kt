@@ -40,4 +40,26 @@ class GoogleAccessWithdrawnTest {
         // the Google account's own backup and sign-in go with its access
         assertEquals(setOf("sync_enabled", "sync_frequency", "backup_frequency"), prefs.all.keys)
     }
+
+    /** OneDrive backup (Nov 2026) isn't Google's: removing the last Google account must not stop it. */
+    @Test
+    fun withdrawingGoogleAccessKeepsOneDriveBackup() {
+        val prefs = ApplicationProvider.getApplicationContext<Context>().getSharedPreferences("google_auth_test_2", Context.MODE_PRIVATE)
+        prefs.edit().also {
+            BackupPrefs.putDestination(it, BackupCloud.ONEDRIVE)
+            BackupPrefs.putOneDriveAccount(it, OneDriveAccount("msal-1", "me@outlook.com"))
+        }.putLong(BackupPrefs.ONEDRIVE_LAST_BACKUP_TIME, 5L).putLong("last_backup_time", 4L).commit()
+
+        GoogleAuthManager.clearSignInData(prefs)
+
+        assertEquals(BackupCloud.ONEDRIVE, BackupPrefs.destination(prefs))
+        assertEquals(OneDriveAccount("msal-1", "me@outlook.com"), BackupPrefs.oneDriveAccount(prefs))
+        assertEquals(5L, prefs.getLong(BackupPrefs.ONEDRIVE_LAST_BACKUP_TIME, 0L))
+        assertFalse(prefs.contains("last_backup_time"))
+
+        // Google Drive as the destination goes with Google's access
+        prefs.edit().also { BackupPrefs.putDestination(it, BackupCloud.GOOGLE_DRIVE) }.commit()
+        GoogleAuthManager.clearSignInData(prefs)
+        assertEquals(null, BackupPrefs.destination(prefs))
+    }
 }

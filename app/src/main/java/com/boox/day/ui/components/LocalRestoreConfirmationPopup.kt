@@ -52,129 +52,139 @@ fun LocalRestoreConfirmationPopup(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .background(EInkTheme.Colors.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                    .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                    .padding(EInkTheme.Global.padding),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Warning Icon
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = "Warning",
-                    modifier = Modifier.size(40.dp),
-                    tint = EInkTheme.Colors.primary
-                )
+            RestoreConfirmationCard(preview, onConfirm, onCancel)
+        }
+    }
+}
 
-                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+/** The popup's card (split out Nov 2026 so the backup screens' pictures can draw it). */
+@Composable
+internal fun RestoreConfirmationCard(
+    preview: ImportService.BackupPreview,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth(0.85f)
+            .background(EInkTheme.Colors.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+            .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+            .padding(EInkTheme.Global.padding),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Warning Icon
+        Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = "Warning",
+            modifier = Modifier.size(40.dp),
+            tint = EInkTheme.Colors.primary
+        )
 
-                // Title
+        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+        // Title
+        Text(
+            text = "Restore from Backup?",
+            fontSize = EInkTheme.Typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = EInkTheme.Colors.primary,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+        // Backup creation date
+        Text(
+            text = "Created: ${formatDateTime(preview.metadata.createdAt)}",
+            fontSize = EInkTheme.Typography.bodySmall,
+            color = EInkTheme.Colors.gray,
+            textAlign = TextAlign.Center
+        )
+
+        Text(
+            text = "App version: ${preview.metadata.appVersion}",
+            fontSize = EInkTheme.Typography.labelSmall,
+            color = EInkTheme.Colors.gray,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+        // Backup contents summary
+        BackupContentsSummary(preview = preview)
+
+        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
+        // Warning message
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(EInkTheme.Colors.offWhite, RoundedCornerShape(6.dp))
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = EInkTheme.Colors.primary
+            )
+            Column {
                 Text(
-                    text = "Restore from Backup?",
-                    fontSize = EInkTheme.Typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = EInkTheme.Colors.primary,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                // Backup creation date
-                Text(
-                    text = "Created: ${formatDateTime(preview.metadata.createdAt)}",
+                    text = "This will REPLACE all current data.",
                     fontSize = EInkTheme.Typography.bodySmall,
-                    color = EInkTheme.Colors.gray,
-                    textAlign = TextAlign.Center
+                    fontWeight = FontWeight.Bold,
+                    color = EInkTheme.Colors.primary
                 )
-
                 Text(
-                    text = "App version: ${preview.metadata.appVersion}",
+                    text = "Changes since this backup will be lost.",
                     fontSize = EInkTheme.Typography.labelSmall,
-                    color = EInkTheme.Colors.gray,
-                    textAlign = TextAlign.Center
+                    color = EInkTheme.Colors.gray
                 )
+            }
+        }
 
-                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
-                // Backup contents summary
-                BackupContentsSummary(preview = preview)
+        // Action buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
+        ) {
+            // Cancel button
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(EInkTheme.Button.height)
+                    .background(EInkTheme.Colors.offWhite, RoundedCornerShape(6.dp))
+                    .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(6.dp))
+                    .noRippleClickable { onCancel() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Cancel",
+                    fontSize = EInkTheme.Typography.button,
+                    fontWeight = FontWeight.Medium,
+                    color = EInkTheme.Colors.primary
+                )
+            }
 
-                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
-
-                // Warning message
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(EInkTheme.Colors.offWhite, RoundedCornerShape(6.dp))
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = EInkTheme.Colors.primary
-                    )
-                    Column {
-                        Text(
-                            text = "This will REPLACE all current data.",
-                            fontSize = EInkTheme.Typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = EInkTheme.Colors.primary
-                        )
-                        Text(
-                            text = "Changes since this backup will be lost.",
-                            fontSize = EInkTheme.Typography.labelSmall,
-                            color = EInkTheme.Colors.gray
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
-
-                // Action buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
-                ) {
-                    // Cancel button
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(EInkTheme.Button.height)
-                            .background(EInkTheme.Colors.offWhite, RoundedCornerShape(6.dp))
-                            .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(6.dp))
-                            .noRippleClickable { onCancel() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Cancel",
-                            fontSize = EInkTheme.Typography.button,
-                            fontWeight = FontWeight.Medium,
-                            color = EInkTheme.Colors.primary
-                        )
-                    }
-
-                    // Restore button
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(EInkTheme.Button.height)
-                            .background(EInkTheme.Colors.primary, RoundedCornerShape(6.dp))
-                            .noRippleClickable { onConfirm() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Restore",
-                            fontSize = EInkTheme.Typography.button,
-                            fontWeight = FontWeight.Medium,
-                            color = EInkTheme.Colors.white
-                        )
-                    }
-                }
+            // Restore button
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(EInkTheme.Button.height)
+                    .background(EInkTheme.Colors.primary, RoundedCornerShape(6.dp))
+                    .noRippleClickable { onConfirm() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Restore",
+                    fontSize = EInkTheme.Typography.button,
+                    fontWeight = FontWeight.Medium,
+                    color = EInkTheme.Colors.white
+                )
             }
         }
     }

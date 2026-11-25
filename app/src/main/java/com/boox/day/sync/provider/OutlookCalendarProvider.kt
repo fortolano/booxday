@@ -230,7 +230,9 @@ class OutlookCalendarProvider(
     /**
      * Remove an Outlook account.
      *
-     * Signs out from MSAL and deactivates the account in our database.
+     * Signs out from MSAL and deactivates the account in our database. While OneDrive backup uses
+     * the same Microsoft sign-in (Nov 2026), the sign-in stays, so backup keeps working; the
+     * calendar account and its events go as before.
      */
     override suspend fun removeAccount(accountId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -245,7 +247,11 @@ class OutlookCalendarProvider(
             // Remove from MSAL
             val msalId = getMsalAccountId(accountId)
             if (msalId != null) {
-                authManager.removeAccount(msalId)
+                if (com.boox.day.sync.GoogleAuthManager(context).getOneDriveAccount()?.msalAccountId == msalId) {
+                    Log.i(TAG, "Keeping the Microsoft sign-in: OneDrive backup uses it")
+                } else {
+                    authManager.removeAccount(msalId)
+                }
                 clearMsalAccountId(accountId)
             }
 

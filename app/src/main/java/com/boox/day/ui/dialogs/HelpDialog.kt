@@ -659,10 +659,10 @@ private fun CalendarSyncContent() {
     SectionSubheader("Privacy")
     BodyText(
         if (TASK_SYNC_AVAILABLE) {
-            "Calendar sync sends and receives events. With Task Sync on (Preferences), your tasks' words, done marks and dates also sync with Google Tasks, Microsoft To Do or your CalDAV server (with To Do or a CalDAV server also priority and reminder times); handwriting ink stays on the tablet. Memos are never synced. Drive backup, if you turn it on, copies memos and tasks to your own Google Drive. " +
+            "Calendar sync sends and receives events. With Task Sync on (Preferences), your tasks' words, done marks and dates also sync with Google Tasks, Microsoft To Do or your CalDAV server (with To Do or a CalDAV server also priority and reminder times); handwriting ink stays on the tablet. Memos are never synced. Cloud backup, if you turn it on, copies memos and tasks to your own Google Drive or OneDrive. " +
                 CALDAV_PASSWORD_HELP
         } else {
-            "Calendar sync sends and receives events only. Memos and tasks are never synced; Drive backup, if you turn it on, copies them to your own Google Drive. " +
+            "Calendar sync sends and receives events only. Memos and tasks are never synced; cloud backup, if you turn it on, copies them to your own Google Drive or OneDrive. " +
                 CALDAV_PASSWORD_HELP
         }
     )
@@ -882,7 +882,7 @@ private fun TroubleshootingContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Backup (Settings → Data & Backup)")
-    BodyText("Your data is kept in BooxDay's private storage on the tablet. Create Backup saves a copy to Google Drive or Device Storage (Downloads or an SD card); Restore Backup brings one back. Google Drive Backup can also run by itself (Auto Backup).")
+    BodyText("Your data is kept in BooxDay's private storage on the tablet. Create Backup saves a copy to Google Drive, OneDrive (in Apps › BooxDay) or Device Storage (Downloads or an SD card); Restore Backup brings one back. Cloud backup can also run by itself (Auto Backup), to one cloud at a time.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 

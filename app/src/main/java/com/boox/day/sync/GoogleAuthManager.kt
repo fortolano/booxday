@@ -44,8 +44,11 @@ class GoogleAuthManager(private val context: Context) {
          * choices. Clearing the whole file reset them when the last Google account was removed.
          */
         internal fun clearSignInData(prefs: SharedPreferences) {
+            // OneDrive backup isn't Google's: it stays the destination, with its account and time
+            val googleWasDestination = BackupPrefs.destination(prefs) == BackupCloud.GOOGLE_DRIVE
             prefs.edit().apply {
                 for (key in SIGN_IN_KEYS) remove(key)
+                if (googleWasDestination) remove(BackupPrefs.DESTINATION)
                 apply()
             }
         }
@@ -75,6 +78,7 @@ class GoogleAuthManager(private val context: Context) {
         const val FREQUENCY_8_HOURS = "8 hours"
         const val FREQUENCY_DAILY = "Daily"
         const val FREQUENCY_WEEKLY = "Weekly"
+        const val FREQUENCY_MONTHLY = "Monthly"
         const val FREQUENCY_MANUAL = "Manual"
 
         val FREQUENCY_OPTIONS = listOf(
@@ -83,11 +87,18 @@ class GoogleAuthManager(private val context: Context) {
             FREQUENCY_DAILY
         )
 
+        // Monthly added Nov 2026: the backup screen offered it, but it wasn't in this list, so it read
+        // back as Weekly (and the screen then showed Weekly)
         val BACKUP_FREQUENCY_OPTIONS = listOf(
             FREQUENCY_DAILY,
             FREQUENCY_WEEKLY,
+            FREQUENCY_MONTHLY,
             FREQUENCY_MANUAL
         )
+
+        /** The saved backup frequency, or Weekly when none is saved or it isn't one BooxDay knows. */
+        internal fun backupFrequencyOf(stored: String?): String =
+            if (stored in BACKUP_FREQUENCY_OPTIONS) stored!! else FREQUENCY_WEEKLY
 
         fun getFrequencyMillis(frequency: String): Long {
             return when (frequency) {
@@ -97,6 +108,7 @@ class GoogleAuthManager(private val context: Context) {
                 FREQUENCY_8_HOURS -> 8 * 60 * 60 * 1000L
                 FREQUENCY_DAILY -> 24 * 60 * 60 * 1000L
                 FREQUENCY_WEEKLY -> 7 * 24 * 60 * 60 * 1000L
+                FREQUENCY_MONTHLY -> 30 * 24 * 60 * 60 * 1000L
                 FREQUENCY_MANUAL -> Long.MAX_VALUE  // Never auto-trigger
                 else -> 24 * 60 * 60 * 1000L
             }
@@ -368,18 +380,28 @@ class GoogleAuthManager(private val context: Context) {
     // ========== Drive Backup Preferences ==========
 
     /**
-     * Enable/disable cloud backup to Google Drive.
-     * Independent from Calendar sync - works even in Standalone mode.
+     * Where automatic backup goes (owner decision 85, Nov 2026): Google Drive, OneDrive or nowhere
+     * (null). Independent from Calendar sync - works even in Standalone mode.
      */
-    fun setDriveBackupEnabled(enabled: Boolean) {
-        editPrefs { putBoolean("drive_backup_enabled", enabled) }
-        runCatching { DriveAutoBackupWorker.syncSchedule(context, enabled) }
-        Log.d(TAG, "Drive backup enabled: $enabled")
+    fun getBackupDestination(): BackupCloud? = readPrefs<BackupCloud?>(defaultValue = null) { BackupPrefs.destination(this) }
+
+    /** Choosing one cloud stops the other's automatic backup; its backups stay where they are. */
+    fun setBackupDestination(cloud: BackupCloud?) {
+        editPrefs { BackupPrefs.putDestination(this, cloud) }
+        runCatching { DriveAutoBackupWorker.syncSchedule(context, cloud != null) }
+        Log.d(TAG, "Backup destination: ${cloud?.key ?: "none"}")
     }
 
-    fun isDriveBackupEnabled(): Boolean {
-        return readPrefs(defaultValue = false) { getBoolean("drive_backup_enabled", false) }
+    /** Google Drive as the destination on, or off when it is the destination (OneDrive's is left alone). */
+    fun setDriveBackupEnabled(enabled: Boolean) {
+        if (enabled) {
+            setBackupDestination(BackupCloud.GOOGLE_DRIVE)
+        } else if (getBackupDestination() == BackupCloud.GOOGLE_DRIVE) {
+            setBackupDestination(null)
+        }
     }
+
+    fun isDriveBackupEnabled(): Boolean = getBackupDestination() == BackupCloud.GOOGLE_DRIVE
 
     fun setBackupFrequency(frequency: String) {
         editPrefs { putString("backup_frequency", frequency) }
@@ -387,10 +409,7 @@ class GoogleAuthManager(private val context: Context) {
     }
 
     fun getBackupFrequency(): String {
-        val stored = readPrefs(defaultValue = FREQUENCY_WEEKLY) {
-            getString("backup_frequency", FREQUENCY_WEEKLY) ?: FREQUENCY_WEEKLY
-        }
-        return if (stored in BACKUP_FREQUENCY_OPTIONS) stored else FREQUENCY_WEEKLY
+        return backupFrequencyOf(readPrefs<String?>(defaultValue = null) { getString("backup_frequency", null) })
     }
 
     fun setLastBackupTime(timestamp: Long) {
@@ -399,6 +418,22 @@ class GoogleAuthManager(private val context: Context) {
 
     fun getLastBackupTime(): Long {
         return readPrefs(defaultValue = 0L) { getLong("last_backup_time", 0L) }
+    }
+
+    /** [cloud]'s own last backup time (Google Drive's is the one above). */
+    fun getLastBackupTime(cloud: BackupCloud): Long =
+        readPrefs(defaultValue = 0L) { getLong(BackupPrefs.lastBackupKey(cloud), 0L) }
+
+    fun setLastBackupTime(cloud: BackupCloud, timestamp: Long) {
+        editPrefs { putLong(BackupPrefs.lastBackupKey(cloud), timestamp) }
+    }
+
+    /** The Microsoft account OneDrive backup uses (owner decision 86), or null when none is connected. */
+    fun getOneDriveAccount(): OneDriveAccount? = readPrefs<OneDriveAccount?>(defaultValue = null) { BackupPrefs.oneDriveAccount(this) }
+
+    /** Saves the OneDrive backup account; null forgets it (never signs it out of Microsoft). */
+    fun setOneDriveAccount(account: OneDriveAccount?) {
+        editPrefs { BackupPrefs.putOneDriveAccount(this, account) }
     }
 
     /**
@@ -416,24 +451,15 @@ class GoogleAuthManager(private val context: Context) {
         return readPrefs<String?>(defaultValue = null) { getString("backup_folder_id", null) }
     }
 
-    fun isAutoBackupConfigured(): Boolean {
-        return isSignedIn() && hasDriveScope() && isDriveBackupEnabled()
+    /** True while [cloud] can take a backup: Google signed in with Drive access, or a OneDrive account kept. */
+    fun isConnectedForBackup(cloud: BackupCloud): Boolean = when (cloud) {
+        BackupCloud.GOOGLE_DRIVE -> isSignedIn() && hasDriveScope()
+        BackupCloud.ONEDRIVE -> getOneDriveAccount() != null
     }
 
-    /**
-     * Check if enough time has passed for auto-backup
-     */
-    fun shouldAutoBackup(): Boolean {
-        if (!isAutoBackupConfigured()) return false
-
-        val frequency = getBackupFrequency()
-        if (frequency == FREQUENCY_MANUAL) return false
-
-        val lastBackup = getLastBackupTime()
-        val intervalMillis = getFrequencyMillis(frequency)
-        val elapsed = System.currentTimeMillis() - lastBackup
-
-        return elapsed >= intervalMillis
+    /** The cloud an automatic backup is due for now, or null ([BackupPrefs.dueCloud]). */
+    fun dueAutoBackupCloud(): BackupCloud? = readPrefs<BackupCloud?>(defaultValue = null) {
+        BackupPrefs.dueCloud(this, ::isConnectedForBackup, System.currentTimeMillis())
     }
 
     /**
