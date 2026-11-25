@@ -153,33 +153,42 @@ internal class MicrosoftTodoProvider(
 
     /**
      * Repeating tasks ticked on the phone (owner decision 82): To Do keeps the task's id for the next
-     * one and makes a new done copy with the same title and repeat (measured 25 Nov 2026). An open
-     * task on the tablet that changed since it was last seen and is now due later is taken over by a
-     * done copy of its series due earlier, made after that last-seen version: the one due on the
-     * tablet's day, else the earliest. An unchanged task (a full round, old done copies) never is.
-     * Done copy id to the id it takes over.
+     * one and makes a new done copy with the same title, repeat and step ids (measured 25 Nov 2026).
+     * An open task on the tablet that changed since it was last seen and is now due later is taken
+     * over only by a match that is certain: a done copy of its series due on the very day the
+     * tablet's link last had, with the same steps, made after that last-seen version, the only such
+     * copy for it, and wanted by no other task. Anything less re-points nothing (the merge then takes
+     * the change as it is). Done copy id to the id it takes over.
      */
     private fun doneCopiesTakingOver(present: List<JsonObject>, linkOf: Map<String, TaskSyncLink>): Map<String, String> {
         val doneCopies = present.filter { it.str("status") == COMPLETED && it.obj("recurrence") != null && it.str("id") !in linkOf }
         if (doneCopies.isEmpty()) return emptyMap()
-        val takes = HashMap<String, String>()
+        val wanted = HashMap<String, String>()  // open task id -> done copy id
         for (open in present) {
             if (open.str("status") == COMPLETED || open.obj("recurrence") == null) continue
             val id = open.str("id") ?: continue
             val link = linkOf[id] ?: continue  // not on the tablet: nothing to keep
             if (open.str(MODIFIED) == link.remoteVersion) continue  // as the tablet last saw it: not ticked since
-            val lastSeen = instantOf(link.remoteVersion) ?: continue
+            if (link.remoteUndated) continue
+            val lastDue = link.syncedDueDay ?: continue
             val due = dueOf(open) ?: continue
-            if (!link.remoteUndated && link.syncedDueDay != null && due <= link.syncedDueDay) continue  // not moved on to a next one
-            val candidates = doneCopies.filter { copy ->
-                copy.str("id") !in takes && TodoFields.sameSeries(copy, open) && (dueOf(copy) ?: "") < due &&
-                    (instantOf(copy.str("createdDateTime")) ?: Instant.MIN) >= lastSeen
-            }
-            val copy = candidates.firstOrNull { dueOf(it) == link.syncedDueDay } ?: candidates.minByOrNull { dueOf(it).orEmpty() } ?: continue
-            takes[copy.str("id")!!] = id
+            if (due <= lastDue) continue  // not moved on to a next one
+            val candidates = doneCopies.filter { copy -> isDoneCopyOf(copy, open, lastDue, since = instantOf(link.remoteVersion)) }
+            candidates.singleOrNull()?.str("id")?.let { wanted[id] = it }
         }
-        return takes
+        // A done copy two tasks could be: neither (two series alike in title, repeat and start)
+        val claims = wanted.values.groupingBy { it }.eachCount()
+        return wanted.entries.filter { claims[it.value] == 1 }.associate { (open, copy) -> copy to open }
     }
+
+    /**
+     * [copy] is the done copy To Do made when [task] was ticked for [dueDay]: ticked, same series,
+     * due that day, the same step ids, made at [since] or later.
+     */
+    private fun isDoneCopyOf(copy: JsonObject, task: JsonObject, dueDay: String, since: Instant?): Boolean =
+        copy.str("id") != task.str("id") && copy.str("status") == COMPLETED && TodoFields.sameSeries(copy, task) &&
+            dueOf(copy) == dueDay && TodoFields.stepIdsOf(copy) == TodoFields.stepIdsOf(task) &&
+            (since == null || (instantOf(copy.str("createdDateTime")) ?: Instant.MIN) >= since)
 
     /** A task's steps as read now, and the ones on the tablet that are gone. */
     private fun stepChanges(
@@ -354,19 +363,36 @@ internal class MicrosoftTodoProvider(
         null
     }
 
+    /** A ticked repeating task's done copy isn't listed yet: nothing is taken as sent; tried again later. */
+    private class DoneCopyPending : Exception("A ticked repeating task's done copy isn't listed yet")
+
     private suspend fun updateTask(task: OutgoingTask, link: TaskSyncLink): RemoteTask {
         val listId = link.listId
         val path = taskPath(listId, link.remoteId)
-        val before = onTask(listId) { get(path) }
+        val before = onTask(listId) { get("$path?\$expand=checklistItems") }
+        val lastDue = if (link.remoteUndated) null else link.syncedDueDay
+        // Ticking a repeating task: To Do keeps its id for the next one and makes a done copy, which
+        // the tablet's ticked task is from then on (owner decision 82); the next one comes in
+        val tickingRepeat = task.completed && !link.syncedCompleted && before.obj("recurrence") != null && lastDue != null
+        if (tickingRepeat) {
+            // Ticked already (an earlier try whose copy wasn't listed yet, or on the phone): that copy,
+            // and no second tick, which would tick the next one
+            doneCopyFor(listId, before, lastDue!!, since = instantOf(link.remoteVersion), tries = 1)?.let { return remoteTaskOf(listId, it) }
+            val movedOn = before.str(MODIFIED) != link.remoteVersion && before.str("status") != COMPLETED &&
+                (dueOf(before) ?: "") > lastDue
+            if (movedOn) throw DoneCopyPending()
+        }
         if (before.str(MODIFIED) != link.remoteVersion) throw TaskSyncServiceException.RemoteChanged(taskState(listId, before))
 
         val patch = changesOf(task, link)
         if (patch.isEmpty()) return remoteTaskOf(listId, before)
         val after = onTask(listId) { graph.call("PATCH", path, patch) } ?: onTask(listId) { get(path) }
-        // Ticked, a repeating task keeps its id for the next one and To Do makes a done copy: the
-        // tablet's ticked task is that copy from now on (owner decision 82); the next one comes in
-        if (task.completed && patch.containsKey("status") && before.obj("recurrence") != null) {
-            doneCopy(listId, before, after)?.let { return remoteTaskOf(listId, it) }
+        if (tickingRepeat && patch.containsKey("status")) {
+            val since = instantOf(after.str(MODIFIED))?.minusSeconds(DONE_COPY_MARGIN_S)
+            // Not listed yet: the tick isn't taken as sent (the next occurrence's version would be);
+            // the retry finds the copy first, or the next pull follows it (doneCopiesTakingOver)
+            val copy = doneCopyFor(listId, before, lastDue!!, since, tries = DONE_COPY_TRIES) ?: throw DoneCopyPending()
+            return remoteTaskOf(listId, copy)
         }
         return remoteTaskOf(listId, after)
     }
@@ -397,25 +423,19 @@ internal class MicrosoftTodoProvider(
     }
 
     /**
-     * The done copy To Do made when [before], a repeating task, was ticked: same title and repeat,
-     * ticked, made at the tick or later. It may take a moment to be listed: a few tries.
+     * The done copy To Do made when [task], a repeating task, was ticked for [dueDay] ([isDoneCopyOf]),
+     * made at [since] (Microsoft's clock) or later; only when it is the one such copy. It may take a
+     * moment to be listed: [tries].
      */
-    private suspend fun doneCopy(listId: String, before: JsonObject, after: JsonObject): JsonObject? {
-        val title = before.str("title") ?: return null
-        val id = before.str("id")
-        // Microsoft's own clock: the tick's time, a little earlier for safety
-        val since = instantOf(after.str(MODIFIED))?.minusSeconds(DONE_COPY_MARGIN_S)
-        repeat(DONE_COPY_TRIES) { attempt ->
+    private suspend fun doneCopyFor(listId: String, task: JsonObject, dueDay: String, since: Instant?, tries: Int): JsonObject? {
+        val title = task.str("title") ?: return null
+        repeat(tries) { attempt ->
             if (attempt > 0) pause(DONE_COPY_WAIT_MS * attempt)
-            val found = titled(listId, title)
-                .filter { copy ->
-                    copy.str("id") != id && copy.str("status") == COMPLETED && TodoFields.sameSeries(copy, before) &&
-                        (since == null || (instantOf(copy.str("createdDateTime")) ?: Instant.MIN) >= since)
-                }
-                .maxByOrNull { instantOf(it.str("createdDateTime")) ?: Instant.MIN }
-            if (found != null) return found
+            val found = titled(listId, title, withSteps = true).filter { isDoneCopyOf(it, task, dueDay, since) }
+            if (found.size == 1) return found.single()
+            if (found.size > 1) return null  // more than one: none is certain
         }
-        return null  // the next pull's round has both and follows it (doneCopiesTakingOver)
+        return null
     }
 
     private suspend fun updateStep(task: OutgoingTask, link: TaskSyncLink): RemoteTask {
@@ -617,7 +637,8 @@ internal class MicrosoftTodoProvider(
             deleted = false,
             version = modified,
             modifiedAt = instantOf(modified)?.toEpochMilli(),
-            extras = TaskExtras(TodoFields.priorityOf(task.str("importance")), TodoFields.reminderMinuteOf(task, due, zone()))
+            extras = TaskExtras(TodoFields.priorityOf(task.str("importance")), TodoFields.reminderMinuteOf(task, due, zone())),
+            rollsOver = task.obj("recurrence") != null
         )
     }
 
@@ -668,15 +689,16 @@ internal class MicrosoftTodoProvider(
         return steps
     }
 
-    /** The list's tasks with [title]: by Graph's filter, else read through (a filter it refuses). */
-    private suspend fun titled(listId: String, title: String): List<JsonObject> {
+    /** The list's tasks with [title], [withSteps] listed: by Graph's filter, else read through (a filter it refuses). */
+    private suspend fun titled(listId: String, title: String, withSteps: Boolean = false): List<JsonObject> {
         val found = mutableListOf<JsonObject>()
+        val expand = if (withSteps) "&\$expand=checklistItems" else ""
         try {
-            pages("${tasksPath(listId)}?\$filter=${query("title eq '${title.replace("'", "''")}'")}") { found += it.items() }
+            pages("${tasksPath(listId)}?\$filter=${query("title eq '${title.replace("'", "''")}'")}$expand") { found += it.items() }
         } catch (e: GraphException.Http) {
             if (e.status != 400) throw e
             found.clear()
-            pages("${tasksPath(listId)}?\$top=$PAGE_SIZE") { page -> found += page.items().filter { it.str("title") == title } }
+            pages("${tasksPath(listId)}?\$top=$PAGE_SIZE$expand") { page -> found += page.items().filter { it.str("title") == title } }
         }
         return found.filter { it.str("title") == title }
     }
@@ -902,6 +924,10 @@ internal object TodoFields {
         return a.str("title") == b.str("title") && ra["pattern"] == rb["pattern"] &&
             ra.obj("range")?.str("startDate") == rb.obj("range")?.str("startDate")
     }
+
+    /** A task's step ids as listed with it (none when not listed): a done copy keeps its task's (measured 25 Nov 2026). */
+    fun stepIdsOf(task: JsonObject): Set<String> =
+        (task["checklistItems"] as? JsonArray)?.mapNotNullTo(HashSet()) { (it as? JsonObject)?.str("id") }.orEmpty()
 }
 
 private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content

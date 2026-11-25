@@ -397,6 +397,123 @@ class MicrosoftTodoSyncTest {
         assertEquals(TASKS to oldId, sync.getLink(trip)!!.let { it.listId to it.remoteId })
     }
 
+    @Test
+    fun twoAlikeSeriesNeverTakeEachOthersDoneCopy() = runBlocking {
+        val first = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        val second = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+        val firstRow = linkedTo(first)!!.taskId
+        val secondRow = linkedTo(second)!!.taskId
+
+        // On the phone: the second one's due day changed, the first one ticked
+        todo.patchTask(TASKS, second, mapOf("dueDateTime" to FakeTodoServer.date("2026-11-27T00:00:00", "UTC")))
+        todo.patchTask(TASKS, first, mapOf("status" to JsonPrimitive("completed")))
+        run()
+
+        val done = todo.tasksIn(TASKS).single { it.text("status") == "completed" }.text("id")
+        assertNull("either could be its task: neither is re-pointed", linkedTo(done))
+        // Each keeps its own copy, taken as it is (a task moved to a new day moves to a new row)
+        assertEquals("2026-11-26", task(linkedTo(first)!!.taskId).dayDate)
+        assertEquals("the edited one keeps its own copy and its new day", "2026-11-27", task(linkedTo(second)!!.taskId).dayDate)
+        assertTrue(listOf(firstRow, secondRow).none { sync.getLink(it)?.remoteId == done })
+    }
+
+    @Test
+    fun stepsTellTwoAlikeSeriesApart() = runBlocking {
+        val first = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        todo.addStep(TASKS, first, "Kitchen")
+        val second = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        todo.addStep(TASKS, second, "Balcony")
+        run()
+        val firstRow = linkedTo(first)!!.taskId
+        val secondRow = linkedTo(second)!!.taskId
+
+        todo.patchTask(TASKS, second, mapOf("dueDateTime" to FakeTodoServer.date("2026-11-27T00:00:00", "UTC")))
+        todo.patchTask(TASKS, first, mapOf("status" to JsonPrimitive("completed")))
+        run()
+
+        val done = todo.tasksIn(TASKS).single { it.text("status") == "completed" }.text("id")
+        assertEquals("the first one's steps make it certain", done, sync.getLink(firstRow)?.remoteId)
+        assertTrue(task(firstRow).isCompleted)
+        assertEquals(DAY, task(firstRow).dayDate)
+        assertTrue("the other series isn't re-pointed", sync.getLink(secondRow)?.remoteId != done)
+        assertEquals("2026-11-27", task(linkedTo(second)!!.taskId).dayDate)
+    }
+
+    @Test
+    fun theTabletsTickTakesOnlyItsOwnDaysDoneCopy() = runBlocking {
+        val mine = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        val other = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-24T00:00:00"))
+        run()
+        val mineRow = linkedTo(mine)!!.taskId
+        val otherRow = linkedTo(other)!!.taskId
+
+        todo.patchTask(TASKS, other, mapOf("status" to JsonPrimitive("completed")))  // a recent done copy of another series
+        todo.hideDoneCopiesFromSearch = true  // this tick's own copy isn't listed by the search yet
+        repo.setCompleted(mineRow, true)
+        run()
+
+        assertEquals("not the other series' copy", mine, sync.getLink(mineRow)?.remoteId)
+        assertTrue("and not taken as sent", !sync.getLink(mineRow)!!.syncedCompleted)
+        val otherDone = sync.getLink(otherRow)!!.remoteId
+        assertTrue(otherDone != other)
+
+        run()  // the next pull has the tick's own copy: its day, its steps
+        val mineDone = sync.getLink(mineRow)!!.remoteId
+        assertTrue(mineDone != mine && mineDone != otherDone)
+        assertEquals("2026-11-25T00:00:00.0000000", todo.task(TASKS, mineDone)!!["dueDateTime"]!!.let { (it as JsonObject).text("dateTime") })
+        assertEquals("ticked once", 1, patches())
+    }
+
+    @Test
+    fun aTickWhoseDoneCopyIsListedLateNeverTicksTheNextOne() = runBlocking {
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+        val plants = rowsOn(DAY, "Water plants").single()
+        todo.hideDoneCopiesFromSearch = true
+        todo.hideDoneCopiesFromDelta = true
+
+        repo.setCompleted(plants, true)
+        run()
+        assertEquals(1, patches())
+        assertEquals("not taken as sent", original to false, sync.getLink(plants)!!.let { it.remoteId to it.syncedCompleted })
+
+        // The next one shows, its done copy still doesn't: the tick waits and is tried again
+        sendWaitingNow()
+        run()
+        assertEquals("never ticked a second time", 1, patches())
+        assertEquals(DAY, task(plants).dayDate)
+        assertTrue(task(plants).isCompleted)
+        assertEquals(original, sync.getLink(plants)?.remoteId)
+
+        // Listed at last
+        todo.hiddenFromSearch.clear()
+        todo.hiddenFromDelta.clear()
+        sendWaitingNow()
+        run()
+        val done = todo.tasksIn(TASKS).single { it.text("status") == "completed" }.text("id")
+        assertEquals(done, sync.getLink(plants)?.remoteId)
+        assertEquals("one tick in all", 1, patches())
+        assertEquals("the next one isn't ticked", "notStarted", todo.task(TASKS, original)!!.text("status"))
+        assertTrue(!task(rowsOn(NEXT_DAY, "Water plants").single()).isCompleted)
+    }
+
+    @Test
+    fun aTakeoverNotDueOnTheLinksDayIsIgnored() = runBlocking {
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+        val plants = rowsOn(DAY, "Water plants").single()
+
+        merger().takeOver(
+            com.boox.day.tasksync.RemoteTaskState(
+                TASKS, "someone-elses-done-copy", "Water plants", true, "2026-11-20", null, false, "v9",
+                takesOverRemoteId = original
+            )
+        )
+
+        assertEquals(original, sync.getLink(plants)?.remoteId)
+    }
+
     // ── Helpers ──
 
     /** A typed task on [DAY]'s first page. */

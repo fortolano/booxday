@@ -122,7 +122,7 @@ internal class FakeTodoServer : Dispatcher() {
         val taskId = path.getOrNull(5)
         when {
             taskId == null && method == "GET" -> {
-                var all = tasks.getValue(listId).values.map { withSteps(it) }
+                var all = tasks.getValue(listId).values.filter { it.str("id") !in hiddenFromSearch }.map { withSteps(it) }
                 filter?.let { f -> val title = f.substringAfter("'").substringBeforeLast("'").replace("''", "'"); all = all.filter { it.str("title") == title } }
                 return ok(page(all))
             }
@@ -168,7 +168,7 @@ internal class FakeTodoServer : Dispatcher() {
         val from = skip?.substringBefore('_')?.toInt() ?: token?.toInt() ?: 0
         val offset = skip?.substringAfter('_')?.toInt() ?: 0
         // Each changed task once, as it is now (or removed)
-        val changed = changes[listId].orEmpty().filter { it.first > from }.map { it.second }.distinct()
+        val changed = changes[listId].orEmpty().filter { it.first > from }.map { it.second }.distinct().filter { it !in hiddenFromDelta }
         val items = changed.map { id ->
             tasks.getValue(listId)[id]?.let(::withSteps)
                 ?: buildJsonObject { put("id", id); put("@removed", buildJsonObject { put("reason", "deleted") }) }
@@ -235,6 +235,8 @@ internal class FakeTodoServer : Dispatcher() {
             steps[doneId] = LinkedHashMap(stepsBefore)
             steps[taskId] = LinkedHashMap(stepsBefore.mapValues { (_, step) -> JsonObject(step + ("isChecked" to JsonPrimitive(false))) })
             tasks.getValue(listId)[doneId] = done
+            if (hideDoneCopiesFromSearch) hiddenFromSearch += doneId
+            if (hideDoneCopiesFromDelta) hiddenFromDelta += doneId
             log(listId, doneId)
             val next = JsonObject(before + ("dueDateTime" to dayLater(due)) + ("reminderDateTime" to dayLater(before["reminderDateTime"])))
             tasks.getValue(listId)[taskId] = stamped(next)

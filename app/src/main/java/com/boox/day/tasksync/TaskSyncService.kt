@@ -108,7 +108,12 @@ internal data class RemoteTaskState(
      * phone keeps its id for the next one and is now this new done copy (owner decision 82). The
      * task linked to that id moves to this copy before the round is merged.
      */
-    val takesOverRemoteId: String? = null
+    val takesOverRemoteId: String? = null,
+    /**
+     * Ticking it rolls it over: the service keeps its id for the next one (a To Do repeating task,
+     * owner decision 82). While the tablet's tick of it hasn't gone, its next one isn't merged over it.
+     */
+    val rollsOver: Boolean = false
 )
 
 /**
