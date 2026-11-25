@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -48,6 +50,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import com.boox.day.R
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
@@ -373,15 +376,23 @@ fun MonthHeaderWithToolbar(
 
     // Sync status text
     val syncStatusText: @Composable () -> Unit = {
-            // Status text - fixed width to prevent icon shifting
-            Box(modifier = Modifier.width(EInkTheme.CalendarToolbar.statusTextWidth)) {
+            // Status text - min fixed width prevents icon shifting on short labels ("5h ago"),
+            // while allowing wider tablets (>= 720dp) to show "Syncing..."/"Sync failed" at 1.15x without clipping.
+            val maxStatusWidth = if (LocalConfiguration.current.screenWidthDp >= 720) {
+                84.dp
+            } else {
+                EInkTheme.CalendarToolbar.statusTextWidth
+            }
+            Box(modifier = Modifier.widthIn(min = EInkTheme.CalendarToolbar.statusTextWidth, max = maxStatusWidth)) {
                 when {
                     !isSignedIn -> {
                         Text(
                             text = "Sign in",
                             fontSize = EInkTheme.Typography.labelSmall,
                             color = EInkTheme.Colors.gray,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     isSyncing -> {
@@ -390,7 +401,9 @@ fun MonthHeaderWithToolbar(
                             fontSize = EInkTheme.Typography.labelSmall,
                             fontWeight = FontWeight.Medium,
                             color = EInkTheme.Colors.primary,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     hasSyncError -> {
@@ -399,7 +412,9 @@ fun MonthHeaderWithToolbar(
                             fontSize = EInkTheme.Typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = EInkTheme.Colors.primary,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     pendingSyncCount > 0 -> {
@@ -407,7 +422,9 @@ fun MonthHeaderWithToolbar(
                             text = "$pendingSyncCount pending",
                             fontSize = EInkTheme.Typography.labelSmall,
                             color = EInkTheme.Colors.gray,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     lastSyncTime != null -> {
@@ -415,7 +432,9 @@ fun MonthHeaderWithToolbar(
                             text = formatLastSyncTime(lastSyncTime),
                             fontSize = EInkTheme.Typography.labelSmall,
                             color = EInkTheme.Colors.gray,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
