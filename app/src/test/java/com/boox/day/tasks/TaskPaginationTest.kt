@@ -79,7 +79,8 @@ class TaskPaginationTest {
         val pages = seedDay(db)
         // A subtask, a repeat link with its due day, and ink reaching into the next row
         val b = taskTitled("B")
-        db.taskDao().insertAll(listOf(taskTitled("C").copy(parentTaskId = b.id), taskTitled("M").copy(templateId = "weekly", dueDay = DATE)))
+        db.taskDao().update(taskTitled("C").copy(parentTaskId = b.id))
+        db.taskDao().update(taskTitled("M").copy(templateId = "weekly", dueDay = DATE))
         db.strokeDao().create(strokeInRow(pages[1], row = 3, from = 0.3f, to = 1.4f))
         val tasksBefore = slots()
         val inkBefore = allInk(pages)
@@ -109,7 +110,7 @@ class TaskPaginationTest {
         // Write P and Q in the two blank rows at the bottom of the long page
         for ((row, title) in listOf(15 to "P", 16 to "Q")) {
             val task = db.taskDao().getTasksForPage(DATE, 0).first { it.rowIndex == row }
-            db.taskDao().insertAll(listOf(task.copy(typedText = title)))
+            db.taskDao().update(task.copy(typedText = title))
             db.strokeDao().create(strokeInRow(pages[0], row))
         }
 
