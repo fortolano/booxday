@@ -51,8 +51,8 @@ internal class TaskSyncMerger(
     private val extras: Boolean = service?.carriesExtras == true,
     /** The part of a priority the service keeps ([TaskSyncService.keptPriority]: To Do only A). */
     private val keptPriority: (String) -> String = { priority -> service?.keptPriority(priority) ?: priority },
-    /** A create of the task was sent and its answer never recorded (TaskSyncSender's H15 marker). */
-    private val createTried: (taskId: String) -> Boolean = { false }
+    /** The H15 marks of creates sent and never recorded (TaskSyncSender); null: none taken as proof. */
+    private val createMarks: CreateMarks? = null
 ) {
     enum class Result { APPLIED, UNCHANGED, WAITS }
 
@@ -136,7 +136,7 @@ internal class TaskSyncMerger(
      * decision 49): its link moves with it and the merge goes on as for any change. Null: it isn't.
      */
     private suspend fun movedHere(remote: RemoteTaskState): TaskSyncLink? {
-        if (remote.deleted) return null
+        if (remote.deleted || deleteWaits(remote)) return null
         val elsewhere = sync.getLinksElsewhere(provider, accountEmail, serverUrl, remote.listId, remote.remoteId, remote.title)
         val moved = elsewhere.firstOrNull { it.remoteId == remote.remoteId }
             ?: elsewhere.firstOrNull {
@@ -329,10 +329,18 @@ internal class TaskSyncMerger(
     private fun keptExtras(task: Task, dueDay: String?): TaskExtras =
         TaskSyncRules.extras(task, dueDay).let { it.copy(priority = keptPriority(it.priority)) }
 
+    /**
+     * A delete of this copy waits to be sent, or of the copy it is part of (a To Do step goes with
+     * its task; a Google subtask is a task of its own): cleared here (the pull runs first), or left
+     * behind by a move whose delete had no clear answer. Not a new task.
+     */
+    private fun deleteWaits(remote: RemoteTaskState): Boolean =
+        sync.hasQueuedDelete(provider, accountEmail, serverUrl, remote.listId, remote.remoteId) ||
+            (!remote.carriesDue && remote.parentRemoteId?.let { sync.hasQueuedDelete(provider, accountEmail, serverUrl, remote.listId, it) } == true)
+
     private suspend fun incoming(remote: RemoteTaskState): Result {
         if (remote.deleted) return Result.UNCHANGED
-        // Cleared here and its delete not sent yet (the pull runs first): not a new task
-        if (sync.hasQueuedDelete(provider, accountEmail, serverUrl, remote.listId, remote.remoteId)) return Result.UNCHANGED
+        if (deleteWaits(remote)) return Result.UNCHANGED
         // On its due day; undated, on the day it first comes (owner decision 1); a To Do step, on its
         // parent's day (owner decision 79)
         val day = if (remote.carriesDue) remote.dueDay ?: today() else parentDay(remote) ?: today()
@@ -341,6 +349,7 @@ internal class TaskSyncMerger(
                 sync.insertLink(linkFor(match, remote))
                 sendBackWhatDiffers(match, remote)
             }
+            createMarks?.clear(match.id)  // linked: a create of it, if one went, is done with
             return Result.APPLIED
         }
         // Unticked ones only (owner decision 27): also keeps old finished tasks, left in the service
@@ -367,14 +376,16 @@ internal class TaskSyncMerger(
 
     /**
      * A To Do step is the tablet's own only with proof: an unlinked subtask of the task linked to the
-     * step's parent, with the same words, whose create was sent and its answer never recorded (lost
-     * on the way). Never one not sent yet, nor a task that merely has the same words on that day:
-     * those are the user's own.
+     * step's parent, with the same words, whose create was sent under that parent with those words
+     * and its answer never recorded (lost on the way). Never one not sent yet, one sent elsewhere or
+     * with other words, nor a task that merely has the same words on that day: those are the user's own.
      */
     private fun pendingSubtask(remote: RemoteTaskState, title: String): Task? {
-        val parentLink = remote.parentRemoteId?.let { sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, it) } ?: return null
+        val parentRemoteId = remote.parentRemoteId ?: return null
+        val parentLink = sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, parentRemoteId) ?: return null
         return tasks.getChildTasks(parentLink.taskId).firstOrNull { child ->
-            sync.getLink(child.id) == null && TaskSyncRules.textToSend(child) == title && createTried(child.id)
+            sync.getLink(child.id) == null && TaskSyncRules.textToSend(child) == title &&
+                createMarks?.sent(child.id, parentRemoteId, title) == true
         }
     }
 

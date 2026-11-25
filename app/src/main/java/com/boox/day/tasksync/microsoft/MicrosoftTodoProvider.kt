@@ -15,6 +15,7 @@ import com.boox.day.tasksync.RemoteList
 import com.boox.day.tasksync.RemoteTask
 import com.boox.day.tasksync.RemoteTaskState
 import com.boox.day.tasksync.TaskExtras
+import com.boox.day.tasksync.TaskSync
 import com.boox.day.tasksync.TaskSyncService
 import com.boox.day.tasksync.TaskSyncServiceException
 import kotlinx.coroutines.CancellationException
@@ -76,7 +77,9 @@ internal class MicrosoftTodoProvider(
     private val graph: MicrosoftGraph,
     /** The links of a list: which steps are on the tablet (a step deleted with its task has no delta entry of its own). */
     private val linksIn: suspend (listId: String) -> List<TaskSyncLink> = { emptyList() },
-    private val zone: () -> ZoneId = ZoneId::systemDefault
+    private val zone: () -> ZoneId = ZoneId::systemDefault,
+    /** The done copies that already proved a phone tick (owner decision 100); null: within one round only. */
+    private val usedDoneCopies: UsedDoneCopies? = null
 ) : TaskSyncService {
 
     override val provider: String = TaskSyncProvider.MICROSOFT_TODO
@@ -155,8 +158,10 @@ internal class MicrosoftTodoProvider(
      * next one and makes a done copy. Taken as a tick only on clear evidence, both of: the tablet's
      * copy is now due on exactly the next date of its own repeat after the day the tablet last had,
      * and a ticked task with the same title and repeat is due, or was ticked, on that day (in this
-     * round, else found by its title). A done copy that is the evidence for two tasks (two series
-     * alike) is the evidence for neither. Anything less is a date change: the task moves (decision 43).
+     * round, else found by its title), made since the tablet last saw the copy. A done copy proves
+     * one tick only: one that is the evidence for two tasks (two series alike) is the evidence for
+     * neither, and one used is never used for another task again ([usedDoneCopies], also in a later
+     * pull). Anything less is a date change: the task moves (decision 43).
      */
     private suspend fun rolledOverOnThePhone(listId: String, present: List<JsonObject>, linkOf: Map<String, TaskSyncLink>): Set<String> {
         val evidence = HashMap<String, Set<String>>()  // task id -> the done copies that show its tick
@@ -167,17 +172,26 @@ internal class MicrosoftTodoProvider(
             val link = linkOf[id] ?: continue  // not on the tablet: nothing to keep
             if (link.remoteUndated) continue
             val lastDue = link.syncedDueDay ?: continue
+            val lastSeen = instantOf(link.remoteVersion) ?: continue
             val next = TodoFields.nextDue(recurrence, LocalDate.parse(lastDue)) ?: continue  // can't tell: no evidence
             if (dueOf(open) != next.toString()) continue
-            fun showsTheTick(copy: JsonObject) = copy.str("id") != id && copy.str("status") == COMPLETED &&
-                TodoFields.sameSeries(copy, open) &&
-                (dueOf(copy) == lastDue || TodoFields.dayOf(copy.obj("completedDateTime"), zone()) == lastDue)
+            fun showsTheTick(copy: JsonObject): Boolean {
+                val copyId = copy.str("id") ?: return false
+                val made = instantOf(copy.str("createdDateTime")) ?: return false
+                return copyId != id && copy.str("status") == COMPLETED && TodoFields.sameSeries(copy, open) &&
+                    (dueOf(copy) == lastDue || TodoFields.dayOf(copy.obj("completedDateTime"), zone()) == lastDue) &&
+                    !made.isBefore(lastSeen) && usedDoneCopies?.usedByAnother(listId, copyId, id) != true
+            }
             val copies = present.filter(::showsTheTick).ifEmpty { titled(listId, open.str("title").orEmpty()).filter(::showsTheTick) }
             if (copies.isNotEmpty()) evidence[id] = copies.mapNotNullTo(HashSet()) { it.str("id") }
         }
-        return evidence.filter { (id, copies) ->
-            copies.any { copy -> evidence.none { (other, theirs) -> other != id && copy in theirs } }
-        }.keys
+        val rolled = HashSet<String>()
+        for ((id, copies) in evidence) {
+            val own = copies.firstOrNull { copy -> evidence.none { (other, theirs) -> other != id && copy in theirs } } ?: continue
+            usedDoneCopies?.use(listId, own, id)
+            rolled += id
+        }
+        return rolled
     }
 
     /** A task's steps as read now, and the ones on the tablet that are gone. */
@@ -371,7 +385,17 @@ internal class MicrosoftTodoProvider(
             // Due on another day by now (an earlier tick went through, or the phone's): not ticked
             // again, which would tick the next one
             if (dueOf(before) == lastDue && before.str("status") != COMPLETED) {
-                onTask(listId) { graph.call("PATCH", path, buildJsonObject { put("status", COMPLETED) }) }
+                try {
+                    // Only as read: a tick on the phone in between would make this one tick the next one
+                    onTask(listId) { graph.call("PATCH", path, buildJsonObject { put("status", COMPLETED) }, ifMatch = before.str(ETAG)) }
+                } catch (e: GraphException.Http) {
+                    if (e.status != PRECONDITION_FAILED) throw e
+                    val again = onTask(listId) { get(path) }
+                    // Still open on that day: changed otherwise; merged first, then ticked again
+                    if (dueOf(again) == lastDue && again.str("status") != COMPLETED) {
+                        throw TaskSyncServiceException.RemoteChanged(taskState(listId, again))
+                    }
+                }
             }
             return remoteTaskOf(listId, before).copy(rolledOver = true)
         }
@@ -379,7 +403,13 @@ internal class MicrosoftTodoProvider(
 
         val patch = changesOf(task, link)
         if (patch.isEmpty()) return remoteTaskOf(listId, before)
-        val after = onTask(listId) { graph.call("PATCH", path, patch) } ?: onTask(listId) { get(path) }
+        val after = try {
+            onTask(listId) { graph.call("PATCH", path, patch, ifMatch = before.str(ETAG)) } ?: onTask(listId) { get(path) }
+        } catch (e: GraphException.Http) {
+            if (e.status != PRECONDITION_FAILED) throw e
+            // Changed in To Do since it was read: nothing was written; merged first, then sent again
+            throw TaskSyncServiceException.RemoteChanged(taskState(listId, onTask(listId) { get(path) }))
+        }
         return remoteTaskOf(listId, after)
     }
 
@@ -427,7 +457,13 @@ internal class MicrosoftTodoProvider(
             if (task.title != link.syncedTitle) put("displayName", task.title)
             if (task.completed != link.syncedCompleted) put("isChecked", task.completed)
         }
-        val after = if (patch.isEmpty()) before else onTask(listId) { graph.call("PATCH", path, patch) } ?: onTask(listId) { get(path) }
+        val after = if (patch.isEmpty()) before else try {
+            onTask(listId) { graph.call("PATCH", path, patch, ifMatch = before.str(ETAG)) } ?: onTask(listId) { get(path) }
+        } catch (e: GraphException.Http) {
+            if (e.status != PRECONDITION_FAILED) throw e
+            val again = onTask(listId) { get(path) }
+            throw stepState(listId, taskId, again)?.let { TaskSyncServiceException.RemoteChanged(it) } ?: e
+        }
         return stepTaskOf(listId, taskId, after).copy(parentKept = kept)
     }
 
@@ -435,8 +471,7 @@ internal class MicrosoftTodoProvider(
     private suspend fun regroupStep(listId: String, remoteId: String, task: OutgoingTask, parent: String?): RemoteTask {
         val fresh = task.copy(createRetry = false)
         val made = if (parent == null) createTask(listId, fresh.copy(parentRemoteId = null)) else createStep(listId, parent, fresh)
-        replaced(listId, remoteId, listId, made.remoteId)
-        return made
+        return made.copy(oldCopyLeft = remoteId.takeUnless { replaced(listId, remoteId, listId, made.remoteId) })
     }
 
     /**
@@ -444,13 +479,13 @@ internal class MicrosoftTodoProvider(
      * Refused for certain (a 4xx; gone counts as deleted): the old one is whole, so the new one goes
      * and the failure is passed on. Any other failure (no answer, a server error, busy) may still
      * delete the old one later, so the new one is never deleted: the old one read gone, the move is
-     * done; else both stay, the failure is passed on and the next pull follows the copy (owner
-     * decision 49), doubled at worst.
+     * done; else false: the new one is the copy from now on and the old one is deleted later through
+     * the outbox ([RemoteTask.oldCopyLeft]), so it is never copied again or taken as a new task.
      */
-    private suspend fun replaced(oldList: String, oldId: String, newList: String, newId: String) {
+    private suspend fun replaced(oldList: String, oldId: String, newList: String, newId: String): Boolean {
         val failure = try {
             deleteCopy(oldList, oldId)
-            return
+            return true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -466,14 +501,13 @@ internal class MicrosoftTodoProvider(
             }
             throw failure
         }
-        val gone = try {
+        return try {
             !exists(oldList, oldId)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             false  // can't tell
         }
-        if (!gone) throw failure
     }
 
     /** Whether the task or step is there; a failure to tell is thrown. */
@@ -534,9 +568,9 @@ internal class MicrosoftTodoProvider(
             }
             throw e
         }
-        replaced(fromListId, remoteId, toListId, newId)
+        val oldGone = replaced(fromListId, remoteId, toListId, newId)
         movedSteps.putAll(newSteps)
-        taskState(toListId, onTask(toListId) { get(taskPath(toListId, newId)) })
+        taskState(toListId, onTask(toListId) { get(taskPath(toListId, newId)) }).copy(oldCopyLeft = remoteId.takeUnless { oldGone })
     }
 
     /**
@@ -558,8 +592,7 @@ internal class MicrosoftTodoProvider(
             } ?: throw IllegalStateException("No answer to a moved step")
             taskState(toListId, made)
         }
-        replaced(fromListId, remoteId, toListId, moved.remoteId)
-        return moved
+        return moved.copy(oldCopyLeft = remoteId.takeUnless { replaced(fromListId, remoteId, toListId, moved.remoteId) })
     }
 
     // ── Graph's shapes ──
@@ -755,6 +788,9 @@ internal class MicrosoftTodoProvider(
         private const val FLAGGED_EMAILS = "flaggedEmails"
         private const val COMPLETED = "completed"
         private const val MODIFIED = "lastModifiedDateTime"
+        /** A change sent with it as If-Match is made only if nobody changed the item since (else 412, measured 25 Nov 2026). */
+        private const val ETAG = "@odata.etag"
+        private const val PRECONDITION_FAILED = 412
         private const val REMOVED = "@removed"
         private const val NEXT_LINK = "@odata.nextLink"
         private const val DELTA_LINK = "@odata.deltaLink"
@@ -781,7 +817,8 @@ internal class MicrosoftTodoProvider(
                 MicrosoftGraph.forAccount(OutlookAuthManager(app), msalId, MicrosoftScopes.TASKS),
                 linksIn = { listId ->
                     withContext(Dispatchers.IO) { sync.getLinksInList(TaskSyncProvider.MICROSOFT_TODO, accountEmail, "", listId) }
-                }
+                },
+                usedDoneCopies = UsedDoneCopies(TaskSync.prefs(app), accountEmail)
             )
         }
 
@@ -922,8 +959,8 @@ internal object TodoFields {
                 val days = daysOf(pattern) ?: return null
                 val index = pattern.str("index") ?: "first"
                 val month = YearMonth.from(after)
-                val here = relativeDayIn(month, days, index) ?: return null
-                if (here > after) here else relativeDayIn(month.plusMonths(interval), days, index)
+                val here = relativeDaysIn(month, days, index) ?: return null
+                here.firstOrNull { it > after } ?: relativeDaysIn(month.plusMonths(interval), days, index)?.firstOrNull()
             }
             "absoluteYearly" -> {
                 val month = pattern.int("month")?.takeIf { it in 1..12 } ?: return null
@@ -934,8 +971,8 @@ internal object TodoFields {
                 val month = pattern.int("month")?.takeIf { it in 1..12 } ?: return null
                 val days = daysOf(pattern) ?: return null
                 val index = pattern.str("index") ?: "first"
-                val here = relativeDayIn(YearMonth.of(after.year, month), days, index) ?: return null
-                if (here > after) here else relativeDayIn(YearMonth.of(after.year + interval.toInt(), month), days, index)
+                val here = relativeDaysIn(YearMonth.of(after.year, month), days, index) ?: return null
+                here.firstOrNull { it > after } ?: relativeDaysIn(YearMonth.of(after.year + interval.toInt(), month), days, index)?.firstOrNull()
             }
             else -> null
         }
@@ -944,17 +981,24 @@ internal object TodoFields {
     /** [day] of [month], or its last day when the month is shorter. */
     private fun dayIn(month: YearMonth, day: Int): LocalDate = month.atDay(minOf(day, month.lengthOfMonth()))
 
-    /** The [index] ("first" to "fourth", "last") day of [month] that is one of [days]. */
-    private fun relativeDayIn(month: YearMonth, days: Set<DayOfWeek>, index: String): LocalDate? {
-        val matching = (1..month.lengthOfMonth()).map(month::atDay).filter { it.dayOfWeek in days }
-        return when (index) {
-            "first" -> matching.getOrNull(0)
-            "second" -> matching.getOrNull(1)
-            "third" -> matching.getOrNull(2)
-            "fourth" -> matching.getOrNull(3)
-            "last" -> matching.lastOrNull()
-            else -> null
+    /**
+     * Graph's relative pattern in [month]: for each of [days] on its own, its [index] ("first" to
+     * "fourth", "last") one in the month ("the second Monday or Wednesday" is the second Monday and
+     * the second Wednesday), earliest first. Null for an index Graph doesn't have.
+     */
+    private fun relativeDaysIn(month: YearMonth, days: Set<DayOfWeek>, index: String): List<LocalDate>? {
+        val nth = when (index) {
+            "first" -> 0
+            "second" -> 1
+            "third" -> 2
+            "fourth" -> 3
+            "last" -> -1
+            else -> return null
         }
+        return days.mapNotNull { day ->
+            val all = (1..month.lengthOfMonth()).map(month::atDay).filter { it.dayOfWeek == day }
+            if (nth < 0) all.lastOrNull() else all.getOrNull(nth)
+        }.sorted()
     }
 
     private fun daysOf(pattern: JsonObject): Set<DayOfWeek>? =

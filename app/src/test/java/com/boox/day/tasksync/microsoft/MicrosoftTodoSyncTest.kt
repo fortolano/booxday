@@ -16,6 +16,7 @@ import com.boox.day.data.db.TaskSyncList
 import com.boox.day.data.db.TaskSyncProvider
 import com.boox.day.data.getDbDir
 import com.boox.day.sync.microsoft.MicrosoftGraph
+import com.boox.day.tasksync.CreateMarks
 import com.boox.day.tasksync.RepositoryTabletTasks
 import com.boox.day.tasksync.TaskSync
 import com.boox.day.tasksync.TaskSyncListMover
@@ -76,16 +77,20 @@ class MicrosoftTodoSyncTest {
         tasks = db.taskDao()
         sync = db.taskSyncDao()
         sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", TASKS, "Tasks", isDefaultForNew = true))
-        provider = MicrosoftTodoProvider(
-            // No silent retries: an answer lost on the way stays lost, as on a bad connection
-            MicrosoftGraph(
-                token = { "token" }, baseUrl = server.url("/v1.0").toString().trimEnd('/'),
-                client = OkHttpClient.Builder().retryOnConnectionFailure(false).readTimeout(5, TimeUnit.SECONDS).build()
-            ),
-            linksIn = { listId -> sync.getLinksInList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", listId) },
-            zone = { ZoneId.of("Europe/Warsaw") }
-        )
+        provider = newProvider()
     }
+
+    /** As MicrosoftTodoProvider.create makes it; a new one is as after a restart. */
+    private fun newProvider() = MicrosoftTodoProvider(
+        // No silent retries: an answer lost on the way stays lost, as on a bad connection
+        MicrosoftGraph(
+            token = { "token" }, baseUrl = server.url("/v1.0").toString().trimEnd('/'),
+            client = OkHttpClient.Builder().retryOnConnectionFailure(false).readTimeout(5, TimeUnit.SECONDS).build()
+        ),
+        linksIn = { listId -> sync.getLinksInList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", listId) },
+        zone = { ZoneId.of("Europe/Warsaw") },
+        usedDoneCopies = UsedDoneCopies(TaskSync.prefs(context), EMAIL)
+    )
 
     @After
     fun tearDown() {
@@ -111,8 +116,10 @@ class MicrosoftTodoSyncTest {
     private fun merger() = TaskSyncMerger(
         db, RepositoryTabletTasks(context, repo, canvasHeight = { CANVAS_HEIGHT }, penOn = { false }),
         TaskSyncProvider.MICROSOFT_TODO, EMAIL, clock = { now }, today = { DAY }, service = provider,
-        createTried = TaskSyncSender.createTried(TaskSync.prefs(context), TaskSyncProvider.MICROSOFT_TODO, EMAIL)
+        createMarks = marks()
     )
+
+    private fun marks() = CreateMarks(TaskSync.prefs(context), TaskSyncProvider.MICROSOFT_TODO, EMAIL)
 
     // ── Priority (owner decision 80) ──
 
@@ -302,6 +309,33 @@ class MicrosoftTodoSyncTest {
     }
 
     @Test
+    fun aPhoneTickBetweenTheReadAndTheTickNeverTicksTheNextOne() = runBlocking {
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+        val plants = rowsOn(DAY, "Water plants").single()
+        var tickedThere = false
+        todo.meanwhile = { method, path ->
+            if (method == "PATCH" && path.endsWith("/tasks/$original") && !tickedThere) {
+                tickedThere = true
+                todo.patchTask(TASKS, original, mapOf("status" to JsonPrimitive("completed")))  // on the phone, just then
+            }
+        }
+
+        repo.setCompleted(plants, true)
+        run()
+
+        assertEquals("the tick goes only if the task is as read", 1, todo.ifMatches.size)
+        assertEquals("one done copy: the phone's", 1, todo.tasksIn(TASKS).count { it.text("status") == "completed" })
+        val next = todo.task(TASKS, original)!!
+        assertEquals("the next one isn't ticked", "notStarted", next.text("status"))
+        assertEquals("rolled over once", "2026-11-26T00:00:00.0000000", (next["dueDateTime"] as JsonObject).text("dateTime"))
+        assertKeptTicked(plants, DAY, original)
+        run()
+        assertEquals("no second tick", 1, patches())
+        assertTrue(!task(rowsOn(NEXT_DAY, "Water plants").single()).isCompleted)
+    }
+
+    @Test
     fun aTickHereWhileThePhoneTickedItAndClearedTheDoneCopyNeverTicksTheNextOne() = runBlocking {
         val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
         run()
@@ -436,6 +470,44 @@ class MicrosoftTodoSyncTest {
     }
 
     @Test
+    fun aDoneCopyProvesOneTickOnlyAlsoInALaterPullAfterARestart() = runBlocking {
+        val first = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        val second = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+        val firstRow = linkedTo(first)!!.taskId
+
+        todo.patchTask(TASKS, first, mapOf("status" to JsonPrimitive("completed")))
+        run()
+        assertKeptTicked(firstRow, DAY, first)
+
+        // Later, after a restart: the other one moved to the very day a tick would make it
+        provider = newProvider()
+        todo.patchTask(TASKS, second, mapOf("dueDateTime" to FakeTodoServer.date("2026-11-26T00:00:00", "UTC")))
+        run()
+
+        val moved = linkedTo(second)!!
+        assertTrue("the first one's done copy proves nothing more: a date change", !moved.keptOnTablet && !task(moved.taskId).isCompleted)
+        assertEquals(NEXT_DAY, task(moved.taskId).dayDate)
+    }
+
+    @Test
+    fun aDoneCopyMadeBeforeTheTabletLastSawTheTaskIsNoEvidence() = runBlocking {
+        // On the phone before Task Sync: one series ticked for 25 Nov, then an alike one made for 25 Nov
+        val first = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        todo.patchTask(TASKS, first, mapOf("status" to JsonPrimitive("completed")))
+        val second = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+
+        todo.patchTask(TASKS, second, mapOf("dueDateTime" to FakeTodoServer.date("2026-11-26T00:00:00", "UTC")))
+        run()
+
+        val moved = linkedTo(second)!!
+        assertTrue("the old done copy proves no tick of it", !moved.keptOnTablet && !task(moved.taskId).isCompleted)
+        assertEquals(NEXT_DAY, task(moved.taskId).dayDate)
+        assertTrue(tasks.getTasksForDay(DAY).none { it.typedText == "Water plants" })
+    }
+
+    @Test
     fun anOldDoneCopyInAFullRoundNeverTakesTheTabletsTask() = runBlocking {
         // Ticked on the phone before the tablet ever synced: an old done copy (25 Nov), the open one on 26 Nov
         val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
@@ -544,30 +616,58 @@ class MicrosoftTodoSyncTest {
     }
 
     @Test
-    fun aSourceDeleteThatMayStillHappenNeverTakesTheNewCopyBack() = runBlocking {
+    fun aSourceDeleteWithNoClearAnswerLeavesTheNewCopyLinkedAndIsSentAgain() = runBlocking {
         todo.addList(WORK, "Work")
         sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", WORK, "Work"))
         val trip = row(0, "Plan trip")
         val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
         run()
         val oldId = todo.tasksIn(TASKS).single().text("id")
-        // A server error: the old one is still there when read again, but the delete may go through late
-        todo.refuse = { method, path -> if (method == "DELETE" && path.endsWith("/tasks/$oldId")) 500 else null }
+        // The delete times out before it reaches Microsoft: the old one is still there
+        todo.drop = { method, path -> method == "DELETE" && path.endsWith("/tasks/$oldId") }
 
-        val failed = runCatching { TaskSyncListMover(db, provider, EMAIL).move(trip, WORK) }
+        assertEquals(TaskSyncListMover.Outcome.MOVED, TaskSyncListMover(db, provider, EMAIL).move(trip, WORK))
+        todo.drop = { _, _ -> false }
 
-        assertTrue(failed.isFailure)
         val copy = todo.tasksIn(WORK).single().text("id")
-        assertEquals("the new one is never deleted", 1, todo.stepsOf(copy).size)
-        assertEquals("nor the old one", 1, todo.stepsOf(oldId).size)
+        assertEquals("the link on the new copy, whole", WORK to copy, sync.getLink(trip)!!.let { it.listId to it.remoteId })
+        assertEquals("its step taken along, not copied again", listOf(copy), listOf(TodoFields.taskOf(sync.getLink(hotel)!!.remoteId)))
+        assertEquals(1, todo.stepsOf(copy).size)
+        assertTrue("the old one is still there", todo.task(TASKS, oldId) != null)
+        assertEquals("its delete waits in the outbox", listOf(TASKS to oldId), sync.getOutbox().filter { it.op == "DELETE" }.map { it.listId to it.remoteId })
 
-        // It did go through late: the next pull follows the one copy left (owner decision 49)
-        todo.refuse = { _, _ -> null }
-        todo.deleteTask(TASKS, oldId)
+        // A full round of the old list before the delete goes: the old copy and its step aren't new tasks
+        sync.getListsFor(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "").single { it.listId == TASKS }.pullCursor
+            ?.let { todo.expired += it.substringAfter("deltatoken=") }
         run()
-        assertEquals("one copy, never none, the link on it", WORK to copy, sync.getLink(trip)!!.let { it.listId to it.remoteId })
-        assertEquals(copy, TodoFields.taskOf(sync.getLink(hotel)!!.remoteId))
-        assertEquals("nothing doubled here", 1, tasks.getTasksForDay(DAY).count { it.typedText == "Plan trip" })
+
+        assertNull("deleted by the next send", todo.task(TASKS, oldId))
+        assertTrue(todo.tasksIn(TASKS).isEmpty())
+        assertEquals("no third copy", listOf(copy), todo.tasksIn(WORK).map { it.text("id") })
+        assertEquals(1, todo.stepsOf(copy).size)
+        assertEquals("one row each here", listOf(1, 1), listOf("Plan trip", "Book hotel").map { w -> tasks.getTasksForDay(DAY).count { it.typedText == w } })
+        assertTrue(sync.getOutbox().isEmpty())
+    }
+
+    @Test
+    fun aStepMadeATaskWhoseOldStepHadNoClearDeleteIsNeverCopiedAgain() = runBlocking {
+        val trip = row(0, "Plan trip")
+        val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
+        run()
+        val parent = todo.tasksIn(TASKS).single().text("id")
+        todo.drop = { method, path -> method == "DELETE" && "/checklistItems/" in path }
+
+        repo.setParentTask(hotel, null)  // a task of its own here: a task of its own in To Do
+        run()  // the new task made; the old step's delete gets no answer
+        todo.drop = { _, _ -> false }
+        val own = todo.tasksIn(TASKS).single { it.text("title") == "Book hotel" }.text("id")
+        assertEquals("the link on the new task", own, sync.getLink(hotel)?.remoteId)
+
+        run()
+        assertTrue("the old step deleted by the next send", todo.stepsOf(parent).isEmpty())
+        assertEquals("never copied again", 1, todo.tasksIn(TASKS).count { it.text("title") == "Book hotel" })
+        assertEquals(1, tasks.getTasksForDay(DAY).count { it.typedText == "Book hotel" })
+        assertTrue(sync.getOutbox().isEmpty())
     }
 
     @Test
@@ -614,12 +714,34 @@ class MicrosoftTodoSyncTest {
         val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
         run()  // the step is made, its answer lost
         todo.loseReplyTo = { _, _ -> false }
+        assertTrue("its create is marked", marks().opIdOf(hotel) != null)
 
-        run()
+        TaskSyncPuller(db, provider, merger(), EMAIL, clock = { now }).pull()  // the pull links it first
         val parent = todo.tasksIn(TASKS).single().text("id")
         val step = todo.stepsOf(parent).single()
         assertEquals("its own send's step, waiting for its answer", TodoFields.stepRemoteId(parent, step.text("id")), sync.getLink(hotel)?.remoteId)
+        assertNull("linked by the pull: the mark is cleared", marks().opIdOf(hotel))
+        run()
+        assertEquals(1, todo.stepsOf(parent).size)
         assertEquals(1, tasks.getTasksForDay(DAY).count { it.typedText == "Book hotel" })
+    }
+
+    @Test
+    fun aCreateSentUnderAnotherParentOrWithOtherWordsIsNoProof() = runBlocking {
+        val trip = row(0, "Plan trip")
+        run()
+        val parent = todo.tasksIn(TASKS).single().text("id")
+        val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
+        val bags = row(2, "Pack bags") { repo.setParentTask(it, trip) }
+        marks().mark(hotel, "AAMk-another=", "Book hotel")  // its create went under another parent
+        marks().mark(bags, parent, "Pack the bags")  // and this one's with other words
+        val steps = listOf("Book hotel", "Pack bags").map { TodoFields.stepRemoteId(parent, todo.addStep(TASKS, parent, it)) }
+
+        TaskSyncPuller(db, provider, merger(), EMAIL, clock = { now }).pull()
+
+        assertNull("not taken by a step it wasn't sent as", sync.getLink(hotel))
+        assertNull(sync.getLink(bags))
+        for (step in steps) assertTrue("the phone's step is its own row", linkedTo(step)!!.taskId !in listOf(hotel, bags))
     }
 
     // ── Helpers ──

@@ -44,6 +44,7 @@ internal class TaskSyncSender(
 
     private val sync = db.taskSyncDao()
     private val tasks = db.taskDao()
+    private val marks = CreateMarks(prefs, service.provider, accountEmail, serverUrl)
 
     suspend fun sendDue(): Outcome {
         val waitingDeletes = sync.countDeletesAfter(prefs.getLong(KEY_DELETES_APPROVED_UP_TO, 0L))
@@ -160,14 +161,10 @@ internal class TaskSyncSender(
 
         // The service compares the parent with the tablet's last sent one (owner decision 24)
         val asLinked = if (leavingParent != null) current?.copy(syncedParentRemoteId = leavingParent) else current
-        // H15: persist a deterministic creation op UID before sending a new task so an interrupted response doesn't duplicate
-        val pendingKey = pendingCreateKey(task.id)
-        val existingOpId = if (asLinked == null) prefs.getString(pendingKey, null) else null
-        val createOpId = if (asLinked == null) {
-            existingOpId ?: java.util.UUID.randomUUID().toString().also { opId ->
-                prefs.edit().putString(pendingKey, opId).commit()
-            }
-        } else null
+        // H15: persist a deterministic creation op UID before sending a new task so an interrupted
+        // response doesn't duplicate; with the parent and words of this send (TaskSyncMerger's proof)
+        val existingOpId = if (asLinked == null) marks.opIdOf(task.id) else null
+        val createOpId = if (asLinked == null) marks.mark(task.id, parentRemoteId, title) else null
         val createRetry = existingOpId != null
         val knownRemoteIds = if (createRetry) {
             sync.getLinksInList(service.provider, accountEmail, serverUrl, listId).mapTo(HashSet()) { it.remoteId }
@@ -237,30 +234,26 @@ internal class TaskSyncSender(
                     dueDay ?: task.dayDate, parentRemoteId, serviceParent, sentHash, staysUndated,
                     keptPriority, extras?.reminderMinute, now
                 )
+                // The copy it replaces may still be there: deleted later, retried until certain
+                if (current != null) remote.oldCopyLeft?.let { queueDelete(task.id, current.listId, it, now) }
             }
         }
-        if (createOpId != null) {
-            prefs.edit().remove(pendingKey).apply()
-        }
+        if (createOpId != null) marks.clear(task.id)
         // Changed while it was being sent: keep the entry, the newer state goes next
         val after = tasks.getById(task.id) ?: return false
         return TaskSyncRules.contentHash(after, hashParentId, service.carriesExtras) != sentHash
     }
 
-    private fun pendingCreateKey(taskId: String): String = pendingCreateKey(service.provider, accountEmail, serverUrl, taskId)
+    private fun queueDelete(taskId: String, listId: String, remoteId: String, now: Long) {
+        sync.insertOutboxEntry(
+            TaskSyncOutboxEntry(
+                op = TaskSyncOp.DELETE, taskId = taskId, provider = service.provider, accountEmail = accountEmail,
+                serverUrl = serverUrl, listId = listId, remoteId = remoteId, createdAt = now
+            )
+        )
+    }
 
     companion object {
-        /** H15: written before a new task's first send, removed once its link is saved. */
-        private fun pendingCreateKey(provider: String, accountEmail: String, serverUrl: String, taskId: String): String =
-            "pending_create_${provider}_${accountEmail.hashCode()}_${serverUrl.hashCode()}_$taskId"
-
-        /**
-         * Whether a create of a task was sent and its answer never recorded (lost on the way): the
-         * merger's proof that a new copy in the service is the tablet's own (TaskSyncMerger.createTried).
-         */
-        fun createTried(prefs: SharedPreferences, provider: String, accountEmail: String, serverUrl: String = ""): (String) -> Boolean =
-            { taskId -> prefs.contains(pendingCreateKey(provider, accountEmail, serverUrl, taskId)) }
-
         private const val TAG = "TaskSyncSender"
         const val MASS_DELETE_LIMIT = 20
         internal const val KEY_DELETES_APPROVED_UP_TO = "deletes_approved_up_to"
