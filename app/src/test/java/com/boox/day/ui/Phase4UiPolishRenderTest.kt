@@ -272,34 +272,43 @@ class Phase4UiPolishRenderTest {
     ): Rect {
         var subject = Rect.Zero
         var screen = Rect.Zero
-        val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
-        activity.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(device.density, fontScale)) {
-                Box(
-                    Modifier
-                        .size(device.width.dp, device.height.dp)
-                        .background(Color.White)
-                        .onGloballyPositioned { screen = it.boundsInRoot() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    content(Modifier.onGloballyPositioned { subject = it.boundsInRoot() })
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        var image: Bitmap? = null
+        var crop: Bitmap? = null
+        try {
+            val activity = controller.get()
+            activity.setContent {
+                CompositionLocalProvider(LocalDensity provides Density(device.density, fontScale)) {
+                    Box(
+                        Modifier
+                            .size(device.width.dp, device.height.dp)
+                            .background(Color.White)
+                            .onGloballyPositioned { screen = it.boundsInRoot() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        content(Modifier.onGloballyPositioned { subject = it.boundsInRoot() })
+                    }
                 }
             }
-        }
-        shadowOf(Looper.getMainLooper()).idle()
-        val root = activity.findViewById<View>(android.R.id.content)
-        val image = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
-        root.draw(Canvas(image))
-        val crop = Bitmap.createBitmap(
-            image,
-            screen.left.toInt().coerceAtLeast(0),
-            screen.top.toInt().coerceAtLeast(0),
-            screen.width.toInt().coerceAtMost(image.width),
-            screen.height.toInt().coerceAtMost(image.height)
-        )
-        val out = File("build/phase4-previews").apply { mkdirs() }
-        File(out, "${device.name}-$name-$fontScale.png").outputStream().use {
-            crop.compress(Bitmap.CompressFormat.PNG, 100, it)
+            shadowOf(Looper.getMainLooper()).idle()
+            val root = activity.findViewById<View>(android.R.id.content)
+            image = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
+            root.draw(Canvas(image))
+            crop = Bitmap.createBitmap(
+                image,
+                screen.left.toInt().coerceAtLeast(0),
+                screen.top.toInt().coerceAtLeast(0),
+                screen.width.toInt().coerceAtMost(image.width),
+                screen.height.toInt().coerceAtMost(image.height)
+            )
+            val out = File("build/phase4-previews").apply { mkdirs() }
+            File(out, "${device.name}-$name-$fontScale.png").outputStream().use {
+                crop.compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
+        } finally {
+            crop?.recycle()
+            image?.recycle()
+            runCatching { controller.pause().stop().destroy() }
         }
         return subject
     }
