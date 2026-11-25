@@ -73,37 +73,16 @@ internal class TaskSyncSender(
                 val retryAt = clock() + (e.retryAfterMs ?: DEFAULT_BUSY_WAIT_MS)
                 sync.markOutboxFailed(entry.id, entry.attempts, retryAt, "Busy")
                 return Outcome.Busy(retryAt)
-            } catch (e: TaskSyncServiceException.TickPending) {
-                if (entry.op == TaskSyncOp.UPSERT && givesUpOnTick(entry)) {
-                    // Its pull would otherwise wait for it forever: the task stays ticked here, unsent
-                    merger.keepTickOnTablet(entry.taskId)
-                    Log.w(TAG, "A ticked repeating task's done copy never showed; kept ticked on the tablet only")
-                } else {
-                    failed(entry, e)
-                }
             } catch (e: Exception) {
-                failed(entry, e)
+                val attempts = entry.attempts + 1
+                val wait = minOf(MAX_WAIT_MS, FIRST_WAIT_MS shl minOf(attempts - 1, 20))
+                // The class only: messages can hold a task's words, which never go into logs
+                sync.markOutboxFailed(entry.id, attempts, clock() + wait, e.javaClass.simpleName)
+                Log.w(TAG, "Send failed (${e.javaClass.simpleName}), try $attempts, next in ${wait / 1000} s")
             }
         }
         return Outcome.Sent(sent)
     }
-
-    /** Tried again later, a little longer each time. */
-    private fun failed(entry: TaskSyncOutboxEntry, e: Exception) {
-        val attempts = entry.attempts + 1
-        val wait = minOf(MAX_WAIT_MS, FIRST_WAIT_MS shl minOf(attempts - 1, 20))
-        // The class only: messages can hold a task's words, which never go into logs
-        sync.markOutboxFailed(entry.id, attempts, clock() + wait, e.javaClass.simpleName)
-        Log.w(TAG, "Send failed (${e.javaClass.simpleName}), try $attempts, next in ${wait / 1000} s")
-    }
-
-    /**
-     * A tick whose done copy hasn't shown is given up on once it has waited [TICK_GIVE_UP_MS] since it
-     * was first noticed and [TICK_GIVE_UP_LOOKS] earlier sends found no copy, whichever comes later
-     * (owner, 25 Nov 2026): the copy may never be listed (completed tasks cleared on the phone).
-     */
-    private fun givesUpOnTick(entry: TaskSyncOutboxEntry): Boolean =
-        entry.attempts >= TICK_GIVE_UP_LOOKS && clock() - entry.createdAt >= TICK_GIVE_UP_MS
 
     /** The user said yes to the waiting deletes: they go on the next run. */
     fun approveWaitingDeletes() {
@@ -221,6 +200,12 @@ internal class TaskSyncSender(
             if (merger.listGone(e.listId) == TaskSyncMerger.Result.WAITS) throw e
             return false
         }
+        // Ticked, the copy is the next one of its repeat now (a To Do repeating task, owner decision
+        // 100): the task stays ticked here, never sent again; the next one comes in as a new task
+        if (remote.rolledOver && current != null) {
+            merger.keepRolledOver(current)
+            return false
+        }
 
         val sentHash = TaskSyncRules.contentHash(task, hashParentId, service.carriesExtras)
         val keptTitle = remote.title ?: title  // as the service keeps it, so the pull sees no change
@@ -243,16 +228,12 @@ internal class TaskSyncSender(
                     )
                 )
             } else {
-                // The copy may have a new id now (a To Do step that became a task, a repeating task's done copy)
+                // The copy may have a new id now (a To Do step that became a task)
                 sync.updateSyncedLink(
                     task.id, remote.listId, remote.remoteId, remote.version, keptTitle, task.isCompleted,
                     dueDay ?: task.dayDate, parentRemoteId, serviceParent, sentHash, staysUndated,
                     keptPriority, extras?.reminderMinute, now
                 )
-                // A done copy in its place: the subtasks follow it, so their ticks stay on this day
-                if (current != null && current.remoteId != remote.remoteId && current.listId == remote.listId) {
-                    merger.followReplacement(remote.listId, current.remoteId, remote.remoteId)
-                }
             }
         }
         if (createOpId != null) {
@@ -273,8 +254,5 @@ internal class TaskSyncSender(
         private const val FIRST_WAIT_MS = 60_000L
         private const val MAX_WAIT_MS = 6 * 60 * 60_000L
         private const val DEFAULT_BUSY_WAIT_MS = 60_000L
-        /** A tick's done copy is waited for this long and this many looks after the first, whichever is later. */
-        internal const val TICK_GIVE_UP_MS = 10 * 60_000L
-        internal const val TICK_GIVE_UP_LOOKS = 3
     }
 }

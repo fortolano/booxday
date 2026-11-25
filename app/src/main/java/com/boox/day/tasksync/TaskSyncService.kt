@@ -22,8 +22,8 @@ internal interface TaskSyncService {
 
     /**
      * Creates the task ([link] null) or updates the copy [link] points to; returns what it holds now.
-     * The copy returned may have another id than [link]'s (a To Do step that became a task, a ticked
-     * To Do repeating task's done copy): the link follows it.
+     * The copy returned may have another id than [link]'s (a To Do step that became a task): the link
+     * follows it. [RemoteTask.rolledOver]: the tick made the copy the next one of its repeat.
      */
     suspend fun upsert(task: OutgoingTask, link: TaskSyncLink?): RemoteTask
 
@@ -72,11 +72,10 @@ internal interface TaskSyncService {
     suspend fun takenAlong(toListId: String, remoteId: String): RemoteTaskState? = fetch(toListId, remoteId)
 
     /**
-     * The id the subtask [subtaskRemoteId] of [replaced] has under [replacement], when the service
-     * made [replacement] in its place with the same subtasks (To Do: a ticked repeating task's done
-     * copy keeps its steps' ids, measured 25 Nov 2026); null: the subtask doesn't follow.
+     * The copy [subtaskRemoteId] is part of the copy [remoteId] itself (a To Do step of its task): it
+     * rolls over with it ([RemoteTask.rolledOver]).
      */
-    fun subtaskUnder(replacement: String, subtaskRemoteId: String, replaced: String): String? = null
+    fun isPartOf(subtaskRemoteId: String, remoteId: String): Boolean = false
 }
 
 internal data class RemoteList(val listId: String, val title: String)
@@ -104,16 +103,15 @@ internal data class RemoteTaskState(
      */
     val carriesDue: Boolean = true,
     /**
-     * This copy replaces [takesOverRemoteId] in the same list: a To Do repeating task ticked on the
-     * phone keeps its id for the next one and is now this new done copy (owner decision 82). The
-     * task linked to that id moves to this copy before the round is merged.
+     * A tick rolls it over: the service keeps its id for the next one of its repeat (a To Do
+     * repeating task, owner decision 100).
      */
-    val takesOverRemoteId: String? = null,
+    val rollsOver: Boolean = false,
     /**
-     * Ticking it rolls it over: the service keeps its id for the next one (a To Do repeating task,
-     * owner decision 82). While the tablet's tick of it hasn't gone, its next one isn't merged over it.
+     * It was ticked in the service and rolled over: it is the next one now, on clear evidence (owner
+     * decision 100). The tablet's task stays ticked on its day; this one comes in as a new task.
      */
-    val rollsOver: Boolean = false
+    val rolledOver: Boolean = false
 )
 
 /**
@@ -147,7 +145,12 @@ internal data class RemoteTask(
     /** Google `updated`, CalDAV etag. */
     val version: String?,
     /** The words as the service keeps them (Google cuts titles at 1,024 characters); null: as sent. */
-    val title: String? = null
+    val title: String? = null,
+    /**
+     * The tablet's tick made the copy the next one of its repeat (a To Do repeating task, owner
+     * decision 100), or it already was: the task stays ticked on its day, kept on the tablet only.
+     */
+    val rolledOver: Boolean = false
 )
 
 /** Failures a service reports so the sender can react; anything else is retried with growing waits. */
@@ -169,12 +172,6 @@ internal sealed class TaskSyncServiceException(message: String, cause: Throwable
 
     /** The whole list is gone (deleted in the service): the user picks another. */
     class ListGone(val listId: String, cause: Throwable? = null) : TaskSyncServiceException("List gone from the service", cause)
-
-    /**
-     * A tick of a task that rolls over went (or may have) but its done copy isn't found yet: nothing
-     * is taken as sent. Tried again, and given up on after a while (TaskSyncSender).
-     */
-    class TickPending : TaskSyncServiceException("A tick waits for its done copy")
 
     /** The account can't use the service (a Microsoft account without To Do): signing in again won't help. */
     class NotAvailable(cause: Throwable? = null) : TaskSyncServiceException("Not available for this account", cause)

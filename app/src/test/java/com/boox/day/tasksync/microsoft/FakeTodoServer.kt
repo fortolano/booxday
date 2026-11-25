@@ -45,11 +45,9 @@ internal class FakeTodoServer : Dispatcher() {
     val requests = mutableListOf<String>()
     /** Every time-zone name BooxDay sent in a date. */
     val sentZones = mutableListOf<String>()
-    /** New done copies left out of title searches (a listing that lags) and, if set, of delta too. */
-    var hideDoneCopiesFromSearch = false
+    /** New done copies left out of delta (a round that lags); a title search still finds them. */
     var hideDoneCopiesFromDelta = false
-    val hiddenFromSearch = HashSet<String>()
-    val hiddenFromDelta = HashSet<String>()
+    private val hiddenFromDelta = HashSet<String>()
     /** A request ("DELETE", decoded path) Microsoft carries out but whose answer is lost on the way. */
     var loseReplyTo: (String, String) -> Boolean = { _, _ -> false }
     /** A request Microsoft refuses (500) without doing it. */
@@ -127,7 +125,7 @@ internal class FakeTodoServer : Dispatcher() {
         val taskId = path.getOrNull(5)
         when {
             taskId == null && method == "GET" -> {
-                var all = tasks.getValue(listId).values.filter { it.str("id") !in hiddenFromSearch }.map { withSteps(it) }
+                var all = tasks.getValue(listId).values.map { withSteps(it) }
                 filter?.let { f -> val title = f.substringAfter("'").substringBeforeLast("'").replace("''", "'"); all = all.filter { it.str("title") == title } }
                 return ok(page(all))
             }
@@ -240,7 +238,6 @@ internal class FakeTodoServer : Dispatcher() {
             steps[doneId] = LinkedHashMap(stepsBefore)
             steps[taskId] = LinkedHashMap(stepsBefore.mapValues { (_, step) -> JsonObject(step + ("isChecked" to JsonPrimitive(false))) })
             tasks.getValue(listId)[doneId] = done
-            if (hideDoneCopiesFromSearch) hiddenFromSearch += doneId
             if (hideDoneCopiesFromDelta) hiddenFromDelta += doneId
             log(listId, doneId)
             val next = JsonObject(before + ("dueDateTime" to dayLater(due)) + ("reminderDateTime" to dayLater(before["reminderDateTime"])))
