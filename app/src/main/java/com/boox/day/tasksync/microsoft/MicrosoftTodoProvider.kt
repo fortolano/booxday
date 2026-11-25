@@ -607,7 +607,9 @@ internal class MicrosoftTodoProvider(
         }
         val oldGone = replaced(fromListId, remoteId, toListId, newId, was = before.str(ETAG))
         movedSteps.putAll(newSteps)
-        taskState(toListId, onTask(toListId) { get(taskPath(toListId, newId)) }).copy(oldCopyLeft = remoteId.takeUnless { oldGone })
+        // The new copy as made, with the step ids it got: nothing more to read, so a failed read
+        // can't leave the move unrecorded; the next pull brings its state (its steps changed it since)
+        taskState(toListId, made).copy(oldCopyLeft = remoteId.takeUnless { oldGone })
     }
 
     /**

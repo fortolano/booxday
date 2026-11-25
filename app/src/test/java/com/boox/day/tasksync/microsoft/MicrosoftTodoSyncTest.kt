@@ -651,6 +651,32 @@ class MicrosoftTodoSyncTest {
     }
 
     @Test
+    fun aMoveIsRecordedWithoutReadingTheNewCopyAgain() = runBlocking {
+        todo.addList(WORK, "Work")
+        sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", WORK, "Work"))
+        val trip = row(0, "Plan trip")
+        val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
+        run()
+        val oldId = todo.tasksIn(TASKS).single().text("id")
+        // Reading a task in the new list fails just then
+        todo.refuse = { method, path ->
+            if (method == "GET" && path.startsWith("/me/todo/lists/$WORK/tasks/") && path.count { it == '/' } == 6) 500 else null
+        }
+
+        assertEquals(TaskSyncListMover.Outcome.MOVED, TaskSyncListMover(db, provider, EMAIL).move(trip, WORK))
+        todo.refuse = { _, _ -> null }
+
+        val copy = todo.tasksIn(WORK).single().text("id")
+        assertEquals("recorded on the new copy", WORK to copy, sync.getLink(trip)!!.let { it.listId to it.remoteId })
+        assertEquals(copy, TodoFields.taskOf(sync.getLink(hotel)!!.remoteId))
+        assertNull(todo.task(TASKS, oldId))
+        run()  // its state comes with the next pull
+        assertEquals("nothing doubled", listOf(copy), todo.tasksIn(WORK).map { it.text("id") })
+        assertEquals(listOf(1, 1), listOf("Plan trip", "Book hotel").map { w -> tasks.getTasksForDay(DAY).count { it.typedText == w } })
+        assertEquals(copy, sync.getLink(trip)?.remoteId)
+    }
+
+    @Test
     fun aMoveCleanupNeverDeletesAnEditMadeOnTheOldCopy() = runBlocking {
         todo.addList(WORK, "Work")
         sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", WORK, "Work"))
