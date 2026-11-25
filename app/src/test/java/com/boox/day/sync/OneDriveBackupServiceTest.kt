@@ -13,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -186,6 +187,49 @@ class OneDriveBackupServiceTest {
     fun aFolderThatCouldNotBeReadIsAnErrorNotEmpty() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(503))
         assertEquals(DriveBackupService.ListResult.Error("OneDrive is busy. Try again in a few minutes."), service().listBackups())
+    }
+
+    /**
+     * Review 25 Nov 2026: an MSAL that can't start (or an MSAL error Graph doesn't sort) escaped as an
+     * exception and could crash the backup screen. Now an error in plain words, never its message.
+     */
+    @Test
+    fun msalThatCannotStartIsAnErrorNotACrash() = runBlocking {
+        val broken = service(token = { throw IllegalStateException("MSAL not initialized: private details") })
+        val dir = folder.newFolder()
+
+        assertEquals(DriveBackupService.ListResult.Error(OneDriveBackupService.SOMETHING_WRONG), broken.listBackups())
+        assertEquals(
+            DriveBackupService.UploadResult.Error(OneDriveBackupService.SOMETHING_WRONG, retryable = true),
+            broken.uploadBackup(backupFile(ByteArray(10)))
+        )
+        val downloader = OneDriveBackupService(
+            graph = { MicrosoftGraph(token = { throw IllegalStateException("MSAL not initialized") }, baseUrl = server.url("/v1.0").toString()) },
+            downloadDir = { dir },
+            onBackedUp = {}
+        )
+        assertEquals(DriveBackupService.FileDownloadResult.Error(OneDriveBackupService.SOMETHING_WRONG), downloader.downloadBackupToFile("ITEM1"))
+        assertEquals(0, dir.listFiles()!!.size)
+    }
+
+    @Test
+    fun anAnswerThatIsNotTheExpectedJsonIsAnError() = runBlocking {
+        server.enqueue(MockResponse().setBody("<html>Sign in to the Wi-Fi</html>"))
+        server.enqueue(MockResponse().setBody("""{"value": 5}"""))
+
+        assertTrue(service().listBackups() is DriveBackupService.ListResult.Error)
+        assertTrue(service().listBackups() is DriveBackupService.ListResult.Error)
+    }
+
+    @Test
+    fun cancellationIsNotTurnedIntoAnError() = runBlocking {
+        val cancelled = service(token = { throw kotlinx.coroutines.CancellationException("screen closed") })
+        try {
+            cancelled.listBackups()
+            fail("expected the cancellation to go through")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // the caller's coroutine ends, as it should
+        }
     }
 
     @Test

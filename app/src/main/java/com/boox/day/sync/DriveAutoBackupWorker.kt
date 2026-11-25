@@ -9,6 +9,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -28,14 +29,23 @@ class DriveAutoBackupWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val settings = GoogleAuthManager(applicationContext)
-        val cloud = settings.dueAutoBackupCloud() ?: return Result.success()
-        val outcome = backUp(
-            target = BackupTarget(cloud, settings.backupAccountOf(cloud)),
-            currentTarget = settings::currentBackupTarget,
-            export = { ExportService(applicationContext).createBackup() },
-            serviceFor = { cloudBackupService(applicationContext, it) }
-        )
+        val outcome = try {
+            val settings = GoogleAuthManager(applicationContext)
+            val cloud = settings.dueAutoBackupCloud() ?: return Result.success()
+            backUp(
+                target = BackupTarget(cloud, settings.backupAccountOf(cloud)),
+                currentTarget = settings::currentBackupTarget,
+                export = { ExportService(applicationContext).createBackup() },
+                serviceFor = { cloudBackupService(applicationContext, it) }
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Review, Nov 2026: nothing may escape as a crash; tried again later. Never the message,
+            // it can hold content
+            Log.w(TAG, "Automatic backup failed: ${e.javaClass.simpleName}")
+            Outcome.RETRY
+        }
         return when (outcome) {
             Outcome.DONE, Outcome.STOPPED -> Result.success()
             Outcome.RETRY -> Result.retry()

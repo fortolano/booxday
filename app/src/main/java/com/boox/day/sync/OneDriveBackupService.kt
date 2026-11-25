@@ -10,6 +10,7 @@ import com.boox.day.sync.microsoft.GraphException
 import com.boox.day.sync.microsoft.MicrosoftGraph
 import com.boox.day.sync.microsoft.MicrosoftScopes
 import com.boox.day.sync.outlook.OutlookAuthManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -57,9 +58,9 @@ internal class OneDriveBackupService(
     private class NoLongerWanted : Exception()
 
     override suspend fun uploadBackup(localFile: File, stillWanted: () -> Boolean): UploadResult = withContext(Dispatchers.IO) {
-        if (!stillWanted()) return@withContext UploadResult.Stopped
-        val graph = graph() ?: return@withContext UploadResult.Error(NOT_CONNECTED, retryable = false)
         try {
+            if (!stillWanted()) return@withContext UploadResult.Stopped
+            val graph = graph() ?: return@withContext UploadResult.Error(NOT_CONNECTED, retryable = false)
             val item = try {
                 uploadOnce(graph, localFile, stillWanted)
             } catch (e: SessionGone) {
@@ -74,6 +75,8 @@ internal class OneDriveBackupService(
             Log.i(TAG, "Backup uploaded (${localFile.length()} bytes)")
             onBackedUp(System.currentTimeMillis())
             UploadResult.Success(item.id, item.name)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: NoLongerWanted) {
             // Microsoft makes no file from an unfinished session; it drops the pieces itself
             Log.i(TAG, "Upload stopped: another cloud or account was chosen")
@@ -84,6 +87,10 @@ internal class OneDriveBackupService(
         } catch (e: IOException) {
             Log.w(TAG, "Upload failed reading the backup file: ${e.javaClass.simpleName}")
             UploadResult.Error("Couldn't read the backup file on the tablet.", retryable = true)
+        } catch (e: Exception) {
+            // MSAL that can't start, an MSAL error Graph doesn't sort, an answer that isn't JSON
+            Log.w(TAG, "Upload failed: ${e.javaClass.simpleName}")
+            UploadResult.Error(SOMETHING_WRONG, retryable = true)
         }
     }
 
@@ -173,8 +180,8 @@ internal class OneDriveBackupService(
     }
 
     override suspend fun listBackups(): ListResult = withContext(Dispatchers.IO) {
-        val graph = graph() ?: return@withContext ListResult.Error(NOT_CONNECTED)
         try {
+            val graph = graph() ?: return@withContext ListResult.Error(NOT_CONNECTED)
             val found = mutableListOf<BackupInfo>()
             var next: String? = "$APP_FOLDER/children?\$top=200&\$select=id,name,size,createdDateTime,file"
             var pages = 0
@@ -186,28 +193,41 @@ internal class OneDriveBackupService(
             }
             Log.i(TAG, "Found ${found.size} backup(s)")
             ListResult.Success(found.sortedByDescending { it.createdTime }.take(MAX_LISTED))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: GraphException) {
             Log.w(TAG, "List failed: ${e.javaClass.simpleName}")
             ListResult.Error(messageOf(e))
+        } catch (e: Exception) {
+            // MSAL that can't start, an MSAL error Graph doesn't sort, a list in another shape
+            Log.w(TAG, "List failed: ${e.javaClass.simpleName}")
+            ListResult.Error(SOMETHING_WRONG)
         }
     }
 
     override suspend fun downloadBackupToFile(fileId: String): FileDownloadResult = withContext(Dispatchers.IO) {
-        val graph = graph() ?: return@withContext FileDownloadResult.Error(NOT_CONNECTED)
-        val dir = downloadDir().apply { mkdirs() }
-        val temp = File(dir, "onedrive-backup-${UUID.randomUUID()}.tmp")
+        var temp: File? = null
         try {
+            val graph = graph() ?: return@withContext FileDownloadResult.Error(NOT_CONNECTED)
+            val dir = downloadDir().apply { mkdirs() }
+            temp = File(dir, "onedrive-backup-${UUID.randomUUID()}.tmp")
             FileOutputStream(temp).buffered().use { graph.download("/me/drive/items/$fileId/content", it) }
             Log.i(TAG, "Downloaded backup (${temp.length()} bytes)")
             FileDownloadResult.Success(temp)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: GraphException) {
-            temp.delete()
+            temp?.delete()
             Log.w(TAG, "Download failed: ${e.javaClass.simpleName}")
             FileDownloadResult.Error(messageOf(e))
         } catch (e: IOException) {
-            temp.delete()
+            temp?.delete()
             Log.w(TAG, "Download failed writing the file: ${e.javaClass.simpleName}")
             FileDownloadResult.Error("Couldn't save the backup on the tablet. Is the tablet full?")
+        } catch (e: Exception) {
+            temp?.delete()
+            Log.w(TAG, "Download failed: ${e.javaClass.simpleName}")
+            FileDownloadResult.Error(SOMETHING_WRONG)
         }
     }
 
@@ -226,6 +246,9 @@ internal class OneDriveBackupService(
         private const val MAX_LISTED = 50
 
         const val NOT_CONNECTED = "OneDrive isn't connected."
+
+        /** Any other failure: plain words, never the exception's own text (it can hold content). */
+        const val SOMETHING_WRONG = "Something went wrong with OneDrive. Try again later."
 
         fun create(context: Context): OneDriveBackupService {
             val app = context.applicationContext
@@ -269,6 +292,8 @@ internal class OneDriveBackupService(
             is GraphException.Busy -> "OneDrive is busy. Try again in a few minutes."
             is GraphException.Http -> when {
                 e.status == 507 || e.code == "quotaLimitReached" || e.code == "insufficientStorage" -> "Your OneDrive is full."
+                // An answer that isn't Graph's JSON (such as a Wi-Fi sign-in page)
+                e.code == INVALID_RESPONSE -> SOMETHING_WRONG
                 else -> "OneDrive answered with an error (${e.status})."
             }
         }
@@ -277,7 +302,10 @@ internal class OneDriveBackupService(
         internal fun isRetryable(e: GraphException): Boolean = when (e) {
             is GraphException.SignInNeeded -> false
             is GraphException.Offline, is GraphException.Busy -> true
-            is GraphException.Http -> e.status >= 500 && e.status != 507
+            is GraphException.Http -> e.code == INVALID_RESPONSE || (e.status >= 500 && e.status != 507)
         }
+
+        /** MicrosoftGraph's code for a success answer that isn't JSON (shared branch, Nov 2026). */
+        private const val INVALID_RESPONSE = "InvalidResponse"
     }
 }
