@@ -738,7 +738,7 @@ internal fun BooxNotesFilterScreen(
         }
         if (semantics == null || (semantics.domainCounts.isEmpty() && semantics.intentCounts.isEmpty())) {
             Text(
-                text = "Topic and kind of note appear here once your handwriting is read (Settings → Handwriting Search).",
+                text = "Topic and kind of note appear here once your handwriting is read (Settings → BOOX Notes & Search → Handwriting Search).",
                 fontSize = EInkTheme.Typography.bodyMedium,
                 color = EInkTheme.Colors.darkGray
             )

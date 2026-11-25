@@ -339,7 +339,7 @@ private fun QuickStartContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Settings")
-    BodyText("The Settings menu has Preferences, Calendar & Sync, Calendar Accounts, AI Settings, Voice-to-Text, Data & Backup, Boox Notes, Handwriting Search, Help and About. A dot next to an item marks a setting worth a look first.")
+    BodyText("The Settings menu has Preferences, Calendar & Sync, Calendar Accounts, Task Sync, AI Settings, Voice-to-Text, Data & Backup, BOOX Notes & Search, Help, Support BooxDay and About. A dot next to an item marks a setting worth a look first.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 }
@@ -760,9 +760,9 @@ private fun SmartLinkContent() {
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
-    SectionSubheader("Setting Up (Settings → Boox Notes)")
+    SectionSubheader("Setting Up (Settings → BOOX Notes & Search)")
     BulletPoint("Boox Notes Setup has three steps: let BooxDay see your notes (Open Android Settings), connect a calendar, and, if you like, read your handwriting.")
-    BulletPoint("Settings → Handwriting Search reads memos, tasks and Boox Notes so you can search them. It needs an OpenRouter key and AI Features on; up to 1,000 pages a month are read. Linking notes by hand works without them.")
+    BulletPoint("The Handwriting Search tab in Settings → BOOX Notes & Search reads memos, tasks and Boox Notes so you can search them. It needs an OpenRouter key and AI Features on; up to 1,000 pages a month are read. Linking notes by hand works without them.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
@@ -784,7 +784,7 @@ private fun SmartLinkContent() {
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
 
     SectionSubheader("Privacy")
-    BodyText("Finding topics and linking notes to events run on the tablet. Only reading the pages uses AI: while AI Features and Settings → Handwriting Search → Read my handwriting are on, memo and Boox Notes pages are sent to OpenRouter, on your own account, and only to providers that keep no copy. With either off, no pages are sent.")
+    BodyText("Finding topics and linking notes to events run on the tablet. Only reading the pages uses AI: while AI Features and Settings → BOOX Notes & Search → Handwriting Search → Read my handwriting are on, memo and Boox Notes pages are sent to OpenRouter, on your own account, and only to providers that keep no copy. With either off, no pages are sent.")
 
     Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 }

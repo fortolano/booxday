@@ -370,7 +370,7 @@ object TipsRepository {
         ),
         Tip(
             id = "boox_notes_indexing",
-            message = "Settings → Handwriting Search makes your handwritten memos and notebooks searchable.",
+            message = "Settings → BOOX Notes & Search → Handwriting Search makes your handwritten memos and notebooks searchable.",
             contexts = setOf(TipContext.MEMOS, TipContext.EVENTS)
         ),
         Tip(
