@@ -293,12 +293,15 @@ fun DataBackupDialog(
         coroutineScope.launch {
             isBackupInProgress = true
             status("Creating backup...")
+            // Only to the account on screen: Turn Off Backup or another account meanwhile stops it
+            val account = authManager.backupAccountOf(cloud)
 
             when (val exportResult = exportService.createBackup()) {
                 is ExportService.ExportResult.Success -> {
                     status("Uploading to ${cloud.label}...")
 
-                    when (val uploadResult = serviceFor(cloud).uploadBackup(exportResult.backupFile)) {
+                    val stillWanted = { account != null && authManager.backupAccountOf(cloud) == account }
+                    when (val uploadResult = serviceFor(cloud).uploadBackup(exportResult.backupFile, stillWanted)) {
                         is DriveBackupService.UploadResult.Success -> {
                             val now = System.currentTimeMillis()
                             if (cloud == BackupCloud.GOOGLE_DRIVE) lastBackupTime = now else oneDriveLastBackupTime = now
@@ -311,6 +314,8 @@ fun DataBackupDialog(
                         is DriveBackupService.UploadResult.Error -> {
                             status("Upload failed: ${uploadResult.message}")
                         }
+                        // Turned off or another account: the user has left this screen already
+                        is DriveBackupService.UploadResult.Stopped -> status(null)
                     }
                 }
                 is ExportService.ExportResult.Error -> {

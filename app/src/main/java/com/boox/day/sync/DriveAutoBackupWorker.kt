@@ -28,33 +28,62 @@ class DriveAutoBackupWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val cloud = GoogleAuthManager(applicationContext).dueAutoBackupCloud() ?: return Result.success()
-
-        Log.i(TAG, "Automatic ${cloud.key} backup due - exporting")
-        val export = ExportService(applicationContext).createBackup()
-        if (export !is ExportService.ExportResult.Success) {
-            Log.w(TAG, "Automatic backup: export failed (${(export as? ExportService.ExportResult.Error)?.message})")
-            return Result.retry()
-        }
-
-        return try {
-            when (val upload = cloudBackupService(applicationContext, cloud).uploadBackup(export.backupFile)) {
-                is DriveBackupService.UploadResult.Success -> {
-                    Log.i(TAG, "Automatic backup uploaded: ${upload.fileName}")
-                    Result.success()
-                }
-                is DriveBackupService.UploadResult.Error -> {
-                    Log.w(TAG, "Automatic backup: upload failed (retryable=${upload.retryable}, ${upload.message})")
-                    if (upload.retryable) Result.retry() else Result.failure()
-                }
-            }
-        } finally {
-            // The copy lives in the cloud; don't pile up a local file per automatic run
-            export.backupFile.delete()
+        val settings = GoogleAuthManager(applicationContext)
+        val cloud = settings.dueAutoBackupCloud() ?: return Result.success()
+        val outcome = backUp(
+            target = BackupTarget(cloud, settings.backupAccountOf(cloud)),
+            currentTarget = settings::currentBackupTarget,
+            export = { ExportService(applicationContext).createBackup() },
+            serviceFor = { cloudBackupService(applicationContext, it) }
+        )
+        return when (outcome) {
+            Outcome.DONE, Outcome.STOPPED -> Result.success()
+            Outcome.RETRY -> Result.retry()
+            Outcome.FAILED -> Result.failure()
         }
     }
 
+    internal enum class Outcome { DONE, STOPPED, RETRY, FAILED }
+
     companion object {
+        /**
+         * One automatic backup for [target]. The export takes a while: the upload goes ahead only
+         * while [currentTarget] is still [target] (checked before it starts, and between OneDrive's
+         * pieces), so a switch to the other cloud or account meanwhile sends nothing to the old one.
+         */
+        internal suspend fun backUp(
+            target: BackupTarget,
+            currentTarget: () -> BackupTarget?,
+            export: suspend () -> ExportService.ExportResult,
+            serviceFor: (BackupCloud) -> CloudBackupService
+        ): Outcome {
+            Log.i(TAG, "Automatic ${target.cloud.key} backup due - exporting")
+            val made = export()
+            if (made !is ExportService.ExportResult.Success) {
+                Log.w(TAG, "Automatic backup: export failed (${(made as? ExportService.ExportResult.Error)?.message})")
+                return Outcome.RETRY
+            }
+            return try {
+                when (val upload = serviceFor(target.cloud).uploadBackup(made.backupFile) { currentTarget() == target }) {
+                    is DriveBackupService.UploadResult.Success -> {
+                        Log.i(TAG, "Automatic backup uploaded: ${upload.fileName}")
+                        Outcome.DONE
+                    }
+                    is DriveBackupService.UploadResult.Stopped -> {
+                        Log.i(TAG, "Automatic backup stopped: another cloud or account was chosen")
+                        Outcome.STOPPED
+                    }
+                    is DriveBackupService.UploadResult.Error -> {
+                        Log.w(TAG, "Automatic backup: upload failed (retryable=${upload.retryable}, ${upload.message})")
+                        if (upload.retryable) Outcome.RETRY else Outcome.FAILED
+                    }
+                }
+            } finally {
+                // The copy lives in the cloud; don't pile up a local file per automatic run
+                made.backupFile.delete()
+            }
+        }
+
         private const val TAG = "DriveAutoBackupWorker"
         private const val WORK_NAME = "drive_auto_backup"
         private const val CHECK_INTERVAL_HOURS = 6L

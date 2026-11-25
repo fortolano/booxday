@@ -6,6 +6,12 @@ import android.content.SharedPreferences
 data class OneDriveAccount(val msalAccountId: String, val address: String)
 
 /**
+ * A cloud and the account a backup is for (Nov 2026): a backup made for one is uploaded only while
+ * it is still the same, never to a cloud or account chosen while it was being made.
+ */
+data class BackupTarget(val cloud: BackupCloud, val account: String?)
+
+/**
  * Backup settings kept in Google's settings file ([GoogleAuthManager]), which is device-only: not
  * in AppSettings (exported in every backup) and left out of Android's own backup. OneDrive's
  * settings sit next to Google Drive's there (Nov 2026).

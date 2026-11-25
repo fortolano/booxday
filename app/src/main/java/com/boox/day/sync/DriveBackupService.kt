@@ -86,6 +86,8 @@ class DriveBackupService(private val context: Context) : CloudBackupService {
     sealed class UploadResult {
         data class Success(val fileId: String, val fileName: String) : UploadResult()
         data class Error(val message: String, val retryable: Boolean = true) : UploadResult()
+        /** Not uploaded: the backup was no longer wanted there (another cloud or account chosen meanwhile). */
+        object Stopped : UploadResult()
     }
 
     /**
@@ -94,8 +96,10 @@ class DriveBackupService(private val context: Context) : CloudBackupService {
      * @param localFile The local backup file to upload
      * @return UploadResult indicating success or failure
      */
-    override suspend fun uploadBackup(localFile: java.io.File): UploadResult = withContext(Dispatchers.IO) {
+    override suspend fun uploadBackup(localFile: java.io.File, stillWanted: () -> Boolean): UploadResult = withContext(Dispatchers.IO) {
         try {
+            // Nov 2026: the cloud or account may have changed while the backup was being made
+            if (!stillWanted()) return@withContext UploadResult.Stopped
             val drive = getDriveService()
             if (drive == null) {
                 return@withContext UploadResult.Error("Not signed in to Google", retryable = false)
@@ -124,7 +128,8 @@ class DriveBackupService(private val context: Context) : CloudBackupService {
                 description = "BooxDay backup - ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(java.util.Date())}"
             }
 
-            // Upload the file
+            // Upload the file (one request: the last moment it can still be called off)
+            if (!stillWanted()) return@withContext UploadResult.Stopped
             val mediaContent = FileContent(uploadMimeType, localFile)
             val uploadedFile = drive.files().create(fileMetadata, mediaContent)
                 .setFields("id, name, size, createdTime")

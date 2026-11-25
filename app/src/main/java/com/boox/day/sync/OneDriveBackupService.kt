@@ -53,16 +53,20 @@ internal class OneDriveBackupService(
     /** The upload session is gone (expired, or finished while its answer was lost). */
     private class SessionGone : Exception()
 
-    override suspend fun uploadBackup(localFile: File): UploadResult = withContext(Dispatchers.IO) {
+    /** The backup is no longer wanted in this OneDrive (another cloud or account chosen meanwhile). */
+    private class NoLongerWanted : Exception()
+
+    override suspend fun uploadBackup(localFile: File, stillWanted: () -> Boolean): UploadResult = withContext(Dispatchers.IO) {
+        if (!stillWanted()) return@withContext UploadResult.Stopped
         val graph = graph() ?: return@withContext UploadResult.Error(NOT_CONNECTED, retryable = false)
         try {
             val item = try {
-                uploadOnce(graph, localFile)
+                uploadOnce(graph, localFile, stillWanted)
             } catch (e: SessionGone) {
                 // Microsoft's advice for a lost session: start the upload over, once
                 Log.w(TAG, "Upload session gone, starting over")
                 try {
-                    uploadOnce(graph, localFile)
+                    uploadOnce(graph, localFile, stillWanted)
                 } catch (again: SessionGone) {
                     throw GraphException.Http(404, "uploadSessionNotFound")
                 }
@@ -70,6 +74,10 @@ internal class OneDriveBackupService(
             Log.i(TAG, "Backup uploaded (${localFile.length()} bytes)")
             onBackedUp(System.currentTimeMillis())
             UploadResult.Success(item.id, item.name)
+        } catch (e: NoLongerWanted) {
+            // Microsoft makes no file from an unfinished session; it drops the pieces itself
+            Log.i(TAG, "Upload stopped: another cloud or account was chosen")
+            UploadResult.Stopped
         } catch (e: GraphException) {
             Log.w(TAG, "Upload failed: ${e.javaClass.simpleName} ${(e as? GraphException.Http)?.status ?: ""}")
             UploadResult.Error(messageOf(e), retryable = isRetryable(e))
@@ -80,9 +88,10 @@ internal class OneDriveBackupService(
     }
 
     /** One upload session: pieces in order, each a multiple of 320 KiB (Microsoft's rule) but the last. */
-    private suspend fun uploadOnce(graph: MicrosoftGraph, file: File): Uploaded {
+    private suspend fun uploadOnce(graph: MicrosoftGraph, file: File, stillWanted: () -> Boolean): Uploaded {
         val total = file.length()
         if (total == 0L) throw IOException("empty backup file")
+        if (!stillWanted()) throw NoLongerWanted()
         val session = graph.call(
             "POST",
             "$APP_FOLDER:/${pathPart(file.name)}:/createUploadSession",
@@ -95,6 +104,8 @@ internal class OneDriveBackupService(
             var offset = 0L
             while (offset < total) {
                 val length = minOf(pieceSize.toLong(), total - offset).toInt()
+                // Before every piece, the last one too: it is the one that makes the file
+                if (!stillWanted()) throw NoLongerWanted()
                 input.seek(offset)
                 input.readFully(buffer, 0, length)
                 val last = offset + length == total
