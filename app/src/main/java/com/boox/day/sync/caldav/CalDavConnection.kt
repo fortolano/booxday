@@ -88,6 +88,9 @@ internal class CalDavConnection(
     @Volatile
     private var rejected: X509Certificate? = null
 
+    /** Hostnames explicitly requested via [httpsUrl] so custom certificate pinning stays scoped to approved endpoints. */
+    private val approvedHosts = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
     val client: OkHttpClient = baseClient.newBuilder()
         .followRedirects(false)  // DavResource follows them itself, https only
         .followSslRedirects(false)
@@ -103,13 +106,15 @@ internal class CalDavConnection(
             val trust = PinningTrustManager(systemTrustManager(), pinnedCertSha256) { rejected = it }
             val tls = SSLContext.getInstance("TLS").apply { init(null, arrayOf(trust), null) }
             sslSocketFactory(tls.socketFactory, trust)
-            // The user trusted this exact certificate: its fingerprint is the proof, so a home server
-            // reached by its IP address with a certificate made for its name works too
+            // The user trusted this exact certificate: its fingerprint is the proof, scoped to approved server hosts
             val names = okhttp3.internal.tls.OkHostnameVerifier
             hostnameVerifier { host, session ->
                 val leaf = runCatching { session.peerCertificates.firstOrNull() as? X509Certificate }.getOrNull()
+                val hostApproved = synchronized(approvedHosts) {
+                    approvedHosts.isEmpty() || approvedHosts.any { it.equals(host, ignoreCase = true) }
+                }
                 val ok = names.verify(host, session) ||
-                    (pinnedCertSha256 != null && leaf != null && sha256(leaf).equals(pinnedCertSha256, ignoreCase = true))
+                    (hostApproved && pinnedCertSha256 != null && leaf != null && sha256(leaf).equals(pinnedCertSha256, ignoreCase = true))
                 if (!ok && leaf != null) rejected = leaf
                 ok
             }
@@ -121,7 +126,7 @@ internal class CalDavConnection(
         val base = httpsUrl(address)
         val principal = findPrincipal(base) ?: throw Failure.NoCalendars()
         val home = propfind(principal, 0, CalendarHomeSet.NAME).firstNotNullOfOrNull { response ->
-            response[CalendarHomeSet::class.java]?.hrefs?.firstOrNull()?.let { response.href.resolve(it) }
+            response[CalendarHomeSet::class.java]?.hrefs?.firstOrNull()?.let { requireHttpsDerived(response.href.resolve(it)) }
         } ?: throw Failure.NoCalendars()
         val calendars = listCalendarsAt(home)
         val taskLists = listCalendarsAt(home, tasks = true)
@@ -139,7 +144,7 @@ internal class CalDavConnection(
         CalDavSchedulingProperties.register()
         try {
             val inbox = propfind(httpsUrl(principalUrl), 0, ScheduleInboxUrl.NAME).firstNotNullOfOrNull { response ->
-                response[ScheduleInboxUrl::class.java]?.href?.let { response.href.resolve(it) }
+                response[ScheduleInboxUrl::class.java]?.href?.let { requireHttpsDerived(response.href.resolve(it)) }
             } ?: propfind(httpsUrl(calendarHomeUrl), 1, ResourceType.NAME).firstOrNull { response ->
                 response[ResourceType::class.java]?.types.orEmpty().any { it.namespace == XmlUtils.NS_CALDAV && it.name == "schedule-inbox" }
             }?.href
@@ -287,30 +292,31 @@ internal class CalDavConnection(
         val url = httpsUrl(calendarUrl)
         val files = mutableListOf<RemoteEventFile>()
         val gone = mutableSetOf<String>()
-        val accounted = mutableSetOf<String>()
         var complete = true
         for (batch in hrefs.chunked(MULTIGET_BATCH)) {
-            val resolved = batch.mapNotNull { href -> url.resolve(href)?.let { href to it } }
+            val resolved = batch.mapNotNull { href -> url.resolve(href)?.takeIf { it.isHttps }?.let { href to it } }
             if (resolved.size != batch.size) complete = false
             val expectedPaths = resolved.map { it.second.encodedPath }.toSet()
+            val chunkAccounted = mutableSetOf<String>()
             DavCalendar(client, url).multiget(resolved.map { it.second }) { response, _ ->
                 val path = response.href.encodedPath
+                if (path !in expectedPaths) return@multiget
                 val ics = response[CalendarData::class.java]?.iCalendar
                 when {
                     response.isSuccess() && ics != null -> {
                         files += RemoteEventFile(path, response[GetETag::class.java]?.eTag, ics)
-                        accounted += path
+                        chunkAccounted += path
                     }
                     isAuthoritativeMissing(response) -> {
                         gone += path
-                        accounted += path
+                        chunkAccounted += path
                     }
                     else -> {
                         complete = false
                     }
                 }
             }
-            if (!expectedPaths.all { it in accounted }) complete = false
+            if (!expectedPaths.all { it in chunkAccounted }) complete = false
         }
         DownloadBatch(files = files, gone = gone, complete = complete)
     }
@@ -327,7 +333,7 @@ internal class CalDavConnection(
         for (start in listOfNotNull(wellKnown, base).distinct()) {
             val found = try {
                 propfind(start, 0, CurrentUserPrincipal.NAME).firstNotNullOfOrNull { response ->
-                    response[CurrentUserPrincipal::class.java]?.href?.let { response.href.resolve(it) }
+                    response[CurrentUserPrincipal::class.java]?.href?.let { requireHttpsDerived(response.href.resolve(it)) }
                 }
             } catch (e: HttpException) {
                 if (e.code == 401) throw Failure.WrongPassword()
@@ -377,6 +383,15 @@ internal class CalDavConnection(
         val withScheme = if ("://" in trimmed) trimmed else "https://$trimmed"
         val url = withScheme.toHttpUrlOrNull() ?: throw Failure.BadAddress()
         if (!url.isHttps) throw Failure.NotHttps()
+        approvedHosts.add(url.host)
+        return url
+    }
+
+    /** Ensures a server-returned discovery URL stays HTTPS and registers its host once validated. */
+    private fun requireHttpsDerived(resolved: HttpUrl?): HttpUrl? {
+        val url = resolved ?: return null
+        if (!url.isHttps) throw Failure.NotHttps()
+        approvedHosts.add(url.host)
         return url
     }
 

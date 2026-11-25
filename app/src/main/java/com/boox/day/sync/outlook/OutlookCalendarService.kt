@@ -97,38 +97,43 @@ class OutlookCalendarService(
      * @return Result containing list of ProviderCalendar, or failure
      */
     suspend fun fetchCalendars(accessToken: String): Result<List<ProviderCalendar>> = withContext(Dispatchers.IO) {
-        val url = "$GRAPH_BASE_URL/me/calendars"
+        val calendars = mutableListOf<ProviderCalendar>()
+        var nextPageUrl: String? = "$GRAPH_BASE_URL/me/calendars?\$top=200"
 
         try {
-            val response = executeRequest(accessToken, url)
-            val jsonResponse = gson.fromJson(response, JsonObject::class.java)
-            val values = jsonResponse.getAsJsonArray("value")
+            while (nextPageUrl != null) {
+                val response = executeRequest(accessToken, nextPageUrl)
+                val jsonResponse = gson.fromJson(response, JsonObject::class.java)
+                val values = jsonResponse?.getAsJsonArray("value")
+                    ?: throw IllegalStateException("Outlook calendar list response missing 'value' array")
 
-            val calendars = mutableListOf<ProviderCalendar>()
-            for (element in values) {
-                val calObj = element.asJsonObject
-                val id = calObj.get("id")?.asString ?: continue
-                val name = calObj.get("name")?.asString ?: "Unknown"
-                val color = calObj.get("hexColor")?.asString
-                val isDefault = calObj.get("isDefaultCalendar")?.asBoolean ?: false
-                val canEdit = calObj.get("canEdit")?.asBoolean ?: true
+                for (element in values) {
+                    val calObj = element.asJsonObject
+                    val id = calObj.get("id")?.asString
+                        ?: throw IllegalStateException("Outlook calendar entry missing id")
+                    val name = calObj.get("name")?.asString ?: "Unknown"
+                    val color = calObj.get("hexColor")?.asString
+                    val isDefault = calObj.get("isDefaultCalendar")?.asBoolean ?: false
+                    val canEdit = calObj.get("canEdit")?.asBoolean ?: true
 
-                calendars.add(
-                    ProviderCalendar.fromOutlookCalendar(
-                        id = id,
-                        name = name,
-                        isDefaultCalendar = isDefault,
-                        canEdit = canEdit,
-                        color = color
+                    calendars.add(
+                        ProviderCalendar.fromOutlookCalendar(
+                            id = id,
+                            name = name,
+                            isDefaultCalendar = isDefault,
+                            canEdit = canEdit,
+                            color = color
+                        )
                     )
-                )
+                }
+                nextPageUrl = jsonResponse.get("@odata.nextLink")?.takeIf { !it.isJsonNull }?.asString
             }
 
             Log.d(TAG, "Fetched ${calendars.size} calendars")
             Result.success(calendars)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching calendars", e)
+            Log.e(TAG, "Error fetching calendars: ${e.javaClass.simpleName}", e)
             Result.failure(e)
         }
     }
@@ -151,12 +156,16 @@ class OutlookCalendarService(
         startDate: LocalDate,
         endDate: LocalDate
     ): Result<List<ProviderEvent>> = withContext(Dispatchers.IO) {
-        // Convert dates to datetime strings for Graph API
-        val startDateTime = startDate.atStartOfDay()
-        val endDateTime = endDate.plusDays(1).atStartOfDay() // End of end date
-
-        val startStr = startDateTime.format(DATE_TIME_FORMATTER)
-        val endStr = endDateTime.format(DATE_TIME_FORMATTER)
+        // Compute offset-aware range boundaries in the local zone separately (handles DST transitions)
+        val zone = ZoneId.systemDefault()
+        val startStr = java.net.URLEncoder.encode(
+            startDate.atStartOfDay(zone).toOffsetDateTime().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+            "UTF-8"
+        )
+        val endStr = java.net.URLEncoder.encode(
+            endDate.plusDays(1).atStartOfDay(zone).toOffsetDateTime().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+            "UTF-8"
+        )
 
         val allEvents = mutableListOf<ProviderEvent>()
         val failures = mutableListOf<CalendarFetchFailure>()
@@ -224,18 +233,18 @@ class OutlookCalendarService(
         while (nextPageUrl != null) {
             val response = executeRequest(accessToken, nextPageUrl)
             val jsonResponse = gson.fromJson(response, JsonObject::class.java)
-            val values = jsonResponse.getAsJsonArray("value") ?: break
+            val values = jsonResponse?.getAsJsonArray("value")
+                ?: throw IllegalStateException("Outlook calendarView response missing 'value' array")
 
             for (element in values) {
                 val eventObj = element.asJsonObject
                 val event = parseEvent(eventObj, calendarId)
-                if (event != null) {
-                    events.add(event)
-                }
+                    ?: throw IllegalStateException("Malformed Outlook event in calendar $calendarId")
+                events.add(event)
             }
 
             // Check for next page
-            nextPageUrl = jsonResponse.get("@odata.nextLink")?.asString
+            nextPageUrl = jsonResponse.get("@odata.nextLink")?.takeIf { !it.isJsonNull }?.asString
         }
 
         return events
@@ -250,18 +259,18 @@ class OutlookCalendarService(
             val subject = eventObj.get("subject")?.asString ?: ""
             val isAllDay = eventObj.get("isAllDay")?.asBoolean ?: false
 
-            // Parse start time
+            // Parse start time (unparseable timestamps must fail the calendar fetch so cached events are preserved)
             val startObj = eventObj.getAsJsonObject("start")
             val startDateTimeStr = startObj?.get("dateTime")?.asString ?: return null
             val startTimeZone = startObj.get("timeZone")?.asString ?: "UTC"
-            val startTime = parseGraphDateTime(startDateTimeStr, startTimeZone)
+            val startTime = parseGraphDateTime(startDateTimeStr, startTimeZone) ?: return null
 
             // Parse end time
             val endObj = eventObj.getAsJsonObject("end")
             val endDateTimeStr = endObj?.get("dateTime")?.asString
             val endTimeZone = endObj?.get("timeZone")?.asString ?: "UTC"
             val endTime = if (endDateTimeStr != null) {
-                parseGraphDateTime(endDateTimeStr, endTimeZone)
+                parseGraphDateTime(endDateTimeStr, endTimeZone) ?: return null
             } else null
 
             // Parse location
@@ -620,26 +629,28 @@ class OutlookCalendarService(
      * Graph API returns datetime in format: "2024-01-15T10:00:00.0000000"
      * with a separate timeZone field indicating the timezone.
      */
-    private fun parseGraphDateTime(dateTimeStr: String, timeZoneStr: String): Long {
-        try {
+    /**
+     * Parse Graph API datetime string to epoch milliseconds, or null when unparseable.
+     * Never substitutes System.currentTimeMillis() on parse failure (M5(3)).
+     */
+    internal fun parseGraphDateTime(dateTimeStr: String, timeZoneStr: String): Long? {
+        return try {
             // Remove microseconds if present (Graph API sometimes returns .0000000)
             val cleanedDateTimeStr = dateTimeStr.split(".")[0]
-
             val localDateTime = LocalDateTime.parse(cleanedDateTimeStr, DATE_TIME_FORMATTER)
-
-            val zoneId = try {
-                ZoneId.of(timeZoneStr)
-            } catch (e: Exception) {
-                // Fallback to UTC if timezone is unrecognized
-                ZoneId.of("UTC")
-            }
-
-            return localDateTime.atZone(zoneId).toInstant().toEpochMilli()
-
+            val zoneId = resolveGraphZoneId(timeZoneStr) ?: return null
+            localDateTime.atZone(zoneId).toInstant().toEpochMilli()
         } catch (e: Exception) {
-            Log.e(TAG, "Error parsing datetime: $dateTimeStr ($timeZoneStr)", e)
-            return System.currentTimeMillis()
+            Log.e(TAG, "Error parsing datetime (${e.javaClass.simpleName})")
+            null
         }
+    }
+
+    private fun resolveGraphZoneId(timeZoneStr: String): ZoneId? {
+        if (timeZoneStr.equals("UTC", ignoreCase = true) || timeZoneStr.equals("GMT", ignoreCase = true)) {
+            return ZoneId.of("UTC")
+        }
+        return runCatching { ZoneId.of(timeZoneStr) }.getOrNull()
     }
 }
 

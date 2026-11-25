@@ -158,8 +158,35 @@ internal class TaskSyncSender(
 
         // The service compares the parent with the tablet's last sent one (owner decision 24)
         val asLinked = if (leavingParent != null) current?.copy(syncedParentRemoteId = leavingParent) else current
+        // H15: persist a deterministic creation op UID before sending a new task so an interrupted response doesn't duplicate
+        val pendingKey = pendingCreateKey(task.id)
+        val existingOpId = if (asLinked == null) prefs.getString(pendingKey, null) else null
+        val createOpId = if (asLinked == null) {
+            existingOpId ?: java.util.UUID.randomUUID().toString().also { opId ->
+                prefs.edit().putString(pendingKey, opId).commit()
+            }
+        } else null
+        val createRetry = existingOpId != null
+        val knownRemoteIds = if (createRetry) {
+            sync.getLinksInList(service.provider, accountEmail, serverUrl, listId).mapTo(HashSet()) { it.remoteId }
+        } else emptySet()
+
         val remote = try {
-            service.upsert(OutgoingTask(task.id, listId, title, task.isCompleted, dueDay, parentRemoteId, extras), asLinked)
+            service.upsert(
+                OutgoingTask(
+                    taskId = task.id,
+                    listId = listId,
+                    title = title,
+                    completed = task.isCompleted,
+                    dueDay = dueDay,
+                    parentRemoteId = parentRemoteId,
+                    extras = extras,
+                    createOpId = createOpId,
+                    createRetry = createRetry,
+                    knownRemoteIds = knownRemoteIds
+                ),
+                asLinked
+            )
         } catch (e: TaskSyncServiceException.RemoteChanged) {
             // Changed in the service since the last sync: merged in, then sent once more
             if (retried || merger.merge(e.remote) == TaskSyncMerger.Result.WAITS) throw e
@@ -200,10 +227,16 @@ internal class TaskSyncSender(
                 )
             }
         }
+        if (createOpId != null) {
+            prefs.edit().remove(pendingKey).apply()
+        }
         // Changed while it was being sent: keep the entry, the newer state goes next
         val after = tasks.getById(task.id) ?: return false
         return TaskSyncRules.contentHash(after, hashParentId, service.carriesExtras) != sentHash
     }
+
+    private fun pendingCreateKey(taskId: String): String =
+        "pending_create_${service.provider}_${accountEmail.hashCode()}_${serverUrl.hashCode()}_$taskId"
 
     companion object {
         private const val TAG = "TaskSyncSender"

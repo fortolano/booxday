@@ -92,7 +92,13 @@ internal data class OutgoingTask(
     val dueDay: String?,
     val parentRemoteId: String?,
     /** Null for a service that doesn't carry them. */
-    val extras: TaskExtras? = null
+    val extras: TaskExtras? = null,
+    /** Deterministic creation UID persisted before send so interrupted creates don't duplicate on retry (H15). */
+    val createOpId: String? = null,
+    /** True when a prior create attempt started without committing its local sync link. */
+    val createRetry: Boolean = false,
+    /** Already-linked remote IDs in this list, used to avoid adopting an unrelated identical task on Google retry. */
+    val knownRemoteIds: Set<String> = emptySet()
 )
 
 internal data class RemoteTask(

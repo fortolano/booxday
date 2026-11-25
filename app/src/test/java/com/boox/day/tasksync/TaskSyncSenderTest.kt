@@ -15,6 +15,8 @@ import com.boox.day.data.db.TaskSyncSchema
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -365,6 +367,26 @@ class TaskSyncSenderTest {
         assertNull(db.taskSyncDao().getLink("t-child")!!.remoteParentId)
     }
 
+    @Test
+    fun failedCreatePersistsDeterministicOpIdAndMarksRetryOnNextAttempt(): Unit = runBlocking {
+        insert("t-1", row = 0, typed = "Call mom")
+        db.taskSyncDao().queueUpsert("t-1", now)
+        service.failNext = IllegalStateException("dropped response")
+
+        sender.sendDue()
+        assertEquals(1, service.outgoingLog.size)
+        val firstOpId = service.outgoingLog[0].createOpId
+        assertNotNull("first create must persist opId", firstOpId)
+        assertFalse("first attempt must not be marked retry", service.outgoingLog[0].createRetry)
+
+        now += 120_000L
+        sender.sendDue()
+        assertEquals(2, service.outgoingLog.size)
+        assertEquals("retry must reuse exact opId", firstOpId, service.outgoingLog[1].createOpId)
+        assertTrue("second attempt must be marked createRetry", service.outgoingLog[1].createRetry)
+        assertNotNull("link saved on success", db.taskSyncDao().getLink("t-1"))
+    }
+
     private fun newSender() = TaskSyncSender(db, service, merger, EMAIL, prefs = prefs, clock = { now })
 
     private val tablet by lazy { FakeTablet() }
@@ -434,6 +456,7 @@ class TaskSyncSenderTest {
     private class FakeService : TaskSyncService {
         override val provider = TaskSyncProvider.GOOGLE_TASKS
         val calls = mutableListOf<String>()
+        val outgoingLog = mutableListOf<OutgoingTask>()
         /** Parents sent: (copy, parent) when new ("new") or when the parent changed. */
         val parentsSent = mutableListOf<Pair<String, String?>>()
         var failNext: Exception? = null
@@ -441,6 +464,7 @@ class TaskSyncSenderTest {
         private var next = 0
 
         override suspend fun upsert(task: OutgoingTask, link: TaskSyncLink?): RemoteTask {
+            outgoingLog += task
             val due = task.dueDay?.let { "due $it" } ?: "undated"
             calls += if (link == null) "create ${task.listId} ${task.title} $due" else
                 "update ${link.remoteId} ${task.title}" + if (link.remoteUndated || task.dueDay != DAY) " $due" else ""

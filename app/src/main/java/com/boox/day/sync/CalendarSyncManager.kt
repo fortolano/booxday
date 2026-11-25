@@ -427,8 +427,16 @@ class CalendarSyncManager(
             val service = getCalendarService(credential)
                 ?: return@withContext Result.failure(IllegalStateException("Not signed in"))
 
-            val calendarList = service.calendarList().list().execute()
-            Result.success(calendarList.items?.map { GoogleCalendarInfo.fromCalendarListEntry(it) } ?: emptyList())
+            val allItems = mutableListOf<GoogleCalendarInfo>()
+            var pageToken: String? = null
+            do {
+                val request = service.calendarList().list()
+                if (pageToken != null) request.pageToken = pageToken
+                val calendarList = request.execute()
+                calendarList.items?.forEach { allItems.add(GoogleCalendarInfo.fromCalendarListEntry(it)) }
+                pageToken = calendarList.nextPageToken
+            } while (!pageToken.isNullOrBlank())
+            Result.success(allItems)
         } catch (e: Exception) {
             when (e.toSyncErrorType()) {
                 SyncErrorType.NETWORK -> Log.w(TAG, "Calendar list fetch skipped: no internet connection")

@@ -377,8 +377,12 @@ class MultiAccountSyncManager(
 
             val provider = providerOf(account)
 
-            // Sign out from provider
-            provider.removeAccount(accountId)
+            // Sign out from provider — propagate provider failure before deleting local state
+            val providerResult = provider.removeAccount(accountId)
+            if (providerResult.isFailure) {
+                Log.w(TAG, "Provider removeAccount failed for $accountId: ${providerResult.exceptionOrNull()?.javaClass?.simpleName}")
+                return@withContext providerResult
+            }
 
             // Delete cached events for this account
             eventRepository.removeEventsForAccount(accountId)

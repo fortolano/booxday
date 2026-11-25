@@ -61,6 +61,15 @@ class OutlookCalendarServiceTest {
         )
     }
 
+    @Test
+    fun `parseGraphDateTime returns null instead of now on invalid timestamp or unknown zone`() {
+        val service = newService()
+        assertEquals(null, service.parseGraphDateTime("not-a-timestamp", "UTC"))
+        assertEquals(null, service.parseGraphDateTime("2026-11-24T10:00:00", "Mars/Olympus_Mons"))
+        val ok = service.parseGraphDateTime("2026-11-24T10:00:00.0000000", "UTC")
+        assertTrue("valid UTC timestamp parses cleanly", ok != null && ok > 0L)
+    }
+
     private fun invokePrivate(service: OutlookCalendarService, methodName: String, arg: Any): String {
         val method = OutlookCalendarService::class.java.getDeclaredMethod(methodName, arg::class.java)
         method.isAccessible = true

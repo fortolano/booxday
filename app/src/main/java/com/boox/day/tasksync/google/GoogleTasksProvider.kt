@@ -180,6 +180,11 @@ internal class GoogleTasksProvider(
     }
 
     private fun insert(task: OutgoingTask): RemoteTask {
+        // H15: if retrying a create whose previous network attempt lost its response before link commit,
+        // check the target list for an unlinked copy matching title + dueDay before inserting a duplicate
+        if (task.createRetry) {
+            findUnlinkedMatchInList(task)?.let { return it }
+        }
         val body = Task()
             .setTitle(titleFor(task.title))
             .setStatus(statusFor(task.completed))
@@ -188,6 +193,33 @@ internal class GoogleTasksProvider(
         task.parentRemoteId?.let { request.setParent(it) }
         val created = onParentOrList(task.listId) { request.execute() }
         return remoteTaskOf(task.listId, created)
+    }
+
+    private fun findUnlinkedMatchInList(task: OutgoingTask): RemoteTask? {
+        val expectedTitle = titleFor(task.title)
+        var page: String? = null
+        do {
+            val result = try {
+                tasks.tasks().list(task.listId)
+                    .setShowCompleted(true)
+                    .setShowHidden(true)
+                    .setShowDeleted(false)
+                    .setMaxResults(100)
+                    .apply { if (page != null) pageToken = page }
+                    .execute()
+            } catch (_: Exception) {
+                return null
+            }
+            val match = result.items.orEmpty().firstOrNull { remote ->
+                val remoteId = remote.id ?: return@firstOrNull false
+                if (remoteId in task.knownRemoteIds) return@firstOrNull false
+                val state = stateOf(task.listId, remote)
+                !state.deleted && state.title == expectedTitle && state.dueDay == task.dueDay
+            }
+            if (match != null) return remoteTaskOf(task.listId, match)
+            page = result.nextPageToken
+        } while (page != null)
+        return null
     }
 
     private fun update(task: OutgoingTask, link: TaskSyncLink): RemoteTask {

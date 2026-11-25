@@ -184,12 +184,21 @@ internal class CalDavTasksProvider(
 
     override suspend fun fetch(listId: String, remoteId: String): RemoteTaskState? = call(listId) {
         val href = fileOf(remoteId)
-        val file = download(listId, listOf(href))[href]
-        if (file == null) io { files.deleteTaskFile(accountId, href) }
+        val batch = downloadResult(listId, listOf(href))
+        val file = batch.files[href]
+        if (file == null) {
+            // Only treat as deleted on authoritative 404/410; never wipe cache on incomplete/failed multiget (M5(2))
+            if (href in batch.gone) {
+                io { files.deleteTaskFile(accountId, href) }
+                return@call null
+            }
+            if (!batch.complete) throw CalDavConnection.Failure.Server(500)
+            return@call null
+        }
         val day = dayKeyOf(remoteId)
-        if (day != null) return@call file?.let { f -> CalDavTasks.occurrence(f.ics, zone(), day)?.let { dayState(f, remoteId, it) } }
+        if (day != null) return@call CalDavTasks.occurrence(file.ics, zone(), day)?.let { dayState(file, remoteId, it) }
         // Here a repeating task counts as there: null would read as deleted
-        file?.let { stateOf(it, leaveOutRepeating = false) }
+        stateOf(file, leaveOutRepeating = false)
     }
 
     /** The files, and the days on the tablet of repeating tasks still there (a day removed from its series is caught by [changes]). */
@@ -241,7 +250,7 @@ internal class CalDavTasksProvider(
             priority = task.extras?.priority.orEmpty(), reminderMinute = task.extras?.reminderMinute
         )
         when {
-            link == null -> create(task.listId, fields)
+            link == null -> create(task.listId, fields, task.createOpId)
             dayKeyOf(link.remoteId) != null -> updateDay(link, fields)
             else -> update(link, fields)
         }
@@ -281,11 +290,22 @@ internal class CalDavTasksProvider(
         }
     }
 
-    private suspend fun create(listId: String, fields: CalDavTasks.Fields): RemoteTask {
-        val uid = UUID.randomUUID().toString()
+    private suspend fun create(listId: String, fields: CalDavTasks.Fields, createOpId: String? = null): RemoteTask {
+        val uid = createOpId?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
         val href = listId + "$uid.ics"
         val ics = CalDavTasks.newTask(uid, fields, zone(), now())
-        val etag = connection.putEvent(url(href), ics, ifMatch = null, create = true)
+        val etag = try {
+            connection.putEvent(url(href), ics, ifMatch = null, create = true)
+        } catch (e: CalDavConnection.Failure.Server) {
+            if (e.code == 412 && createOpId != null) {
+                // Retry of an interrupted create: verify existing resource has our exact UID before adopting (H15)
+                val existing = downloadResult(listId, listOf(href)).files[href]
+                if (existing != null && CalDavTasks.read(existing.ics, zone())?.uid == uid) {
+                    return RemoteTask(listId, href, existing.etag)
+                }
+            }
+            throw e
+        }
         val file = saved(listId, href, ics, etag) ?: throw IllegalStateException("The new task isn't on the server")
         return RemoteTask(listId, href, file.etag)
     }
