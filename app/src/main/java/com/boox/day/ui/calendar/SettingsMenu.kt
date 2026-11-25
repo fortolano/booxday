@@ -100,7 +100,7 @@ fun SettingsMenu(
     ) {
         Column(
             Modifier
-                .width(EInkTheme.PopupMenu.width)
+                .width(EInkTheme.PopupMenu.settingsWidth)
                 .background(EInkTheme.PopupMenu.background)
                 .border(EInkTheme.PopupMenu.borderWidth, EInkTheme.PopupMenu.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
                 .padding(EInkTheme.PopupMenu.padding)
