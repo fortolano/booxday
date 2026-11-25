@@ -78,6 +78,12 @@ internal class MicrosoftTodoProvider(
     override val provider: String = TaskSyncProvider.MICROSOFT_TODO
     override val carriesExtras: Boolean = true
 
+    /** A done copy keeps its steps' ids (measured 25 Nov 2026): a step of [replaced] is the same step of [replacement]. */
+    override fun subtaskUnder(replacement: String, subtaskRemoteId: String, replaced: String): String? =
+        if (TodoFields.isStep(subtaskRemoteId) && TodoFields.taskOf(subtaskRemoteId) == replaced) {
+            TodoFields.stepRemoteId(replacement, TodoFields.stepOf(subtaskRemoteId))
+        } else null
+
     override fun keptPriority(priority: String): String = TodoFields.keptPriority(priority)
 
     /** The steps the last [moveToList] copied: old remote id to new one, for [takenAlong]. */
@@ -137,7 +143,9 @@ internal class MicrosoftTodoProvider(
             val task = taskState(listId, item).copy(takesOverRemoteId = takesOver[id])
             out += task
             val steps = stepItems(item) ?: continue  // steps not listed: none taken as deleted
-            out += stepChanges(listId, id, task.completed, steps, linked, stepLinks[id].orEmpty())
+            // A done copy taking over: its steps are the tablet's subtasks from now on, so they come too
+            val finished = task.completed && task.takesOverRemoteId == null
+            out += stepChanges(listId, id, finished, steps, linked, stepLinks[id].orEmpty())
         }
         RemoteChanges(out, round.deltaLink)
     }

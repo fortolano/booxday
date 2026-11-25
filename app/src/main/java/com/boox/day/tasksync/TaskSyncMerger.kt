@@ -66,16 +66,34 @@ internal class TaskSyncMerger(
     /**
      * [remote] replaces the copy [RemoteTaskState.takesOverRemoteId] (a To Do repeating task ticked
      * on the phone, owner decision 82): the task linked to that copy is linked to [remote] instead,
-     * so it stays on its day and gets ticked by the merge; the old id, now the next one, comes in as
-     * a new task. Nothing when that copy has no link, or [remote] already has one (ticked here).
-     * Called by the pull before the round is merged.
+     * so it stays on its day and gets ticked by the merge; its subtasks go with it ([followReplacement]).
+     * The old id, now the next one, comes in as a new task with its subtasks. Nothing when that copy
+     * has no link, or [remote] already has one (ticked here). Called by the pull before the round is merged.
      */
     fun takeOver(remote: RemoteTaskState) {
         val replaced = remote.takesOverRemoteId ?: return
         if (remote.deleted || sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, remote.remoteId) != null) return
         val link = sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, replaced)?.takeUnless { it.keptOnTablet } ?: return
-        sync.moveLinkToList(link.taskId, remote.listId, remote.remoteId)
+        db.runInTransaction {
+            sync.moveLinkToList(link.taskId, remote.listId, remote.remoteId)
+            followReplacement(remote.listId, replaced, remote.remoteId)
+        }
         Log.i(TAG, "A repeating task ticked in the service: its done copy keeps the tablet's task")
+    }
+
+    /**
+     * The copy [replaced] is now [replacement] (in the same list): its subtasks' links follow where the
+     * service keeps them under it ([TaskSyncService.subtaskUnder]: To Do's done copy keeps the step ids),
+     * so subtasks ticked on the done day stay ticked. Run inside the caller's transaction.
+     */
+    fun followReplacement(listId: String, replaced: String, replacement: String) {
+        val service = service ?: return
+        for (child in sync.getChildLinks(provider, accountEmail, serverUrl, listId, replaced)) {
+            val moved = service.subtaskUnder(replacement, child.remoteId, replaced) ?: continue
+            if (sync.getLinkByRemote(provider, accountEmail, serverUrl, listId, moved) != null) continue
+            sync.moveLinkToList(child.taskId, listId, moved)
+            sync.setMovedParent(child.taskId, replaced, replacement)
+        }
     }
 
     /** One task as the service has it now: from a pull, or a send that found it changed. */

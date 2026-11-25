@@ -228,6 +228,10 @@ internal class TaskSyncSender(
                     dueDay ?: task.dayDate, parentRemoteId, serviceParent, sentHash, staysUndated,
                     keptPriority, extras?.reminderMinute, now
                 )
+                // A done copy in its place: the subtasks follow it, so their ticks stay on this day
+                if (current != null && current.remoteId != remote.remoteId && current.listId == remote.listId) {
+                    merger.followReplacement(remote.listId, current.remoteId, remote.remoteId)
+                }
             }
         }
         if (createOpId != null) {

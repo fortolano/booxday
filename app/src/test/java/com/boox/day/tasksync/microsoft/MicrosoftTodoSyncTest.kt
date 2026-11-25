@@ -260,6 +260,56 @@ class MicrosoftTodoSyncTest {
     }
 
     @Test
+    fun aRepeatingTaskWithStepsTickedHereKeepsItsTicksOnItsDayAndTheNextOnesStepsCome() = runBlocking {
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        val kitchen = todo.addStep(TASKS, original, "Kitchen")
+        val balcony = todo.addStep(TASKS, original, "Balcony")
+        run()
+        val (plants, kitchenRow, balconyRow) = rowsOn(DAY, "Water plants", "Kitchen", "Balcony")
+
+        repo.setCompleted(kitchenRow, true)
+        repo.setCompleted(plants, true)
+        run()
+        val done = todo.tasksIn(TASKS).single { it.text("status") == "completed" }.text("id")
+        assertEquals(done, sync.getLink(plants)?.remoteId)
+        assertEquals("the subtasks follow the done copy, same step ids", listOf(kitchen, balcony).map { TodoFields.stepRemoteId(done, it) },
+            listOf(kitchenRow, balconyRow).map { sync.getLink(it)?.remoteId })
+        assertEquals("the done copy keeps the tick", listOf(true, false), todo.stepsOf(done).map { it.text("isChecked").toBoolean() })
+        val writes = todo.writes.size
+
+        run()
+        assertEquals("ticks stay on the done day", listOf(true, true, false), listOf(plants, kitchenRow, balconyRow).map { task(it).isCompleted })
+        val next = rowsOn(NEXT_DAY, "Water plants", "Kitchen", "Balcony").toList()
+        assertTrue("the next one and its steps come unticked", next.none { task(it).isCompleted })
+        assertEquals(listOf(original) + listOf(kitchen, balcony).map { TodoFields.stepRemoteId(original, it) }, next.map { sync.getLink(it)?.remoteId })
+        assertEquals("nothing sent twice", writes, todo.writes.size)
+        assertTrue(todo.writes.none { it.startsWith("DELETE") })
+    }
+
+    @Test
+    fun aRepeatingTaskWithStepsTickedOnThePhoneKeepsItsTicksHereAndTheNextOnesStepsCome() = runBlocking {
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        val kitchen = todo.addStep(TASKS, original, "Kitchen")
+        val balcony = todo.addStep(TASKS, original, "Balcony")
+        run()
+        val (plants, kitchenRow, balconyRow) = rowsOn(DAY, "Water plants", "Kitchen", "Balcony")
+
+        todo.tickStep(TASKS, original, kitchen, ticked = true)
+        todo.patchTask(TASKS, original, mapOf("status" to JsonPrimitive("completed")))
+        run()
+
+        val done = todo.tasksIn(TASKS).single { it.text("status") == "completed" }.text("id")
+        assertEquals(listOf(done) + listOf(kitchen, balcony).map { TodoFields.stepRemoteId(done, it) },
+            listOf(plants, kitchenRow, balconyRow).map { sync.getLink(it)?.remoteId })
+        assertEquals("ticked here as on the phone, on its day", listOf(true, true, false), listOf(plants, kitchenRow, balconyRow).map { task(it).isCompleted })
+        val next = rowsOn(NEXT_DAY, "Water plants", "Kitchen", "Balcony").toList()
+        assertTrue("the next one's steps were reset: unticked here", next.none { task(it).isCompleted })
+        assertEquals(listOf(original) + listOf(kitchen, balcony).map { TodoFields.stepRemoteId(original, it) }, next.map { sync.getLink(it)?.remoteId })
+        run()
+        assertTrue("nothing written back: ${todo.writes}", todo.writes.isEmpty())
+    }
+
+    @Test
     fun anOldDoneCopyInAFullRoundNeverTakesTheTabletsTask() = runBlocking {
         // Ticked on the phone before the tablet ever synced: an old done copy (25 Nov), the open one on 26 Nov
         val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
@@ -290,6 +340,13 @@ class MicrosoftTodoSyncTest {
     }
 
     private fun task(id: String): Task = tasks.getById(id)!!
+
+    /** The rows on [day] with these words, in this order. */
+    private fun rowsOn(day: String, vararg words: String): Triple<String, String, String> {
+        val rows = tasks.getTasksForDay(day)
+        val ids = words.map { w -> rows.single { it.typedText == w }.id }
+        return Triple(ids[0], ids[1], ids[2])
+    }
 
     private fun repeating(title: String, dueUtc: String): JsonObject = buildJsonObject {
         put("title", title)

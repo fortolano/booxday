@@ -70,6 +70,13 @@ internal interface TaskSyncService {
      * or null. The same id elsewhere; To Do gives a moved task's steps new ids.
      */
     suspend fun takenAlong(toListId: String, remoteId: String): RemoteTaskState? = fetch(toListId, remoteId)
+
+    /**
+     * The id the subtask [subtaskRemoteId] of [replaced] has under [replacement], when the service
+     * made [replacement] in its place with the same subtasks (To Do: a ticked repeating task's done
+     * copy keeps its steps' ids, measured 25 Nov 2026); null: the subtask doesn't follow.
+     */
+    fun subtaskUnder(replacement: String, subtaskRemoteId: String, replaced: String): String? = null
 }
 
 internal data class RemoteList(val listId: String, val title: String)
