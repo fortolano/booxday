@@ -10,15 +10,26 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Icon
+import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -30,9 +41,18 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import com.boox.day.R
 import com.boox.day.editor.DrawCanvas
@@ -192,152 +212,257 @@ fun SelectedBitmap(
             ResizeHandleBox(ResizeHandle.BOTTOM_RIGHT, boxWidthPx, boxHeightPx)
         }
 
-        // Mini toolbar for selection (15% larger icons for better touch targets)
-        val miniButtonSize = 35  // Increased from 30 (15% larger)
-        val miniIconSize = 28.dp  // Increased from 24dp (15% larger)
-        // Base buttons: Delete, Recognize, Cut, Copy, Duplicate (resize via corner handles)
-        // +1 if Convert to Tasks callback is provided
-        val buttonCount = 5 + (if (onConvertSelectionToTasks != null) 1 else 0) + (if (onScheduleSelection != null) 1 else 0)
-        val toolbarPadding = 3
+        // Selection bar (Phase 4 / Decision D3 P1 Option B & P7):
+        // 44dp edit icon buttons (Cut, Copy, Duplicate, separated Delete) + labelled 44dp AI chips
+        // ("Read", "Tasks", "Schedule"), with contentDescription on all 7 actions and measured bounds clamping.
+        var barSizePx by remember { mutableStateOf(IntSize.Zero) }
 
-        // If we can calculate offset of buttons show selection handling tools
         selectionStartOffset.let { startOffset ->
             selectionDisplaceOffset.let { displaceOffset ->
                 val baseOffset = startOffset + displaceOffset
-
-                // Approximate toolbar width in pixels (buttons + padding)
-                val toolbarWidthPx = with(density) {
-                    (buttonCount * miniButtonSize + toolbarPadding * 2).dp.toPx().toInt()
-                }
                 val viewWidthPx = controlTower.page.viewWidth
+                val viewHeightPx = controlTower.page.viewHeight
                 val horizontalMarginPx = with(density) { 8.dp.toPx().toInt() }
+                val verticalMarginPx = with(density) { 8.dp.toPx().toInt() }
+                val availableWidthDp = with(density) { (viewWidthPx - horizontalMarginPx * 2).coerceAtLeast(240).toDp() }
+
+                val fallbackWidthPx = with(density) { 460.dp.toPx().toInt() }
+                val fallbackHeightPx = with(density) { 52.dp.toPx().toInt() }
+                val toolbarWidthPx = if (barSizePx.width > 0) barSizePx.width else fallbackWidthPx
+                val toolbarHeightPx = if (barSizePx.height > 0) barSizePx.height else fallbackHeightPx
 
                 val minX = horizontalMarginPx
                 val maxX = (viewWidthPx - toolbarWidthPx - horizontalMarginPx).coerceAtLeast(minX)
                 val clampedX = baseOffset.x.coerceIn(minX, maxX)
 
-                // Decide whether to place toolbar above or below the selection box
                 val boxHeightPx = selectionRect.height()
-                val toolbarHeightPx = with(density) { miniButtonSize.dp.toPx() }
-                val viewHeightPx = controlTower.page.viewHeight
-                val verticalMarginPx = with(density) { 8.dp.toPx().toInt() }
-
                 val spaceAbove = baseOffset.y
                 val spaceBelow = viewHeightPx - (baseOffset.y + boxHeightPx.toInt())
 
-                val canPlaceAbove = spaceAbove >= toolbarHeightPx.toInt() + verticalMarginPx
-                val canPlaceBelow = spaceBelow >= toolbarHeightPx.toInt() + verticalMarginPx
+                val canPlaceAbove = spaceAbove >= toolbarHeightPx + verticalMarginPx
+                val canPlaceBelow = spaceBelow >= toolbarHeightPx + verticalMarginPx
                 val placeBelow = !canPlaceAbove && canPlaceBelow
 
-                val offsetY = if (placeBelow) {
+                val offsetY = (if (placeBelow) {
                     baseOffset.y + boxHeightPx.toInt() + verticalMarginPx
                 } else {
-                    baseOffset.y - (toolbarHeightPx.toInt() + verticalMarginPx)
-                }
+                    baseOffset.y - (toolbarHeightPx + verticalMarginPx)
+                }).coerceIn(verticalMarginPx, (viewHeightPx - toolbarHeightPx - verticalMarginPx).coerceAtLeast(verticalMarginPx))
 
                 val offset = IntOffset(x = clampedX, y = offsetY)
-                // Overlay buttons near the selection box
-                Row(
-                    modifier = Modifier
-                        .offset { offset }
-                        .background(EInkTheme.TextBoxOverlay.miniToolbarBackground)
-                        .border(EInkTheme.TextBoxOverlay.miniToolbarBorderWidth, EInkTheme.TextBoxOverlay.miniToolbarBorderColor)
-                        .padding(toolbarPadding.dp)
-                        .height(miniButtonSize.dp)
-                ) {
-                    ToolbarButton(
-                        iconId = R.drawable.delete,
-                        isSelected = false,
-                        onSelect = {
-                            controlTower.deleteSelection()
-                        },
-                        modifier = Modifier.size(miniButtonSize.dp),
-                        iconSize = miniIconSize
-                    )
-                    ToolbarButton(
-                        iconId = R.drawable.ai_rectangle,
-                        contentDescription = "AI Recognize",
-                        isSelected = false,
-                        onSelect = {
-                            DrawCanvas.openHandwritingRecognitionSignal.tryEmit(Unit)
-                        },
-                        modifier = Modifier.size(miniButtonSize.dp),
-                        iconSize = miniIconSize
-                    )
-                    ToolbarButton(
-                        vectorIcon = FeatherIcons.Scissors,
-                        isSelected = false,
-                        onSelect = { controlTower.cutSelectionToClipboard(context) },
-                        modifier = Modifier.size(miniButtonSize.dp),
-                        iconSize = miniIconSize
-                    )
-                    ToolbarButton(
-                        vectorIcon = FeatherIcons.Copy,
-                        contentDescription = "Copy",
-                        isSelected = false,
-                        onSelect = { controlTower.copySelectionToClipboard(context) },
-                        modifier = Modifier.size(miniButtonSize.dp),
-                        iconSize = miniIconSize
-                    )
-                    ToolbarButton(
-                        iconId = R.drawable.stack_48px,
-                        contentDescription = "Duplicate",
-                        isSelected = false,
-                        onSelect = { controlTower.duplicateSelection() },
-                        modifier = Modifier.size(miniButtonSize.dp),
-                        iconSize = miniIconSize
-                    )
-                    // Convert Selection to Tasks button
-                    if (onConvertSelectionToTasks != null) {
-                        ToolbarButton(
-                            iconId = R.drawable.ai_memo_to_task_lasso,
-                            contentDescription = "Convert to Tasks",
-                            isSelected = false,
-                            onSelect = {
-                                // Pass selected strokes for Digital Ink recognition
-                                selectionState.selectedStrokes?.let { strokes ->
-                                    if (strokes.isNotEmpty()) {
-                                        // Clear selection BEFORE calling callback
-                                        // Dialog will open - no need to keep lasso active behind it
-                                        // 1. Apply displacement to put strokes back on canvas
-                                        // 2. Reset selection state to clear UI
-                                        // 3. Enable drawing mode
-                                        // The 'strokes' reference is already captured, safe to reset
-                                        controlTower.applySelectionDisplace()
-                                        selectionState.reset()
-                                        controlTower.setIsDrawing(true)
-
-                                        onConvertSelectionToTasks(strokes)
-                                    }
-                                }
-                            },
-                            modifier = Modifier.size(miniButtonSize.dp),
-                            iconSize = miniIconSize
-                        )
-                    }
-                    // Write It, Schedule It: reset as Convert to Tasks does, the strokes are already captured
-                    if (onScheduleSelection != null) {
-                        ToolbarButton(
-                            iconId = R.drawable.ai_schedule_lasso,
-                            contentDescription = "Add to Calendar",
-                            isSelected = false,
-                            onSelect = {
-                                // An image or text box alone has no strokes: the handler says so, and the selection stays
-                                val strokes = selectionState.selectedStrokes.orEmpty()
+                LassoSelectionBar(
+                    onCut = { controlTower.cutSelectionToClipboard(context) },
+                    onCopy = { controlTower.copySelectionToClipboard(context) },
+                    onDuplicate = { controlTower.duplicateSelection() },
+                    onDelete = { controlTower.deleteSelection() },
+                    onRead = { DrawCanvas.openHandwritingRecognitionSignal.tryEmit(Unit) },
+                    onConvertToTasks = onConvertSelectionToTasks?.let { handler ->
+                        {
+                            selectionState.selectedStrokes?.let { strokes ->
                                 if (strokes.isNotEmpty()) {
                                     controlTower.applySelectionDisplace()
                                     selectionState.reset()
                                     controlTower.setIsDrawing(true)
+                                    handler(strokes)
                                 }
-                                onScheduleSelection(strokes)
-                            },
-                            modifier = Modifier.size(miniButtonSize.dp),
-                            iconSize = miniIconSize
-                        )
-                    }
-                }
+                            }
+                        }
+                    },
+                    onSchedule = onScheduleSelection?.let { handler ->
+                        {
+                            val strokes = selectionState.selectedStrokes.orEmpty()
+                            if (strokes.isNotEmpty()) {
+                                controlTower.applySelectionDisplace()
+                                selectionState.reset()
+                                controlTower.setIsDrawing(true)
+                            }
+                            handler(strokes)
+                        }
+                    },
+                    compactTwoRow = availableWidthDp < 470.dp || (availableWidthDp < 540.dp && density.fontScale > 1.1f),
+                    modifier = Modifier
+                        .offset { offset }
+                        .onSizeChanged { barSizePx = it }
+                )
             }
         }
 
+    }
+}
+
+/**
+ * Floating lasso selection toolbar (Phase 4 / Decision D3 P1 Option B):
+ * - Left: 44dp icon buttons for Cut, Copy, Duplicate, separated from Delete by a vertical rule.
+ * - Right (or second row on ultra-narrow / large-text layouts): 44dp labelled chips ("Read",
+ *   "Tasks", "Schedule") so the three AI actions are self-teaching without hover on E-Ink.
+ */
+@Composable
+internal fun LassoSelectionBar(
+    onCut: () -> Unit,
+    onCopy: () -> Unit,
+    onDuplicate: () -> Unit,
+    onDelete: () -> Unit,
+    onRead: () -> Unit,
+    onConvertToTasks: (() -> Unit)?,
+    onSchedule: (() -> Unit)?,
+    compactTwoRow: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val buttonSize = EInkTheme.Global.touchTarget  // 44.dp
+    val iconSize = 24.dp
+    val shape = RoundedCornerShape(EInkTheme.Global.cornerRadius)
+
+    val editActions: @Composable () -> Unit = {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            ToolbarButton(
+                vectorIcon = FeatherIcons.Scissors,
+                contentDescription = "Cut",
+                isSelected = false,
+                onSelect = onCut,
+                modifier = Modifier.size(buttonSize),
+                iconSize = iconSize
+            )
+            ToolbarButton(
+                vectorIcon = FeatherIcons.Copy,
+                contentDescription = "Copy",
+                isSelected = false,
+                onSelect = onCopy,
+                modifier = Modifier.size(buttonSize),
+                iconSize = iconSize
+            )
+            ToolbarButton(
+                iconId = R.drawable.stack_48px,
+                contentDescription = "Duplicate",
+                isSelected = false,
+                onSelect = onDuplicate,
+                modifier = Modifier.size(buttonSize),
+                iconSize = iconSize
+            )
+            // Separate destructive Delete from Cut/Copy/Duplicate and from AI actions
+            LassoBarDivider()
+            ToolbarButton(
+                iconId = R.drawable.delete,
+                contentDescription = "Delete",
+                isSelected = false,
+                onSelect = onDelete,
+                modifier = Modifier.size(buttonSize),
+                iconSize = iconSize
+            )
+        }
+    }
+
+    val aiActions: @Composable () -> Unit = {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            LassoAiChip(
+                iconId = R.drawable.ai_rectangle,
+                label = "Read",
+                contentDescription = "Read handwriting with AI",
+                onClick = onRead
+            )
+            if (onConvertToTasks != null) {
+                LassoAiChip(
+                    iconId = R.drawable.ai_memo_to_task_lasso,
+                    label = "Tasks",
+                    contentDescription = "Convert selection to tasks",
+                    onClick = onConvertToTasks
+                )
+            }
+            if (onSchedule != null) {
+                LassoAiChip(
+                    iconId = R.drawable.ai_schedule_lasso,
+                    label = "Schedule",
+                    contentDescription = "Add selection to calendar",
+                    onClick = onSchedule
+                )
+            }
+        }
+    }
+
+    if (compactTwoRow) {
+        Column(
+            modifier = modifier
+                .background(EInkTheme.TextBoxOverlay.miniToolbarBackground, shape)
+                .border(EInkTheme.Global.borderWidth, EInkTheme.TextBoxOverlay.miniToolbarBorderColor, shape)
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            editActions()
+            Box(
+                modifier = Modifier
+                    .height(1.dp)
+                    .width(200.dp)
+                    .background(EInkTheme.Divider.subtleColor)
+            )
+            aiActions()
+        }
+    } else {
+        Row(
+            modifier = modifier
+                .background(EInkTheme.TextBoxOverlay.miniToolbarBackground, shape)
+                .border(EInkTheme.Global.borderWidth, EInkTheme.TextBoxOverlay.miniToolbarBorderColor, shape)
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            editActions()
+            LassoBarDivider()
+            aiActions()
+        }
+    }
+}
+
+@Composable
+private fun LassoBarDivider() {
+    Spacer(modifier = Modifier.width(4.dp))
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .height(28.dp)
+            .background(EInkTheme.Colors.borderStrong)
+    )
+    Spacer(modifier = Modifier.width(4.dp))
+}
+
+@Composable
+private fun LassoAiChip(
+    iconId: Int,
+    label: String,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    val chipShape = RoundedCornerShape(EInkTheme.Global.cornerRadius)
+    Row(
+        modifier = Modifier
+            .height(EInkTheme.Global.touchTarget)
+            .background(EInkTheme.Colors.background, chipShape)
+            .border(1.dp, EInkTheme.Colors.primary, chipShape)
+            .semantics(mergeDescendants = true) {
+                this.role = Role.Button
+                this.contentDescription = contentDescription
+            }
+            .noRippleClickable(onClick = onClick)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            painter = painterResource(iconId),
+            contentDescription = null,
+            tint = EInkTheme.Colors.primary,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = EInkTheme.Colors.primary,
+            maxLines = 1,
+            softWrap = false
+        )
     }
 }

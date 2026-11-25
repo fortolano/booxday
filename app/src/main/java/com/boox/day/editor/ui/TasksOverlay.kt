@@ -255,7 +255,8 @@ private fun TaskControlRow(
             val currentOnChevronLongPress by rememberUpdatedState(onChevronLongPress)
             Box(
                 modifier = Modifier
-                    .size(EInkTheme.TasksTab.chevronTouchCompact)
+                    .width(if (isCompactProfile) 38.dp else EInkTheme.TasksTab.chevronTouchCompact)
+                    .fillMaxHeight()
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onTap = { currentOnChevronTap() },
@@ -339,7 +340,8 @@ private fun EInkCheckbox(
 ) {
     Box(
         modifier = modifier
-            .size(touchSize)
+            .width(touchSize)
+            .fillMaxHeight()
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,  // No ripple for E-Ink
@@ -391,66 +393,72 @@ private fun EInkPriorityButton(
 ) {
     Box(
         modifier = modifier
-            .size(touchSize)
+            .width(touchSize)
+            .fillMaxHeight()
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null  // No ripple for E-Ink
             ) { onShowMenuChange(true) },
         contentAlignment = Alignment.Center
     ) {
-        // Priority button visual
+        // Priority button visual + badge snug on icon corner inside full-row-height tap target
         Box(
-            modifier = Modifier
-                .size(iconSize)
-                .background(
-                    color = when {
-                        isCompleted -> EInkTheme.Colors.offWhite
-                        priority == "A" -> EInkTheme.Colors.primary  // Inverted for high priority
-                        else -> EInkTheme.Colors.white
-                    },
-                    shape = RoundedCornerShape(EInkTheme.Global.cornerRadius)
-                )
-                .border(
-                    width = when {
-                        isCompleted -> 1.dp
-                        priority == "A" -> EInkTheme.Global.borderWidth
-                        priority == "B" -> EInkTheme.Global.borderWidth
-                        priority == "C" -> 1.dp
-                        else -> 1.dp  // None - thin border
-                    },
-                    color = when {
-                        isCompleted -> EInkTheme.Colors.gray
-                        priority.isEmpty() -> EInkTheme.Colors.gray  // Gray for "none"
-                        else -> EInkTheme.Colors.primary
-                    },
-                    shape = RoundedCornerShape(EInkTheme.Global.cornerRadius)
-                ),
+            modifier = Modifier.size(iconSize + 6.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = priority.ifEmpty { "-" },
-                fontSize = EInkTheme.Typography.bodyMedium,
-                fontWeight = if (priority == "A" || priority == "B") FontWeight.Bold else FontWeight.Normal,
-                color = when {
-                    isCompleted -> EInkTheme.Disabled.foreground
-                    priority == "A" -> EInkTheme.Colors.white  // White text on black for "A"
-                    else -> EInkTheme.Colors.primary
-                }
-            )
-        }
-
-        // Compact: mark when a due date is set (monochrome-safe inverted "!" badge when overdue, dot otherwise)
-        if (onDueDateTap != null && dueDay != null) {
-            val isOverdue = TaskDueDates.isOverdue(dueDay, isCompleted)
-            if (isOverdue) {
-                OverdueAlertBadge(modifier = Modifier.align(Alignment.BottomEnd))
-            } else {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(7.dp)
-                        .background(EInkTheme.Colors.primary, CircleShape)
+            Box(
+                modifier = Modifier
+                    .size(iconSize)
+                    .background(
+                        color = when {
+                            isCompleted -> EInkTheme.Colors.offWhite
+                            priority == "A" -> EInkTheme.Colors.primary  // Inverted for high priority
+                            else -> EInkTheme.Colors.white
+                        },
+                        shape = RoundedCornerShape(EInkTheme.Global.cornerRadius)
+                    )
+                    .border(
+                        width = when {
+                            isCompleted -> 1.dp
+                            priority == "A" -> EInkTheme.Global.borderWidth
+                            priority == "B" -> EInkTheme.Global.borderWidth
+                            priority == "C" -> 1.dp
+                            else -> 1.dp  // None - thin border
+                        },
+                        color = when {
+                            isCompleted -> EInkTheme.Colors.gray
+                            priority.isEmpty() -> EInkTheme.Colors.gray  // Gray for "none"
+                            else -> EInkTheme.Colors.primary
+                        },
+                        shape = RoundedCornerShape(EInkTheme.Global.cornerRadius)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = priority.ifEmpty { "-" },
+                    fontSize = EInkTheme.Typography.bodyMedium,
+                    fontWeight = if (priority == "A" || priority == "B") FontWeight.Bold else FontWeight.Normal,
+                    color = when {
+                        isCompleted -> EInkTheme.Disabled.foreground
+                        priority == "A" -> EInkTheme.Colors.white  // White text on black for "A"
+                        else -> EInkTheme.Colors.primary
+                    }
                 )
+            }
+
+            // Compact: mark when a due date is set (monochrome-safe inverted "!" badge when overdue, dot otherwise)
+            if (onDueDateTap != null && dueDay != null) {
+                val isOverdue = TaskDueDates.isOverdue(dueDay, isCompleted)
+                if (isOverdue) {
+                    OverdueAlertBadge(modifier = Modifier.align(Alignment.BottomEnd))
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(7.dp)
+                            .background(EInkTheme.Colors.primary, CircleShape)
+                    )
+                }
             }
         }
 
@@ -561,7 +569,8 @@ private fun EInkDueDateButton(
 
     Box(
         modifier = modifier
-            .size(touchSize)
+            .width(touchSize)
+            .fillMaxHeight()
             // A ticked task's due date opens too (owner, 31 Oct 2026)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -569,27 +578,32 @@ private fun EInkDueDateButton(
             ) { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            painter = painterResource(
-                id = if (hasDueDate) R.drawable.ic_calendar_due_set
-                     else R.drawable.ic_calendar_due
-            ),
-            contentDescription = when {
-                isOverdue -> "Overdue"
-                hasDueDate -> "Due date set"
-                else -> "Set due date"
-            },
-            tint = when {
-                isOverdue -> EInkTheme.Colors.primary
-                hasDueDate -> EInkTheme.Colors.primary
-                else -> EInkTheme.TasksTab.dueDateIconColorEmpty
-            },
-            modifier = Modifier.size(iconSize)
-        )
+        Box(
+            modifier = Modifier.size(iconSize + 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(
+                    id = if (hasDueDate) R.drawable.ic_calendar_due_set
+                         else R.drawable.ic_calendar_due
+                ),
+                contentDescription = when {
+                    isOverdue -> "Overdue"
+                    hasDueDate -> "Due date set"
+                    else -> "Set due date"
+                },
+                tint = when {
+                    isOverdue -> EInkTheme.Colors.primary
+                    hasDueDate -> EInkTheme.Colors.primary
+                    else -> EInkTheme.TasksTab.dueDateIconColorEmpty
+                },
+                modifier = Modifier.size(iconSize)
+            )
 
-        // Overdue badge (monochrome-safe inverted "!" badge visible on Carta B&W and Kaleido)
-        if (isOverdue) {
-            OverdueAlertBadge(modifier = Modifier.align(Alignment.TopEnd))
+            // Overdue badge (monochrome-safe inverted "!" badge visible on Carta B&W and Kaleido)
+            if (isOverdue) {
+                OverdueAlertBadge(modifier = Modifier.align(Alignment.TopEnd))
+            }
         }
     }
 }

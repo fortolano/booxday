@@ -1576,11 +1576,11 @@ fun SharedToolbar(
                         )
                 }
 
+                val regularBarWidth = with(LocalDensity.current) { context.resources.displayMetrics.widthPixels.toDp() }
                 // Regular bar (Oct 2026): the tools that don't fit beside page navigation and "…" go into "…"
                 val barOverflow: Set<BarTool> = if (isCompactToolbar) emptySet() else {
-                    val barWidth = with(LocalDensity.current) { context.resources.displayMetrics.widthPixels.toDp() }
                     regularToolbarOverflow(
-                        barWidth = barWidth,
+                        barWidth = regularBarWidth,
                         isMemos = currentTab == EditorTab.Memos,
                         hasPageNav = activeState.dayDate != null
                     )
@@ -1688,8 +1688,9 @@ fun SharedToolbar(
                             activeState.dayPageInfo?.totalPages ?: 1
                         }
                         val navButtonHeight = BUTTON_SIZE.dp
-                        // Compact bar (layout B): full 44dp finger targets; Regular keeps its 30dp arrows
-                        val navChevronWidth = if (isCompactToolbar) EInkTheme.Global.touchTarget else EInkTheme.Toolbar.navChevronWidth
+                        // Full 44dp page chevrons on compact bar (Go 6) and wide tablets (>= 801dp, Note Max);
+                        // Go 10.3 (773dp) keeps 30dp arrows so AI stays on the bar (owner 31 Oct 2026 decision).
+                        val navChevronWidth = if (isCompactToolbar) EInkTheme.Global.touchTarget else regularNavChevronWidth(regularBarWidth)
                         val navLabelWidth = 32.dp
 
                         // Left chevron - press state for visual feedback (E-Ink friendly)
@@ -2536,15 +2537,19 @@ internal enum class BarTool { Lasso, Insert, Ai, MeetingNotes, TaskActions, Quic
  * The widths are those of the composables in [SharedToolbar] (every tool 44 dp, its dropdown buttons
  * included) — keep them in step when sizes change; debug builds log a warning when ≡ gets squeezed.
  */
+internal fun regularNavChevronWidth(barWidth: Dp): Dp =
+    if (barWidth >= 801.dp) EInkTheme.Global.touchTarget else EInkTheme.Toolbar.navChevronWidth
+
 internal fun regularToolbarOverflow(barWidth: Dp, isMemos: Boolean, hasPageNav: Boolean): Set<BarTool> {
     val t = EInkTheme.Toolbar
+    val navChevron = regularNavChevronWidth(barWidth)
     // Each control after the tabs follows a gap of at least REGULAR_TOOL_GAP (ToolbarGap)
     val gap = REGULAR_TOOL_GAP
     val fixed = 2.dp + t.tabTotalWidth +                                             // padding, tabs
         gap + t.buttonSizeLarge + gap + 70.dp + gap + t.buttonSizeMedium +           // pen, pen size, eraser
         gap + t.buttonSizeMedium +                                                   // Boox Notes
         gap + t.buttonSizeLarge + gap + t.buttonSizeLarge +                          // undo, redo
-        (if (hasPageNav) gap + t.navChevronWidth * 2 + 32.dp else 0.dp) +           // page navigation (label 32dp)
+        (if (hasPageNav) gap + navChevron * 2 + 32.dp else 0.dp) +                   // page navigation (label 32dp)
         (if (isMemos) gap + t.buttonSizeMedium else 0.dp) +                          // full screen (Memos)
         gap + t.buttonSizeLarge                                                      // ≡
     val leaveFirst = if (isMemos) {

@@ -377,9 +377,9 @@ fun TextBoxOverlay(
         ResizeHandleBox(ResizeHandle.BOTTOM_LEFT, 0f, boxHeightPx - DRAG_PADDING)
         ResizeHandleBox(ResizeHandle.BOTTOM_RIGHT, boxWidthPx.toFloat(), boxHeightPx - DRAG_PADDING)
 
-        // Mini toolbar - aligned near the top-left of the text box
-        val miniButtonSize = 35  // Increased from 30 (15% larger for better touch targets)
-        val miniIconSize = 28.dp  // Increased from 24dp (15% larger)
+        // Mini toolbar - 44dp stylus/finger touch targets (Phase 4 / Decision D3 P7)
+        val miniButtonSize = 44
+        val miniIconSize = 24.dp
         // Two rows, 5 buttons each: B, I, U, Color, Size | Align, Undo, Copy, Paste, Delete
         val buttonCount = 5
         val toolbarPadding = 3
@@ -515,7 +515,7 @@ fun TextBoxOverlay(
                                                 Box(
                                                     modifier = Modifier
                                                         .size(EInkTheme.ColorPicker.swatchSize)
-                                                        .clickable {
+                                                        .noRippleClickable {
                                                             setTextColor(controlTower, textBoxState, color.toArgb(), scope, textAnnotationRepository)
                                                             showColorPicker = false
                                                         },

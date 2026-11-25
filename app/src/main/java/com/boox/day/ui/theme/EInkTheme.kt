@@ -589,36 +589,36 @@ object EInkTheme {
         val priorityIconSize = 20.dp
         val expandButtonSize = 24.dp
 
-        // Due dates feature - compact layout
-        // Layout: 4dp + 39dp + 3dp + 28dp + 5dp + 32dp + 3dp + 39dp = 152dp
+        // Due dates feature - compact layout (column widths 152dp / 116dp stay FIXED so existing
+        // handwritten Tasks ink is never covered; dead spacers are folded into wider, full-row-height targets: P7)
+        // Regular: 2dp + 38dp + 38dp + 38dp + 36dp = 152dp
         val controlColumnWidthWithDueDates = 152.dp
 
-        // Compact screen profile (plan Phase 1.5, Go 6): checkbox + priority + chevron, due date via
-        // the priority menu. Layout: 4dp + 39dp + 3dp + 28dp + 3dp + 39dp = 116dp. Fixed per device.
+        // Compact screen profile (Go 6): 2dp + 38dp + 38dp + 38dp = 116dp. Fixed per device.
         val controlColumnWidthCompactProfile = 116.dp
 
-        // Touch targets (tap area)
-        val checkboxTouchCompact = 39.dp                  // Checkbox tap area
-        val priorityTouchCompact = 28.dp                  // Priority tap area
-        val calendarTouchCompact = 32.dp                  // Calendar tap area
+        // Touch targets (horizontal widths; vertically fillMaxHeight() = ~48-56dp full row height)
+        val checkboxTouchCompact = 38.dp                  // Checkbox tap width
+        val priorityTouchCompact = 38.dp                  // Priority tap width (was 28dp)
+        val calendarTouchCompact = 38.dp                  // Calendar tap width (was 32dp)
         val repeatTouchCompact = 30.dp                    // Repeat series tap area
-        val chevronTouchCompact = 39.dp                   // Chevron tap area
+        val chevronTouchCompact = 36.dp                   // Chevron tap width (38dp on compact profile)
 
         // Icon sizes (visual)
         val checkboxIconCompact = 22.dp                   // Checkbox visual
         val priorityIconCompact = 23.dp                   // Priority visual
         val calendarIconCompact = 29.dp                   // Calendar visual
         val repeatIconCompact = 22.dp                     // Repeat badge visual
-        val chevronIconCompact = 30.dp                    // Chevron visual (same as touch)
+        val chevronIconCompact = 30.dp                    // Chevron visual
 
-        // Gaps and padding
-        val compactGap = 3.dp                             // Tight gap between elements
-        val compactGapAfterCheckbox = 3.dp                // Gap after checkbox
-        val compactGapAfterPriority = 5.dp                // Gap between priority and due date
-        val compactGapAfterCalendar = 2.dp                // Gap after calendar
-        val compactGapAfterRepeat = 4.dp                  // Gap after repeat badge
-        val compactPaddingStart = 4.dp                    // Left padding
-        val compactPaddingEnd = 0.dp                      // Right padding
+        // Gaps and padding (folded into touch boxes above so there are zero dead gaps)
+        val compactGap = 0.dp
+        val compactGapAfterCheckbox = 0.dp
+        val compactGapAfterPriority = 0.dp
+        val compactGapAfterCalendar = 2.dp
+        val compactGapAfterRepeat = 4.dp
+        val compactPaddingStart = 2.dp
+        val compactPaddingEnd = 0.dp
 
         // Due date visual states
         val dueDateIconColorEmpty = Colors.gray           // No due date set
@@ -931,13 +931,13 @@ object EInkTheme {
         val handleColor = Colors.primary
         val borderWidth = 0.5.dp
         val borderColor = Colors.primary
-        // Mini toolbar heights for offset calculation (places toolbar above/below selection)
-        val miniToolbarHeightAdvanced = 76.dp  // 2-row edit mode (2×35dp buttons + 6dp padding)
-        val miniToolbarHeightBasic = 41.dp     // 1-row select mode (35dp buttons + 6dp padding)
+        // Mini toolbar heights for offset calculation (places toolbar above/below selection: 44dp buttons)
+        val miniToolbarHeightAdvanced = 94.dp  // 2-row edit mode (2×44dp buttons + 6dp padding)
+        val miniToolbarHeightBasic = 50.dp     // 1-row select mode (44dp buttons + 6dp padding)
         val miniToolbarBackground = Colors.background
         val miniToolbarBorderWidth = 0.5.dp
         val miniToolbarBorderColor = Colors.primary
-        val miniToolbarButtonSize = 40.dp
+        val miniToolbarButtonSize = 44.dp
         val miniToolbarButtonSpacing = 4.dp
     }
 
@@ -1168,9 +1168,9 @@ object EInkTheme {
         // Warning/permission card body text
         val explanationFontSize = 14.sp
 
-        // Action icon buttons (eye, copy) - must be stylus-friendly
-        val actionIconBoxSize = 28.dp                // Touch target for eye/copy buttons
-        val actionIconSize = 18.dp                   // Icon inside the box
+        // Action icon buttons (eye, copy) - must be stylus-friendly (44dp per P7)
+        val actionIconBoxSize = Global.touchTarget
+        val actionIconSize = 20.dp                   // Icon inside the box
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

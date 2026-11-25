@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -442,9 +443,9 @@ internal fun BooxNotesMessageBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(EInkTheme.Button.height)
+            .heightIn(min = EInkTheme.Button.height + 10.dp)
             .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-            .padding(start = EInkTheme.Global.paddingMedium, end = EInkTheme.Global.spacingSmall),
+            .padding(start = EInkTheme.Global.paddingMedium, end = EInkTheme.Global.spacingSmall, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingMedium)
     ) {
@@ -457,7 +458,8 @@ internal fun BooxNotesMessageBar(
             modifier = Modifier.weight(1f)
         )
         if (message.undo != null) {
-            EinkSecondaryButton(text = "Undo", onClick = onUndo, height = EInkTheme.Button.height - 8.dp)
+            // Full 44dp Undo touch target (Phase 4 / Decision D3 P7)
+            EinkSecondaryButton(text = "Undo", onClick = onUndo, height = EInkTheme.Button.height)
         }
     }
 }
