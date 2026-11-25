@@ -78,9 +78,9 @@ fun removeImageFromCache(uri: String) {
  * @param image The `Image` object containing details about the image (URI, position, and size).
  * @param offset The `IntOffset` used to adjust the drawing position relative to the Canvas.
  */
-fun drawImage(context: Context, canvas: Canvas, image: Image, offset: Offset) {
+fun drawImage(context: Context, canvas: Canvas, image: Image, offset: Offset): Boolean {
     if (image.uri.isNullOrEmpty())
-        return
+        return false
 
     val uri = image.uri
 
@@ -88,15 +88,26 @@ fun drawImage(context: Context, canvas: Canvas, image: Image, offset: Offset) {
     var softwareBitmap = imageBitmapCache.get(uri)?.takeIf { !it.isRecycled }
 
     if (softwareBitmap == null) {
-        // Load from URI and cache
-        val imageBitmap = uriToBitmap(context, uri.toUri())?.asImageBitmap()
-        if (imageBitmap != null) {
-            softwareBitmap = imageBitmap.asAndroidBitmap().copy(Bitmap.Config.ARGB_8888, true)
-            imageBitmapCache.put(uri, softwareBitmap)
-            pageDrawingLog.d("Image cached: $uri")
+        // Single-pass bounded decode; avoid redundant copy when BitmapFactory already produced ARGB_8888
+        val decoded = uriToBitmap(context, uri.toUri())
+        if (decoded != null) {
+            softwareBitmap = if (decoded.config == Bitmap.Config.ARGB_8888 && decoded.isMutable) {
+                decoded
+            } else {
+                val copy = decoded.copy(Bitmap.Config.ARGB_8888, true)
+                decoded.recycle()
+                copy
+            }
+            if (softwareBitmap != null) {
+                imageBitmapCache.put(uri, softwareBitmap)
+                pageDrawingLog.d("Image cached: $uri")
+            } else {
+                pageDrawingLog.e("Could not allocate ARGB bitmap for: $uri")
+                return false
+            }
         } else {
             pageDrawingLog.e("Could not get image from: $uri")
-            return
+            return false
         }
     }
 
@@ -109,6 +120,7 @@ fun drawImage(context: Context, canvas: Canvas, image: Image, offset: Offset) {
     canvas.drawBitmap(softwareBitmap, rectOnImage, rectOnCanvas, null)
 
     pageDrawingLog.i("Image drawn successfully!")
+    return true
 }
 
 

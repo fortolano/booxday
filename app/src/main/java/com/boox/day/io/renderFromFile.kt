@@ -21,72 +21,108 @@ import java.io.File
 private val log = TaggedLog("renderFromFile")
 
 /**
+ * Reads only the pixel dimensions (width, height) of an image URI without allocating pixel memory.
+ */
+fun decodeImageBounds(context: Context, uri: Uri): Pair<Int, Int>? {
+    return try {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, options)
+        } ?: return null
+        if (options.outWidth <= 0 || options.outHeight <= 0) {
+            Log.e(TAG, "decodeImageBounds: Failed to decode bounds for $uri")
+            null
+        } else {
+            options.outWidth to options.outHeight
+        }
+    } catch (e: SecurityException) {
+        Log.e(TAG, "SecurityException reading bounds: ${e.javaClass.simpleName}")
+        null
+    } catch (e: Exception) {
+        Log.e(TAG, "Unexpected error in decodeImageBounds: ${e.javaClass.simpleName}")
+        null
+    }
+}
+
+/**
+ * Fits an image of [originalWidth] x [originalHeight] inside [availableWidth] x [availableHeight]
+ * while preserving aspect ratio and guaranteeing dimensions >= 1 px.
+ */
+internal fun fittedImageSize(
+    originalWidth: Int,
+    originalHeight: Int,
+    availableWidth: Int,
+    availableHeight: Int
+): Pair<Int, Int> {
+    val safeW = originalWidth.coerceAtLeast(1)
+    val safeH = originalHeight.coerceAtLeast(1)
+    val availW = availableWidth.coerceAtLeast(1)
+    val availH = availableHeight.coerceAtLeast(1)
+    if (safeW <= availW && safeH <= availH) return safeW to safeH
+    val scale = minOf(availW.toFloat() / safeW, availH.toFloat() / safeH)
+    return (safeW * scale).toInt().coerceAtLeast(1) to (safeH * scale).toInt().coerceAtLeast(1)
+}
+
+/**
  * Converts a URI to a Bitmap using the provided [context] and [uri].
- * Robust implementation that handles large images by downsampling.
+ * Bounded single-pass downsampling caps both the longest edge ([maxDim]) and total decoded pixels
+ * ([maxPixels]) so wide panoramas cannot cause OOM while full tablet resolution stays intact.
  *
  * @param context The context used to access the content resolver.
  * @param uri The URI of the image to be converted to a Bitmap.
  * @return The Bitmap representation of the image, or null if conversion fails.
  */
-fun uriToBitmap(context: Context, uri: Uri): Bitmap? {
+fun uriToBitmap(
+    context: Context,
+    uri: Uri,
+    maxDim: Int = 2500,
+    maxPixels: Long = 6_250_000L
+): Bitmap? {
     return try {
         val resolver = context.contentResolver
+        val bounds = decodeImageBounds(context, uri) ?: return null
 
-        // 1. Decode bounds first to check size
-        var inputStream = resolver.openInputStream(uri)
         val options = BitmapFactory.Options().apply {
-            inJustDecodeBounds = true
-        }
-        BitmapFactory.decodeStream(inputStream, null, options)
-        inputStream?.close()
-
-        if (options.outWidth == -1 || options.outHeight == -1) {
-            Log.e(TAG, "uriToBitmap: Failed to decode bounds for $uri")
-            return null
+            inSampleSize = calculateInSampleSize(bounds.first, bounds.second, maxDim, maxPixels)
+            inJustDecodeBounds = false
+            inMutable = true
+            inPreferredConfig = Bitmap.Config.ARGB_8888
         }
 
-        // 2. Calculate inSampleSize to avoid OOM
-        // Max dimension: 2500px (enough for Tab Ultra C 2480px height)
-        val maxDim = 2500
-        options.inSampleSize = calculateInSampleSize(options, maxDim, maxDim)
-        options.inJustDecodeBounds = false
-        // Ensure the bitmap is mutable so we can draw on it later if needed
-        options.inMutable = true
-        // Prefer ARGB_8888 for quality
-        options.inPreferredConfig = Bitmap.Config.ARGB_8888
-
-        // 3. Decode actual bitmap
-        inputStream = resolver.openInputStream(uri)
-        val bitmap = BitmapFactory.decodeStream(inputStream, null, options)
-        inputStream?.close()
+        val bitmap = resolver.openInputStream(uri)?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, options)
+        }
 
         if (bitmap == null) {
             Log.e(TAG, "uriToBitmap: BitmapFactory returned null for $uri")
         }
         bitmap
     } catch (e: SecurityException) {
-        Log.e(TAG, "SecurityException: ${e.message}", e)
+        Log.e(TAG, "SecurityException: ${e.javaClass.simpleName}")
         null
     } catch (e: Exception) {
-        Log.e(TAG, "Unexpected error in uriToBitmap: ${e.message}", e)
+        Log.e(TAG, "Unexpected error in uriToBitmap: ${e.javaClass.simpleName}")
         null
     }
 }
 
 /**
- * Calculate inSampleSize for scaling down images
+ * Power-of-two sample size bounding BOTH dimensions to [maxDim] and total pixel count to [maxPixels].
  */
-private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
-    val (height: Int, width: Int) = options.run { outHeight to outWidth }
+internal fun calculateInSampleSize(
+    width: Int,
+    height: Int,
+    maxDim: Int = 2500,
+    maxPixels: Long = 6_250_000L
+): Int {
+    if (width <= 0 || height <= 0) return 1
     var inSampleSize = 1
-
-    if (height > reqHeight || width > reqWidth) {
-        val halfHeight: Int = height / 2
-        val halfWidth: Int = width / 2
-
-        while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
-            inSampleSize *= 2
-        }
+    while (
+        (width / inSampleSize) > maxDim ||
+        (height / inSampleSize) > maxDim ||
+        (width.toLong() / inSampleSize) * (height.toLong() / inSampleSize) > maxPixels
+    ) {
+        inSampleSize *= 2
     }
     return inSampleSize
 }
