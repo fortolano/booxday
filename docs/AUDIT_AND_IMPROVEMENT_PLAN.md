@@ -2,7 +2,7 @@
 
 **Date:** 24 Nov 2026  
 **Baseline:** `main` at `631c665` (v1.0.65, Room DB v35)  
-**Status:** Owner decisions D1–D9 recorded and Fable 5.2 validation completed (24–25 Nov 2026). **Phases 1, 2, and 3 merged into local `main` (unpushed/unreleased):** Phase 1 (790/790 JVM/Robolectric tests, live-verified on BOOX Note Mini C), Phase 2 (two-step R8 cleanup: release APK `86.97 MB` → `51.57 MB` [-40.7%], `lintDebug` 0 errors with `abortOnError true`, live release smoke-tested on Note Mini C, plus `260.dp` dot-only Settings menu with density-aware `48.dp` top offset), and Phase 3 (995/995 passing across 14 packages, 3 live AI checks skipped, `lintDebug` 0 errors, `assembleRelease` `51.63 MB` / 2 DEX / `apksigner`+`aapt2`+key-scan clean / release max method `10,598` / Phase 3 keeps verified in DEX; hardware checks pending). **Phase 4 in progress on branch `phase-4-ui-polish`.**  
+**Status:** Owner decisions D1–D9 recorded and Fable 5.2 validation completed (24–25 Nov 2026). **Phases 1, 2, and 3 merged into local `main` (unpushed/unreleased):** Phase 1 (790/790 JVM/Robolectric tests, live-verified on BOOX Note Mini C), Phase 2 (two-step R8 cleanup: release APK `86.97 MB` → `51.57 MB` [-40.7%], `lintDebug` 0 errors with `abortOnError true`, live release smoke-tested on Note Mini C, plus `260.dp` dot-only Settings menu with density-aware `48.dp` top offset), and Phase 3 (995/995 passing across 14 packages, 3 live AI checks skipped, `lintDebug` 0 errors, `assembleRelease` `51.63 MB` / 2 DEX / `apksigner`+`aapt2`+key-scan clean / release max method `10,598` / Phase 3 keeps verified in DEX; hardware checks pending). **Phase 4 implemented & JVM/render-verified on branch `phase-4-ui-polish`** (245/245 passing across 60 suites in 7 packages, `assembleDebug` & `lintDebug` 0 errors, debug `MainScreen` 16,126 / `SharedToolbar` 12,297; awaiting owner visual review & merge decision).  
 **Execution Order Approved:** **Phase 1** (Phase 0 skipped per D8), then **Phase 2** (two-step R8 cleanup per D9), followed by **Phases 3, 4, and 5**.
 
 > Paths below are relative to `app/src/main/java/com/boox/day/` unless prefixed with `app/`, `docs/`, or a repo-root filename. Line numbers are from `631c665` — search by symbol name before editing.
@@ -212,8 +212,8 @@ Every phase must preserve the verified BOOX hardware workarounds in `CLAUDE.md`:
 - Unified contextual AI menu + self-teaching disabled taps (P3 Option B), Settings IA update (P4 Option A), single `WelcomeView` onboarding (P5 Option A), monochrome-safe overdue/sync cues, remove 3 s artificial splash floor (L1).
 
 **Acceptance Criteria (Phase 4):**
-- Render-test screenshots at all 4 device sizes × `fontScale = 1.0` and `1.15` reviewed by owner before shipping.
-- Physical check on Go 6, Go 10.3, and Note Air 6C: Search 2-char→1-char clears busy state; every text popup stays above Go 6 keyboard; lasso bar accuracy; Delete Task / Delete Series flows; Carta vs Kaleido contrast.
+- Render-test screenshots at all 4 device sizes × `fontScale = 1.0` and `1.15` reviewed by owner before shipping. *(Generated & visually verified via `Phase4UiPolishRenderTest` across Go 6, Go 7, Go 10.3, Note Max × 1.0 & 1.15; 245/245 tests passing across 60 suites in `ui.*`, `editor.*`, `tips.*`, `update.*`, `sleepscreen.*`, `week.*`, `meetings.*`, `assembleDebug` clean, `lintDebug` 0 errors [56 stale baseline items resolved], debug `MainScreen` 16,126 / `SharedToolbar` 12,297 code units. Note: Go 10.3 regular toolbar stays at `30.dp` page chevrons to preserve the 31 Oct AI-on-bar decision pinned by `RegularToolbarOverflowTest`; `44.dp` chevrons enabled on Note Max `>=801.dp` and Go 6 compact toolbar.)*
+- Physical check on Go 6, Go 10.3, and Note Air 6C: Search 2-char→1-char clears busy state; every text popup stays above Go 6 keyboard; lasso bar accuracy; Delete Task / Delete Series flows; Carta vs Kaleido contrast. *(Not yet run on physical hardware — tablet released to other agents.)*
 
 ---
 
