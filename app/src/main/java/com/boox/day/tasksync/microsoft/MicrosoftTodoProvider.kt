@@ -300,7 +300,23 @@ internal class MicrosoftTodoProvider(
         }
     }
 
-    override suspend fun delete(listId: String, remoteId: String) = call { deleteCopy(listId, remoteId) }
+    /**
+     * A copy cleared on the tablet. A repeating task, or a step of one, is never deleted in To Do (owner
+     * decision 89): the series goes on there and only the tablet's row goes. Read first: the id may be
+     * the next one by now (ticked on the phone, To Do keeps the id for it). One already gone is done.
+     */
+    override suspend fun delete(listId: String, remoteId: String) = call {
+        val task = try {
+            readOrNull(listId, taskPath(listId, TodoFields.taskOf(remoteId)))
+        } catch (e: TaskSyncServiceException.ListGone) {
+            null  // its list is gone, and the copy with it
+        } ?: return@call
+        if (task.obj("recurrence") != null) return@call
+        deleteCopy(listId, remoteId)
+    }
+
+    /** What [path] holds, or null when it is gone (its list still there). */
+    private suspend fun readOrNull(listId: String, path: String): JsonObject? = orNull(listId) { get(path) }
 
     private suspend fun createTask(listId: String, task: OutgoingTask): RemoteTask {
         // H15: a create whose reply was lost: the copy it made, if it is there
@@ -411,7 +427,11 @@ internal class MicrosoftTodoProvider(
         if (TodoFields.stepVersion(before) != link.remoteVersion) {
             stepState(listId, taskId, before)?.let { throw TaskSyncServiceException.RemoteChanged(it) }
         }
-        if (wanted != taskId) return regroupStep(listId, link.remoteId, task, wanted)
+        if (wanted != taskId) {
+            // A step of a repeating task stays where it is: moving it would delete it there (owner decision 89)
+            val parentRepeats = readOrNull(listId, taskPath(listId, taskId))?.obj("recurrence") != null
+            if (!parentRepeats) return regroupStep(listId, link.remoteId, task, wanted)
+        }
 
         val patch = buildJsonObject {
             if (task.title != link.syncedTitle) put("displayName", task.title)

@@ -263,6 +263,32 @@ class MicrosoftTodoProviderTest {
         assertEquals(2, todo.tasksIn(TASKS).size)
     }
 
+    // ── Deleting (owner decision 89) ──
+
+    @Test
+    fun aRepeatingTaskAndItsStepsAreNeverDeletedInToDo() = runBlocking {
+        val plain = todo.addTask(TASKS, task("Call Anna"))
+        val repeating = todo.addTask(
+            TASKS,
+            task("Water plants") + mapOf(
+                "recurrence" to FakeTodoServer.daily("2026-11-25"),
+                "dueDateTime" to FakeTodoServer.date("2026-11-25T00:00:00", "UTC")
+            )
+        )
+        val step = todo.addStep(TASKS, repeating, "Kitchen")
+        val p = provider()
+
+        p.delete(TASKS, repeating)
+        p.delete(TASKS, TodoFields.stepRemoteId(repeating, step))
+        p.delete(TASKS, plain)
+        p.delete(TASKS, plain)  // already gone: done
+
+        assertEquals("only the plain task is deleted", 1, todo.writes.count { it.startsWith("DELETE") })
+        assertNull(todo.task(TASKS, plain))
+        assertTrue("the series goes on in To Do", todo.task(TASKS, repeating) != null)
+        assertEquals(1, todo.stepsOf(repeating).size)
+    }
+
     // ── Helpers ──
 
     private fun task(title: String): JsonObject = buildJsonObject { put("title", title) }

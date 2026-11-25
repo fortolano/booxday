@@ -28,6 +28,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -40,6 +41,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
 import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 
 /**
  * Task sync with Microsoft To Do end to end (owner decisions 79-83): the real sender, pull, merge
@@ -74,7 +76,11 @@ class MicrosoftTodoSyncTest {
         sync = db.taskSyncDao()
         sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", TASKS, "Tasks", isDefaultForNew = true))
         provider = MicrosoftTodoProvider(
-            MicrosoftGraph(token = { "token" }, baseUrl = server.url("/v1.0").toString().trimEnd('/')),
+            // No silent retries: an answer lost on the way stays lost, as on a bad connection
+            MicrosoftGraph(
+                token = { "token" }, baseUrl = server.url("/v1.0").toString().trimEnd('/'),
+                client = OkHttpClient.Builder().retryOnConnectionFailure(false).readTimeout(5, TimeUnit.SECONDS).build()
+            ),
             linksIn = { listId -> sync.getLinksInList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", listId) },
             zone = { ZoneId.of("Europe/Warsaw") },
             pause = {}
@@ -328,6 +334,30 @@ class MicrosoftTodoSyncTest {
         assertTrue(tasks.getTasksForDay(DAY).none { it.typedText == "Water plants" })
     }
 
+    // ── Review of 25 Nov 2026 ──
+
+    @Test
+    fun aRepeatingTaskClearedHereAfterThePhoneTickedItLeavesTheSeriesInToDo() = runBlocking {
+        // Owner decision 89; the original id is the next one by the time the tablet's delete goes
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        todo.addStep(TASKS, original, "Kitchen")
+        run()
+        val (plants, kitchenRow) = rowsOn(DAY, "Water plants", "Kitchen")
+
+        todo.patchTask(TASKS, original, mapOf("status" to JsonPrimitive("completed")))  // ticked on the phone
+        repo.clearTaskSlot(task(plants), CANVAS_HEIGHT)  // cleared here before the tablet synced
+        repo.clearTaskSlot(task(kitchenRow), CANVAS_HEIGHT)
+        run()
+
+        assertTrue("nothing deleted in To Do: ${todo.writes}", todo.writes.none { it.startsWith("DELETE") })
+        assertEquals("the next one is still there", "notStarted", todo.task(TASKS, original)!!.text("status"))
+        assertEquals("with its step", 1, todo.stepsOf(original).size)
+        assertEquals(2, todo.tasksIn(TASKS).size)
+        assertNull("the rows went here", task(plants).typedText)
+        assertNull(sync.getLink(plants))
+        assertTrue("the deletes are done with", sync.getOutbox().isEmpty())
+    }
+
     // ── Helpers ──
 
     /** A typed task on [DAY]'s first page. */
@@ -342,11 +372,17 @@ class MicrosoftTodoSyncTest {
     private fun task(id: String): Task = tasks.getById(id)!!
 
     /** The rows on [day] with these words, in this order. */
-    private fun rowsOn(day: String, vararg words: String): Triple<String, String, String> {
+    private fun rowsOn(day: String, vararg words: String): List<String> {
         val rows = tasks.getTasksForDay(day)
-        val ids = words.map { w -> rows.single { it.typedText == w }.id }
-        return Triple(ids[0], ids[1], ids[2])
+        return words.map { w -> rows.single { it.typedText == w }.id }
     }
+
+    /** Waiting sends go in the next run, whatever their wait. */
+    private fun sendWaitingNow() = sync.getOutbox().forEach { sync.markOutboxFailed(it.id, it.attempts, 0L, it.lastError) }
+
+    private fun linkedTo(remoteId: String) = sync.getLinkByRemote(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", TASKS, remoteId)
+
+    private fun patches() = todo.writes.count { it.startsWith("PATCH") }
 
     private fun repeating(title: String, dueUtc: String): JsonObject = buildJsonObject {
         put("title", title)
