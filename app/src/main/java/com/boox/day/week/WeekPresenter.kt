@@ -6,10 +6,16 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.WeekFields
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 /** Turns a loaded week into what the page draws. Pure. */
 object WeekPresenter {
     const val HANDWRITTEN = "Handwritten task"
+
+    private val formatterCache = ConcurrentHashMap<Pair<String, Locale>, DateTimeFormatter>()
+
+    internal fun formatter(pattern: String, locale: Locale = Locale.getDefault()): DateTimeFormatter =
+        formatterCache.computeIfAbsent(pattern to locale) { (p, l) -> DateTimeFormatter.ofPattern(p, l) }
 
     fun page(
         data: WeekData,
@@ -21,6 +27,7 @@ object WeekPresenter {
         locale: Locale = Locale.getDefault()
     ): WeekPageData {
         val end = data.start.plusDays(6)
+        val dayTitleFormatter = formatter("EEE d", locale)
         // The tablet region's rule, as the month grid's week numbers and the sleep screen count
         val week = data.start.get(WeekFields.of(firstDay, WeekFields.of(locale).minimalDaysInFirstWeek).weekOfWeekBasedYear())
         return WeekPageData(
@@ -29,7 +36,7 @@ object WeekPresenter {
             isThisWeek = today in data.start..end,
             cells = data.days.map { day ->
                 WeekCell(
-                    title = DateTimeFormatter.ofPattern("EEE d", locale).format(day.date),
+                    title = dayTitleFormatter.format(day.date),
                     isToday = day.date == today,
                     isSelected = day.date == selected,
                     doneCount = day.finished.size,
@@ -59,7 +66,7 @@ object WeekPresenter {
 
     /** "Nov 2 – 8, 2026", "Oct 26 – Nov 1, 2026", "Dec 28, 2026 – Jan 3, 2027"; "2 – 8 Nov 2026" day first. */
     fun range(start: LocalDate, end: LocalDate, dayFirst: Boolean, withYear: Boolean, locale: Locale = Locale.getDefault()): String {
-        val month = DateTimeFormatter.ofPattern("MMM", locale)
+        val month = formatter("MMM", locale)
         val sameMonth = start.month == end.month && start.year == end.year
         val sameYear = start.year == end.year
         return if (dayFirst) {

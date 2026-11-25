@@ -132,6 +132,9 @@ private fun WeekOverlay(selected: LocalDate) {
 
     val week = data ?: return
     val dayFirst = settings.dateFormat == AppSettings.DateFormat.DMY
+    val pageData = remember(week, today, selected, firstDay, dayFirst, ink.size) {
+        WeekPresenter.page(week, today, selected, firstDay.dayOfWeek, dayFirst, ink)
+    }
     Popup(
         popupPositionProvider = ScreenTopLeft,
         onDismissRequest = WeekUi::close,
@@ -141,7 +144,7 @@ private fun WeekOverlay(selected: LocalDate) {
             val layout = WeekLayoutSpec.of(maxWidth.value.toInt(), maxHeight.value.toInt())
             spec.value = layout
             WeekPage(
-                page = WeekPresenter.page(week, today, selected, firstDay.dayOfWeek, dayFirst, ink),
+                page = pageData,
                 spec = layout,
                 use24Hour = settings.timeFormat == AppSettings.TimeFormat.TwentyFourHour,
                 onPrevious = { start = start.minusDays(7) },
@@ -233,7 +236,7 @@ private fun WeekSheet(
 
     Popup(popupPositionProvider = ScreenCentre, onDismissRequest = onClose, properties = PopupProperties(focusable = true)) {
         WeekDaySheetCard(
-            title = day?.date?.let { DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.getDefault()).format(it) } ?: "Overdue",
+            title = day?.date?.let { WeekPresenter.formatter("EEEE, MMM d", Locale.getDefault()).format(it) } ?: "Overdue",
             rows = shown.map { item ->
                 when (item) {
                     is SheetItem.Event -> WeekSheetRow(item.item.event.title, time = eventTime(item.item, use24))

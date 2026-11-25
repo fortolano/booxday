@@ -329,17 +329,11 @@ fun MainScreen(
         factory = MultiAccountSyncViewModel.Factory
     )
 
-    // Activity reference for Outlook MSAL sign-in
-    val activity = context as? Activity
-
     // Sync state (keep only root-needed flows here; dialog-only flows stay inside their hosts)
     val isSignedIn by syncViewModel.isSignedIn.collectAsState()
     val syncInProgress by syncViewModel.syncInProgress.collectAsState()
     val lastSyncTime by syncViewModel.lastSyncTime.collectAsState()
     val lastSyncMessage by syncViewModel.lastSyncMessage.collectAsState()
-
-    // Events state
-    val operationInProgress by eventsViewModel.operationInProgress.collectAsState()
 
     // Multi-account sync state (for connected account detection)
     val multiAccountUiState by multiAccountSyncViewModel.uiState.collectAsState()
@@ -359,60 +353,26 @@ fun MainScreen(
         multiAccountSyncViewModel.loadAllWritableCalendars()
     }
 
-    // Dialog states (rememberSaveable for sign-in & unsaved draft flows that must survive Activity recreation: H10)
-    var showCalendarSettingsDialog by remember { mutableStateOf(false) }
-    var showAddEventDialog by rememberSaveable { mutableStateOf(false) }
-    var showEventDetailsDialog by remember { mutableStateOf(false) }
-    var showAboutDialog by remember { mutableStateOf(false) }
-    var showVoiceEventDialog by remember { mutableStateOf(false) }
-    var showHelpDialog by remember { mutableStateOf(false) }
-    // Dec 2025 settings redesign - new dialogs
-    var showPreferencesDialog by remember { mutableStateOf(false) }
-    var showAiSettingsDialog by remember { mutableStateOf(false) }
-    var showVoiceSettingsDialog by remember { mutableStateOf(false) }
-    var showDataBackupDialog by remember { mutableStateOf(false) }
-    var showSearchDialog by remember { mutableStateOf(false) }
+    // Unified overlay registry & extracted feature host controllers (Phase 5 / H14)
+    val overlayRegistry = com.boox.day.ui.rememberUnifiedOverlayRegistry()
+    val calendarAccountsState = rememberCalendarAccountsHostState()
+    val eventDraftState = rememberEventDraftHostState()
+    val settingsDialogsState = rememberSettingsDialogsHostState()
 
     // Initialize TaskOcrService for Digital Ink recognition
     LaunchedEffect(Unit) {
         TaskOcrService.initialize(context, scope)
     }
 
-    // Multi-provider calendar sync dialog (rememberSaveable so it stays open across Google Sign-In Activity recreation)
-    var showMultiProviderSyncDialog by rememberSaveable { mutableStateOf(false) }
-
-    // Voice input parsed event data (for pre-filling AddEditEventDialog)
-    var parsedEventData by remember { mutableStateOf<ParsedEventData?>(null) }
-
-    // Get settings (reactive to changes)
+    // Root-needed settings (dialog-only settings live inside SettingsDialogsHost)
     val firstDayOfWeek by remember { derivedStateOf { GlobalAppSettings.current.firstDayOfWeek } }
-    val dateFormatSetting by remember { derivedStateOf { GlobalAppSettings.current.dateFormat } }
-    val timeFormatSetting by remember { derivedStateOf { GlobalAppSettings.current.timeFormat } }
     val showWeekNumbers by remember { derivedStateOf { GlobalAppSettings.current.showWeekNumbers } }
-    val startTabSetting by remember { derivedStateOf { GlobalAppSettings.current.startTab } }
     val tipsEnabled by remember { derivedStateOf { GlobalAppSettings.current.tipsEnabled } }
-    val tipInterval by remember { derivedStateOf { GlobalAppSettings.current.tipInterval } }
-    val aiEnabled by remember { derivedStateOf { GlobalAppSettings.current.aiEnabled } }
-    var booxNotesEnabled by remember { mutableStateOf(true) }
-    // Notification settings - decoupled task and event toggles
-    val taskNotificationsEnabled by remember { derivedStateOf { GlobalAppSettings.current.taskNotificationsEnabled } }
-    val eventNotificationsEnabled by remember { derivedStateOf { GlobalAppSettings.current.eventNotificationsEnabled } }
-    val defaultTaskReminderHour by remember { derivedStateOf { GlobalAppSettings.current.defaultTaskReminderHour } }
-    val defaultTaskReminderMinute by remember { derivedStateOf { GlobalAppSettings.current.defaultTaskReminderMinute } }
-    val defaultEventReminderMinutes by remember { derivedStateOf { GlobalAppSettings.current.defaultEventReminderMinutes } }
     val syncModeSetting by remember { derivedStateOf { GlobalAppSettings.current.syncMode } }
     val defaultSyncEnabled by remember { derivedStateOf { GlobalAppSettings.current.defaultSyncEnabled } }
 
-    var selectedEventForDetails by remember { mutableStateOf<CalendarEvent?>(null) }
-    var editingEvent by remember { mutableStateOf<CalendarEvent?>(null) }
-    var editingEventId by rememberSaveable { mutableStateOf<String?>(null) }
-    var editingEventIsLocal by rememberSaveable { mutableStateOf(false) }
-    var linkedBooxNotesForEvent by remember { mutableStateOf<List<BooxNoteIndex>>(emptyList()) }
-
     // Local calendars state (for Standalone mode)
     var localCalendars by remember { mutableStateOf<List<LocalCalendar>>(emptyList()) }
-    var showAddCalendarDialog by remember { mutableStateOf(false) }
-    var syncedEventCountForSwitch by remember { mutableStateOf(0) }
     var memoRefreshTrigger by remember { mutableIntStateOf(0) }
 
     // Expanded events view state
@@ -421,14 +381,6 @@ fun MainScreen(
 
     // Events panel tab state: "events" or "due"
     var selectedEventsTab by rememberSaveable { mutableStateOf("events") }
-
-    // Multi-provider Google sign-in launcher (for CalendarSyncSettingsDialog)
-    val multiProviderSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        Log.d(TAG, "Multi-provider sign-in result: resultCode=${result.resultCode}, data=${result.data != null}")
-        multiAccountSyncViewModel.handleGoogleSignInResult(result.data, result.resultCode)
-    }
 
     // Notification permission: the reminder card asks by itself (ui/permissions/PermissionAsk, Oct 2026)
 
@@ -458,8 +410,7 @@ fun MainScreen(
 
     // Boox Notes baseline is always enabled. Persist compatibility flag as true.
     LaunchedEffect(Unit) {
-        if (!GlobalAppSettings.current.booxNotesEnabled || !booxNotesEnabled) {
-            booxNotesEnabled = true
+        if (!GlobalAppSettings.current.booxNotesEnabled) {
             val newSettings = GlobalAppSettings.current.copy(booxNotesEnabled = true)
             GlobalAppSettings.update(newSettings)
             withContext(Dispatchers.IO) {
@@ -481,38 +432,11 @@ fun MainScreen(
     // Initialize TaskTextIndexer singleton - enables typed text indexing for Tasks
     val taskTextIndexer = remember { TaskTextIndexer.getInstance(context, scope) }
 
-    // Helper to mark a setup checklist item as complete (clears badge)
-    // Used by settings dialogs to clear their respective badges when user interacts
-    val markSetupComplete: ((SetupChecklist) -> SetupChecklist) -> Unit = { update ->
-        SetupChecklistStore.mark(context, update)
-    }
-
-    // OCR startup fixes - crash recovery and bug fixes
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            // Crash recovery - reset any pages stuck in IN_PROGRESS status from previous session
-            val recoveredCount = ocrRepository.recoverFromCrash()
-            if (recoveredCount > 0) {
-                Log.i(TAG, "OCR crash recovery: reset $recoveredCount stale pages")
-            }
-
-            // BUG FIX (Jan 2026): Reset firstIndexedAt for EMPTY pages so they can be
-            // properly counted as NEW when content is later added
-            ocrRepository.fixEmptyPagesFirstIndexedAt()
-
-            // Oct 2026: pages read while offline were quarantined for good; read them again
-            ocrRepository.releaseNetworkQuarantines()
-        }
-    }
-
     val booxNoteIndexer = remember { BooxNoteIndexer(context, booxNotesIntegration, booxNoteRepository, eventRepository) }
     val cacheWarmupCoordinator = remember { CacheWarmupCoordinator(appRepository.dayPageRepository, localEventRepository, eventRepository, taskRepository, booxNoteRepository) }
 
     LaunchedEffect(semanticGeniusService) {
         booxNoteIndexer.semanticGeniusService = semanticGeniusService
-    }
-    LaunchedEffect(Unit) {
-        ocrIdleProcessor.booxNoteIndexer = booxNoteIndexer
     }
 
     // Register memory pressure callback to clear repository caches during low memory
@@ -601,56 +525,12 @@ fun MainScreen(
         TipsService.setCurrentTab(currentEditorTab)
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // OCR IDLE PROCESSING
-    // Triggers OCR indexing during idle periods (user not touching screen for 5s)
-    // INSTANT ABORT: Any user interaction aborts processing immediately
-    // ═══════════════════════════════════════════════════════════════════════════
-    var lastUserActivityMs by remember { mutableStateOf(System.currentTimeMillis()) }
-    val ocrProcessingState by ocrIdleProcessor.processingState.collectAsState()
-
-    // Track user activity - reset on any interaction
-    val onUserActivity: () -> Unit = remember {
-        {
-            lastUserActivityMs = System.currentTimeMillis()
-            // Abort OCR immediately on any user interaction
-            if (ocrIdleProcessor.isProcessing()) {
-                ocrIdleProcessor.abortNow()
-            }
-        }
-    }
-
-    // Idle detection loop - checks every 2 seconds if user has been idle for 5+ seconds
-    // BATTERY FIX: Only runs when app is RESUMED and screen is interactive
-    // FIX: Uses repeatOnLifecycle to properly restart polling when lifecycle enters RESUMED
-    val ocrLifecycleOwner = LocalLifecycleOwner.current
-    val powerManager = remember { context.getSystemService(android.content.Context.POWER_SERVICE) as PowerManager }
-
-    LaunchedEffect(GlobalAppSettings.current.ocrSettings.enabled) {
-        if (!GlobalAppSettings.current.ocrSettings.enabled) {
-            return@LaunchedEffect
-        }
-
-        // repeatOnLifecycle automatically restarts when lifecycle enters RESUMED
-        // and cancels when lifecycle leaves RESUMED - no timing race possible
-        ocrLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (true) {
-                kotlinx.coroutines.delay(2000L)  // Check every 2 seconds
-
-                // Skip if screen is off - prevent background battery drain
-                if (!powerManager.isInteractive) continue
-
-                // Pen strokes count as activity too (Oct 2026): lastUserActivityMs only sees taps on the
-                // calendar area, so a memo written with the pen alone waited out the 10-minute rest
-                val lastActivityMs = maxOf(lastUserActivityMs, DrawCanvas.lastStylusActivityMs)
-                val idleMs = System.currentTimeMillis() - lastActivityMs
-                if (idleMs >= UnifiedOcrIdleProcessor.DEFAULT_IDLE_THRESHOLD_MS && !ocrIdleProcessor.isProcessing()) {
-                    // User has been idle for 5+ seconds, try to process OCR
-                    ocrIdleProcessor.tryProcessIfIdle(lastActivityMs)
-                }
-            }
-        }
-    }
+    // OCR startup maintenance + foreground idle processor (extracted from MainScreen root)
+    val onUserActivity = rememberOcrIdleUserActivityHandler(
+        ocrRepository = ocrRepository,
+        ocrIdleProcessor = ocrIdleProcessor,
+        booxNoteIndexer = booxNoteIndexer
+    )
 
     // Tasks pagination and data for the selected date
     var currentTaskPageIndex by remember { mutableStateOf(0) }
@@ -843,7 +723,6 @@ fun MainScreen(
 
     // Header popup visibility (Settings menu / Task stats) so raw drawing pauses under them
     var headerPopupVisible by remember { mutableStateOf(false) }
-    var requestedAddEventDate by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Start-the-day review (plan T4 §13.6B, Oct 2026)
     var startDayReview by remember { mutableStateOf<StartDayReviewData?>(null) }
@@ -1073,20 +952,6 @@ fun MainScreen(
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // Day Quick View Popup State (long-press on calendar day)
-    // ─────────────────────────────────────────────────────────────────────────────
-    var showDayQuickView by remember { mutableStateOf(false) }
-    var quickViewDate by remember { mutableStateOf<String?>(null) }
-    var quickViewData by remember { mutableStateOf<DayQuickViewData?>(null) }
-
-    fun openQuickViewList(tab: String) {
-        val date = quickViewData?.date ?: return
-        selectedDate = date
-        selectedEventsTab = tab
-        isEventsExpanded = true
-        showDayQuickView = false
-    }
     // Tasks page navigation (plan §13.4, Oct 2026): the quota check and the page lookup or
     // creation run off the main thread; the result is applied only if the day hasn't changed.
     // Break down one task from its task card (plan T3): same steps as the Daily Summary entry —
@@ -1300,24 +1165,10 @@ fun MainScreen(
         }
     }
 
-    val isMainScreenModalBlockingCanvas by remember {
+    // Track remaining MainScreen-local task/AI modals & header popups in UnifiedOverlayRegistry (H14)
+    val hasLocalTaskModal by remember {
         derivedStateOf {
-            showCalendarSettingsDialog ||
-                showAddEventDialog ||
-                (showEventDetailsDialog && selectedEventForDetails != null) ||
-                showAboutDialog ||
-                com.boox.day.ui.dialogs.BooxNotesPlaces.notesOpen ||
-                com.boox.day.ui.dialogs.BooxNotesPlaces.setupOpen ||
-                showVoiceEventDialog ||
-                showHelpDialog ||
-                showPreferencesDialog ||
-                showAiSettingsDialog ||
-                showVoiceSettingsDialog ||
-                showDataBackupDialog ||
-                showSearchDialog ||
-                showMultiProviderSyncDialog ||
-                showAddCalendarDialog ||
-                activeTaskOperation != null ||
+            activeTaskOperation != null ||
                 showConvertHandwritingDialog ||
                 quickAddTargetTask != null ||
                 showVoiceToTaskDialog ||
@@ -1335,19 +1186,15 @@ fun MainScreen(
                 showDeleteTaskPageConfirmation ||
                 startDayReview != null ||
                 reviewPickDayTask != null ||
-                reviewDeleteTask != null ||
-                (showDayQuickView && quickViewData != null) ||
-                headerPopupVisible ||
-                com.boox.day.actionitems.ActionItemsUi.isOpen ||
-                com.boox.day.meetings.MeetingNotesUi.isOpen ||
-                com.boox.day.ui.AiKeyGate.isOpen ||
-                com.boox.day.update.AppUpdateGate.isOpen ||
-                com.boox.day.diagnostics.CrashReportGate.isOpen ||
-                com.boox.day.ui.CalendarAiNotice.isOpen ||
-                com.boox.day.ui.dialogs.BooxFreezeTip.isOpen ||
-                com.boox.day.ui.AppOverlays.isOpen ||
-                com.boox.day.ui.FullScreenState.transitioning
+                reviewDeleteTask != null
         }
+    }
+    overlayRegistry.Track("header_popup", headerPopupVisible)
+    overlayRegistry.Track("task_modals", hasLocalTaskModal)
+    com.boox.day.ui.BindOverlayRegistryToCanvas(overlayRegistry)
+
+    val isMainScreenModalBlockingCanvas by remember {
+        derivedStateOf { overlayRegistry.isBlockingCanvas }
     }
 
     LaunchedEffect(isMainScreenModalBlockingCanvas, agenticPendingTaskRefreshTarget, agenticNeedsVisibleTaskFlush) {
@@ -1377,77 +1224,6 @@ fun MainScreen(
             if (currentEditorTab == EditorTab.Tasks && currentTaskPageId == previousTaskPageId) {
                 DrawCanvas.forceUnfreeze()
             }
-        }
-    }
-
-    LaunchedEffect(isMainScreenModalBlockingCanvas) {
-        DrawCanvas.mainScreenModalVisible.value = isMainScreenModalBlockingCanvas
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            DrawCanvas.mainScreenModalVisible.value = false
-        }
-    }
-
-    // Fetch data when quick view popup opens
-    LaunchedEffect(showDayQuickView, quickViewDate) {
-        if (showDayQuickView && quickViewDate != null) {
-            val date = quickViewDate!!
-            quickViewData = withContext(Dispatchers.IO) {
-                // Fetch all data in parallel for performance
-                val notesDeferred = async { booxNoteRepository.getNotesForDate(date) }
-                val eventsDeferred = async { eventsViewModel.getEventCountForDate(date).first() }
-                val tasksDeferred = async { taskRepository.getTasksDueOnDateCount(date).first() }
-
-                // Format display date (e.g., "December 30, 2025")
-                val displayDate = try {
-                    val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                    val outputFormat = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
-                    val parsedDate = inputFormat.parse(date)
-                    if (parsedDate != null) outputFormat.format(parsedDate) else date
-                } catch (e: Exception) { date }
-
-                // Filter out empty notes (0 pages) for consistency with BooxNotesDialog
-                val notes = notesDeferred.await().filter { it.pageCount > 0 }
-
-                // Fetch links and linked events for each note
-                val notesWithEvents = notes.map { note ->
-                    async {
-                        val link = booxNoteRepository.getLinkForNote(note.uniqueId)
-                        val linkedEvent = link?.linkedEventId?.let { eventId ->
-                            eventRepository.getEventById(eventId)
-                        }
-                        BooxNoteWithEvent(
-                            note = note,
-                            linkedEvent = linkedEvent,
-                            isManualLink = link?.isManualLink ?: false
-                        )
-                    }
-                }.awaitAll()
-
-                DayQuickViewData(
-                    date = date,
-                    displayDate = displayDate,
-                    booxNotes = notesWithEvents,
-                    eventCount = eventsDeferred.await(),
-                    tasksDueCount = tasksDeferred.await()
-                )
-            }
-        } else if (!showDayQuickView) {
-            // Clear data when popup closes
-            quickViewData = null
-        }
-    }
-
-    // Load linked Boox Notes when an event is selected for details
-    LaunchedEffect(selectedEventForDetails, noteLinkRefreshTrigger) {
-        if (selectedEventForDetails != null) {
-            linkedBooxNotesForEvent = withContext(Dispatchers.IO) {
-                booxNoteRepository.getNotesLinkedToEvent(selectedEventForDetails!!.id)
-            }
-        } else {
-            linkedBooxNotesForEvent = emptyList()
         }
     }
 
@@ -2001,7 +1777,6 @@ fun MainScreen(
     com.boox.day.ui.dialogs.CrashReportHost()
     // Week view and later overlays (Nov 2026): new ones go in AppOverlays, not here
     com.boox.day.ui.AppOverlaysHost()
-    LaunchedEffect(showAddEventDialog) { if (!showAddEventDialog) requestedAddEventDate = null }
     com.boox.day.events.EventTargets.publish {
         com.boox.day.events.DefaultEventTarget.of(
             com.boox.day.events.DefaultEventTarget.offered(
@@ -2021,25 +1796,9 @@ fun MainScreen(
                     showMonthAndSync(day.year, day.monthValue - 1)
                 }
             }
-            is com.boox.day.ui.MainScreenRequest.ShowEvent -> {
-                selectedEventForDetails = request.event
-                showEventDetailsDialog = true
-            }
-            is com.boox.day.ui.MainScreenRequest.NewEvent -> {
-                editingEvent = null
-                editingEventId = null
-                editingEventIsLocal = false
-                parsedEventData = null
-                requestedAddEventDate = request.date
-                showAddEventDialog = true
-            }
-            is com.boox.day.ui.MainScreenRequest.NewEventFrom -> {
-                editingEvent = null
-                editingEventId = null
-                editingEventIsLocal = false
-                parsedEventData = request.draft
-                showAddEventDialog = true
-            }
+            is com.boox.day.ui.MainScreenRequest.ShowEvent -> eventDraftState.openEventDetails(request.event)
+            is com.boox.day.ui.MainScreenRequest.NewEvent -> eventDraftState.openNewEvent(request.date)
+            is com.boox.day.ui.MainScreenRequest.NewEventFrom -> eventDraftState.openNewEventFrom(request.draft)
             com.boox.day.ui.MainScreenRequest.ReloadMemoPages -> scope.launch {
                 memosPageCount = withContext(Dispatchers.IO) { appRepository.dayPageRepository.getPageCount(selectedDate).coerceAtLeast(1) }
                 tabManager.refreshMemoPages()
@@ -2049,8 +1808,6 @@ fun MainScreen(
             }
         }
     }
-    // "AI and your calendar", once before the first AI feature that sends events (Oct 2026, ui/CalendarAiNotice)
-    com.boox.day.ui.dialogs.CalendarAiNoticeHost(onOpenAiSettings = { showAiSettingsDialog = true })
     // Full screen (Oct 2026, ui/FullScreenState): Back, tidy-up before a switch, full redraw after it
     com.boox.day.ui.FullScreenEffects(tabManager = tabManager, onEnter = { isEventsExpanded = false })
 
@@ -2145,76 +1902,40 @@ fun MainScreen(
                         },
                     onTodayClick = goToToday,
                     onVoiceInput = {
-                        // Voice input uses OpenRouter AI (Gemini), not Google Calendar
-                        // Works in both Standalone and Hybrid modes - no sign-in required
-                        // Needs the user's own OpenRouter key; after Connect OpenRouter it goes on (ui/AiKeyGate)
                         com.boox.day.ui.AiKeyGate.withKey {
-                            parsedEventData = null  // Clear any previous parsed data
-                            showVoiceEventDialog = true
+                            eventDraftState.openVoiceEvent()
                         }
                     },
                     onAddEventClick = {
-                        // Allow adding events in standalone mode (no sign-in required)
-                        editingEvent = null
-                        editingEventId = null
-                        editingEventIsLocal = false
-                        parsedEventData = null  // Clear voice data when opening manually
-                        showAddEventDialog = true
+                        eventDraftState.openNewEvent()
                     },
                     onSyncClick = {
-                        // Check BOTH legacy sign-in AND new multi-provider accounts
                         val hasAccounts = isSignedIn || hasAnyExternalAccount
-
                         if (hasAccounts) {
-                            // Use rate-limited emit with semantic key to prevent snackbar stacking
                             SnackState.tryEmitRateLimited(
                                 SnackConf(
                                     key = "sync-calendars",
-                                    text = "Syncing...",  // calendars, and tasks when task sync is on
+                                    text = "Syncing...",
                                     duration = SnackConf.DURATION_QUICK
                                 )
                             )
-                            // Trigger sync via multi-account system (handles both Google and Outlook)
-                            // Legacy Google sign-ins are auto-migrated to database on loadAccounts()
                             multiAccountSyncViewModel.syncAllAccounts()
-                            com.boox.day.tasksync.TaskSyncTriggers.syncNow(context)  // tasks too, when on
+                            com.boox.day.tasksync.TaskSyncTriggers.syncNow(context)
                         } else {
-                            showCalendarSettingsDialog = true
+                            calendarAccountsState.openSettings()
                         }
                     },
-                    onScreenRefresh = {
-                        refreshScreen()
-                    },
-                    onSearchClick = {
-                        showSearchDialog = true
-                    },
-                    onPreferences = {
-                        showPreferencesDialog = true
-                    },
-                    onCalendarSettings = {
-                        showCalendarSettingsDialog = true
-                    },
-                    onCalendarAccounts = {
-                        showMultiProviderSyncDialog = true
-                    },
-                    onAiSettings = {
-                        showAiSettingsDialog = true
-                    },
-                    onVoiceSettings = {
-                        showVoiceSettingsDialog = true
-                    },
-                    onDataBackup = {
-                        showDataBackupDialog = true
-                    },
-                    onBooxNotesSettings = {
-                        com.boox.day.ui.dialogs.BooxNotesPlaces.setupOpen = true
-                    },
-                    onHelp = {
-                        showHelpDialog = true
-                    },
-                    onAbout = {
-                        showAboutDialog = true
-                    },
+                    onScreenRefresh = { refreshScreen() },
+                    onSearchClick = { settingsDialogsState.openSearch() },
+                    onPreferences = { settingsDialogsState.openPreferences() },
+                    onCalendarSettings = { calendarAccountsState.openSettings() },
+                    onCalendarAccounts = { calendarAccountsState.openAccounts() },
+                    onAiSettings = { settingsDialogsState.openAiSettings() },
+                    onVoiceSettings = { settingsDialogsState.openVoiceSettings() },
+                    onDataBackup = { settingsDialogsState.openDataBackup() },
+                    onBooxNotesSettings = { com.boox.day.ui.dialogs.BooxNotesPlaces.setupOpen = true },
+                    onHelp = { settingsDialogsState.openHelp() },
+                    onAbout = { settingsDialogsState.openAbout() },
                     onMonthYearSelected = { newYear, newMonth ->
                         viewingCalendar = Calendar.getInstance().apply {
                             set(Calendar.YEAR, newYear)
@@ -2313,8 +2034,7 @@ fun MainScreen(
                             },
                             onDayLongPress = { date ->
                                 Log.i(TAG, "Day long-pressed: $date")
-                                quickViewDate = date
-                                showDayQuickView = true
+                                settingsDialogsState.openDayQuickView(date)
                             },
                             firstDayOfWeekSetting = firstDayOfWeek,
                             showWeekNumbers = showWeekNumbers,
@@ -2414,10 +2134,7 @@ fun MainScreen(
                                 booxNotesIntegration = booxNotesIntegration,
                                 showHeader = false,
                                 onToggleExpanded = { isEventsExpanded = true },
-                                onEventClick = { event ->
-                                    selectedEventForDetails = event
-                                    showEventDetailsDialog = true
-                                },
+                                onEventClick = { event -> eventDraftState.openEventDetails(event) },
                                 noteLinkRefreshTrigger = noteLinkRefreshTrigger,
                                 isSyncing = syncInProgress,
                                 selectedEventsTab = selectedEventsTab,
@@ -3221,10 +2938,7 @@ fun MainScreen(
                         eventsViewModel = eventsViewModel,
                         booxNoteRepository = booxNoteRepository,
                         booxNotesIntegration = booxNotesIntegration,
-                        onEventClick = { event ->
-                            selectedEventForDetails = event
-                            showEventDetailsDialog = true
-                        },
+                        onEventClick = { event -> eventDraftState.openEventDetails(event) },
                         onClose = {
                             isEventsExpanded = false
                             isEventsPinned = false  // Reset pin state on close
@@ -3270,386 +2984,49 @@ fun MainScreen(
         // Startup Sync: No blocking dialog - sync runs in background
         // Events grid shows "Syncing..." when sync is in progress
 
-        // Multi-Provider Calendar Sync Settings Dialog
-        if (showMultiProviderSyncDialog) {
-            CalendarSyncSettingsDialog(
-                viewModel = multiAccountSyncViewModel,
-                onDismiss = { showMultiProviderSyncDialog = false },
-                onGoogleSignIn = { accountType ->
-                    activity?.let { act ->
-                        scope.launch {
-                            val intent = multiAccountSyncViewModel.getGoogleSignInIntent(act, accountType)
-                            intent?.let { multiProviderSignInLauncher.launch(it) }
-                        }
-                    }
-                },
-                onOutlookSignIn = { accountType ->
-                    activity?.let { act ->
-                        multiAccountSyncViewModel.addOutlookAccount(act, accountType)
-                    }
-                },
-                onFirstAccountAdded = {
-                    // Auto-switch to HYBRID mode when first cloud account is added
-                    if (syncModeSetting == AppSettings.SyncMode.STANDALONE) {
-                        Log.i(TAG, "First cloud account added - switching to HYBRID mode")
-                        val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.HYBRID)
-                        appRepository.kvProxy.setAppSettings(newSettings)
-                    }
-                },
-                // New callbacks for clear data decision when last account is disconnected
-                onClearDataAndStandalone = {
-                    // Clear synced events and switch to Standalone
-                    Log.i(TAG, "User chose: Clear data and return to Standalone")
-                    scope.launch {
-                        // Clear all cloud-synced events from database
-                        eventsViewModel.clearAllSyncedEvents()
-                        // Switch to Standalone mode
-                        val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.STANDALONE)
-                        appRepository.kvProxy.setAppSettings(newSettings)
-                        SnackState.globalSnackFlow.tryEmit(
-                            SnackConf(text = "Synced events cleared. Standalone mode active.", duration = SnackConf.DURATION_STANDARD)
-                        )
-                    }
-                },
-                onKeepDataAndHybrid = {
-                    // Keep synced events (read-only) and stay in Hybrid mode
-                    Log.i(TAG, "User chose: Keep data and stay in Hybrid")
-                    // Stay in Hybrid mode - no action needed, just don't change the mode
-                    SnackState.globalSnackFlow.tryEmit(
-                        SnackConf(text = "Events preserved. You can add accounts later.", duration = SnackConf.DURATION_STANDARD)
-                    )
-                },
-                syncedEventCount = syncedEventCountForSwitch
-            )
-        }
+        // Extracted hosts (Phase 5 / H14): Calendar Accounts/Settings + Settings/Search/BooxNotes/QuickView
+        CalendarAccountsHost(
+            state = calendarAccountsState,
+            overlayRegistry = overlayRegistry,
+            multiAccountSyncViewModel = multiAccountSyncViewModel,
+            syncViewModel = syncViewModel,
+            eventsViewModel = eventsViewModel,
+            appRepository = appRepository,
+            localCalendarRepository = localCalendarRepository,
+            localEventRepository = localEventRepository,
+            localCalendars = localCalendars,
+            onLocalCalendarsChanged = { localCalendars = it },
+            syncModeSetting = syncModeSetting,
+            firstDayOfWeek = firstDayOfWeek,
+            showWeekNumbers = showWeekNumbers,
+            syncInProgress = syncInProgress
+        )
 
-        // Calendar Settings Dialog (unified settings with tabs)
-        if (showCalendarSettingsDialog) {
-            val autoSyncEnabled by syncViewModel.autoSyncEnabled.collectAsState()
-            val syncFrequency by syncViewModel.syncFrequency.collectAsState()
-            // Get connected account emails for mode switch warnings
-            val multiAccountUiState by multiAccountSyncViewModel.uiState.collectAsState()
-            val connectedEmails = remember(multiAccountUiState) {
-                multiAccountUiState.allAccounts.map { it.account.email }
-            }
-
-            // Build connected accounts summary from multi-account state
-            val cloudAccountSummaries = remember(multiAccountUiState) {
-                multiAccountUiState.allAccounts.map { acctWithCal ->
-                    CloudAccountSummary(
-                        email = acctWithCal.account.email,
-                        provider = acctWithCal.account.serviceName,
-                        lastSyncTimeMillis = acctWithCal.account.lastSyncAt
-                    )
-                }
-            }
-
-            CalendarSettingsDialog(
-                onDismiss = { showCalendarSettingsDialog = false },
-                onSyncNow = {
-                    // Use multi-account sync for proper accountId/providerId tagging
-                    multiAccountSyncViewModel.syncAllAccounts()
-                },
-                onOpenCalendarAccounts = {
-                    // Open the Calendar Accounts dialog
-                    showMultiProviderSyncDialog = true
-                },
-                connectedAccounts = cloudAccountSummaries,
-                syncInProgress = syncInProgress || multiAccountUiState.isSyncing,
-                autoSyncEnabled = autoSyncEnabled,
-                syncFrequency = syncFrequency,
-                onAutoSyncChanged = { syncViewModel.setAutoSync(it) },
-                onSyncFrequencyChanged = { syncViewModel.setSyncFrequency(it) },
-                // Display settings (moved from General Settings)
-                firstDayOfWeek = firstDayOfWeek,
-                onFirstDayOfWeekChanged = { newValue ->
-                    val newSettings = GlobalAppSettings.current.copy(firstDayOfWeek = newValue)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                },
-                showWeekNumbers = showWeekNumbers,
-                onShowWeekNumbersChanged = { newValue ->
-                    val newSettings = GlobalAppSettings.current.copy(showWeekNumbers = newValue)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                },
-                // Sync mode settings
-                syncMode = syncModeSetting,
-                // Connected accounts info for mode switch warnings
-                connectedAccountEmails = connectedEmails,
-                syncedEventCount = syncedEventCountForSwitch,
-                onSyncModeChanged = { newMode ->
-                    // Simple mode change (popup logic is now handled inside CalendarSettingsDialog)
-                    val newSettings = GlobalAppSettings.current.copy(syncMode = newMode)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    markSetupComplete { it.copy(calendarModeChosen = true) }
-                },
-                // Callbacks for mode switch with data decisions (from SwitchToStandalonePopup)
-                onSwitchToStandaloneKeepData = {
-                    // Disconnect accounts, keep data, switch to Standalone
-                    Log.i(TAG, "Switch to Standalone: Keep data")
-                    markSetupComplete { it.copy(calendarModeChosen = true) }
-                    scope.launch {
-                        // Disconnect all accounts
-                        multiAccountSyncViewModel.disconnectAllAccounts()
-                        // Switch to Standalone mode
-                        val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.STANDALONE)
-                        appRepository.kvProxy.setAppSettings(newSettings)
-                        SnackState.globalSnackFlow.tryEmit(
-                            SnackConf(text = "Private Mode enabled. Synced events preserved (read-only).", duration = SnackConf.DURATION_STANDARD)
-                        )
-                    }
-                },
-                onSwitchToStandaloneClearData = {
-                    // Disconnect accounts, clear data, switch to Standalone
-                    Log.i(TAG, "Switch to Standalone: Clear data")
-                    markSetupComplete { it.copy(calendarModeChosen = true) }
-                    scope.launch {
-                        // Clear all synced events
-                        eventsViewModel.clearAllSyncedEvents()
-                        // Disconnect all accounts
-                        multiAccountSyncViewModel.disconnectAllAccounts()
-                        // Switch to Standalone mode
-                        val newSettings = GlobalAppSettings.current.copy(syncMode = AppSettings.SyncMode.STANDALONE)
-                        appRepository.kvProxy.setAppSettings(newSettings)
-                        SnackState.globalSnackFlow.tryEmit(
-                            SnackConf(text = "Synced events cleared. Standalone mode active.", duration = SnackConf.DURATION_STANDARD)
-                        )
-                    }
-                },
-                // Local calendars (for Standalone mode)
-                localCalendars = localCalendars,
-                onAddLocalCalendar = { showAddCalendarDialog = true },
-                onDeleteLocalCalendars = { calendarIds ->
-                    scope.launch {
-                        withContext(Dispatchers.IO) {
-                            localCalendarRepository.delete(calendarIds, localEventRepository)
-                            localCalendars = localCalendarRepository.getAll()
-                        }
-                        SnackState.globalSnackFlow.tryEmit(
-                            SnackConf(text = "${calendarIds.size} calendar(s) deleted", duration = SnackConf.DURATION_STANDARD)
-                        )
-                    }
-                }
-            )
-        }
-
-        // Add Calendar Dialog (for creating new local calendars)
-        if (showAddCalendarDialog) {
-            AddCalendarDialog(
-                onDismiss = { showAddCalendarDialog = false },
-                onAdd = { name, colorHex ->
-                    scope.launch {
-                        try {
-                            withContext(Dispatchers.IO) {
-                                localCalendarRepository.create(name, colorHex)
-                                localCalendars = localCalendarRepository.getAll()
-                            }
-                            showAddCalendarDialog = false
-                            SnackState.globalSnackFlow.tryEmit(
-                                SnackConf(text = "Calendar \"$name\" created", duration = SnackConf.DURATION_STANDARD)
-                            )
-                        } catch (e: Exception) {
-                            SnackState.globalSnackFlow.tryEmit(
-                                SnackConf(text = e.message ?: "Failed to create calendar", duration = SnackConf.DURATION_ERROR)
-                            )
-                        }
-                    }
-                },
-                existingNames = localCalendars.map { it.name }.toSet()
-            )
-        }
-
-        // Help Dialog
-        if (showHelpDialog) {
-            HelpDialog(
-                onDismiss = { showHelpDialog = false }
-            )
-        }
-
-        // About Dialog
-        if (showAboutDialog) {
-            AboutDialog(
-                onDismiss = { showAboutDialog = false }
-            )
-        }
-
-        // Preferences Dialog (Dec 2025 Settings Redesign)
-        if (showPreferencesDialog) {
-            PreferencesDialog(
-                onDismiss = { showPreferencesDialog = false },
-                dateFormat = dateFormatSetting,
-                onDateFormatChanged = { newValue ->
-                    val newSettings = GlobalAppSettings.current.copy(dateFormat = newValue)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    markSetupComplete { it.copy(preferencesReviewed = true) }
-                },
-                timeFormat = timeFormatSetting,
-                onTimeFormatChanged = { newValue ->
-                    val newSettings = GlobalAppSettings.current.copy(timeFormat = newValue)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    markSetupComplete { it.copy(preferencesReviewed = true) }
-                },
-                startTab = startTabSetting,
-                onStartTabChanged = { newValue ->
-                    val newSettings = GlobalAppSettings.current.copy(startTab = newValue)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    markSetupComplete { it.copy(preferencesReviewed = true) }
-                },
-                tipsEnabled = tipsEnabled,
-                onTipsEnabledChanged = { newValue ->
-                    val newSettings = GlobalAppSettings.current.copy(tipsEnabled = newValue)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    markSetupComplete { it.copy(preferencesReviewed = true) }
-                },
-                tipInterval = tipInterval,
-                onTipIntervalChanged = { newValue ->
-                    val newSettings = GlobalAppSettings.current.copy(tipInterval = newValue)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    if (tipsEnabled) {
-                        TipsService.start()
-                    }
-                    markSetupComplete { it.copy(preferencesReviewed = true) }
-                },
-                // Notification settings - decoupled task and event toggles
-                taskNotificationsEnabled = taskNotificationsEnabled,
-                onTaskNotificationsEnabledChanged = { newValue ->
-                    val newSettings = GlobalAppSettings.current.copy(taskNotificationsEnabled = newValue)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    scope.launch(Dispatchers.IO) {
-                        appRepository.taskRepository.applyTaskNotificationsSetting(newSettings)
-                    }
-                },
-                eventNotificationsEnabled = eventNotificationsEnabled,
-                onEventNotificationsEnabledChanged = { newValue ->
-                    val newSettings = GlobalAppSettings.current.copy(eventNotificationsEnabled = newValue)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    scope.launch(Dispatchers.IO) {
-                        appRepository.localEventRepository.applyEventNotificationsSetting(newSettings)
-                    }
-                },
-                defaultTaskReminderHour = defaultTaskReminderHour,
-                defaultTaskReminderMinute = defaultTaskReminderMinute,
-                onDefaultTaskReminderChanged = { hour, minute ->
-                    val newSettings = GlobalAppSettings.current.copy(
-                        defaultTaskReminderHour = hour,
-                        defaultTaskReminderMinute = minute
-                    )
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    if (newSettings.taskNotificationsEnabled) {
-                        scope.launch(Dispatchers.IO) {
-                            appRepository.taskRepository.scheduleNotificationsForExistingTasks(newSettings)
-                        }
-                    }
-                },
-                defaultEventReminderMinutes = defaultEventReminderMinutes,
-                onDefaultEventReminderChanged = { minutes ->
-                    val newSettings = GlobalAppSettings.current.copy(defaultEventReminderMinutes = minutes)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    if (newSettings.eventNotificationsEnabled) {
-                        scope.launch(Dispatchers.IO) {
-                            appRepository.localEventRepository.scheduleNotificationsForUpcomingEvents(newSettings)
-                        }
-                    }
-                },
-                onOpenAlarmSettings = {
-                    NotificationPermissionHelper.openExactAlarmSettings(context)
-                },
-                onOpenBatteryOptimizationSettings = {
-                    NotificationPermissionHelper.openBatteryOptimizationSettings(context)
-                }
-            )
-        }
-
-        // "Add your OpenRouter key" (Oct 2026): AI features need the user's own key
-        com.boox.day.ui.dialogs.AiKeyGateHost(aiSettingsOpen = showAiSettingsDialog, onOpenAiSettings = { showAiSettingsDialog = true })
-
-        // AI Settings Dialog (Dec 2025 Settings Redesign)
-        if (showAiSettingsDialog) {
-            AiSettingsDialog(
-                onDismiss = { showAiSettingsDialog = false },
-                aiEnabled = aiEnabled,
-                onAiEnabledChanged = { newValue ->
-                    val newSettings = GlobalAppSettings.current.copy(aiEnabled = newValue)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    markSetupComplete { it.copy(aiSettingsReviewed = true) }
-                }
-            )
-        }
-
-        // Voice-to-Text Settings Dialog (Dec 2025 TranscriptionService)
-        if (showVoiceSettingsDialog) {
-            val transcriptionService = remember { TranscriptionService(context, AudioRecorder(context)) }
-            VoiceSettingsDialog(
-                hasGoogleSearchApp = transcriptionService.isSpeechRecognitionAvailable(),
-                currentMode = GlobalAppSettings.current.voiceTextMode,
-                onSelectMode = { mode ->
-                    val newSettings = GlobalAppSettings.current.copy(voiceTextMode = mode)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                    showVoiceSettingsDialog = false
-                },
-                onInstallGoogleSearch = {
-                    // Dialog handles Play Store opening, just close our dialog
-                    showVoiceSettingsDialog = false
-                },
-                onDismiss = { showVoiceSettingsDialog = false }
-            )
-        }
-
-        // Data & Backup Dialog (Dec 2025 Settings Redesign)
-        if (showDataBackupDialog) {
-            DataBackupDialog(
-                onDismiss = { showDataBackupDialog = false },
-                onClearSyncedDataOnly = {
-                    showDataBackupDialog = false
-                    syncViewModel.clearSyncedData(performFreshSync = false)
-                },
-                onClearSyncedDataAndResync = {
-                    showDataBackupDialog = false
-                    syncViewModel.clearSyncedData(performFreshSync = true)
-                },
-                onWipeAllData = {
-                    showDataBackupDialog = false
-                    // Oct 2026: Android erases everything and the app closes (AppDataWipe). If it refuses,
-                    // say so and open App info for Clear storage, never "wiped" when nothing was
-                    scope.launch(Dispatchers.IO) {
-                        if (!com.boox.day.data.AppDataWipe.wipe(context)) {
-                            withContext(Dispatchers.Main) {
-                                SnackState.globalSnackFlow.tryEmit(
-                                    SnackConf(
-                                        text = "Couldn't erase automatically. In App info, tap Storage, then Clear storage.",
-                                        duration = SnackConf.DURATION_ERROR
-                                    )
-                                )
-                                NotificationPermissionHelper.openAppSettings(context)
-                            }
-                        }
-                    }
-                }
-            )
-        }
-
-        // Search Dialog (FTS4 full-text search across memos, tasks, events, notes)
-        if (showSearchDialog) {
-            SearchDialog(
-                ocrRepository = ocrRepository,
-                onNavigateToDate = { date ->
-                    // Through ShowDay, so the month grid follows a day in another month
-                    com.boox.day.ui.MainScreenRequests.request(com.boox.day.ui.MainScreenRequest.ShowDay(date))
-                    showSearchDialog = false
-                },
-                onOpenTask = { taskId, date ->
-                    showSearchDialog = false
-                    goToTask(taskId, date)
-                },
-                onOpenBooxNote = { uniqueId ->
-                    // Opens the note here first; its Open in Notes App button leaves BooxDay
-                    com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(uniqueId)
-                    showSearchDialog = false
-                },
-                onDismiss = { showSearchDialog = false }
-            )
-        }
-
-
+        SettingsDialogsHost(
+            state = settingsDialogsState,
+            overlayRegistry = overlayRegistry,
+            selectedDate = selectedDate,
+            appRepository = appRepository,
+            syncViewModel = syncViewModel,
+            eventsViewModel = eventsViewModel,
+            booxNoteRepository = booxNoteRepository,
+            booxNotesIntegration = booxNotesIntegration,
+            booxNoteIndexer = booxNoteIndexer,
+            eventRepository = eventRepository,
+            taskRepository = taskRepository,
+            ocrRepository = ocrRepository,
+            ocrIdleProcessor = ocrIdleProcessor,
+            sourceFilter = sourceFilter,
+            onTriggerBooxNotesScan = triggerBooxNotesScan,
+            onOpenCalendarAccounts = { calendarAccountsState.openAccounts() },
+            onGoToTask = { taskId, date -> goToTask(taskId, date) },
+            onOpenQuickViewList = { date, tab ->
+                selectedDate = date
+                selectedEventsTab = tab
+                isEventsExpanded = true
+            },
+            onNoteLinkChanged = { noteLinkRefreshTrigger++ }
+        )
         // ═══════════════════════════════════════════════════════════════════════════
         // TASK SLOT DIALOGS (AI features that add tasks)
         // ═══════════════════════════════════════════════════════════════════════════
@@ -3680,45 +3057,6 @@ fun MainScreen(
 
 
 
-
-        // Boox Notes Set Up and Handwriting Search
-        if (com.boox.day.ui.dialogs.BooxNotesPlaces.setupOpen) {
-            com.boox.day.ui.dialogs.BooxNotesSettingsDialog(
-                // Its setup dot clears when file access is given (inside the dialog), not on close
-                onDismiss = { com.boox.day.ui.dialogs.BooxNotesPlaces.setupOpen = false },
-                booxNoteRepository = booxNoteRepository,
-                eventRepository = eventRepository,
-                onScanNeeded = triggerBooxNotesScan,
-                onOpenCalendarAccounts = { showMultiProviderSyncDialog = true },
-                onIndexNow = {
-                    scope.launch {
-                        ocrIdleProcessor.processNow()
-                    }
-                },
-                onClearIndex = {
-                    scope.launch(Dispatchers.IO) {
-                        // Clear all unified OCR data
-                        ocrRepository.clearAll()
-                        // Also clear the scheduler queue
-                        val scheduler = com.boox.day.ocr.UnifiedOcrScheduler(context)
-                        scheduler.clearQueue()
-                        // Reset quota counters so cleared pages can be re-indexed
-                        val quotaManager = com.boox.day.ocr.OcrQuotaManager(context)
-                        quotaManager.resetQuotaAfterClear()
-                    }
-                },
-                onOcrSettingsChanged = { newOcrSettings ->
-                    // Persist OCR settings changes to database
-                    val newSettings = GlobalAppSettings.current.copy(ocrSettings = newOcrSettings)
-                    GlobalAppSettings.update(newSettings)
-                    scope.launch(Dispatchers.IO) {
-                        appRepository.kvProxy.setAppSettings(newSettings)
-                    }
-                },
-                ocrProcessingState = ocrProcessingState,
-                ocrRepository = ocrRepository
-            )
-        }
 
         // Tasks Bulk Actions: Consolidated dialog with scope selection
         activeTaskOperation?.let { operation ->
@@ -5388,363 +4726,24 @@ fun MainScreen(
             )
         }
 
-        // Voice Event Dialog - "AI Magic" voice-to-calendar
-        if (showVoiceEventDialog) {
-            VoiceEventDialog(
-                currentDate = try {
-                    java.time.LocalDate.parse(selectedDate)
-                } catch (e: Exception) {
-                    java.time.LocalDate.now()
-                },
-                onEventParsed = { parsed ->
-                    parsedEventData = parsed
-                    showVoiceEventDialog = false
-                    // Open AddEditEventDialog with pre-filled data
-                    editingEvent = null
-                    editingEventId = null
-                    editingEventIsLocal = false
-                    showAddEventDialog = true
-                },
-                onDismiss = {
-                    showVoiceEventDialog = false
-                }
-            )
-        }
-
-        // Reload existing event if Activity recreated while editing (H10)
-        LaunchedEffect(showAddEventDialog, editingEventId) {
-            val id = editingEventId
-            if (showAddEventDialog && id != null && editingEvent == null) {
-                val restored = withContext(Dispatchers.IO) {
-                    if (editingEventIsLocal) localEventRepository.getEventById(id)?.toCalendarEvent()
-                    else eventRepository.getEventById(id) ?: localEventRepository.getEventById(id)?.toCalendarEvent()
-                }
-                if (restored != null) {
-                    editingEvent = restored
-                } else {
-                    editingEventId = null
-                    editingEventIsLocal = false
-                    showAddEventDialog = false
-                }
-            }
-        }
-
-        // Add/Edit Event Dialog
-        if (showAddEventDialog && (editingEventId == null || editingEvent != null)) {
-            // Calculate end time from parsed data if available
-            val calculatedEndTime = parsedEventData?.calculateEndTime()
-
-            // Determine existing event's provider (for editing synced events)
-            // Local events have calendarId="local" - they don't have a provider
-            val existingEventProviderId = editingEvent?.let { event ->
-                if (event.calendarId == "local") null
-                else ProviderId.fromKey(event.providerId)
-            }
-
-            val primaryGoogleAccountId = multiAccountUiState.googleAccounts.firstOrNull()?.account?.id
-            val primaryOutlookAccountId = multiAccountUiState.outlookAccounts.firstOrNull()?.account?.id
-            val writableCalendarsForDialog = com.boox.day.events.DefaultEventTarget.offered(writableCalendars, primaryGoogleAccountId, primaryOutlookAccountId)
-
-            // For local events, look up the original LocalEvent to get local calendar ID
-            var localEventForEdit by remember { mutableStateOf<LocalEvent?>(null) }
-            LaunchedEffect(editingEvent) {
-                val event = editingEvent  // Capture in local val for smart cast
-                localEventForEdit = if (event != null && event.calendarId == "local") {
-                    withContext(Dispatchers.IO) {
-                        localEventRepository.getEventById(event.id)
-                    }
-                } else null
-            }
-
-            AddEditEventDialog(
-                onDismiss = {
-                    showAddEventDialog = false
-                    editingEvent = null
-                    editingEventId = null
-                    editingEventIsLocal = false
-                    parsedEventData = null  // Clear parsed data on dismiss
-                },
-                onSave = { calendarId, title, date, startHour, startMin, endHour, endMin, isAllDay, location, description, attendees, syncEnabled, localCalendarId, syncProviderId, chosenAccountId ->
-                    android.util.Log.d("MainScreen", "=== onSave CALLED ===")
-                    android.util.Log.d("MainScreen", "calendarId: $calendarId")
-                    android.util.Log.d("MainScreen", "syncProviderId: $syncProviderId")
-                    android.util.Log.d("MainScreen", "syncEnabled: $syncEnabled")
-                    android.util.Log.d("MainScreen", "editingEvent: ${editingEvent?.id}, calendarId=${editingEvent?.calendarId}")
-                    android.util.Log.d("MainScreen", "writableCalendarsForDialog count: ${writableCalendarsForDialog.size}")
-                    writableCalendarsForDialog.forEach { cal ->
-                        android.util.Log.d("MainScreen", "  Available calendar: ${cal.name} (id=${cal.id}, provider=${cal.providerId})")
-                    }
-                    val selectedCalendar = com.boox.day.ui.dialogs.chosenCalendar(writableCalendarsForDialog, syncProviderId, chosenAccountId, calendarId)
-                    android.util.Log.d("MainScreen", "selectedCalendar: ${selectedCalendar?.name ?: "NULL"}")
-                    val syncAccountId = when {
-                        editingEvent?.accountId?.isNotBlank() == true -> editingEvent!!.accountId
-                        selectedCalendar != null -> selectedCalendar.accountId
-                        syncProviderId == ProviderId.GOOGLE -> primaryGoogleAccountId
-                        syncProviderId == ProviderId.OUTLOOK -> primaryOutlookAccountId
-                        else -> null
-                    }
-                    android.util.Log.d("MainScreen", "syncAccountId: $syncAccountId")
-                    if (editingEvent != null) {
-                        // Update existing event
-                        eventsViewModel.updateEvent(
-                            eventId = editingEvent!!.id,
-                            calendarId = calendarId,
-                            title = title,
-                            date = date,
-                            startTimeHour = startHour,
-                            startTimeMinute = startMin,
-                            endTimeHour = endHour,
-                            endTimeMinute = endMin,
-                            isAllDay = isAllDay,
-                            location = location?.takeIf { it.isNotBlank() },
-                            description = description?.takeIf { it.isNotBlank() },
-                            attendees = attendees?.takeIf { it.isNotBlank() },
-                            syncEnabled = syncEnabled,
-                            syncProviderId = syncProviderId,
-                            syncAccountId = syncAccountId,
-                            localCalendarId = localCalendarId
-                        ) { result ->
-                            when (result) {
-                                is EventOperationResult.Success -> {
-                                    showAddEventDialog = false
-                                    editingEvent = null
-                                    editingEventId = null
-                                    editingEventIsLocal = false
-                                    parsedEventData = null
-                                    SnackState.globalSnackFlow.tryEmit(
-                                        SnackConf(text = "Event updated", duration = SnackConf.DURATION_STANDARD)
-                                    )
-                                }
-                                is EventOperationResult.Error -> {
-                                    // Show error message to user - dialog stays open for retry
-                                    val errorMessage = eventsViewModel.lastOperationMessage.value ?: result.message
-                                    SnackState.globalSnackFlow.tryEmit(
-                                        SnackConf(text = errorMessage, duration = SnackConf.DURATION_ERROR)
-                                    )
-                                }
-                                else -> {
-                                    // Other result types (NoNetwork, NotSignedIn, PermissionDenied) - show error
-                                    val errorMessage = eventsViewModel.lastOperationMessage.value ?: "Operation failed"
-                                    SnackState.globalSnackFlow.tryEmit(
-                                        SnackConf(text = errorMessage, duration = SnackConf.DURATION_ERROR)
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        // Create new event
-                        com.boox.day.events.EventDraftSaver.create(
-                            eventsViewModel,
-                            com.boox.day.events.EventDraft(
-                                calendarId, title, date, startHour, startMin, endHour, endMin, isAllDay,
-                                location, description, attendees, syncEnabled, syncProviderId, syncAccountId, localCalendarId
-                            )
-                        ) {
-                            showAddEventDialog = false
-                            parsedEventData = null
-                        }
-                    }
-                },
-                onMoveToLocal = { cloudEvent ->
-                    scope.launch {
-                        eventsViewModel.moveCloudToLocal(cloudEvent).fold(
-                            onSuccess = { localEvent ->
-                                showAddEventDialog = false
-                                editingEvent = null
-                                editingEventId = null
-                                editingEventIsLocal = false
-                                parsedEventData = null
-                                selectedEventForDetails = localEvent.toCalendarEvent()
-                                SnackState.globalSnackFlow.tryEmit(
-                                    SnackConf(text = "Event moved to local only", duration = SnackConf.DURATION_STANDARD)
-                                )
-                            },
-                            onFailure = { e ->
-                                val message = e.message ?: "Failed to move event"
-                                SnackState.globalSnackFlow.tryEmit(
-                                    SnackConf(text = message, duration = SnackConf.DURATION_STANDARD)
-                                )
-                            }
-                        )
-                    }
-                },
-                // Voice input callback - opens voice dialog from within AddEditEventDialog
-                onVoiceInput = {
-                    // Without the user's OpenRouter key the event editor stays open under the key popup;
-                    // after Connect OpenRouter voice input goes on (ui/AiKeyGate)
-                    com.boox.day.ui.AiKeyGate.withKey {
-                        showAddEventDialog = false
-                        parsedEventData = null
-                        showVoiceEventDialog = true
-                    }
-                },
-                writableCalendars = writableCalendarsForDialog,
-                existingEvent = editingEvent,
-                initialDate = parsedEventData?.date ?: requestedAddEventDate ?: selectedDate,
-                isLoading = operationInProgress,
-                // Pre-fill from voice input
-                prefillTitle = parsedEventData?.title,
-                prefillDate = parsedEventData?.date,
-                prefillStartHour = parsedEventData?.startHour,
-                prefillStartMinute = parsedEventData?.startMinute,
-                prefillEndHour = calculatedEndTime?.first,
-                prefillEndMinute = calculatedEndTime?.second,
-                prefillIsAllDay = parsedEventData?.isAllDay,
-                prefillLocation = parsedEventData?.location,
-                // Use getDescriptionOnly() when syncing to avoid duplicating attendees
-                // In local mode, getEffectiveDescription() includes attendees in description
-                prefillDescription = if (syncModeSetting == AppSettings.SyncMode.HYBRID && hasAnyExternalAccount)
-                    parsedEventData?.getDescriptionOnly()
-                else
-                    parsedEventData?.getEffectiveDescription(),
-                prefillAttendees = parsedEventData?.attendees?.takeIf { it.isNotEmpty() },
-                prefillConfidenceLow = parsedEventData?.let { !it.isHighConfidence } ?: false,
-                prefillFromHandwriting = parsedEventData?.originalIntent == com.boox.day.proposals.FROM_HANDWRITING,
-                // Sync mode settings
-                syncMode = syncModeSetting,
-                isSignedIn = hasAnyExternalAccount,  // Updated: use connected account check
-                defaultSyncEnabled = defaultSyncEnabled,
-                // For existing events: local events are not synced, cloud events are synced
-                existingSyncEnabled = when (editingEvent?.calendarId) {
-                    null -> null  // No event being edited
-                    "local" -> false  // Local events are not synced
-                    else -> true  // Cloud events (from CalendarEvent table) are synced
-                },
-                // Local calendars (for local-only events)
-                localCalendars = localCalendars,
-                existingLocalCalendarId = localEventForEdit?.localCalendarId,
-                // Connected cloud accounts
-                hasGoogleAccount = hasGoogleAccount,
-                hasOutlookAccount = hasOutlookAccount,
-                hasCalDavAccount = hasCalDavAccount,
-                existingProviderId = existingEventProviderId
-            )
-        }
-
-        // Event Details Dialog
-        if (showEventDetailsDialog && selectedEventForDetails != null) {
-            EventDetailsDialog(
-                event = selectedEventForDetails!!,
-                onDismiss = {
-                    showEventDetailsDialog = false
-                    selectedEventForDetails = null
-                },
-                onEdit = if (!selectedEventForDetails!!.isReadOnly) {
-                    {
-                        val target = selectedEventForDetails
-                        editingEvent = target
-                        editingEventId = target?.id
-                        editingEventIsLocal = target?.calendarId == "local"
-                        showEventDetailsDialog = false
-                        showAddEventDialog = true
-                    }
-                } else null,
-                onDelete = if (!selectedEventForDetails!!.isReadOnly) {
-                    {
-                        eventsViewModel.deleteEvent(
-                            eventId = selectedEventForDetails!!.id,
-                            calendarId = selectedEventForDetails!!.calendarId
-                        ) { result ->
-                            when (result) {
-                                is EventOperationResult.Success -> {
-                                    showEventDetailsDialog = false
-                                    selectedEventForDetails = null
-                                    // Use ViewModel's message (handles offline "will be deleted when online" case)
-                                    val message = eventsViewModel.lastOperationMessage.value ?: "Event deleted"
-                                    SnackState.globalSnackFlow.tryEmit(
-                                        SnackConf(text = message, duration = SnackConf.DURATION_STANDARD)
-                                    )
-                                }
-                                else -> {
-                                    // Error handled by ViewModel's lastOperationMessage
-                                    val errorMessage = eventsViewModel.lastOperationMessage.value ?: "Delete failed"
-                                    SnackState.globalSnackFlow.tryEmit(
-                                        SnackConf(text = errorMessage, duration = SnackConf.DURATION_STANDARD)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                } else null,
-                isLoading = operationInProgress,
-                // Boox Notes linked to this event
-                linkedBooxNotes = linkedBooxNotesForEvent,
-                onBooxNoteClick = { note ->
-                    // Direct launch: Open Boox Notes app with this note
-                    booxNotesIntegration.openNote(note.uniqueId, note.nameInBoox)
-                },
-                onViewBooxNote = { note -> com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(note.uniqueId) },
-                onLinkANote = { selectedEventForDetails?.let { com.boox.day.ui.dialogs.BooxNotesPlaces.openLinkANote(it) } },
-                onCreateBooxNote = {
-                    // Launch Boox Notes app to create a new note
-                    booxNotesIntegration.createQuickNote()
-                },
-                // Sync mode and status display
-                syncMode = syncModeSetting,
-                isSignedIn = isSignedIn,
-                syncEnabled = isSignedIn, // For events from Google Calendar, assume sync enabled if signed in
-                syncStatus = null, // CalendarEvent doesn't have syncStatus yet - will be populated when using LocalEvent
-                lastSyncedAt = selectedEventForDetails?.syncedAt,
-                onToggleSync = null, // No toggle for CalendarEvent - requires migration to LocalEvent
-                // Local calendar info (for Standalone mode)
-                // TODO: Get actual local calendar info when using LocalEvent
-                localCalendarName = localCalendars.find { it.isDefault }?.name,
-                localCalendarColorHex = localCalendars.find { it.isDefault }?.colorHex
-            )
-        }
-
-        // Boox Notes Dialog
-        if (com.boox.day.ui.dialogs.BooxNotesPlaces.notesOpen) {
-            BooxNotesDialog(
-                date = selectedDate,
-                booxNoteRepository = booxNoteRepository,
-                booxNotesIntegration = booxNotesIntegration,
-                booxNoteIndexer = booxNoteIndexer,  // Smart scan on dialog open
-                // Handwriting search only while reading is on
-                ocrRepository = if (GlobalAppSettings.current.ocrSettings.enabled) ocrRepository else null,
-                isOcrIndexingInProgress = GlobalAppSettings.isBooxNotesScanning || (ocrProcessingState?.isProcessing == true),
-                eventRepository = eventRepository,
-                onDismiss = { com.boox.day.ui.dialogs.BooxNotesPlaces.closeNotes() },
-                onLinkChanged = {
-                    // Refresh event links when a note-event link changes
-                    noteLinkRefreshTrigger++
-                },
-                sourceFilter = sourceFilter,
-                onOpenCalendarAccounts = {
-                    com.boox.day.ui.dialogs.BooxNotesPlaces.closeNotes()
-                    showMultiProviderSyncDialog = true
-                },
-                onOpenHelp = {
-                    com.boox.day.ui.dialogs.BooxNotesPlaces.closeNotes()
-                    showHelpDialog = true
-                }
-            )
-        }
-
-        // ─────────────────────────────────────────────────────────────────────────────
-        // Day Quick View Popup (long-press on calendar day)
-        // Shows Boox Notes, events count, and tasks due count for the day
-        // ─────────────────────────────────────────────────────────────────────────────
-        if (showDayQuickView && quickViewData != null) {
-            DayQuickViewPopup(
-                data = quickViewData!!,
-                onNavigateToEvents = { openQuickViewList("events") },
-                onNavigateToTasksDue = { openQuickViewList("due") },
-                onOpenBooxNote = { uniqueId, title ->
-                    // Open the note in Boox Notes app, with its own name
-                    booxNotesIntegration.openNote(uniqueId, title)
-                    showDayQuickView = false
-                },
-                onLinkBooxNote = { noteId, noteDate ->
-                    // That note, without moving the day selected in the app
-                    com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(noteId, noteDate)
-                    showDayQuickView = false
-                },
-                onDismiss = {
-                    showDayQuickView = false
-                }
-            )
-        }
+        // Extracted Event Draft / Details / Voice Event host (Phase 5 / H10 + H14)
+        EventDraftHost(
+            state = eventDraftState,
+            overlayRegistry = overlayRegistry,
+            selectedDate = selectedDate,
+            eventsViewModel = eventsViewModel,
+            eventRepository = eventRepository,
+            localEventRepository = localEventRepository,
+            booxNoteRepository = booxNoteRepository,
+            booxNotesIntegration = booxNotesIntegration,
+            noteLinkRefreshTrigger = noteLinkRefreshTrigger,
+            multiAccountUiState = multiAccountUiState,
+            writableCalendars = writableCalendars,
+            localCalendars = localCalendars,
+            syncModeSetting = syncModeSetting,
+            defaultSyncEnabled = defaultSyncEnabled,
+            isSignedIn = isSignedIn
+        )
       }  // end SplitOutDialogs
     }
 }
@@ -7343,49 +6342,18 @@ private fun EventsGrid(
     onDueTaskClick: ((Task) -> Unit)? = null,  // Navigate to task's original date when clicking due task
     modifier: Modifier = Modifier
 ) {
-    // PERFORMANCE: Use shared StateFlow to avoid redundant Room subscriptions
-    // Multiple consumers (badge, EventsGrid, ExpandedEventsList) now share one Flow
-    var events by remember { mutableStateOf<List<CalendarEvent>>(emptyList()) }
-    LaunchedEffect(selectedDate) {
-        eventsViewModel.getSharedEventsFlow(selectedDate).collect { eventsList ->
-            events = eventsList
-        }
-    }
-
-    // Collect due tasks for the "Due" tab
-    // Plan §13.4 (Oct 2026): one Flow per day (it was rebuilt on every recomposition)
-    val dueFlowToday = java.time.LocalDate.now().toString()
-    val dueTasksData by remember(selectedDate, dueFlowToday) {
-        eventsViewModel.getDueTasksForDate(selectedDate)
-    }.collectAsState(initial = DueTasksData.EMPTY)
-
-
-    // NOTE: Events are already sorted by the ViewModel's createEventsFlow()
-    // No need to sort again here - sortedEvents just references events directly
-    val sortedEvents = events
-
-    // PERFORMANCE: Query all Boox Notes data in a single snapshot (replaces 3 separate calls)
-    var eventToNoteLinks by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var eventNoteCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
-    var eventsWithAttention by remember { mutableStateOf<Set<String>>(emptySet()) }
-
-    LaunchedEffect(selectedDate, noteLinkRefreshTrigger, events) {
-        // CROSS-DAY FIX: Query by event IDs to find ALL linked notes,
-        // regardless of when the note was created
-        val eventIds = events.map { it.id }
-        if (eventIds.isEmpty()) {
-            eventToNoteLinks = emptyMap()
-            eventNoteCounts = emptyMap()
-            eventsWithAttention = emptySet()
-            return@LaunchedEffect
-        }
-
-        booxNoteRepository.observeEventBadgeData(eventIds).collect { badgeData ->
-            eventToNoteLinks = badgeData.eventToNoteLinks
-            eventNoteCounts = badgeData.noteCounts
-            eventsWithAttention = badgeData.eventsWithAttention
-        }
-    }
+    // Shared DayPanelPresenter (Phase 5 / H14): single subscription path for EventsGrid & ExpandedEventsList
+    val dayPanel = rememberDayPanelState(
+        selectedDate = selectedDate,
+        eventsViewModel = eventsViewModel,
+        booxNoteRepository = booxNoteRepository,
+        noteLinkRefreshTrigger = noteLinkRefreshTrigger
+    )
+    val sortedEvents = dayPanel.sortedEvents
+    val dueTasksData = dayPanel.dueTasksData
+    val eventToNoteLinks = dayPanel.eventToNoteLinks
+    val eventNoteCounts = dayPanel.eventNoteCounts
+    val eventsWithAttention = dayPanel.eventsWithAttention
 
     // Pagination state (Events tab)
     val eventsPerPage = 4
@@ -7450,17 +6418,10 @@ private fun EventsGrid(
     // Track Events grid X position for popup horizontal placement
     var eventsGridX by remember { mutableStateOf(0f) }
 
-    // Mini popup for multiple notes linked to an event
-    var notesPopupEventId by remember { mutableStateOf<String?>(null) }
-    var notesPopupEventTitle by remember { mutableStateOf<String?>(null) }
-    var notesPopupNotes by remember { mutableStateOf<List<BooxNoteIndex>>(emptyList()) }
-    var notesPopupY by remember { mutableStateOf(0f) }  // Y position for anchoring
-
     // Reset to first page when date changes
     LaunchedEffect(selectedDate) {
         currentPage = 0
         dueTasksCurrentPage = 0  // Also reset due tasks pagination
-        notesPopupEventId = null  // Close notes popup when date changes
     }
 
     LaunchedEffect(sortedEvents.size) {
@@ -7483,18 +6444,6 @@ private fun EventsGrid(
     LaunchedEffect(dueTasksData.totalCount) {
         if (dueTasksCurrentPage >= dueTasksTotalPages) {
             dueTasksCurrentPage = maxOf(0, dueTasksTotalPages - 1)
-        }
-    }
-
-    // Load notes when the notes popup event changes
-    LaunchedEffect(notesPopupEventId) {
-        notesPopupEventId?.let { eventId ->
-            // Get event title
-            val event = events.find { it.id == eventId }
-            notesPopupEventTitle = event?.title
-            // Get all notes linked to this event
-            val notes = booxNoteRepository.getNotesLinkedToEvent(eventId)
-            notesPopupNotes = notes
         }
     }
 
@@ -7576,8 +6525,7 @@ private fun EventsGrid(
                                         { yPos: Float ->
                                             if (noteCount > 1) {
                                                 // Multiple notes: show mini popup to choose
-                                                notesPopupEventId = event.id
-                                                notesPopupY = yPos
+                                                dayPanel.openNotesPopup(event.id, yPos)
                                             } else {
                                                 // Single note: the Note place, which has Open in Notes App
                                                 com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(noteId)
@@ -7817,15 +6765,15 @@ private fun EventsGrid(
     }  // End Box
 
     // Mini popup for selecting from multiple notes linked to an event
-    if (notesPopupEventId != null && notesPopupNotes.isNotEmpty()) {
+    if (dayPanel.notesPopupEventId != null && dayPanel.notesPopupNotes.isNotEmpty()) {
         val density = LocalDensity.current
         val popupOffsetX = -50
-        val popupOffsetY = (notesPopupY - with(density) { 30.dp.toPx() }).toInt().coerceAtLeast(50)
+        val popupOffsetY = (dayPanel.notesPopupY - with(density) { 30.dp.toPx() }).toInt().coerceAtLeast(50)
 
         Popup(
             alignment = Alignment.TopStart,
             offset = IntOffset(popupOffsetX, popupOffsetY),
-            onDismissRequest = { notesPopupEventId = null },
+            onDismissRequest = dayPanel.dismissNotesPopup,
             properties = PopupProperties(
                 focusable = true,
                 dismissOnBackPress = true,
@@ -7833,13 +6781,13 @@ private fun EventsGrid(
             )
         ) {
             EventNotesPopup(
-                eventTitle = notesPopupEventTitle ?: "Notes",
-                notes = notesPopupNotes,
+                eventTitle = dayPanel.notesPopupEventTitle ?: "Notes",
+                notes = dayPanel.notesPopupNotes,
                 onNoteClick = { note ->
                     com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(note.uniqueId)
-                    notesPopupEventId = null
+                    dayPanel.dismissNotesPopup()
                 },
-                onClose = { notesPopupEventId = null }
+                onClose = dayPanel.dismissNotesPopup
             )
         }
     }
@@ -7962,72 +6910,18 @@ private fun ExpandedEventsList(
     showPinButton: Boolean = true,
     modifier: Modifier = Modifier
 ) {
-    // PERFORMANCE: Use shared StateFlow to avoid redundant Room subscriptions
-    // Same Flow instance as EventsGrid - no duplicate Room queries
-    var events by remember { mutableStateOf<List<CalendarEvent>>(emptyList()) }
-    LaunchedEffect(selectedDate) {
-        eventsViewModel.getSharedEventsFlow(selectedDate).collect { eventsList ->
-            events = eventsList
-        }
-    }
-
-    // Collect due tasks for the "Due" tab
-    // Plan §13.4 (Oct 2026): one Flow per day (it was rebuilt on every recomposition)
-    val dueFlowToday = java.time.LocalDate.now().toString()
-    val dueTasksData by remember(selectedDate, dueFlowToday) {
-        eventsViewModel.getDueTasksForDate(selectedDate)
-    }.collectAsState(initial = DueTasksData.EMPTY)
-
-
-    // NOTE: Events are already sorted by the ViewModel's createEventsFlow()
-    // No need to sort again here - sortedEvents just references events directly
-    val sortedEvents = events
-
-    // PERFORMANCE: Query all Boox Notes data in a single snapshot (replaces 3 separate calls)
-    var eventToNoteLinks by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var eventNoteCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
-    var eventsWithAttention by remember { mutableStateOf<Set<String>>(emptySet()) }
-
-    LaunchedEffect(selectedDate, noteLinkRefreshTrigger, events) {
-        // CROSS-DAY FIX: Query by event IDs to find ALL linked notes,
-        // regardless of when the note was created
-        val eventIds = events.map { it.id }
-        if (eventIds.isEmpty()) {
-            eventToNoteLinks = emptyMap()
-            eventNoteCounts = emptyMap()
-            eventsWithAttention = emptySet()
-            return@LaunchedEffect
-        }
-
-        booxNoteRepository.observeEventBadgeData(eventIds).collect { badgeData ->
-            eventToNoteLinks = badgeData.eventToNoteLinks
-            eventNoteCounts = badgeData.noteCounts
-            eventsWithAttention = badgeData.eventsWithAttention
-        }
-    }
-
-    // Note preview overlay state
-
-    // Mini popup for multiple notes linked to an event
-    var notesPopupEventId by remember { mutableStateOf<String?>(null) }
-    var notesPopupEventTitle by remember { mutableStateOf<String?>(null) }
-    var notesPopupNotes by remember { mutableStateOf<List<BooxNoteIndex>>(emptyList()) }
-    var notesPopupY by remember { mutableStateOf(0f) }
-
-    // Reset preview and popup when date changes
-    LaunchedEffect(selectedDate) {
-        notesPopupEventId = null
-    }
-
-    // Load notes when the notes popup event changes
-    LaunchedEffect(notesPopupEventId) {
-        notesPopupEventId?.let { eventId ->
-            val event = events.find { it.id == eventId }
-            notesPopupEventTitle = event?.title
-            val notes = booxNoteRepository.getNotesLinkedToEvent(eventId)
-            notesPopupNotes = notes
-        }
-    }
+    // Shared DayPanelPresenter (Phase 5 / H14): single subscription path for EventsGrid & ExpandedEventsList
+    val dayPanel = rememberDayPanelState(
+        selectedDate = selectedDate,
+        eventsViewModel = eventsViewModel,
+        booxNoteRepository = booxNoteRepository,
+        noteLinkRefreshTrigger = noteLinkRefreshTrigger
+    )
+    val sortedEvents = dayPanel.sortedEvents
+    val dueTasksData = dayPanel.dueTasksData
+    val eventToNoteLinks = dayPanel.eventToNoteLinks
+    val eventNoteCounts = dayPanel.eventNoteCounts
+    val eventsWithAttention = dayPanel.eventsWithAttention
 
     Box(
         modifier = modifier
@@ -8118,7 +7012,7 @@ private fun ExpandedEventsList(
                                 .padding(top = 4.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            items(sortedEvents) { event ->
+                            items(sortedEvents, key = { it.id }) { event ->
                                 val linkedNoteId = eventToNoteLinks[event.id]
                                 // Event is past if its end time has passed (use startTime if endTime is null)
                                 val eventEndTime = event.endTime ?: event.startTime
@@ -8134,8 +7028,7 @@ private fun ExpandedEventsList(
                                         { yPos: Float ->
                                             if (noteCount > 1) {
                                                 // Multiple notes: show mini popup to choose
-                                                notesPopupEventId = event.id
-                                                notesPopupY = yPos
+                                                dayPanel.openNotesPopup(event.id, yPos)
                                             } else {
                                                 // Single note: the Note place, which has Open in Notes App
                                                 com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(noteId)
@@ -8188,22 +7081,22 @@ private fun ExpandedEventsList(
                             val dueTodayTotal = dueTasksData.dueTodayTasks.size
                             val overdueTotal = dueTasksData.overdueTasks.size
                             if (dueTodayTotal > 0) {
-                                item {
+                                item(key = "header-due-today") {
                                     DueTaskSectionHeader(title = "Due Today", count = dueTodayTotal)
                                 }
-                                items(dueTasksData.dueTodayTasks) { task ->
+                                items(dueTasksData.dueTodayTasks, key = { "due-${it.id}" }) { task ->
                                     DueTaskRow(task = task, isOverdue = false, onClick = { onDueTaskClick?.invoke(task) })
                                 }
                             }
                             // Overdue section
                             if (overdueTotal > 0) {
                                 if (dueTodayTotal > 0) {
-                                    item { Spacer(Modifier.height(8.dp)) }
+                                    item(key = "spacer-overdue") { Spacer(Modifier.height(8.dp)) }
                                 }
-                                item {
+                                item(key = "header-overdue") {
                                     DueTaskSectionHeader(title = "Overdue", count = overdueTotal)
                                 }
-                                items(dueTasksData.overdueTasks) { task ->
+                                items(dueTasksData.overdueTasks, key = { "overdue-${it.id}" }) { task ->
                                     DueTaskRow(task = task, isOverdue = true, onClick = { onDueTaskClick?.invoke(task) })
                                 }
                             }
@@ -8268,15 +7161,15 @@ private fun ExpandedEventsList(
     }  // End Box
 
     // Mini popup for selecting from multiple notes linked to an event
-    if (notesPopupEventId != null && notesPopupNotes.isNotEmpty()) {
+    if (dayPanel.notesPopupEventId != null && dayPanel.notesPopupNotes.isNotEmpty()) {
         val density = LocalDensity.current
         val popupOffsetX = -50
-        val popupOffsetY = (notesPopupY - with(density) { 30.dp.toPx() }).toInt().coerceAtLeast(50)
+        val popupOffsetY = (dayPanel.notesPopupY - with(density) { 30.dp.toPx() }).toInt().coerceAtLeast(50)
 
         Popup(
             alignment = Alignment.TopStart,
             offset = IntOffset(popupOffsetX, popupOffsetY),
-            onDismissRequest = { notesPopupEventId = null },
+            onDismissRequest = dayPanel.dismissNotesPopup,
             properties = PopupProperties(
                 focusable = true,
                 dismissOnBackPress = true,
@@ -8284,13 +7177,13 @@ private fun ExpandedEventsList(
             )
         ) {
             EventNotesPopup(
-                eventTitle = notesPopupEventTitle ?: "Notes",
-                notes = notesPopupNotes,
+                eventTitle = dayPanel.notesPopupEventTitle ?: "Notes",
+                notes = dayPanel.notesPopupNotes,
                 onNoteClick = { note ->
                     com.boox.day.ui.dialogs.BooxNotesPlaces.openNote(note.uniqueId)
-                    notesPopupEventId = null
+                    dayPanel.dismissNotesPopup()
                 },
-                onClose = { notesPopupEventId = null }
+                onClose = dayPanel.dismissNotesPopup
             )
         }
     }
