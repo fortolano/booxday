@@ -73,16 +73,6 @@ internal object OneDriveSignIn {
             .map { OneDriveAccount(it.msalAccountId, it.email) }
     }
 
-    /**
-     * Signing in to OneDrive turns Auto Backup on, like Google Drive's sign-in, only when no cloud
-     * is chosen yet and OneDrive's folder was read and is empty: backups there are restored first.
-     * Never when the list couldn't be read ([lookup] an error, review 25 Nov 2026: that counted as
-     * "no backups"), and never on the way to restoring ([forRestore]; [lookup] is null there).
-     */
-    fun turnsOnAutoBackup(forRestore: Boolean, destination: BackupCloud?, lookup: DriveBackupService.ListResult?): Boolean =
-        !forRestore && destination == null &&
-            lookup is DriveBackupService.ListResult.Success && lookup.backups.isEmpty()
-
     /** Why the sign-in didn't work, in the user's words. */
     fun errorText(e: Throwable, network: NetworkState = NetworkStatus.current()): String = when {
         e is SignInCancelledException -> "Sign-in was cancelled."

@@ -25,7 +25,9 @@ class DriveBackupFolderTest {
     /** Drive's files endpoint with [folders] (ID to trashed) visible to the app. */
     private class FakeDrive(
         val folders: MutableMap<String, Boolean> = mutableMapOf(),
-        val getStatus: Int? = null
+        val getStatus: Int? = null,
+        /** The search by name fails with this status. */
+        val searchStatus: Int? = null
     ) {
         val requests = mutableListOf<String>()
         val createdBodies = mutableListOf<String>()
@@ -45,6 +47,8 @@ class DriveBackupFolderTest {
             val path = url.substringAfter("/drive/v3/files").substringBefore('?')
             requests += "$method files$path"
             return when {
+                method == "GET" && path.isEmpty() && searchStatus != null ->
+                    json(searchStatus, """{"error":{"code":$searchStatus,"message":"Backend Error"}}""")
                 method == "GET" && path.isEmpty() -> {
                     // Search by name: the visible folders that aren't in the trash
                     val ids = folders.filterValues { trashed -> !trashed }.keys
@@ -142,6 +146,30 @@ class DriveBackupFolderTest {
             fail("expected the Drive error to reach the caller")
         } catch (e: GoogleJsonResponseException) {
             assertEquals(500, e.statusCode)
+        }
+        assertEquals(emptyList<String?>(), saved)
+        assertTrue(fake.createdBodies.isEmpty())
+    }
+
+    /**
+     * Nov 2026: a failed search by name read as "no folder". Right after a Google sign-in (no saved
+     * folder) the backups then counted as none, which can turn Auto Backup on, and an upload made a
+     * second "BooxDay Backups" folder.
+     */
+    @Test
+    fun `a failed search is not 'no folder' and makes nothing`() {
+        val fake = FakeDrive(mutableMapOf("found-folder" to false), searchStatus = 503)
+
+        for (look in listOf<() -> Unit>(
+            { DriveBackupService.findBackupFolder(fake.drive, storedFolderId = null, save) },
+            { DriveBackupService.findOrCreateBackupFolder(fake.drive, storedFolderId = null, save) }
+        )) {
+            try {
+                look()
+                fail("expected the Drive error to reach the caller")
+            } catch (e: GoogleJsonResponseException) {
+                assertEquals(503, e.statusCode)
+            }
         }
         assertEquals(emptyList<String?>(), saved)
         assertTrue(fake.createdBodies.isEmpty())

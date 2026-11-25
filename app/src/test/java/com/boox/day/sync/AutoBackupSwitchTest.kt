@@ -69,6 +69,42 @@ class AutoBackupSwitchTest {
         assertFalse(file.exists())
     }
 
+    /**
+     * Re-review 25 Nov 2026: the last piece, the one that makes the file, came back busy; the user
+     * switched to Google Drive during Microsoft's wait, and the retry still went to OneDrive.
+     */
+    @Test
+    fun switchedDuringTheWaitBeforeTheLastPieceIsRetriedNeverSendsIt() = runBlocking {
+        val waits = mutableListOf<Long>()
+        val switchingDuringTheWait = OneDriveBackupService(
+            graph = { MicrosoftGraph(token = { "token" }, baseUrl = server.url("/v1.0").toString().trimEnd('/')) },
+            downloadDir = { folder.newFolder() },
+            onBackedUp = {},
+            pause = { waits += it; current = google },
+            pieceSize = 4
+        )
+        server.enqueue(MockResponse().setBody("""{"uploadUrl":"${server.url("/up/s1")}"}"""))
+        server.enqueue(MockResponse().setResponseCode(202).setBody("""{"nextExpectedRanges":["4-"]}"""))
+        server.enqueue(MockResponse().setResponseCode(202).setBody("""{"nextExpectedRanges":["8-"]}"""))
+        server.enqueue(MockResponse().setResponseCode(503).setHeader("Retry-After", "3"))
+        val file = folder.newFile("booxday_backup_2026-11-25_101500.zip").apply { writeBytes(ByteArray(10)) }
+
+        val outcome = DriveAutoBackupWorker.backUp(
+            target = oneDrive,
+            currentTarget = { current },
+            export = { made(file) },
+            serviceFor = { switchingDuringTheWait }
+        )
+
+        assertEquals(DriveAutoBackupWorker.Outcome.STOPPED, outcome)
+        assertEquals(listOf(3_000L), waits)
+        // The session, two pieces and the busy last piece; the last piece was not sent again
+        assertEquals(4, server.requestCount)
+        server.takeRequest()
+        val ranges = (1..3).map { server.takeRequest().getHeader("Content-Range") }
+        assertEquals(listOf("bytes 0-3/10", "bytes 4-7/10", "bytes 8-9/10"), ranges)
+    }
+
     @Test
     fun anotherAccountChosenBetweenPiecesMakesNoFile() = runBlocking {
         server.dispatcher = object : Dispatcher() {
