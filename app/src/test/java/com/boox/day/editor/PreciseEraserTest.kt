@@ -114,4 +114,18 @@ class PreciseEraserTest {
         assertEquals(1042f, parts[0].points.last().x, 0.001f)
         assertEquals(1058f, parts[1].points.first().x, 0.001f)
     }
+
+    @Test fun completedRowStrokesAreExcludedFromErasableTargets() {
+        // 10 rows across 1001px (topOffset=1, rowHeight=100): row 0 = [1..101], row 1 = [101..201]
+        val row0Stroke = stroke(listOf(StrokePoint(200f, 50f), StrokePoint(300f, 50f))).copy(id = "row0")
+        val row1Stroke = stroke(listOf(StrokePoint(200f, 150f), StrokePoint(300f, 150f))).copy(id = "row1")
+        val filtered = filterErasableStrokes(
+            strokes = listOf(row0Stroke, row1Stroke),
+            protectedRows = setOf(0),
+            canvasHeight = 1001f,
+            rowCount = 10,
+            topOffset = 1f
+        )
+        assertEquals(listOf("row1"), filtered.map { it.id })
+    }
 }

@@ -88,6 +88,22 @@ private fun filterStrokesByIntersection(
     }
 }
 
+/**
+ * Filters out strokes whose dominant task row belongs to [protectedRows] (completed tasks).
+ */
+internal fun filterErasableStrokes(
+    strokes: List<Stroke>,
+    protectedRows: Set<Int>,
+    canvasHeight: Float,
+    rowCount: Int,
+    topOffset: Float = 1f
+): List<Stroke> {
+    if (protectedRows.isEmpty() || canvasHeight <= topOffset || rowCount <= 0) return strokes
+    return strokes.filter { stroke ->
+        getDominantRowIndex(stroke, canvasHeight, rowCount, topOffset) !in protectedRows
+    }
+}
+
 // Erases strokes if touchPoints are "scribble", returns true if erased.
 // returns null if not erased, dirty rectangle otherwise
 fun handleScribbleToErase(
@@ -96,7 +112,8 @@ fun handleScribbleToErase(
     history: History,
     pen: Pen,
     currentLastStrokeEndTime: Long,
-    firstPointTime: Long
+    firstPointTime: Long,
+    strokeAllowed: (Stroke) -> Boolean = { true }
 ): Rect? {
     if (pen == Pen.MARKER) return null // do not erase with highlighter
     if (!GlobalAppSettings.current.scribbleToEraseEnabled) return null // scribble to erase is disabled
@@ -126,11 +143,11 @@ fun handleScribbleToErase(
     val strokeSizeForDetection = minDim * 0.15f * scaleFactor
 
 
-    // Get strokes that might intersect with the scribble path
+    // Get strokes that might intersect with the scribble path (skipping protected completed rows)
     val path = pointsToPath(touchPoints.map { SimplePointF(it.x, it.y) })
     val outPath = Path()
     Paint().apply { this.strokeWidth = strokeSizeForDetection }.getFillPath(path, outPath)
-    val candidateStrokes = selectStrokesFromPath(page.strokes, outPath)
+    val candidateStrokes = selectStrokesFromPath(page.strokes.filter(strokeAllowed), outPath)
 
 
     // Filter intersecting strokes based on intersection ratio
@@ -152,7 +169,11 @@ fun handleScribbleToErase(
 
 // points is in page coordinates, returns effected area.
 fun handleErase(
-    page: PageView, history: History, points: List<SimplePointF>, eraser: Eraser
+    page: PageView,
+    history: History,
+    points: List<SimplePointF>,
+    eraser: Eraser,
+    strokeAllowed: (Stroke) -> Boolean = { true }
 ): Rect? {
     if (points.isEmpty()) return null
     if (eraser == Eraser.PEN) {
@@ -161,6 +182,7 @@ fun handleErase(
         val originals = mutableListOf<Stroke>()
         val fragments = mutableListOf<Stroke>()
         page.strokes.forEach { stroke ->
+            if (!strokeAllowed(stroke)) return@forEach
             cutter.cut(stroke)?.let { remaining ->
                 originals.add(stroke)
                 fragments.addAll(remaining)
@@ -177,7 +199,7 @@ fun handleErase(
     }
     // The separate Stroke Eraser keeps its existing enclosed-stroke selection behavior.
     val path = pointsToPath(points).apply { close() }
-    val deletedStrokes = selectStrokesFromPath(page.strokes, path)
+    val deletedStrokes = selectStrokesFromPath(page.strokes.filter(strokeAllowed), path)
 
     val deletedStrokeIds = deletedStrokes.map { it.id }
     if (deletedStrokes.isEmpty()) return null
