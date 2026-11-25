@@ -221,6 +221,19 @@ class OneDriveBackupServiceTest {
         assertTrue(service().listBackups() is DriveBackupService.ListResult.Error)
     }
 
+    /**
+     * Re-review 25 Nov 2026: a blank answer, or one without the "value" list, read as an empty folder,
+     * which can turn Auto Backup on after a sign-in. Only a real list may say "no backups".
+     */
+    @Test
+    fun aBlankAnswerOrOneWithoutTheListIsAnErrorNotEmpty() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(""))
+        server.enqueue(MockResponse().setBody("""{"@odata.context":"https://graph.microsoft.com/v1.0/x"}"""))
+
+        assertEquals(DriveBackupService.ListResult.Error(OneDriveBackupService.SOMETHING_WRONG), service().listBackups())
+        assertEquals(DriveBackupService.ListResult.Error(OneDriveBackupService.SOMETHING_WRONG), service().listBackups())
+    }
+
     @Test
     fun cancellationIsNotTurnedIntoAnError() = runBlocking {
         val cancelled = service(token = { throw kotlinx.coroutines.CancellationException("screen closed") })

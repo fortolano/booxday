@@ -14,10 +14,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -56,6 +56,9 @@ internal class OneDriveBackupService(
 
     /** The backup is no longer wanted in this OneDrive (another cloud or account chosen meanwhile). */
     private class NoLongerWanted : Exception()
+
+    /** The folder's answer wasn't a list of its items. */
+    private class NotAList : Exception()
 
     override suspend fun uploadBackup(localFile: File, stillWanted: () -> Boolean): UploadResult = withContext(Dispatchers.IO) {
         try {
@@ -188,9 +191,14 @@ internal class OneDriveBackupService(
             var next: String? = "$APP_FOLDER/children?\$top=200&\$select=id,name,size,createdDateTime,file"
             var pages = 0
             while (next != null && pages < MAX_LIST_PAGES) {
-                val page = graph.call("GET", next) ?: break
-                page["value"]?.jsonArray?.mapNotNullTo(found) { backupOf(it.jsonObject) }
-                next = page.text("@odata.nextLink")
+                // Only Graph's collection ({"value": [...]}) says what is there; a blank answer or
+                // another shape is an error, never "no backups" (re-review, 25 Nov 2026: it was an
+                // empty list, which can turn Auto Backup on)
+                val items = graph.call("GET", next)?.let { page ->
+                    next = page.text("@odata.nextLink")
+                    page["value"] as? JsonArray
+                } ?: throw NotAList()
+                items.mapNotNullTo(found) { backupOf(it.jsonObject) }
                 pages++
             }
             Log.i(TAG, "Found ${found.size} backup(s)")
