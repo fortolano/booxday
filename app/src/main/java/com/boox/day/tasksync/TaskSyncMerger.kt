@@ -354,8 +354,21 @@ internal class TaskSyncMerger(
     /** An unlinked tablet task due on [day] with the same words: the same task (match before create). */
     private fun findMatch(remote: RemoteTaskState, day: String): Task? {
         val title = remote.title.trim().takeIf { it.isNotEmpty() } ?: return null
+        if (!remote.carriesDue) return pendingSubtask(remote, title)
         return sync.getUnlinkedTasksDue(day).firstOrNull { task ->
-            TaskSyncRules.textToSend(task) == title && (!remote.carriesDue || remote.dueDay != null || task.dueDay == null)
+            TaskSyncRules.textToSend(task) == title && (remote.dueDay != null || task.dueDay == null)
+        }
+    }
+
+    /**
+     * A To Do step is the tablet's own only with proof: an unlinked subtask of the task linked to the
+     * step's parent, with the same words and its send still waiting (a create whose answer was lost).
+     * Never a task that merely has the same words on that day: that one is the user's own.
+     */
+    private fun pendingSubtask(remote: RemoteTaskState, title: String): Task? {
+        val parentLink = remote.parentRemoteId?.let { sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, it) } ?: return null
+        return tasks.getChildTasks(parentLink.taskId).firstOrNull { child ->
+            sync.getLink(child.id) == null && TaskSyncRules.textToSend(child) == title && sync.queuedUpsertAt(child.id) != null
         }
     }
 

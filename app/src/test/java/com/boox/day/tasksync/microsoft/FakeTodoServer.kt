@@ -87,6 +87,11 @@ internal class FakeTodoServer : Dispatcher() {
         touch(listId, taskId)
     }
 
+    fun deleteStep(listId: String, taskId: String, stepId: String) {
+        steps.getValue(taskId).remove(stepId)
+        touch(listId, taskId)
+    }
+
     fun task(listId: String, taskId: String): JsonObject? = tasks[listId]?.get(taskId)
     fun tasksIn(listId: String): List<JsonObject> = tasks.getValue(listId).values.toList()
     fun stepsOf(taskId: String): List<JsonObject> = steps[taskId]?.values?.toList().orEmpty()

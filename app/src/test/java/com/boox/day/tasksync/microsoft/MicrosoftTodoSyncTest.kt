@@ -514,6 +514,41 @@ class MicrosoftTodoSyncTest {
         assertEquals(original, sync.getLink(plants)?.remoteId)
     }
 
+    @Test
+    fun aStepFromThePhoneNeverTakesTheUsersOwnTaskWithTheSameWords() = runBlocking {
+        row(0, "Plan trip")
+        run()
+        val parent = todo.tasksIn(TASKS).single().text("id")
+        val mine = row(1, "Pack bags")  // the user's own task on the same day
+        val step = todo.addStep(TASKS, parent, "Pack bags")
+        run()
+
+        assertTrue("the user's task went as its own task", sync.getLink(mine)!!.remoteId.let { !TodoFields.isStep(it) })
+        val stepRow = tasks.getTasksForDay(DAY).single { it.typedText == "Pack bags" && it.id != mine }.id
+        assertEquals(TodoFields.stepRemoteId(parent, step), sync.getLink(stepRow)?.remoteId)
+
+        todo.deleteStep(TASKS, parent, step)  // deleted on the phone
+        run()
+        assertEquals("the user's task is untouched", "Pack bags", task(mine).typedText)
+        assertNull("the step's row went", task(stepRow).typedText)
+    }
+
+    @Test
+    fun aSubtaskWhoseCreateAnswerWasLostIsLinkedNotDoubled() = runBlocking {
+        val trip = row(0, "Plan trip")
+        run()
+        todo.loseReplyTo = { method, path -> method == "POST" && path.endsWith("/checklistItems") }
+        val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
+        run()  // the step is made, its answer lost
+        todo.loseReplyTo = { _, _ -> false }
+
+        run()
+        val parent = todo.tasksIn(TASKS).single().text("id")
+        val step = todo.stepsOf(parent).single()
+        assertEquals("its own send's step, waiting for its answer", TodoFields.stepRemoteId(parent, step.text("id")), sync.getLink(hotel)?.remoteId)
+        assertEquals(1, tasks.getTasksForDay(DAY).count { it.typedText == "Book hotel" })
+    }
+
     // ── Helpers ──
 
     /** A typed task on [DAY]'s first page. */
