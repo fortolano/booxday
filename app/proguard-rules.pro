@@ -116,11 +116,9 @@
 -keepattributes RuntimeVisibleAnnotations
 -keepattributes RuntimeVisibleParameterAnnotations
 
-# OkHttp
+# OkHttp (okhttp3.pro consumer rules keep PublicSuffixDatabase; no blanket keep needed)
 -dontwarn okhttp3.**
 -dontwarn okio.**
--keep class okhttp3.** { *; }
--keep interface okhttp3.** { *; }
 
 #==============================================================================
 # KOTLINX SERIALIZATION
@@ -184,8 +182,7 @@
 -keep class com.google.api.services.calendar.** { *; }
 -keep class com.google.http.** { *; }
 
-# Google Auth
--keep class com.google.android.gms.** { *; }
+# Google Play Services / Auth ship their own consumer ProGuard rules
 
 #==============================================================================
 # MUPDF - PDF RENDERING
@@ -193,14 +190,8 @@
 -keep class com.artifex.mupdf.** { *; }
 
 #==============================================================================
-# COIL IMAGE LOADING
+# RXJAVA (used by Onyx SDK; rxjava2.pro consumer rules handle warnings, R8 traces reachability from Onyx SDK)
 #==============================================================================
--keep class coil.** { *; }
-
-#==============================================================================
-# RXJAVA (used by Onyx SDK)
-#==============================================================================
--keep class io.reactivex.** { *; }
 -dontwarn io.reactivex.**
 
 #==============================================================================
