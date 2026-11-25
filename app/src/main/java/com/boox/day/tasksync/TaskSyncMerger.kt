@@ -116,7 +116,7 @@ internal class TaskSyncMerger(
      * A repeating copy that rolled over to its next one while the tablet's tick of it hasn't gone yet
      * (its done copy not found so far): merging the next one now would move the ticked task to its day
      * and the tick would then tick the next one too. It waits, the pull's cursor with it, until the
-     * done copy is found (owner decision 82).
+     * done copy is found (owner decision 82), or the sender gives up on it ([keepTickOnTablet]).
      */
     private fun tickWaits(task: Task, link: TaskSyncLink, remote: RemoteTaskState): Boolean {
         if (!remote.rollsOver || remote.completed || !task.isCompleted || link.syncedCompleted) return false
@@ -124,6 +124,22 @@ internal class TaskSyncMerger(
         val lastDue = link.syncedDueDay ?: return false
         val due = remote.dueDay ?: return false
         return due > lastDue && sync.queuedUpsertAt(task.id) != null
+    }
+
+    /**
+     * A tick whose done copy never showed is given up on (TaskSyncSender's limit; owner, 25 Nov 2026):
+     * the task stays ticked on its day, kept on the tablet only like a ticked task deleted in the
+     * service (decision 26), and is never sent again, so the next one is never ticked. Its link leaves
+     * the copy's id, which holds the next one now, so that one comes in as a new task and the pull
+     * moves on.
+     */
+    fun keepTickOnTablet(taskId: String) {
+        val link = sync.getLink(taskId) ?: return
+        db.runInTransaction {
+            tasks.dropQueuedSyncUpsert(taskId)
+            sync.moveLinkToList(taskId, link.listId, TaskSyncRules.TICK_KEPT + taskId)
+            sync.markKeptOnTablet(taskId, TaskSyncKept.TICKED)
+        }
     }
 
     /**

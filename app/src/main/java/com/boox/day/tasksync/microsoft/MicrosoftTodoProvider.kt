@@ -363,9 +363,6 @@ internal class MicrosoftTodoProvider(
         null
     }
 
-    /** A ticked repeating task's done copy isn't listed yet: nothing is taken as sent; tried again later. */
-    private class DoneCopyPending : Exception("A ticked repeating task's done copy isn't listed yet")
-
     private suspend fun updateTask(task: OutgoingTask, link: TaskSyncLink): RemoteTask {
         val listId = link.listId
         val path = taskPath(listId, link.remoteId)
@@ -380,7 +377,7 @@ internal class MicrosoftTodoProvider(
             doneCopyFor(listId, before, lastDue!!, since = instantOf(link.remoteVersion), tries = 1)?.let { return remoteTaskOf(listId, it) }
             val movedOn = before.str(MODIFIED) != link.remoteVersion && before.str("status") != COMPLETED &&
                 (dueOf(before) ?: "") > lastDue
-            if (movedOn) throw DoneCopyPending()
+            if (movedOn) throw TaskSyncServiceException.TickPending()
         }
         if (before.str(MODIFIED) != link.remoteVersion) throw TaskSyncServiceException.RemoteChanged(taskState(listId, before))
 
@@ -390,8 +387,9 @@ internal class MicrosoftTodoProvider(
         if (tickingRepeat && patch.containsKey("status")) {
             val since = instantOf(after.str(MODIFIED))?.minusSeconds(DONE_COPY_MARGIN_S)
             // Not listed yet: the tick isn't taken as sent (the next occurrence's version would be);
-            // the retry finds the copy first, or the next pull follows it (doneCopiesTakingOver)
-            val copy = doneCopyFor(listId, before, lastDue!!, since, tries = DONE_COPY_TRIES) ?: throw DoneCopyPending()
+            // the retry finds the copy first, or the next pull follows it (doneCopiesTakingOver); one
+            // that never shows is given up on by the sender, the task kept ticked on the tablet
+            val copy = doneCopyFor(listId, before, lastDue!!, since, tries = DONE_COPY_TRIES) ?: throw TaskSyncServiceException.TickPending()
             return remoteTaskOf(listId, copy)
         }
         return remoteTaskOf(listId, after)

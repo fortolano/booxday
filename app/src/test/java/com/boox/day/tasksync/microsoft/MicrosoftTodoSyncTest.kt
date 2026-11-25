@@ -97,17 +97,20 @@ class MicrosoftTodoSyncTest {
         deleteDatabaseFiles()
     }
 
+    /** The tablet's clock for the runs. */
+    private var now = System.currentTimeMillis()
+
     /** One run as TaskSyncRun does it: tablet changes noticed, the service read, then the outbox sent. */
     private suspend fun run() {
-        TaskSyncScanner(db, extras = { true }) { { true } }.scan(System.currentTimeMillis(), DAY, wordsSettled = true)
+        TaskSyncScanner(db, extras = { true }) { { true } }.scan(now, DAY, wordsSettled = true)
         val merger = merger()
-        TaskSyncPuller(db, provider, merger, EMAIL).pull()
-        TaskSyncSender(db, provider, merger, EMAIL, prefs = TaskSync.prefs(context)).sendDue()
+        TaskSyncPuller(db, provider, merger, EMAIL, clock = { now }).pull()
+        TaskSyncSender(db, provider, merger, EMAIL, prefs = TaskSync.prefs(context), clock = { now }).sendDue()
     }
 
     private fun merger() = TaskSyncMerger(
         db, RepositoryTabletTasks(context, repo, canvasHeight = { CANVAS_HEIGHT }, penOn = { false }),
-        TaskSyncProvider.MICROSOFT_TODO, EMAIL, today = { DAY }, service = provider
+        TaskSyncProvider.MICROSOFT_TODO, EMAIL, clock = { now }, today = { DAY }, service = provider
     )
 
     // ── Priority (owner decision 80) ──
@@ -496,6 +499,47 @@ class MicrosoftTodoSyncTest {
         assertEquals("one tick in all", 1, patches())
         assertEquals("the next one isn't ticked", "notStarted", todo.task(TASKS, original)!!.text("status"))
         assertTrue(!task(rowsOn(NEXT_DAY, "Water plants").single()).isCompleted)
+    }
+
+    @Test
+    fun aDoneCopyThatNeverShowsIsGivenUpOnAndTheListSyncsAgain() = runBlocking {
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+        val plants = rowsOn(DAY, "Water plants").single()
+        // Its done copy will never be listed (completed tasks cleared on the phone, say)
+        todo.hideDoneCopiesFromSearch = true
+        todo.hideDoneCopiesFromDelta = true
+        fun cursor() = sync.getListsFor(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "").single().pullCursor
+
+        repo.setCompleted(plants, true)
+        run()  // ticked in To Do; its copy isn't found
+        val held = cursor()
+        // Three more looks, but not yet ten minutes: it still waits, the list's cursor held
+        repeat(3) {
+            now += 60_000L
+            sendWaitingNow()
+            run()
+        }
+        assertEquals("still waiting", original, sync.getLink(plants)?.remoteId)
+        assertEquals("the list waits with it", held, cursor())
+
+        now += TaskSyncSender.TICK_GIVE_UP_MS  // long enough: the next look gives up
+        sendWaitingNow()
+        run()
+        val link = sync.getLink(plants)!!
+        assertTrue("kept ticked on the tablet only", link.keptOnTablet && task(plants).isCompleted)
+        assertEquals(DAY, task(plants).dayDate)
+        assertTrue("its old id is free for the next one", link.remoteId != original)
+        assertTrue("nothing waits to be sent", sync.getOutbox().isEmpty())
+
+        run()  // the list syncs again: the next one comes in as a new task
+        assertTrue("the cursor moves on", cursor() != held)
+        val next = rowsOn(NEXT_DAY, "Water plants").single()
+        assertEquals(original, sync.getLink(next)?.remoteId)
+        assertTrue(!task(next).isCompleted)
+        run()
+        assertEquals("ticked once in all", 1, patches())
+        assertEquals("the next one is never ticked", "notStarted", todo.task(TASKS, original)!!.text("status"))
     }
 
     @Test

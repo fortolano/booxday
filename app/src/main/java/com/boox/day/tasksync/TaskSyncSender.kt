@@ -73,16 +73,37 @@ internal class TaskSyncSender(
                 val retryAt = clock() + (e.retryAfterMs ?: DEFAULT_BUSY_WAIT_MS)
                 sync.markOutboxFailed(entry.id, entry.attempts, retryAt, "Busy")
                 return Outcome.Busy(retryAt)
+            } catch (e: TaskSyncServiceException.TickPending) {
+                if (entry.op == TaskSyncOp.UPSERT && givesUpOnTick(entry)) {
+                    // Its pull would otherwise wait for it forever: the task stays ticked here, unsent
+                    merger.keepTickOnTablet(entry.taskId)
+                    Log.w(TAG, "A ticked repeating task's done copy never showed; kept ticked on the tablet only")
+                } else {
+                    failed(entry, e)
+                }
             } catch (e: Exception) {
-                val attempts = entry.attempts + 1
-                val wait = minOf(MAX_WAIT_MS, FIRST_WAIT_MS shl minOf(attempts - 1, 20))
-                // The class only: messages can hold a task's words, which never go into logs
-                sync.markOutboxFailed(entry.id, attempts, clock() + wait, e.javaClass.simpleName)
-                Log.w(TAG, "Send failed (${e.javaClass.simpleName}), try $attempts, next in ${wait / 1000} s")
+                failed(entry, e)
             }
         }
         return Outcome.Sent(sent)
     }
+
+    /** Tried again later, a little longer each time. */
+    private fun failed(entry: TaskSyncOutboxEntry, e: Exception) {
+        val attempts = entry.attempts + 1
+        val wait = minOf(MAX_WAIT_MS, FIRST_WAIT_MS shl minOf(attempts - 1, 20))
+        // The class only: messages can hold a task's words, which never go into logs
+        sync.markOutboxFailed(entry.id, attempts, clock() + wait, e.javaClass.simpleName)
+        Log.w(TAG, "Send failed (${e.javaClass.simpleName}), try $attempts, next in ${wait / 1000} s")
+    }
+
+    /**
+     * A tick whose done copy hasn't shown is given up on once it has waited [TICK_GIVE_UP_MS] since it
+     * was first noticed and [TICK_GIVE_UP_LOOKS] earlier sends found no copy, whichever comes later
+     * (owner, 25 Nov 2026): the copy may never be listed (completed tasks cleared on the phone).
+     */
+    private fun givesUpOnTick(entry: TaskSyncOutboxEntry): Boolean =
+        entry.attempts >= TICK_GIVE_UP_LOOKS && clock() - entry.createdAt >= TICK_GIVE_UP_MS
 
     /** The user said yes to the waiting deletes: they go on the next run. */
     fun approveWaitingDeletes() {
@@ -252,5 +273,8 @@ internal class TaskSyncSender(
         private const val FIRST_WAIT_MS = 60_000L
         private const val MAX_WAIT_MS = 6 * 60 * 60_000L
         private const val DEFAULT_BUSY_WAIT_MS = 60_000L
+        /** A tick's done copy is waited for this long and this many looks after the first, whichever is later. */
+        internal const val TICK_GIVE_UP_MS = 10 * 60_000L
+        internal const val TICK_GIVE_UP_LOOKS = 3
     }
 }
