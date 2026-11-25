@@ -79,6 +79,17 @@ class MicrosoftGraphTest {
     }
 
     @Test
+    fun unreadableSuccessIsAFailureTheCallersKnow() = runBlocking {
+        server.enqueue(MockResponse().setBody("<html>proxy page</html>"))
+        try {
+            graph().call("GET", "/me/drive/special/approot/children")
+            fail("expected Http")
+        } catch (e: GraphException.Http) {
+            assertEquals(MicrosoftGraph.INVALID_RESPONSE, e.code)
+        }
+    }
+
+    @Test
     fun noContentIsNull() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(204))
         assertEquals(null, graph().call("DELETE", "/me/todo/lists/a/tasks/b"))

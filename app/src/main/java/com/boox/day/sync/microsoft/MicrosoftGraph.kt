@@ -149,13 +149,22 @@ internal class MicrosoftGraph(
         } catch (e: IOException) {
             throw GraphException.Offline(e)
         }
-        if (text.isBlank()) null else Json.parseToJsonElement(text).jsonObject
+        if (text.isBlank()) return@withContext null
+        try {
+            Json.parseToJsonElement(text).jsonObject
+        } catch (e: IllegalArgumentException) {
+            // Not JSON, or not an object (SerializationException is one): a failure the callers know
+            throw GraphException.Http(response.code, INVALID_RESPONSE)
+        }
     }
 
     private fun urlOf(path: String) = if (path.startsWith("https://")) path else baseUrl + path
 
     companion object {
         const val BASE_URL = "https://graph.microsoft.com/v1.0"
+
+        /** [GraphException.Http.code] for a success whose body isn't a JSON object. */
+        const val INVALID_RESPONSE = "InvalidResponse"
         private val JSON_TYPE = "application/json".toMediaType()
         private val BYTES_TYPE = "application/octet-stream".toMediaType()
         private const val MAX_RETRY_AFTER_MS = 24 * 60 * 60_000L
