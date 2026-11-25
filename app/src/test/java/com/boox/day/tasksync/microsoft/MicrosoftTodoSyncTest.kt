@@ -358,6 +358,45 @@ class MicrosoftTodoSyncTest {
         assertTrue("the deletes are done with", sync.getOutbox().isEmpty())
     }
 
+    @Test
+    fun aLostDeleteAnswerDuringAMoveLeavesOneCopyWithEveryLinkOnIt() = runBlocking {
+        todo.addList(WORK, "Work")
+        sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", WORK, "Work"))
+        val trip = row(0, "Plan trip")
+        val hotel = row(1, "Book hotel") { repo.setParentTask(it, trip) }
+        val bags = row(2, "Pack bags") { repo.setParentTask(it, trip) }
+        run()
+        val oldId = todo.tasksIn(TASKS).single().text("id")
+        // Microsoft deletes the old copy, but its answer never arrives
+        todo.loseReplyTo = { method, path -> method == "DELETE" && path.endsWith("/tasks/$oldId") }
+
+        assertEquals(TaskSyncListMover.Outcome.MOVED, TaskSyncListMover(db, provider, EMAIL).move(trip, WORK))
+
+        assertTrue("the old one is gone", todo.tasksIn(TASKS).isEmpty())
+        val copy = todo.tasksIn(WORK).single().text("id")
+        assertEquals("one copy, never none", 2, todo.stepsOf(copy).size)
+        assertEquals(WORK to copy, sync.getLink(trip)!!.let { it.listId to it.remoteId })
+        for (row in listOf(hotel, bags)) assertEquals(copy, sync.getLink(row)!!.let { TodoFields.taskOf(it.remoteId) })
+    }
+
+    @Test
+    fun aSourceDeleteThatDidNotHappenTakesTheNewCopyBack() = runBlocking {
+        todo.addList(WORK, "Work")
+        sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", WORK, "Work"))
+        val trip = row(0, "Plan trip")
+        row(1, "Book hotel") { repo.setParentTask(it, trip) }
+        run()
+        val oldId = todo.tasksIn(TASKS).single().text("id")
+        todo.refuse = { method, path -> method == "DELETE" && path.endsWith("/tasks/$oldId") }
+
+        val failed = runCatching { TaskSyncListMover(db, provider, EMAIL).move(trip, WORK) }
+
+        assertTrue(failed.isFailure)
+        assertEquals("the old one stays whole", 1, todo.stepsOf(oldId).size)
+        assertTrue("the new one is taken back: nothing doubled", todo.tasksIn(WORK).isEmpty())
+        assertEquals(TASKS to oldId, sync.getLink(trip)!!.let { it.listId to it.remoteId })
+    }
+
     // ── Helpers ──
 
     /** A typed task on [DAY]'s first page. */

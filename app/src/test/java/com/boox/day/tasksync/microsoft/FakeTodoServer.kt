@@ -14,6 +14,7 @@ import kotlinx.serialization.json.put
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.RecordedRequest
+import okhttp3.mockwebserver.SocketPolicy
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -44,6 +45,15 @@ internal class FakeTodoServer : Dispatcher() {
     val requests = mutableListOf<String>()
     /** Every time-zone name BooxDay sent in a date. */
     val sentZones = mutableListOf<String>()
+    /** New done copies left out of title searches (a listing that lags) and, if set, of delta too. */
+    var hideDoneCopiesFromSearch = false
+    var hideDoneCopiesFromDelta = false
+    val hiddenFromSearch = HashSet<String>()
+    val hiddenFromDelta = HashSet<String>()
+    /** A request ("DELETE", decoded path) Microsoft carries out but whose answer is lost on the way. */
+    var loseReplyTo: (String, String) -> Boolean = { _, _ -> false }
+    /** A request Microsoft refuses (500) without doing it. */
+    var refuse: (String, String) -> Boolean = { _, _ -> false }
     /** Requests that change something. */
     val writes: List<String> get() = requests.filter { !it.startsWith("GET") }
 
@@ -92,11 +102,14 @@ internal class FakeTodoServer : Dispatcher() {
         body?.let { sent -> DATES.forEach { key -> (sent[key] as? JsonObject)?.str("timeZone")?.let { sentZones += it } } }
         // Delta takes no $top (measured 25 Nov 2026)
         if (path.lastOrNull() == "delta" && url.queryParameter("\$top") != null) return error(400, "BadRequest")
-        return try {
+        val decoded = "/" + path.joinToString("/")
+        if (refuse(request.method!!, decoded)) return error(500, "ErrorInternalServerError")
+        val answer = try {
             route(request.method!!, path, url.queryParameter("\$deltatoken"), url.queryParameter("\$skiptoken"), url.queryParameter("\$filter"), body)
         } catch (e: NoSuchElementException) {
             error(404, "ErrorItemNotFound")
         }
+        return if (loseReplyTo(request.method!!, decoded)) MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST) else answer
     }
 
     private fun route(method: String, path: List<String>, deltaToken: String?, skipToken: String?, filter: String?, body: JsonObject?): MockResponse {

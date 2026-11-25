@@ -17,6 +17,7 @@ import com.boox.day.tasksync.RemoteTaskState
 import com.boox.day.tasksync.TaskExtras
 import com.boox.day.tasksync.TaskSyncService
 import com.boox.day.tasksync.TaskSyncServiceException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -446,21 +447,54 @@ internal class MicrosoftTodoProvider(
     private suspend fun regroupStep(listId: String, remoteId: String, task: OutgoingTask, parent: String?): RemoteTask {
         val fresh = task.copy(createRetry = false)
         val made = if (parent == null) createTask(listId, fresh.copy(parentRemoteId = null)) else createStep(listId, parent, fresh)
-        replaced(listId, remoteId, made.remoteId)
+        replaced(listId, remoteId, listId, made.remoteId)
         return made
     }
 
-    /** Deletes [oldId] now that [newId] holds it; if that fails, [newId] goes again so nothing is doubled. */
-    private suspend fun replaced(listId: String, oldId: String, newId: String) {
-        try {
-            deleteCopy(listId, oldId)
-        } catch (e: Exception) {
-            try {
-                deleteCopy(listId, newId)
-            } catch (ignored: Exception) {
-                // The next pull brings the second copy in as a new task
-            }
+    /**
+     * Deletes [oldId] in [oldList] now that [newId] in [newList] holds it, never losing the only copy.
+     * The delete failed: the old one is read again. Still there: the new one goes, so nothing is
+     * doubled, and the failure is passed on. Gone: the delete went through and only its answer was
+     * lost, so the move is done. Can't tell: both stay and the failure is passed on; the next pull
+     * follows the copy (owner decision 49).
+     */
+    private suspend fun replaced(oldList: String, oldId: String, newList: String, newId: String) {
+        val failure = try {
+            deleteCopy(oldList, oldId)
+            return
+        } catch (e: CancellationException) {
             throw e
+        } catch (e: Exception) {
+            e
+        }
+        val stillThere = try {
+            exists(oldList, oldId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw failure  // can't tell: keep both
+        }
+        if (!stillThere) return
+        try {
+            deleteCopy(newList, newId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (ignored: Exception) {
+            // The next pull brings the second copy in as a new task: doubled, never lost
+        }
+        throw failure
+    }
+
+    /** Whether the task or step is there; a failure to tell is thrown. */
+    private suspend fun exists(listId: String, remoteId: String): Boolean {
+        val path = if (TodoFields.isStep(remoteId)) stepPath(listId, TodoFields.taskOf(remoteId), TodoFields.stepOf(remoteId))
+        else taskPath(listId, remoteId)
+        return try {
+            get(path)
+            true
+        } catch (e: GraphException.Http) {
+            if (!isGone(e)) throw e
+            false
         }
     }
 
@@ -498,14 +532,18 @@ internal class MicrosoftTodoProvider(
                     ?: throw IllegalStateException("No answer to a moved step")
                 newSteps[TodoFields.stepRemoteId(remoteId, oldStep)] = TodoFields.stepRemoteId(newId, copy.str("id")!!)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
+            // The new copy is the one that failed (a step didn't go) and the old one hasn't been touched:
+            // the new one goes, the old one stays whole
             try {
                 deleteCopy(toListId, newId)
             } catch (ignored: Exception) {
             }
             throw e
         }
-        replaced(fromListId, remoteId, newId)
+        replaced(fromListId, remoteId, toListId, newId)
         movedSteps.putAll(newSteps)
         taskState(toListId, onTask(toListId) { get(taskPath(toListId, newId)) })
     }
@@ -525,15 +563,7 @@ internal class MicrosoftTodoProvider(
             } ?: throw IllegalStateException("No answer to a moved step")
             taskState(toListId, made)
         }
-        try {
-            deleteCopy(fromListId, remoteId)
-        } catch (e: Exception) {
-            try {
-                deleteCopy(toListId, moved.remoteId)
-            } catch (ignored: Exception) {
-            }
-            throw e
-        }
+        replaced(fromListId, remoteId, toListId, moved.remoteId)
         return moved
     }
 
