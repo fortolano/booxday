@@ -50,7 +50,9 @@ internal class TaskSyncMerger(
     /** Priority and reminder sync too (a CalDAV or To Do list; owner decisions 67, 80, 81). */
     private val extras: Boolean = service?.carriesExtras == true,
     /** The part of a priority the service keeps ([TaskSyncService.keptPriority]: To Do only A). */
-    private val keptPriority: (String) -> String = { priority -> service?.keptPriority(priority) ?: priority }
+    private val keptPriority: (String) -> String = { priority -> service?.keptPriority(priority) ?: priority },
+    /** A create of the task was sent and its answer never recorded (TaskSyncSender's H15 marker). */
+    private val createTried: (taskId: String) -> Boolean = { false }
 ) {
     enum class Result { APPLIED, UNCHANGED, WAITS }
 
@@ -365,13 +367,14 @@ internal class TaskSyncMerger(
 
     /**
      * A To Do step is the tablet's own only with proof: an unlinked subtask of the task linked to the
-     * step's parent, with the same words and its send still waiting (a create whose answer was lost).
-     * Never a task that merely has the same words on that day: that one is the user's own.
+     * step's parent, with the same words, whose create was sent and its answer never recorded (lost
+     * on the way). Never one not sent yet, nor a task that merely has the same words on that day:
+     * those are the user's own.
      */
     private fun pendingSubtask(remote: RemoteTaskState, title: String): Task? {
         val parentLink = remote.parentRemoteId?.let { sync.getLinkByRemote(provider, accountEmail, serverUrl, remote.listId, it) } ?: return null
         return tasks.getChildTasks(parentLink.taskId).firstOrNull { child ->
-            sync.getLink(child.id) == null && TaskSyncRules.textToSend(child) == title && sync.queuedUpsertAt(child.id) != null
+            sync.getLink(child.id) == null && TaskSyncRules.textToSend(child) == title && createTried(child.id)
         }
     }
 

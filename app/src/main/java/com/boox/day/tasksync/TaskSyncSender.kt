@@ -247,10 +247,20 @@ internal class TaskSyncSender(
         return TaskSyncRules.contentHash(after, hashParentId, service.carriesExtras) != sentHash
     }
 
-    private fun pendingCreateKey(taskId: String): String =
-        "pending_create_${service.provider}_${accountEmail.hashCode()}_${serverUrl.hashCode()}_$taskId"
+    private fun pendingCreateKey(taskId: String): String = pendingCreateKey(service.provider, accountEmail, serverUrl, taskId)
 
     companion object {
+        /** H15: written before a new task's first send, removed once its link is saved. */
+        private fun pendingCreateKey(provider: String, accountEmail: String, serverUrl: String, taskId: String): String =
+            "pending_create_${provider}_${accountEmail.hashCode()}_${serverUrl.hashCode()}_$taskId"
+
+        /**
+         * Whether a create of a task was sent and its answer never recorded (lost on the way): the
+         * merger's proof that a new copy in the service is the tablet's own (TaskSyncMerger.createTried).
+         */
+        fun createTried(prefs: SharedPreferences, provider: String, accountEmail: String, serverUrl: String = ""): (String) -> Boolean =
+            { taskId -> prefs.contains(pendingCreateKey(provider, accountEmail, serverUrl, taskId)) }
+
         private const val TAG = "TaskSyncSender"
         const val MASS_DELETE_LIMIT = 20
         internal const val KEY_DELETES_APPROVED_UP_TO = "deletes_approved_up_to"

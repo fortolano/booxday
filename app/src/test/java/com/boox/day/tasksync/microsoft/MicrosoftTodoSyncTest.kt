@@ -110,7 +110,8 @@ class MicrosoftTodoSyncTest {
 
     private fun merger() = TaskSyncMerger(
         db, RepositoryTabletTasks(context, repo, canvasHeight = { CANVAS_HEIGHT }, penOn = { false }),
-        TaskSyncProvider.MICROSOFT_TODO, EMAIL, clock = { now }, today = { DAY }, service = provider
+        TaskSyncProvider.MICROSOFT_TODO, EMAIL, clock = { now }, today = { DAY }, service = provider,
+        createTried = TaskSyncSender.createTried(TaskSync.prefs(context), TaskSyncProvider.MICROSOFT_TODO, EMAIL)
     )
 
     // ── Priority (owner decision 80) ──
@@ -586,6 +587,23 @@ class MicrosoftTodoSyncTest {
         run()
         assertEquals("the user's task is untouched", "Pack bags", task(mine).typedText)
         assertNull("the step's row went", task(stepRow).typedText)
+    }
+
+    @Test
+    fun aSubtaskNotSentYetIsNeverTakenByAStepWithTheSameWords() = runBlocking {
+        val trip = row(0, "Plan trip")
+        run()
+        val parent = todo.tasksIn(TASKS).single().text("id")
+        val bags = row(1, "Pack bags") { repo.setParentTask(it, trip) }  // a subtask here, not sent yet
+        val phoneStep = TodoFields.stepRemoteId(parent, todo.addStep(TASKS, parent, "Pack bags"))  // the same words on the phone
+        run()  // the pull goes first: no create of it was sent, so the phone's step isn't it
+
+        val stepRow = linkedTo(phoneStep)!!.taskId
+        assertTrue("the phone's step comes as its own row", stepRow != bags)
+        assertEquals("Pack bags", task(stepRow).typedText)
+        val mine = sync.getLink(bags)!!.remoteId
+        assertTrue("the tablet's subtask went as its own step", mine != phoneStep && TodoFields.taskOf(mine) == parent)
+        assertEquals(2, todo.stepsOf(parent).size)
     }
 
     @Test
