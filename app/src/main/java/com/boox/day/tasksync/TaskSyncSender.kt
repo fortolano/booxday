@@ -102,6 +102,8 @@ internal class TaskSyncSender(
         val listId = entry.listId ?: return false
         val remoteId = entry.remoteId ?: return false
         if (listId !in tickedLists()) return false  // an unticked list: Google keeps its copy
+        // Kept in the service (a To Do repeating task, owner decision 89): its subtasks stay under it there
+        if (service.keepsOnDelete(listId, remoteId)) return false
         // A cleared parent's subtasks stay on the tablet (TaskRepository.clearTaskSlot), but Google
         // may delete them with their parent (its docs don't say): they move out first, also the
         // ones made subtasks on the phone (owner decision 24). If one can't be sent, the delete waits.
@@ -209,9 +211,10 @@ internal class TaskSyncSender(
 
         val sentHash = TaskSyncRules.contentHash(task, hashParentId, service.carriesExtras)
         val keptTitle = remote.title ?: title  // as the service keeps it, so the pull sees no change
-        // A new copy, or a parent move: the service's parent is now the one sent
+        // A new copy, or a parent move: the service's parent is now the one sent, unless the service
+        // kept the copy where it was (a step of a To Do repeating task)
         val moved = asLinked == null || parentRemoteId != asLinked.syncedParentRemoteId
-        val serviceParent = if (moved) parentRemoteId else current?.remoteParentId
+        val serviceParent = if (moved && !remote.parentKept) parentRemoteId else current?.remoteParentId
         // The priority as the service keeps it (To Do: only A), so its copy's is compared with that
         val keptPriority = extras?.priority?.let(service::keptPriority)
         val now = clock()

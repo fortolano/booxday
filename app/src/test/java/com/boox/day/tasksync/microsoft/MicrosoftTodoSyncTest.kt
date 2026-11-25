@@ -478,6 +478,32 @@ class MicrosoftTodoSyncTest {
     }
 
     @Test
+    fun aStepOfARepeatingTaskStaysInTheSeriesWhenItsTaskIsClearedHereAndCanNotBeMovedOut() = runBlocking {
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+        val plants = rowsOn(DAY, "Water plants").single()
+        val kitchen = row(1, "Kitchen") { repo.setParentTask(it, plants) }  // a subtask here: a step there
+        run()
+        val step = TodoFields.stepRemoteId(original, todo.stepsOf(original).single().text("id"))
+        assertEquals(step, sync.getLink(kitchen)?.remoteId)
+        val writes = todo.writes.size
+
+        repo.clearTaskSlot(task(plants), CANVAS_HEIGHT)  // the repeating task cleared here (owner decision 89)
+        run()
+        assertTrue("nothing deleted, made or moved: ${todo.writes.drop(writes)}", todo.writes.drop(writes).isEmpty())
+        assertEquals("still its step", listOf("Kitchen"), todo.stepsOf(original).map { it.text("displayName") })
+        assertEquals("its parent there as it is: never taken as left", original, sync.getLink(kitchen)!!.remoteParentId)
+
+        // A later move to another list can't take it out of the series
+        todo.addList(WORK, "Work")
+        sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", WORK, "Work"))
+        assertEquals(TaskSyncListMover.Outcome.SUBTASK, TaskSyncListMover(db, provider, EMAIL).move(kitchen, WORK))
+        assertEquals(step, sync.getLink(kitchen)?.remoteId)
+        assertEquals(1, todo.stepsOf(original).size)
+        assertTrue(todo.writes.drop(writes).isEmpty())
+    }
+
+    @Test
     fun aLostDeleteAnswerDuringAMoveLeavesOneCopyWithEveryLinkOnIt() = runBlocking {
         todo.addList(WORK, "Work")
         sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", WORK, "Work"))

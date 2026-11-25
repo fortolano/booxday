@@ -30,6 +30,12 @@ internal interface TaskSyncService {
     /** Deletes a copy; one already gone counts as deleted. */
     suspend fun delete(listId: String, remoteId: String)
 
+    /**
+     * True: [delete] leaves this copy in the service (a To Do repeating task or a step of one, owner
+     * decision 89), so its subtasks there stay where they are. Read from the service.
+     */
+    suspend fun keepsOnDelete(listId: String, remoteId: String): Boolean = false
+
     // ── Reading (the pull side) ──
 
     /** The account's task lists, for the Preferences card. */
@@ -150,7 +156,12 @@ internal data class RemoteTask(
      * The tablet's tick made the copy the next one of its repeat (a To Do repeating task, owner
      * decision 100), or it already was: the task stays ticked on its day, kept on the tablet only.
      */
-    val rolledOver: Boolean = false
+    val rolledOver: Boolean = false,
+    /**
+     * The service kept the copy under its parent though the tablet's grouping changed (a step of a To
+     * Do repeating task stays one, owner decision 89): its parent there is still the one it had.
+     */
+    val parentKept: Boolean = false
 )
 
 /** Failures a service reports so the sender can react; anything else is retried with growing waits. */

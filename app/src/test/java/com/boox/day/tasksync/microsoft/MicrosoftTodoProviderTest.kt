@@ -247,13 +247,15 @@ class MicrosoftTodoProviderTest {
     }
 
     @Test
-    fun aRepeatingTaskOrOneWithAttachmentsIsNotMoved() = runBlocking {
+    fun aRepeatingTaskOneOfItsStepsOrATaskWithAttachmentsIsNotMoved() = runBlocking {
         todo.addList(WORK, "Work")
         val repeating = todo.addTask(TASKS, task("Water plants") + ("recurrence" to FakeTodoServer.daily("2026-11-25")))
+        val step = TodoFields.stepRemoteId(repeating, todo.addStep(TASKS, repeating, "Kitchen"))
         val withFile = todo.addTask(TASKS, task("Sign lease") + ("hasAttachments" to JsonPrimitive(true)))
         val writesBefore = todo.writes.size
 
-        for (id in listOf(repeating, withFile)) {
+        // A step of a repeating task moved out would be deleted from the series (owner decision 89)
+        for (id in listOf(repeating, step, withFile)) {
             try {
                 provider().moveToList(TASKS, id, WORK)
                 fail("expected Refused")
@@ -263,6 +265,7 @@ class MicrosoftTodoProviderTest {
         }
         assertEquals("nothing written", writesBefore, todo.writes.size)
         assertEquals(2, todo.tasksIn(TASKS).size)
+        assertEquals("the step stays in its series", 1, todo.stepsOf(repeating).size)
     }
 
     // ── Repeats (owner decision 100): the next date, only when it can be worked out ──

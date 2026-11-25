@@ -306,13 +306,20 @@ internal class MicrosoftTodoProvider(
      * the next one by now (ticked on the phone, To Do keeps the id for it). One already gone is done.
      */
     override suspend fun delete(listId: String, remoteId: String) = call {
-        val task = try {
-            readOrNull(listId, taskPath(listId, TodoFields.taskOf(remoteId)))
-        } catch (e: TaskSyncServiceException.ListGone) {
-            null  // its list is gone, and the copy with it
-        } ?: return@call
+        val task = taskOfCopy(listId, remoteId) ?: return@call
         if (task.obj("recurrence") != null) return@call
         deleteCopy(listId, remoteId)
+    }
+
+    override suspend fun keepsOnDelete(listId: String, remoteId: String): Boolean = call {
+        taskOfCopy(listId, remoteId)?.obj("recurrence") != null
+    }
+
+    /** The task [remoteId] is (or, for a step, is part of) as it is now; null when it is gone, or its list. */
+    private suspend fun taskOfCopy(listId: String, remoteId: String): JsonObject? = try {
+        readOrNull(listId, taskPath(listId, TodoFields.taskOf(remoteId)))
+    } catch (e: TaskSyncServiceException.ListGone) {
+        null  // its list is gone, and the copy with it
     }
 
     /** What [path] holds, or null when it is gone (its list still there). */
@@ -411,19 +418,17 @@ internal class MicrosoftTodoProvider(
         if (TodoFields.stepVersion(before) != link.remoteVersion) {
             stepState(listId, taskId, before)?.let { throw TaskSyncServiceException.RemoteChanged(it) }
         }
-        if (wanted != taskId) {
-            // A step of a repeating task stays where it is: moving it would delete it there (owner decision 89)
-            val parentRepeats = readOrNull(listId, taskPath(listId, taskId))?.obj("recurrence") != null
-            if (!parentRepeats) return regroupStep(listId, link.remoteId, task, wanted)
-        }
+        // A step of a repeating task stays where it is: moving it would delete it there (owner
+        // decision 89), so its parent there stays the one it has
+        val kept = wanted != taskId && readOrNull(listId, taskPath(listId, taskId))?.obj("recurrence") != null
+        if (wanted != taskId && !kept) return regroupStep(listId, link.remoteId, task, wanted)
 
         val patch = buildJsonObject {
             if (task.title != link.syncedTitle) put("displayName", task.title)
             if (task.completed != link.syncedCompleted) put("isChecked", task.completed)
         }
-        if (patch.isEmpty()) return stepTaskOf(listId, taskId, before)
-        val after = onTask(listId) { graph.call("PATCH", path, patch) } ?: onTask(listId) { get(path) }
-        return stepTaskOf(listId, taskId, after)
+        val after = if (patch.isEmpty()) before else onTask(listId) { graph.call("PATCH", path, patch) } ?: onTask(listId) { get(path) }
+        return stepTaskOf(listId, taskId, after).copy(parentKept = kept)
     }
 
     /** A step to another task ([parent]) or to a task of its own (null): made there first, then deleted here. */
@@ -531,8 +536,12 @@ internal class MicrosoftTodoProvider(
         taskState(toListId, onTask(toListId) { get(taskPath(toListId, newId)) })
     }
 
-    /** One step to another list, under [parent] there or as a task of its own. */
+    /**
+     * One step to another list, under [parent] there or as a task of its own. A step of a repeating
+     * task is refused: moving it would delete it from the series (owner decision 89).
+     */
     private suspend fun moveStep(fromListId: String, remoteId: String, toListId: String, parent: String?): RemoteTaskState {
+        if (taskOfCopy(fromListId, remoteId)?.obj("recurrence") != null) throw TaskSyncServiceException.Refused()
         val step = onTask(fromListId) { get(stepPath(fromListId, TodoFields.taskOf(remoteId), TodoFields.stepOf(remoteId))) }
         val words = step.str("displayName").orEmpty()
         val ticked = step.bool("isChecked") == true
