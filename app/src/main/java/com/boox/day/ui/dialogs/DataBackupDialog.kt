@@ -78,6 +78,7 @@ import com.boox.day.sync.PostRestore
 import com.boox.day.sync.SignInErrorText
 import com.boox.day.ui.components.CloudBackupCard
 import com.boox.day.ui.components.EInkToggle
+import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.components.ExistingBackupDetectedCard
 import com.boox.day.ui.components.LocalBackupCard
 import com.boox.day.ui.components.keyboardHeight
@@ -2042,10 +2043,11 @@ internal fun CloudBackupFlowContent(
             // Header with account info
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.paddingSmall),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -2077,12 +2079,11 @@ internal fun CloudBackupFlowContent(
                     }
                 }
 
-                // Turn off backup link
-                Text(
+                // Review, Nov 2026: a button of the standard 44 dp height; the text alone was a
+                // touch target well under the 42 dp minimum
+                EinkSecondaryButton(
                     text = "Turn Off Backup",
-                    fontSize = EInkTheme.Preferences.infoLabelFontSize,
-                    color = EInkTheme.Colors.gray,
-                    modifier = Modifier.noRippleClickable(onClick = onTurnOffBackupClick)
+                    onClick = onTurnOffBackupClick
                 )
             }
 
