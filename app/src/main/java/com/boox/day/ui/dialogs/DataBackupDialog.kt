@@ -377,9 +377,9 @@ fun DataBackupDialog(
         }
     }
 
-    // SAF launcher for creating local backup file
+    // SAF launcher for creating local backup archive (.zip)
     val createBackupLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
+        contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         if (uri != null) {
             coroutineScope.launch {
@@ -396,10 +396,10 @@ fun DataBackupDialog(
                         )
                         // Refresh storage info
                         storageInfo = StorageCalculator.calculateStorage(context)
-                        // Navigate to success with file name
+                        // Navigate to success with file name + any media/stroke omission warnings (Decision D2)
                         currentPhase = BackupDialogPhase.Success(
-                            title = "Backup Complete",
-                            details = listOf("Saved to: ${result.fileName}")
+                            title = if (result.warnings.isEmpty()) "Backup Complete" else "Backup Complete (with notes)",
+                            details = listOf("Saved to: ${result.fileName}") + result.warnings
                         )
                     }
                     is LocalBackupService.SaveResult.Error -> {
@@ -645,8 +645,8 @@ fun DataBackupDialog(
                                                             lastBackupTime = System.currentTimeMillis()
                                                             folderStatus = "\u2713 Backup complete: ${uploadResult.fileName}"
                                                             currentPhase = BackupDialogPhase.Success(
-                                                                title = "Backup Complete",
-                                                                details = listOf("Saved to Google Drive: ${uploadResult.fileName}")
+                                                                title = if (exportResult.warnings.isEmpty()) "Backup Complete" else "Backup Complete (with notes)",
+                                                                details = listOf("Saved to Google Drive: ${uploadResult.fileName}") + exportResult.warnings
                                                             )
                                                         }
                                                         is DriveBackupService.UploadResult.Error -> {
@@ -687,21 +687,25 @@ fun DataBackupDialog(
                                             currentPhase = BackupDialogPhase.Processing("Downloading backup from Google Drive...")
                                             phaseHistory.clear()
 
-                                            when (val downloadResult = driveBackupService.downloadBackup(backup.fileId)) {
-                                                is DriveBackupService.DownloadResult.Success -> {
-                                                    currentPhase = BackupDialogPhase.Processing("Restoring your data...")
+                                            when (val downloadResult = driveBackupService.downloadBackupToFile(backup.fileId)) {
+                                                is DriveBackupService.FileDownloadResult.Success -> {
+                                                    try {
+                                                        currentPhase = BackupDialogPhase.Processing("Restoring your data...")
 
-                                                    when (val r = importService.restoreBackup(downloadResult.content)) {
-                                                        is ImportService.ImportResult.Success -> {
-                                                            // Caches and page previews still hold the old data
-                                                            PostRestore.invalidateCachesAndRestart(context)
+                                                        when (val r = importService.restoreBackup(downloadResult.file)) {
+                                                            is ImportService.ImportResult.Success -> {
+                                                                // Caches and page previews still hold the old data
+                                                                PostRestore.invalidateCachesAndRestart(context)
+                                                            }
+                                                            is ImportService.ImportResult.Error -> {
+                                                                currentPhase = BackupDialogPhase.Error("Restore failed: ${r.message}")
+                                                            }
                                                         }
-                                                        is ImportService.ImportResult.Error -> {
-                                                            currentPhase = BackupDialogPhase.Error("Restore failed: ${r.message}")
-                                                        }
+                                                    } finally {
+                                                        downloadResult.file.delete()
                                                     }
                                                 }
-                                                is DriveBackupService.DownloadResult.Error -> {
+                                                is DriveBackupService.FileDownloadResult.Error -> {
                                                     currentPhase = BackupDialogPhase.Error("Download failed: ${downloadResult.message}")
                                                 }
                                             }
@@ -813,6 +817,7 @@ fun DataBackupDialog(
                         }
                         is LocalBackupService.PreviewResult.Error -> {
                             localRestoreStatus = "Preview failed: ${result.message}"
+                            currentPhase = BackupDialogPhase.Error("Cannot open backup: ${result.message}")
                         }
                     }
 

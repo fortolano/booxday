@@ -191,7 +191,9 @@ class ImportService(
         val settingCount: Int = 0,
         val ocrPageCount: Int = 0,
         val ocrTextCount: Int = 0,
-        val summaryCount: Int = 0
+        val summaryCount: Int = 0,
+        val bundledMediaCount: Int = 0,
+        val warnings: List<String> = emptyList()
     )
 
     /**
@@ -201,10 +203,13 @@ class ImportService(
         previewBackup { jsonContent.byteInputStream() }
 
     suspend fun previewBackup(source: () -> InputStream): Result<BackupPreview> = withContext(Dispatchers.IO) {
+        var spooled: java.io.File? = null
         try {
+            spooled = BackupArchive.spoolToTempFile(context, source)
+            val manifest = BackupArchive.readManifest(spooled)
             var metadata: BackupMetadata? = null
             val counts = HashMap<String, Int>()
-            readBackupFile(source) { key, reader ->
+            readBackupFile({ BackupArchive.openJsonStream(spooled) }) { key, reader ->
                 when (key) {
                     "metadata" -> metadata = decodeValue(reader, BackupMetadata.serializer())
                     in SECTION_TABLES -> counts[key] = (counts[key] ?: 0) + countElements(reader)
@@ -229,17 +234,21 @@ class ImportService(
                     settingCount = counts["settings"] ?: 0,
                     ocrPageCount = counts["ocrPages"] ?: 0,
                     ocrTextCount = counts["ocrTexts"] ?: 0,
-                    summaryCount = counts["summaryCache"] ?: 0
+                    summaryCount = counts["summaryCache"] ?: 0,
+                    bundledMediaCount = manifest?.media?.size ?: 0,
+                    warnings = manifest?.warnings.orEmpty()
                 )
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to preview backup: ${e.message}", e)
+            Log.e(TAG, "Failed to preview backup: ${e.javaClass.simpleName}", e)
             Result.failure(e)
+        } finally {
+            spooled?.delete()
         }
     }
 
     /**
-     * Restore data from backup JSON held in memory (Google Drive download).
+     * Restore data from backup JSON held in memory.
      */
     suspend fun restoreBackup(
         jsonContent: String,
@@ -247,9 +256,19 @@ class ImportService(
     ): ImportResult = restoreBackup({ jsonContent.byteInputStream() }, clearExisting)
 
     /**
-     * Restore data from a backup file.
+     * Restore data directly from a local file (ZIP archive or legacy JSON), avoiding RAM buffering.
+     */
+    suspend fun restoreBackup(
+        file: java.io.File,
+        clearExisting: Boolean = true
+    ): ImportResult = restoreBackup({ file.inputStream() }, clearExisting)
+
+    /**
+     * Restore data from a backup stream (ZIP archive or legacy JSON).
+     * Spools [source] ONCE into a private temp snapshot so validation, DB import, and media extraction
+     * always read the exact same bytes (H9 / Decision D2).
      *
-     * @param source Opens the backup file; called twice (check pass, then import pass)
+     * @param source Opens the backup stream; called ONCE to spool into private temp storage
      * @param clearExisting If true (default), the tables the backup covers are emptied first
      * @return ImportResult indicating success or failure. On failure nothing was changed.
      */
@@ -257,19 +276,35 @@ class ImportService(
         source: () -> InputStream,
         clearExisting: Boolean = true
     ): ImportResult = withContext(Dispatchers.IO) {
+        var spooled: java.io.File? = null
+        var extractedMedia: BackupArchive.ExtractedMedia? = null
         try {
             Log.i(TAG, "Starting backup restore...")
             val db = databaseProvider()
 
-            // 1. Read and check the whole file before touching the database.
+            // 0. Spool input ONCE into a private immutable snapshot file before validation/import
+            spooled = try {
+                BackupArchive.spoolToTempFile(context, source)
+            } catch (e: IOException) {
+                throw BackupRejected("Could not read backup file (${e.message})")
+            }
+
+            // 1. Validate archive manifest (if ZIP) and the whole JSON payload before touching DB or files.
             val check = BackupCheck(db, clearExisting)
             try {
-                readBackupFile(source) { key, reader -> check.read(key, reader) }
+                readBackupFile({ BackupArchive.openJsonStream(spooled) }) { key, reader -> check.read(key, reader) }
             } catch (e: IOException) {
                 throw BackupRejected("The backup file is damaged or incomplete (${e.message})")
             }
             check.finish()
             Log.i(TAG, "Backup checked: version ${check.version}, sections ${check.present}")
+
+            // 1b. If ZIP archive, extract bundled media into a private staging directory before DB writes
+            extractedMedia = try {
+                BackupArchive.extractBundledImagesToStaging(context, spooled)
+            } catch (e: IOException) {
+                throw BackupRejected("Backup media archive is damaged (${e.message})")
+            }
 
             // 2. One transaction: empty the tables the file covers, then insert every row.
             //    Foreign keys are checked once all rows are in (v2 files list tasks before
@@ -293,8 +328,8 @@ class ImportService(
                         }
                     }
                 }
-                val writer = BackupWriter(db)
-                readBackupFile(source) { key, reader -> writer.read(key, reader) }
+                val writer = BackupWriter(db, context, extractedMedia)
+                readBackupFile({ BackupArchive.openJsonStream(spooled) }) { key, reader -> writer.read(key, reader) }
                 for (section in check.present) {
                     sql.query("PRAGMA foreign_key_check(`${SECTION_TABLES.getValue(section)}`)").use { cursor ->
                         if (cursor.moveToFirst()) {
@@ -306,6 +341,10 @@ class ImportService(
                 }
                 writer.counts
             }
+
+            // 3. Commit staged media strictly AFTER the Room transaction succeeded
+            extractedMedia?.commit(context)
+            extractedMedia = null
 
             Log.i(TAG, "Backup restore complete: $counts")
             ImportResult.Success(
@@ -325,8 +364,11 @@ class ImportService(
             Log.e(TAG, "Backup not restored: ${e.message}")
             ImportResult.Error(e.message ?: "The backup can't be restored")
         } catch (e: Exception) {
-            Log.e(TAG, "Backup restore failed: ${e.message}", e)
+            Log.e(TAG, "Backup restore failed: ${e.javaClass.simpleName}", e)
             ImportResult.Error(e.message ?: "Unknown error during restore")
+        } finally {
+            extractedMedia?.discard()
+            spooled?.delete()
         }
     }
 
@@ -478,7 +520,11 @@ class ImportService(
     /**
      * Pass 2. Inserts every row; runs inside the restore transaction.
      */
-    private class BackupWriter(private val db: AppDatabase) {
+    private class BackupWriter(
+        private val db: AppDatabase,
+        private val context: Context,
+        private val extractedMedia: BackupArchive.ExtractedMedia?
+    ) {
         val counts = HashMap<String, Int>()
         private val strokeBatch = ArrayList<Stroke>(STROKE_INSERT_BATCH)
 
@@ -513,7 +559,17 @@ class ImportService(
                 "textAnnotations" -> forEachElement(reader, key, BackupTextAnnotation.serializer()) {
                     db.textAnnotationDao().insert(it.toEntity())
                 }
-                "images" -> forEachElement(reader, key, BackupImage.serializer()) { db.ImageDao().create(it.toEntity()) }
+                "images" -> forEachElement(reader, key, BackupImage.serializer()) { backupImage ->
+                    val entity = backupImage.toEntity()
+                    // Rebind bundled app-owned memo images to this device's filesDir/booxdaydb/images/
+                    val fileName = BackupArchive.extractOwnedImageFileName(entity.uri)
+                    val rebound = if (fileName != null && extractedMedia != null && fileName in extractedMedia.fileNames) {
+                        entity.copy(uri = extractedMedia.targetUriFor(context, fileName))
+                    } else {
+                        entity
+                    }
+                    db.ImageDao().create(rebound)
+                }
                 "attachments" -> forEachElement(reader, key, BackupAttachment.serializer()) { db.attachmentDao().create(it.toEntity()) }
                 "localCalendars" -> forEachElement(reader, key, BackupLocalCalendar.serializer()) {
                     db.localCalendarDao().insert(it.toEntity())

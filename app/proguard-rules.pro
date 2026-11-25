@@ -139,9 +139,11 @@
 -keep class com.boox.day.ocr.semantic.classification.DictionaryLoader$* { *; }
 -keep class com.boox.day.ocr.semantic.classification.ConceptBridgeLoader$* { *; }
 
-# Sync — backup schema models (kotlinx.serialization)
+# Sync — backup schema & archive manifest models (kotlinx.serialization)
 -keep class com.boox.day.sync.BackupSchema { *; }
 -keep class com.boox.day.sync.BackupSchema$* { *; }
+-keep class com.boox.day.sync.BackupArchiveManifest { *; }
+-keep class com.boox.day.sync.ArchivedMediaEntry { *; }
 -keep class com.boox.day.sync.FullDatabaseBackupMetadata { *; }
 
 # Keep generated serializers for BooxDay classes (kotlinx-serialization consumer rules handle library types)

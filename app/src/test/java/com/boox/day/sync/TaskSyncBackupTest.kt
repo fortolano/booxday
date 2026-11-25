@@ -118,7 +118,7 @@ class TaskSyncBackupTest {
     private suspend fun exportBackup(): JsonObject {
         val result = ExportService(context) { db }.createBackup()
         check(result is ExportService.ExportResult.Success) { "export failed: $result" }
-        return Json.parseToJsonElement(result.backupFile.readText()).jsonObject
+        return Json.parseToJsonElement(BackupArchive.readBackupJsonText(result.backupFile)).jsonObject
     }
 
     private fun assertNoCursors() {

@@ -24,6 +24,7 @@ import com.boox.day.editor.utils.Pen
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -194,6 +195,100 @@ class BackupRestoreSafetyJvmTest {
             assertEquals(device.strokeDao().getAllStrokes().size, preview.strokeCount)
         } finally {
             target.close()
+        }
+    }
+
+    @Test
+    fun zipArchiveBundlesOwnedMemoImagesRestoresBytesAndWarnsOnExternalLinks(): Unit = runBlocking {
+        val imagesDir = com.boox.day.data.ensureImagesFolder(context)
+        val ownedFile = java.io.File(imagesDir, "memo-owned-${System.nanoTime()}.png")
+        val imageBytes = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 1, 2, 3, 4, 5)
+        ownedFile.writeBytes(imageBytes)
+
+        val target = inMemoryDb()
+        try {
+            device.pageDao().create(page("media-page"))
+            device.ImageDao().create(
+                Image(
+                    id = "img-owned",
+                    x = 10, y = 20, width = 100, height = 80,
+                    uri = android.net.Uri.fromFile(ownedFile).toString(),
+                    pageId = "media-page"
+                )
+            )
+            device.ImageDao().create(
+                Image(
+                    id = "img-external",
+                    x = 30, y = 40, width = 50, height = 50,
+                    uri = "content://com.example.provider/photo/42",
+                    pageId = "media-page"
+                )
+            )
+            device.attachmentDao().create(
+                Attachment(
+                    id = "att-ext",
+                    x = 5, y = 5, width = 60, height = 60,
+                    filePath = "/sdcard/Books/handbook.pdf",
+                    displayName = "handbook.pdf",
+                    fileType = "pdf",
+                    pageId = "media-page"
+                )
+            )
+
+            val exported = ExportService(context) { device }.createBackup() as ExportService.ExportResult.Success
+            assertTrue("export must be a ZIP archive", BackupArchive.isZipFile(exported.backupFile))
+            assertTrue(
+                "export must surface warning for external links",
+                exported.warnings.any { it.contains("external link", ignoreCase = true) }
+            )
+
+            // Delete the owned image file to prove restore genuinely recovers its bytes from the archive
+            assertTrue(ownedFile.delete())
+            assertFalse(ownedFile.exists())
+
+            // Single-spool proof: source stream lambda must be opened strictly ONCE
+            var openCount = 0
+            val restored = ImportService(context) { target }.restoreBackup(
+                source = {
+                    openCount++
+                    if (openCount > 1) throw IllegalStateException("source reopened!")
+                    exported.backupFile.inputStream()
+                }
+            )
+            assertTrue("restore must succeed: $restored", restored is ImportService.ImportResult.Success)
+            assertEquals("restore must spool input stream strictly once", 1, openCount)
+            assertTrue("owned memo image file must be restored to disk", ownedFile.exists())
+            assertTrue("restored bytes must match original", imageBytes.contentEquals(ownedFile.readBytes()))
+
+            val preview = ImportService(context) { target }.previewBackup { exported.backupFile.inputStream() }.getOrThrow()
+            assertEquals(1, preview.bundledMediaCount)
+            assertTrue(preview.warnings.isNotEmpty())
+        } finally {
+            ownedFile.delete()
+            target.close()
+        }
+    }
+
+    @Test
+    fun zipSlipMediaEntryIsRejectedWithoutTouchingDatabase(): Unit = runBlocking {
+        val before = snapshot(device)
+
+        val evilZip = java.io.File(context.cacheDir, "evil-backup-${System.nanoTime()}.zip")
+        try {
+            java.util.zip.ZipOutputStream(evilZip.outputStream()).use { zip ->
+                zip.putNextEntry(java.util.zip.ZipEntry(BackupArchive.BACKUP_JSON_ENTRY))
+                zip.write(v3Backup(pages = listOf(pageJson("p1")), strokes = emptyList()).toByteArray())
+                zip.closeEntry()
+                zip.putNextEntry(java.util.zip.ZipEntry("media/images/../../escape.txt"))
+                zip.write("boom".toByteArray())
+                zip.closeEntry()
+            }
+
+            val result = ImportService(context) { device }.restoreBackup(evilZip)
+            assertTrue("zip-slip archive must be rejected", result is ImportService.ImportResult.Error)
+            assertEquals("existing database must stay untouched", before, snapshot(device))
+        } finally {
+            evilZip.delete()
         }
     }
 

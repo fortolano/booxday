@@ -232,7 +232,7 @@ fun BackupFilePickerDialog(
                                     )
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        "Backups are saved as ${BACKUP_FILE_PREFIX}*.json",
+                                        "Backups are saved as ${BACKUP_FILE_PREFIX}*.zip or *.json",
                                         fontSize = EInkTheme.Typography.bodySmall,
                                         color = EInkTheme.Colors.gray
                                     )
@@ -329,7 +329,8 @@ private fun loadBackupFiles(folder: BackupFolder): List<BackupFileItem> {
         ?.filter { file ->
             file.isFile &&
                 file.name.startsWith(BACKUP_FILE_PREFIX) &&
-                file.name.endsWith(".json", ignoreCase = true)
+                (file.name.endsWith(".zip", ignoreCase = true) ||
+                    file.name.endsWith(".json", ignoreCase = true))
         }
         ?.map { file ->
             BackupFileItem(

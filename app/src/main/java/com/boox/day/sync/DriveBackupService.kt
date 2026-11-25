@@ -110,16 +110,22 @@ class DriveBackupService(private val context: Context) {
 
             Log.i(TAG, "Uploading backup: ${localFile.name} to folder: $folderId")
 
+            val uploadMimeType = if (localFile.name.endsWith(".zip", ignoreCase = true)) {
+                "application/zip"
+            } else {
+                "application/json"
+            }
+
             // Create file metadata
             val fileMetadata = File().apply {
                 name = localFile.name
                 parents = listOf(folderId)
-                mimeType = "application/json"
+                mimeType = uploadMimeType
                 description = "BooxDay backup - ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(java.util.Date())}"
             }
 
             // Upload the file
-            val mediaContent = FileContent("application/json", localFile)
+            val mediaContent = FileContent(uploadMimeType, localFile)
             val uploadedFile = drive.files().create(fileMetadata, mediaContent)
                 .setFields("id, name, size, createdTime")
                 .execute()
@@ -182,8 +188,8 @@ class DriveBackupService(private val context: Context) {
 
             Log.i(TAG, "Listing backups in folder: $folderId")
 
-            // Query for JSON files in the backup folder
-            val query = "'$folderId' in parents and mimeType='application/json' and trashed=false"
+            // Query for both new ZIP backup archives and legacy JSON backups (excluding SQLite _meta.json sidecars)
+            val query = "'$folderId' in parents and (mimeType='application/zip' or mimeType='application/json') and trashed=false"
             val result = drive.files().list()
                 .setQ(query)
                 .setSpaces("drive")
@@ -194,9 +200,11 @@ class DriveBackupService(private val context: Context) {
 
             val backups = result.files?.mapNotNull { file ->
                 try {
+                    val fileName = file.name ?: return@mapNotNull null
+                    if (fileName.endsWith("_meta.json", ignoreCase = true)) return@mapNotNull null
                     BackupInfo(
                         fileId = file.id,
-                        fileName = file.name,
+                        fileName = fileName,
                         createdTime = file.createdTime?.value ?: 0L,
                         sizeBytes = file.getSize() ?: 0L
                     )
@@ -222,6 +230,37 @@ class DriveBackupService(private val context: Context) {
     sealed class DownloadResult {
         data class Success(val content: String) : DownloadResult()
         data class Error(val message: String) : DownloadResult()
+    }
+
+    sealed class FileDownloadResult {
+        data class Success(val file: java.io.File) : FileDownloadResult()
+        data class Error(val message: String) : FileDownloadResult()
+    }
+
+    /**
+     * Streams a Google Drive backup directly to a temporary file on disk (supports both ZIP archives
+     * and legacy JSON backups without buffering the whole payload in RAM: M5(5)).
+     * Caller owns deleting the returned file when finished.
+     */
+    suspend fun downloadBackupToFile(fileId: String): FileDownloadResult = withContext(Dispatchers.IO) {
+        val dir = java.io.File(context.cacheDir, "drive-restore").apply { mkdirs() }
+        val tempFile = java.io.File(dir, "drive-backup-${java.util.UUID.randomUUID()}.tmp")
+        try {
+            val drive = getDriveService()
+            if (drive == null) {
+                return@withContext FileDownloadResult.Error("Not signed in to Google")
+            }
+            Log.i(TAG, "Streaming backup download to file: $fileId")
+            java.io.FileOutputStream(tempFile).buffered().use { out ->
+                drive.files().get(fileId).executeMediaAndDownloadTo(out)
+            }
+            Log.i(TAG, "Downloaded backup file: ${tempFile.length()} bytes")
+            FileDownloadResult.Success(tempFile)
+        } catch (e: Exception) {
+            tempFile.delete()
+            Log.e(TAG, "Streaming download failed: ${e.javaClass.simpleName}", e)
+            FileDownloadResult.Error(e.message ?: "Unknown download error")
+        }
     }
 
     /**

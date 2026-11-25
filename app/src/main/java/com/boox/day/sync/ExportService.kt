@@ -74,53 +74,73 @@ class ExportService(
      * Result of export operation.
      */
     sealed class ExportResult {
-        data class Success(val backupFile: File, val metadata: BackupMetadata) : ExportResult()
+        data class Success(
+            val backupFile: File,
+            val metadata: BackupMetadata,
+            val warnings: List<String> = emptyList()
+        ) : ExportResult()
         data class Error(val message: String) : ExportResult()
     }
 
     /**
-     * Create a full backup of user data in the local backups folder.
-     * Returns the backup file and its metadata (row counts).
+     * Create a full versioned ZIP backup archive (database snapshot + app-owned memo images + manifest)
+     * in the local backups folder. Reports explicit warnings when damaged strokes are skipped or when
+     * external URIs/missing files could not be bundled (H9 / Decision D2).
      */
     suspend fun createBackup(): ExportResult = withContext(Dispatchers.IO) {
         val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.US).format(Date())
         val backupDir = File(getDbDir(context), "backups").apply { mkdirs() }
-        val backupFile = File(backupDir, "booxday_backup_$timestamp.json")
-        val partFile = File(backupDir, "${backupFile.name}.part")
+        val backupFile = File(backupDir, "booxday_backup_$timestamp.zip")
+        val jsonTempFile = File(backupDir, "${backupFile.name}.json.part")
+        val zipPartFile = File(backupDir, "${backupFile.name}.part")
         try {
             Log.i(TAG, "Starting backup export...")
             val db = databaseProvider()
 
-            val metadata = db.withTransaction {
-                partFile.bufferedWriter(Charsets.UTF_8).use { out ->
+            val writeStats = db.withTransaction {
+                jsonTempFile.bufferedWriter(Charsets.UTF_8).use { out ->
                     JsonWriter(out).use { writer -> writeBackup(db, writer) }
                 }
             }
-            if (!partFile.renameTo(backupFile)) {
-                partFile.copyTo(backupFile, overwrite = true)
+            BackupArchive.writeZipArchive(
+                jsonTempFile = jsonTempFile,
+                targetZipPart = zipPartFile,
+                ownedImages = writeStats.ownedImages,
+                warnings = writeStats.warnings
+            )
+            if (!zipPartFile.renameTo(backupFile)) {
+                zipPartFile.copyTo(backupFile, overwrite = true)
             }
 
-            Log.i(TAG, "Backup created: ${backupFile.absolutePath} (${backupFile.length()} bytes)")
+            val metadata = writeStats.metadata
+            Log.i(TAG, "Backup created: ${backupFile.absolutePath} (${backupFile.length()} bytes, ${writeStats.ownedImages.size} images, ${writeStats.warnings.size} warning(s))")
             Log.i(
                 TAG,
                 "  Events: ${metadata.totalEvents}, Tasks: ${metadata.totalTasks}, " +
                     "Pages: ${metadata.totalPages}, Strokes: ${metadata.totalStrokes}, " +
                     "Repeating: ${metadata.totalRecurringTaskTemplates}"
             )
-            ExportResult.Success(backupFile, metadata)
+            ExportResult.Success(backupFile, metadata, writeStats.warnings)
         } catch (e: Exception) {
-            Log.e(TAG, "Backup export failed: ${e.message}", e)
+            Log.e(TAG, "Backup export failed: ${e.javaClass.simpleName}", e)
             ExportResult.Error(e.message ?: "Unknown error during backup")
         } finally {
-            if (partFile.exists()) partFile.delete()
+            if (jsonTempFile.exists()) jsonTempFile.delete()
+            if (zipPartFile.exists()) zipPartFile.delete()
         }
     }
+
+    private data class WriteStats(
+        val metadata: BackupMetadata,
+        val ownedImages: Map<String, File>,
+        val warnings: List<String>
+    )
 
     /**
      * Writes the backup object. Parent tables come before their children, so the file can also be
      * read top to bottom; the metadata (row counts) is written last, once the counts are known.
      */
-    private suspend fun writeBackup(db: AppDatabase, writer: JsonWriter): BackupMetadata {
+    private suspend fun writeBackup(db: AppDatabase, writer: JsonWriter): WriteStats {
         writer.beginObject()
 
         val folders = writeSection(writer, "folders", BackupFolder.serializer(),
@@ -139,13 +159,53 @@ class ExportService(
             db.taskDao().getAllTasks().map { it.toBackup() })
         writeSection(writer, "taskSyncLinks", BackupTaskSyncLink.serializer(),
             db.taskSyncDao().getAllLinks().map { it.toBackup() })
-        val strokes = writeStrokes(db, writer)
+        val (strokes, skippedStrokes) = writeStrokes(db, writer)
         writeSection(writer, "textAnnotations", BackupTextAnnotation.serializer(),
             db.textAnnotationDao().getAllAnnotations().map { it.toBackup() })
-        writeSection(writer, "images", BackupImage.serializer(),
-            db.ImageDao().getAllImages().map { it.toBackup() })
+
+        val imageRows = db.ImageDao().getAllImages()
+        writeSection(writer, "images", BackupImage.serializer(), imageRows.map { it.toBackup() })
+
+        val attachmentRows = db.attachmentDao().getAllAttachments()
         val attachments = writeSection(writer, "attachments", BackupAttachment.serializer(),
-            db.attachmentDao().getAllAttachments().map { it.toBackup() })
+            attachmentRows.map { it.toBackup() })
+
+        // Collect app-owned memo images to bundle into the ZIP archive and report any uncopyable/missing references
+        val ownedImages = LinkedHashMap<String, File>()
+        var missingOwnedImages = 0
+        var unbundledExternalRefs = 0
+        for (img in imageRows) {
+            val uri = img.uri?.takeIf { it.isNotBlank() } ?: continue
+            val owned = BackupArchive.resolveOwnedImageFile(context, uri)
+            if (owned != null) {
+                if (owned.isFile && owned.canRead()) {
+                    ownedImages[owned.name] = owned
+                } else {
+                    missingOwnedImages++
+                }
+            } else {
+                unbundledExternalRefs++
+            }
+        }
+        // Attachments are external document links (Books/Documents/Downloads) and are not copied into app storage
+        for (att in attachmentRows) {
+            if (att.filePath.isNotBlank()) {
+                unbundledExternalRefs++
+            }
+        }
+
+        val warnings = buildList {
+            if (skippedStrokes > 0) {
+                add("$skippedStrokes damaged handwriting stroke${if (skippedStrokes == 1) "" else "s"} could not be read and ${if (skippedStrokes == 1) "was" else "were"} skipped.")
+            }
+            if (missingOwnedImages > 0) {
+                add("$missingOwnedImages memo image file${if (missingOwnedImages == 1) "" else "s"} ${if (missingOwnedImages == 1) "was" else "were"} missing on this tablet and could not be bundled.")
+            }
+            if (unbundledExternalRefs > 0) {
+                add("$unbundledExternalRefs external link${if (unbundledExternalRefs == 1) "" else "s"} (attachments or external image URIs) sit outside BooxDay and were not copied into the archive.")
+            }
+        }
+
         writeSection(writer, "localCalendars", BackupLocalCalendar.serializer(),
             db.localCalendarDao().getAll().map { it.toBackup() })
         // Events deleted on this device (waiting to be removed from the provider) are not backed up.
@@ -180,7 +240,7 @@ class ExportService(
         )
         writer.name("metadata").jsonValue(json.encodeToString(BackupMetadata.serializer(), metadata))
         writer.endObject()
-        return metadata
+        return WriteStats(metadata, ownedImages, warnings)
     }
 
     private fun <T> writeSection(writer: JsonWriter, name: String, serializer: KSerializer<T>, rows: List<T>): Int {
@@ -192,7 +252,7 @@ class ExportService(
         return rows.size
     }
 
-    private fun writeStrokes(db: AppDatabase, writer: JsonWriter): Int {
+    private fun writeStrokes(db: AppDatabase, writer: JsonWriter): Pair<Int, Int> {
         writer.name("strokes").beginArray()
         var written = 0
         val undecodable = mutableListOf<String>()
@@ -202,7 +262,7 @@ class ExportService(
             if (batch.isEmpty()) break
             for (stroke in batch) {
                 // A stroke whose stored points can't be decoded has nothing to write; skip it
-                // (its row stays in the database) instead of failing the whole backup.
+                // (its row stays in the database) instead of failing the whole backup, and surface a warning.
                 if (stroke.isUndecodable) {
                     undecodable += stroke.id
                     continue
@@ -214,9 +274,9 @@ class ExportService(
         }
         writer.endArray()
         if (undecodable.isNotEmpty()) {
-            Log.e(TAG, "Backup skipped ${undecodable.size} undecodable stroke(s): $undecodable")
+            Log.e(TAG, "Backup skipped ${undecodable.size} undecodable stroke(s)")
         }
-        return written
+        return written to undecodable.size
     }
 
     private fun writeOcrTexts(db: AppDatabase, writer: JsonWriter): Int {

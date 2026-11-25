@@ -28,7 +28,7 @@ class LocalBackupService(private val context: Context) {
     companion object {
         private const val TAG = "LocalBackupService"
         private const val BACKUP_FILE_PREFIX = "booxday_backup_"
-        private const val BACKUP_FILE_EXTENSION = ".json"
+        private const val BACKUP_FILE_EXTENSION = ".zip"
     }
 
     /**
@@ -38,7 +38,8 @@ class LocalBackupService(private val context: Context) {
         data class Success(
             val fileName: String,
             val bytesWritten: Long,
-            val metadata: BackupMetadata
+            val metadata: BackupMetadata,
+            val warnings: List<String> = emptyList()
         ) : SaveResult()
         data class Error(val message: String) : SaveResult()
     }
@@ -91,7 +92,8 @@ class LocalBackupService(private val context: Context) {
                     SaveResult.Success(
                         fileName = uri.lastPathSegment ?: generateBackupFileName(),
                         bytesWritten = bytesWritten,
-                        metadata = exportResult.metadata
+                        metadata = exportResult.metadata,
+                        warnings = exportResult.warnings
                     )
                 }
                 is ExportService.ExportResult.Error -> {
