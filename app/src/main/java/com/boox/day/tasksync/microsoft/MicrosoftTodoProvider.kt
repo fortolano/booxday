@@ -15,6 +15,7 @@ import com.boox.day.tasksync.RemoteList
 import com.boox.day.tasksync.RemoteTask
 import com.boox.day.tasksync.RemoteTaskState
 import com.boox.day.tasksync.TaskExtras
+import com.boox.day.tasksync.TaskSync
 import com.boox.day.tasksync.TaskSyncService
 import com.boox.day.tasksync.TaskSyncServiceException
 import kotlinx.coroutines.CancellationException
@@ -76,7 +77,9 @@ internal class MicrosoftTodoProvider(
     private val graph: MicrosoftGraph,
     /** The links of a list: which steps are on the tablet (a step deleted with its task has no delta entry of its own). */
     private val linksIn: suspend (listId: String) -> List<TaskSyncLink> = { emptyList() },
-    private val zone: () -> ZoneId = ZoneId::systemDefault
+    private val zone: () -> ZoneId = ZoneId::systemDefault,
+    /** The done copies that already proved a phone tick (owner decision 100); null: within one round only. */
+    private val usedDoneCopies: UsedDoneCopies? = null
 ) : TaskSyncService {
 
     override val provider: String = TaskSyncProvider.MICROSOFT_TODO
@@ -155,8 +158,10 @@ internal class MicrosoftTodoProvider(
      * next one and makes a done copy. Taken as a tick only on clear evidence, both of: the tablet's
      * copy is now due on exactly the next date of its own repeat after the day the tablet last had,
      * and a ticked task with the same title and repeat is due, or was ticked, on that day (in this
-     * round, else found by its title). A done copy that is the evidence for two tasks (two series
-     * alike) is the evidence for neither. Anything less is a date change: the task moves (decision 43).
+     * round, else found by its title), made since the tablet last saw the copy. A done copy proves
+     * one tick only: one that is the evidence for two tasks (two series alike) is the evidence for
+     * neither, and one used is never used for another task again ([usedDoneCopies], also in a later
+     * pull). Anything less is a date change: the task moves (decision 43).
      */
     private suspend fun rolledOverOnThePhone(listId: String, present: List<JsonObject>, linkOf: Map<String, TaskSyncLink>): Set<String> {
         val evidence = HashMap<String, Set<String>>()  // task id -> the done copies that show its tick
@@ -167,17 +172,26 @@ internal class MicrosoftTodoProvider(
             val link = linkOf[id] ?: continue  // not on the tablet: nothing to keep
             if (link.remoteUndated) continue
             val lastDue = link.syncedDueDay ?: continue
+            val lastSeen = instantOf(link.remoteVersion) ?: continue
             val next = TodoFields.nextDue(recurrence, LocalDate.parse(lastDue)) ?: continue  // can't tell: no evidence
             if (dueOf(open) != next.toString()) continue
-            fun showsTheTick(copy: JsonObject) = copy.str("id") != id && copy.str("status") == COMPLETED &&
-                TodoFields.sameSeries(copy, open) &&
-                (dueOf(copy) == lastDue || TodoFields.dayOf(copy.obj("completedDateTime"), zone()) == lastDue)
+            fun showsTheTick(copy: JsonObject): Boolean {
+                val copyId = copy.str("id") ?: return false
+                val made = instantOf(copy.str("createdDateTime")) ?: return false
+                return copyId != id && copy.str("status") == COMPLETED && TodoFields.sameSeries(copy, open) &&
+                    (dueOf(copy) == lastDue || TodoFields.dayOf(copy.obj("completedDateTime"), zone()) == lastDue) &&
+                    !made.isBefore(lastSeen) && usedDoneCopies?.usedByAnother(listId, copyId, id) != true
+            }
             val copies = present.filter(::showsTheTick).ifEmpty { titled(listId, open.str("title").orEmpty()).filter(::showsTheTick) }
             if (copies.isNotEmpty()) evidence[id] = copies.mapNotNullTo(HashSet()) { it.str("id") }
         }
-        return evidence.filter { (id, copies) ->
-            copies.any { copy -> evidence.none { (other, theirs) -> other != id && copy in theirs } }
-        }.keys
+        val rolled = HashSet<String>()
+        for ((id, copies) in evidence) {
+            val own = copies.firstOrNull { copy -> evidence.none { (other, theirs) -> other != id && copy in theirs } } ?: continue
+            usedDoneCopies?.use(listId, own, id)
+            rolled += id
+        }
+        return rolled
     }
 
     /** A task's steps as read now, and the ones on the tablet that are gone. */
@@ -806,7 +820,8 @@ internal class MicrosoftTodoProvider(
                 MicrosoftGraph.forAccount(OutlookAuthManager(app), msalId, MicrosoftScopes.TASKS),
                 linksIn = { listId ->
                     withContext(Dispatchers.IO) { sync.getLinksInList(TaskSyncProvider.MICROSOFT_TODO, accountEmail, "", listId) }
-                }
+                },
+                usedDoneCopies = UsedDoneCopies(TaskSync.prefs(app), accountEmail)
             )
         }
 

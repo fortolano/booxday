@@ -76,16 +76,20 @@ class MicrosoftTodoSyncTest {
         tasks = db.taskDao()
         sync = db.taskSyncDao()
         sync.insertList(TaskSyncList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", TASKS, "Tasks", isDefaultForNew = true))
-        provider = MicrosoftTodoProvider(
-            // No silent retries: an answer lost on the way stays lost, as on a bad connection
-            MicrosoftGraph(
-                token = { "token" }, baseUrl = server.url("/v1.0").toString().trimEnd('/'),
-                client = OkHttpClient.Builder().retryOnConnectionFailure(false).readTimeout(5, TimeUnit.SECONDS).build()
-            ),
-            linksIn = { listId -> sync.getLinksInList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", listId) },
-            zone = { ZoneId.of("Europe/Warsaw") }
-        )
+        provider = newProvider()
     }
+
+    /** As MicrosoftTodoProvider.create makes it; a new one is as after a restart. */
+    private fun newProvider() = MicrosoftTodoProvider(
+        // No silent retries: an answer lost on the way stays lost, as on a bad connection
+        MicrosoftGraph(
+            token = { "token" }, baseUrl = server.url("/v1.0").toString().trimEnd('/'),
+            client = OkHttpClient.Builder().retryOnConnectionFailure(false).readTimeout(5, TimeUnit.SECONDS).build()
+        ),
+        linksIn = { listId -> sync.getLinksInList(TaskSyncProvider.MICROSOFT_TODO, EMAIL, "", listId) },
+        zone = { ZoneId.of("Europe/Warsaw") },
+        usedDoneCopies = UsedDoneCopies(TaskSync.prefs(context), EMAIL)
+    )
 
     @After
     fun tearDown() {
@@ -460,6 +464,44 @@ class MicrosoftTodoSyncTest {
         }
         assertTrue(tasks.getTasksForDay(DAY).none { it.typedText == "Water plants" })
         assertTrue(todo.writes.isEmpty())
+    }
+
+    @Test
+    fun aDoneCopyProvesOneTickOnlyAlsoInALaterPullAfterARestart() = runBlocking {
+        val first = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        val second = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+        val firstRow = linkedTo(first)!!.taskId
+
+        todo.patchTask(TASKS, first, mapOf("status" to JsonPrimitive("completed")))
+        run()
+        assertKeptTicked(firstRow, DAY, first)
+
+        // Later, after a restart: the other one moved to the very day a tick would make it
+        provider = newProvider()
+        todo.patchTask(TASKS, second, mapOf("dueDateTime" to FakeTodoServer.date("2026-11-26T00:00:00", "UTC")))
+        run()
+
+        val moved = linkedTo(second)!!
+        assertTrue("the first one's done copy proves nothing more: a date change", !moved.keptOnTablet && !task(moved.taskId).isCompleted)
+        assertEquals(NEXT_DAY, task(moved.taskId).dayDate)
+    }
+
+    @Test
+    fun aDoneCopyMadeBeforeTheTabletLastSawTheTaskIsNoEvidence() = runBlocking {
+        // On the phone before Task Sync: one series ticked for 25 Nov, then an alike one made for 25 Nov
+        val first = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        todo.patchTask(TASKS, first, mapOf("status" to JsonPrimitive("completed")))
+        val second = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+
+        todo.patchTask(TASKS, second, mapOf("dueDateTime" to FakeTodoServer.date("2026-11-26T00:00:00", "UTC")))
+        run()
+
+        val moved = linkedTo(second)!!
+        assertTrue("the old done copy proves no tick of it", !moved.keptOnTablet && !task(moved.taskId).isCompleted)
+        assertEquals(NEXT_DAY, task(moved.taskId).dayDate)
+        assertTrue(tasks.getTasksForDay(DAY).none { it.typedText == "Water plants" })
     }
 
     @Test
