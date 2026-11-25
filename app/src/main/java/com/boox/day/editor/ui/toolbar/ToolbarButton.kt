@@ -7,7 +7,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -93,52 +92,57 @@ fun ToolbarButton(
             ) { onSelect() }
             .background(
                 color = bgColor, shape = RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
-            )
-            .padding(iconPadding.dp),
+            ),
         contentAlignment = Alignment.Center
     ) {
-        when {
-            effectiveIconId != null -> {
-                Icon(
-                    painterResource(effectiveIconId),
-                    contentDescription,
-                    modifier = Modifier.size(iconSize * scale),
-                    tint = tint
-                )
-            }
+        Box(
+            modifier = Modifier.padding(iconPadding.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                effectiveIconId != null -> {
+                    Icon(
+                        painterResource(effectiveIconId),
+                        contentDescription,
+                        modifier = Modifier.size(iconSize * scale),
+                        tint = tint
+                    )
+                }
 
-            vectorIcon != null -> {
-                Icon(
-                    vectorIcon,
-                    contentDescription,
-                    modifier = Modifier.size(iconSize * scale),
-                    tint = tint
-                )
-            }
+                vectorIcon != null -> {
+                    Icon(
+                        vectorIcon,
+                        contentDescription,
+                        modifier = Modifier.size(iconSize * scale),
+                        tint = tint
+                    )
+                }
 
-            imageVector != null -> {
-                Icon(
-                    imageVector,
-                    contentDescription,
-                    modifier = Modifier.size(iconSize * scale),
-                    tint = if (isPressed || isSelected) EInkTheme.Selection.foreground else EInkTheme.Toolbar.iconColor
-                )
-            }
-            text != null -> {
-                Text(
-                    text,
-                    fontSize = 20.sp,
-                    color = if (isPressed || isSelected) EInkTheme.Selection.foreground else EInkTheme.Toolbar.iconColor
-                )
+                imageVector != null -> {
+                    Icon(
+                        imageVector,
+                        contentDescription,
+                        modifier = Modifier.size(iconSize * scale),
+                        tint = if (isPressed || isSelected) EInkTheme.Selection.foreground else EInkTheme.Toolbar.iconColor
+                    )
+                }
+                text != null -> {
+                    Text(
+                        text,
+                        fontSize = 20.sp,
+                        color = if (isPressed || isSelected) EInkTheme.Selection.foreground else EInkTheme.Toolbar.iconColor
+                    )
+                }
             }
         }
 
-        // Dropdown indicator triangle in bottom-right corner
+        // Dropdown indicator triangle in bottom-right corner, kept inside the button bounds
+        // regardless of iconPadding (e.g. AI Tools uses iconPadding = 1).
         if (hasDropdown) {
             Canvas(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .offset(x = 2.dp, y = 4.dp)
+                    .padding(end = 4.dp, bottom = 3.dp)
                     .size(6.dp)
             ) {
                 val triangleColor = if (isPressed || isSelected) EInkTheme.Selection.foreground else EInkTheme.Colors.darkGray
