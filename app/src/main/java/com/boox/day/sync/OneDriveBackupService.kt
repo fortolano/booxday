@@ -111,13 +111,11 @@ internal class OneDriveBackupService(
             var offset = 0L
             while (offset < total) {
                 val length = minOf(pieceSize.toLong(), total - offset).toInt()
-                // Before every piece, the last one too: it is the one that makes the file
-                if (!stillWanted()) throw NoLongerWanted()
                 input.seek(offset)
                 input.readFully(buffer, 0, length)
                 val last = offset + length == total
                 val answer = try {
-                    sendPiece(graph, uploadUrl, buffer, length, offset, total)
+                    sendPiece(graph, uploadUrl, buffer, length, offset, total, stillWanted)
                 } catch (e: SessionGone) {
                     // The last piece's answer can be lost after Microsoft made the file
                     if (last) findUploaded(graph, file.name, total)?.let { return it }
@@ -141,10 +139,14 @@ internal class OneDriveBackupService(
         buffer: ByteArray,
         length: Int,
         offset: Long,
-        total: Long
+        total: Long,
+        stillWanted: () -> Boolean
     ): Uploaded? {
         var retries = 0
         while (true) {
+            // Before every send, a retry after a wait too (re-review, 25 Nov 2026: a switch during
+            // Microsoft's wait let the last piece go and finish the file in the old cloud)
+            if (!stillWanted()) throw NoLongerWanted()
             try {
                 return graph.uploadPiece(uploadUrl, buffer, length, offset, total)?.let(::uploadedOf)
             } catch (e: GraphException) {
