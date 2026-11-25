@@ -70,6 +70,7 @@ import com.boox.day.sync.DriveBackupService
 import com.boox.day.sync.OneDriveAccount
 import com.boox.day.sync.OneDriveBackupService
 import com.boox.day.sync.OneDriveSignIn
+import com.boox.day.sync.turnsOnAutoBackupAfterSignIn
 import com.boox.day.sync.outlook.OutlookAuthManager
 import com.boox.day.sync.ExportService
 import com.boox.day.sync.GoogleAuthManager
@@ -199,6 +200,8 @@ fun DataBackupDialog(
     var userEmail by remember { mutableStateOf(authManager.getUserEmail()) }
     // Why the last Google sign-in failed, shown in the Google Drive card in place of "Not connected"
     var signInError by remember { mutableStateOf<String?>(null) }
+    // The Google sign-in was started from the restore card: it never turns Auto Backup on (owner, Nov 2026)
+    var googleSignInForRestore by remember { mutableStateOf(false) }
     // One backup cloud at a time (owner decision 85): Google Drive, OneDrive or none
     var backupDestination by remember { mutableStateOf(authManager.getBackupDestination()) }
     var backupFrequency by remember { mutableStateOf(authManager.getBackupFrequency()) }
@@ -352,7 +355,7 @@ fun DataBackupDialog(
                     // chosen yet and the folder was read and has no backups to restore first; never
                     // on the way to restoring. A list that couldn't be read is said, Auto Backup stays off
                     val lookup = if (!forRestore && backupDestination == null) oneDriveService.listBackups() else null
-                    if (OneDriveSignIn.turnsOnAutoBackup(forRestore, backupDestination, lookup)) {
+                    if (turnsOnAutoBackupAfterSignIn(forRestore, backupDestination, lookup)) {
                         setDestination(BackupCloud.ONEDRIVE)
                     } else if (lookup is DriveBackupService.ListResult.Error) {
                         oneDriveStatus = lookup.message
@@ -420,19 +423,20 @@ fun DataBackupDialog(
                 isSignedIn = true
                 userEmail = account.email
 
-                // DO NOT auto-enable backup - detect state first
-                // State detection will determine if we should show restore UI or enable backup
+                // Owner, 25 Nov 2026: the same rule as OneDrive's sign-in. Auto Backup turns on by
+                // itself only when no cloud is chosen yet and Drive's backups were listed and there
+                // are none; never from the restore card, never after a list that couldn't be read
+                // (the old "any backups?" check counted an error as none)
+                val forRestore = googleSignInForRestore
                 coroutineScope.launch {
-                    folderStatus = "Checking for existing backups..."
-                    isDetectingState = true
-                    detectedBackupState = backupStateDetector.detectState()
-                    isDetectingState = false
-
-                    // If backup is already enabled OR no existing backups, proceed normally
-                    val state = detectedBackupState
-                    if (state != null && state.uiState == BackupStateDetector.UIState.NO_BACKUPS && backupDestination == null) {
-                        // No existing backups - safe to enable backup automatically (never in place
-                        // of OneDrive's: one cloud at a time, the user switches on its screen)
+                    val lookup = if (!forRestore && backupDestination == null) {
+                        folderStatus = "Checking for existing backups..."
+                        driveBackupService.listBackups()
+                    } else {
+                        null
+                    }
+                    if (turnsOnAutoBackupAfterSignIn(forRestore, backupDestination, lookup)) {
+                        // Never in place of OneDrive's: one cloud at a time, the user switches on its screen
                         setDestination(BackupCloud.GOOGLE_DRIVE)
 
                         when (val folderResult = driveBackupService.ensureBackupFolder()) {
@@ -447,11 +451,12 @@ fun DataBackupDialog(
                                 folderStatus = "Folder setup failed: ${folderResult.message}"
                             }
                         }
-                    } else if (state != null && state.uiState == BackupStateDetector.UIState.BACKUP_ENABLED) {
+                    } else if (backupDestination == BackupCloud.GOOGLE_DRIVE) {
                         // Backup already enabled
                         folderStatus = "✓ Backup folder ready"
                     } else {
-                        // Existing backups detected - UI will show ExistingBackupDetectedCard
+                        // Backups there to restore first, a list that couldn't be read, or on the
+                        // way to restoring: Auto Backup stays off until turned on on Drive's screen
                         folderStatus = null
                     }
                 }
@@ -685,8 +690,12 @@ fun DataBackupDialog(
                                     val oneDrive = CloudCardInfo(BackupCloud.ONEDRIVE, oneDriveAccount != null, oneDriveAccount?.address, oneDriveSignInError, backupDestination == BackupCloud.ONEDRIVE)
                                     val forRestore = currentPhase is BackupDialogPhase.RestoreSource
                                     val onConnect: (BackupCloud) -> Unit = { cloud ->
-                                        if (cloud == BackupCloud.GOOGLE_DRIVE) signInLauncher.launch(authManager.getSignInIntent())
-                                        else navigateTo(BackupDialogPhase.MicrosoftAccountChoice(forRestore))
+                                        if (cloud == BackupCloud.GOOGLE_DRIVE) {
+                                            googleSignInForRestore = forRestore
+                                            signInLauncher.launch(authManager.getSignInIntent())
+                                        } else {
+                                            navigateTo(BackupDialogPhase.MicrosoftAccountChoice(forRestore))
+                                        }
                                     }
                                     if (forRestore) {
                                         RestoreSourceContent(

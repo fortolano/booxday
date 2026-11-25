@@ -33,6 +33,20 @@ interface CloudBackupService {
     suspend fun downloadBackupToFile(fileId: String): DriveBackupService.FileDownloadResult
 }
 
+/**
+ * Whether signing in to a cloud from the backup screen turns Auto Backup on: only when no cloud is
+ * chosen yet and its backups were listed and there are none (backups there are restored first).
+ * Never when they couldn't be listed ([lookup] an error, review 25 Nov 2026: that counted as "no
+ * backups"), and never on the way to restoring ([forRestore]; [lookup] is null there). The same
+ * rule for Google Drive and OneDrive (owner, 25 Nov 2026).
+ */
+internal fun turnsOnAutoBackupAfterSignIn(
+    forRestore: Boolean,
+    destination: BackupCloud?,
+    lookup: DriveBackupService.ListResult?
+): Boolean = !forRestore && destination == null &&
+    lookup is DriveBackupService.ListResult.Success && lookup.backups.isEmpty()
+
 /** The backup service for [cloud]. */
 internal fun cloudBackupService(context: Context, cloud: BackupCloud): CloudBackupService = when (cloud) {
     BackupCloud.GOOGLE_DRIVE -> DriveBackupService(context)
