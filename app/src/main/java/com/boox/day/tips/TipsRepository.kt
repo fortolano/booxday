@@ -421,7 +421,7 @@ object TipsRepository {
         ),
         Tip(
             id = "general_backup",
-            message = "Settings → Data & Backup saves a backup to Google Drive or the tablet. Auto Backup does it for you.",
+            message = "Settings → Data & Backup saves a backup to Google Drive, OneDrive or the tablet. Auto Backup does it for you.",
             contexts = setOf(TipContext.GENERAL)
         ),
         Tip(
