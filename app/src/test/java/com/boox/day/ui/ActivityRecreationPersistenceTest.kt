@@ -5,13 +5,21 @@ import android.app.Application
 import android.os.Bundle
 import android.os.Looper
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
+import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import com.boox.day.data.model.AccountType
 import com.boox.day.data.model.ProviderId
 import com.boox.day.sync.MultiAccountSyncViewModel
@@ -92,37 +100,60 @@ class ActivityRecreationPersistenceTest {
         lateinit var selectedDateState: MutableState<String>
         lateinit var showAddDialogState: MutableState<Boolean>
         internal var draftState: EventDraftFormState? = null
+        private val frameClock = BroadcastFrameClock()
+        private val recomposerScope = CoroutineScope(Dispatchers.Unconfined + frameClock)
+        private val recomposer = Recomposer(recomposerScope.coroutineContext)
+        private var frameNanos = 1_000_000L
+
+        fun pumpCompose() {
+            Snapshot.sendApplyNotifications()
+            frameNanos += 16_000_000L
+            frameClock.sendFrame(frameNanos)
+            shadowOf(Looper.getMainLooper()).idle()
+        }
 
         override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
-            setContent {
-                val selectedDate = rememberSaveable { mutableStateOf("2026-11-25") }
-                val showAdd = rememberSaveable { mutableStateOf(false) }
-                selectedDateState = selectedDate
-                showAddDialogState = showAdd
-                if (showAdd.value) {
-                    draftState = rememberEventDraftFormState(
-                        initialDate = selectedDate.value,
-                        initialSyncEnabled = false,
-                        initialLocalCalendarId = "local-default"
-                    )
-                } else {
-                    draftState = null
+            recomposerScope.launch { recomposer.runRecomposeAndApplyChanges() }
+            val composeView = ComposeView(this).apply {
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                setParentCompositionContext(recomposer)
+                setContent {
+                    val selectedDate = rememberSaveable { mutableStateOf("2026-11-25") }
+                    val showAdd = rememberSaveable { mutableStateOf(false) }
+                    selectedDateState = selectedDate
+                    showAddDialogState = showAdd
+                    if (showAdd.value) {
+                        draftState = rememberEventDraftFormState(
+                            initialDate = selectedDate.value,
+                            initialSyncEnabled = false,
+                            initialLocalCalendarId = "local-default"
+                        )
+                    } else {
+                        draftState = null
+                    }
                 }
             }
+            setContentView(composeView)
+        }
+
+        override fun onDestroy() {
+            super.onDestroy()
+            recomposer.cancel()
+            recomposerScope.cancel()
         }
     }
 
     @Test
     fun selectedDateAndUnsavedEventDraftSurviveActivityRecreation() {
         val firstController = Robolectric.buildActivity(DraftHostActivity::class.java).setup()
-        shadowOf(Looper.getMainLooper()).idle()
         val first = firstController.get()
+        first.pumpCompose()
 
         // User navigates to another date, opens New Event, and types an unsaved draft
         first.selectedDateState.value = "2026-12-14"
         first.showAddDialogState.value = true
-        shadowOf(Looper.getMainLooper()).idle()
+        first.pumpCompose()
 
         val draftBefore = checkNotNull(first.draftState)
         draftBefore.titleState.value = "Quarterly Review"
@@ -138,7 +169,7 @@ class ActivityRecreationPersistenceTest {
         draftBefore.syncEnabledState.value = true
         draftBefore.selectedTargetKeyState.value = "google"
         draftBefore.selectedCalendarIdState.value = "cal-work"
-        shadowOf(Looper.getMainLooper()).idle()
+        first.pumpCompose()
 
         // Simulate Android saving instance state and destroying the Activity
         val savedBundle = Bundle()
@@ -150,8 +181,8 @@ class ActivityRecreationPersistenceTest {
             .start()
             .resume()
             .visible()
-        shadowOf(Looper.getMainLooper()).idle()
         val recreated = recreatedController.get()
+        recreated.pumpCompose()
 
         assertEquals("2026-12-14", recreated.selectedDateState.value)
         assertTrue("Add Event dialog must remain open after Activity recreation", recreated.showAddDialogState.value)

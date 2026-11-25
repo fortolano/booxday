@@ -2,7 +2,6 @@ package com.boox.day.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateMapOf
@@ -27,12 +26,16 @@ class UnifiedOverlayRegistry(
     private val globalBlocking: () -> Boolean = ::defaultGlobalOverlaysBlocking
 ) {
     private val activeOverlays = mutableStateMapOf<String, Boolean>()
+    internal var onChange: ((Boolean) -> Unit)? = null
 
     fun setOpen(key: String, open: Boolean) {
-        if (open) {
-            if (activeOverlays[key] != true) activeOverlays[key] = true
+        val changed = if (open) {
+            activeOverlays.put(key, true) != true
         } else {
-            activeOverlays.remove(key)
+            activeOverlays.remove(key) != null
+        }
+        if (changed) {
+            onChange?.invoke(isBlockingCanvas)
         }
     }
 
@@ -63,9 +66,11 @@ class UnifiedOverlayRegistry(
      */
     @Composable
     fun Track(key: String, visible: Boolean) {
-        DisposableEffect(key, visible) {
-            setOpen(key, visible)
-            onDispose { setOpen(key, false) }
+        if (visible) {
+            DisposableEffect(key) {
+                setOpen(key, true)
+                onDispose { setOpen(key, false) }
+            }
         }
     }
 
@@ -95,12 +100,19 @@ fun rememberUnifiedOverlayRegistry(): UnifiedOverlayRegistry = remember { Unifie
  */
 @Composable
 fun BindOverlayRegistryToCanvas(registry: UnifiedOverlayRegistry) {
-    val blocking = registry.isBlockingCanvas
+    // Subscribe this composable to snapshot changes in activeOverlays and global overlay singletons.
+    @Suppress("UNUSED_VARIABLE")
+    val blockingSnapshot = registry.isBlockingCanvas
     SideEffect {
-        DrawCanvas.mainScreenModalVisible.value = blocking
+        // Re-read after DisposableEffects in this commit have updated activeOverlays,
+        // so closing an overlay never gets overwritten by a pre-dispose value.
+        DrawCanvas.mainScreenModalVisible.value = registry.isBlockingCanvas
     }
-    DisposableEffect(Unit) {
+    DisposableEffect(registry) {
+        registry.onChange = { DrawCanvas.mainScreenModalVisible.value = it }
+        DrawCanvas.mainScreenModalVisible.value = registry.isBlockingCanvas
         onDispose {
+            registry.onChange = null
             DrawCanvas.mainScreenModalVisible.value = false
         }
     }
