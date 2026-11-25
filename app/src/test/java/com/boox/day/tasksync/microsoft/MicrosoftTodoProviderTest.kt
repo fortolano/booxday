@@ -314,6 +314,17 @@ class MicrosoftTodoProviderTest {
         assertEquals("the fourth Thursday of November", "2027-11-25",
             next(pattern("relativeYearly") { put("month", 11); put("daysOfWeek", days("thursday")); put("index", "fourth") }, "2026-11-26"))
 
+        // Several days: each day's own one ("the second Monday or Wednesday": both seconds), the earliest after
+        val secondMonWed = pattern("relativeMonthly") { put("daysOfWeek", days("monday", "wednesday")); put("index", "second") }
+        assertEquals("the second Wednesday, after the second Monday", "2026-11-11", next(secondMonWed, "2026-11-09"))
+        assertEquals("next month's second Wednesday comes before its second Monday", "2026-12-09", next(secondMonWed, "2026-11-11"))
+        assertEquals("the last Friday", "2026-11-27", next(pattern("relativeMonthly") { put("daysOfWeek", days("friday")); put("index", "last") }, "2026-11-20"))
+        val lastMonFri = pattern("relativeMonthly") { put("daysOfWeek", days("monday", "friday")); put("index", "last") }
+        assertEquals("2026-11-30", next(lastMonFri, "2026-11-27"))
+        assertEquals("next month's last Friday comes before its last Monday", "2026-12-25", next(lastMonFri, "2026-11-30"))
+        assertEquals("yearly the same way", "2027-11-08",
+            next(pattern("relativeYearly") { put("month", 11); put("daysOfWeek", days("monday", "wednesday")); put("index", "second") }, "2026-11-11"))
+
         assertNull("a pattern To Do doesn't have", next(pattern("hourly"), "2026-11-25"))
         assertNull("weekly without its days", next(pattern("weekly"), "2026-11-25"))
         assertNull("no interval", next(buildJsonObject { put("type", "daily") }, "2026-11-25"))

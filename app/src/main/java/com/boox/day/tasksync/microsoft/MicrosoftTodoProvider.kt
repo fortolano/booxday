@@ -959,8 +959,8 @@ internal object TodoFields {
                 val days = daysOf(pattern) ?: return null
                 val index = pattern.str("index") ?: "first"
                 val month = YearMonth.from(after)
-                val here = relativeDayIn(month, days, index) ?: return null
-                if (here > after) here else relativeDayIn(month.plusMonths(interval), days, index)
+                val here = relativeDaysIn(month, days, index) ?: return null
+                here.firstOrNull { it > after } ?: relativeDaysIn(month.plusMonths(interval), days, index)?.firstOrNull()
             }
             "absoluteYearly" -> {
                 val month = pattern.int("month")?.takeIf { it in 1..12 } ?: return null
@@ -971,8 +971,8 @@ internal object TodoFields {
                 val month = pattern.int("month")?.takeIf { it in 1..12 } ?: return null
                 val days = daysOf(pattern) ?: return null
                 val index = pattern.str("index") ?: "first"
-                val here = relativeDayIn(YearMonth.of(after.year, month), days, index) ?: return null
-                if (here > after) here else relativeDayIn(YearMonth.of(after.year + interval.toInt(), month), days, index)
+                val here = relativeDaysIn(YearMonth.of(after.year, month), days, index) ?: return null
+                here.firstOrNull { it > after } ?: relativeDaysIn(YearMonth.of(after.year + interval.toInt(), month), days, index)?.firstOrNull()
             }
             else -> null
         }
@@ -981,17 +981,24 @@ internal object TodoFields {
     /** [day] of [month], or its last day when the month is shorter. */
     private fun dayIn(month: YearMonth, day: Int): LocalDate = month.atDay(minOf(day, month.lengthOfMonth()))
 
-    /** The [index] ("first" to "fourth", "last") day of [month] that is one of [days]. */
-    private fun relativeDayIn(month: YearMonth, days: Set<DayOfWeek>, index: String): LocalDate? {
-        val matching = (1..month.lengthOfMonth()).map(month::atDay).filter { it.dayOfWeek in days }
-        return when (index) {
-            "first" -> matching.getOrNull(0)
-            "second" -> matching.getOrNull(1)
-            "third" -> matching.getOrNull(2)
-            "fourth" -> matching.getOrNull(3)
-            "last" -> matching.lastOrNull()
-            else -> null
+    /**
+     * Graph's relative pattern in [month]: for each of [days] on its own, its [index] ("first" to
+     * "fourth", "last") one in the month ("the second Monday or Wednesday" is the second Monday and
+     * the second Wednesday), earliest first. Null for an index Graph doesn't have.
+     */
+    private fun relativeDaysIn(month: YearMonth, days: Set<DayOfWeek>, index: String): List<LocalDate>? {
+        val nth = when (index) {
+            "first" -> 0
+            "second" -> 1
+            "third" -> 2
+            "fourth" -> 3
+            "last" -> -1
+            else -> return null
         }
+        return days.mapNotNull { day ->
+            val all = (1..month.lengthOfMonth()).map(month::atDay).filter { it.dayOfWeek == day }
+            if (nth < 0) all.lastOrNull() else all.getOrNull(nth)
+        }.sorted()
     }
 
     private fun daysOf(pattern: JsonObject): Set<DayOfWeek>? =
