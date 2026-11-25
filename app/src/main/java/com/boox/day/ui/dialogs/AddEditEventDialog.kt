@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.ui.res.painterResource
 import com.boox.day.R
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -75,6 +76,119 @@ import java.util.Locale
  * - **Sync ON**: Event synced to selected cloud provider's calendar
  * - **Edit synced event**: Provider shown read-only, cannot change provider
  */
+/**
+ * Saveable draft state for [AddEditEventDialog] so unsaved user edits survive Activity recreation (H10).
+ */
+internal class EventDraftFormState(
+    val selectedCalendarIdState: MutableState<String>,
+    val titleState: MutableState<String>,
+    val dateState: MutableState<String>,
+    val isAllDayState: MutableState<Boolean>,
+    val startHourState: MutableState<Int>,
+    val startMinuteState: MutableState<Int>,
+    val endHourState: MutableState<Int>,
+    val endMinuteState: MutableState<Int>,
+    val durationMinutesState: MutableState<Int>,
+    val locationState: MutableState<String>,
+    val descriptionState: MutableState<String>,
+    val attendeesState: MutableState<String>,
+    val syncEnabledState: MutableState<Boolean>,
+    val selectedTargetKeyState: MutableState<String?>,
+    val selectedLocalCalendarIdState: MutableState<String?>
+)
+
+@Composable
+internal fun rememberEventDraftFormState(
+    initialDate: String,
+    existingEvent: CalendarEvent? = null,
+    prefillTitle: String? = null,
+    prefillDate: String? = null,
+    prefillStartHour: Int? = null,
+    prefillStartMinute: Int? = null,
+    prefillEndHour: Int? = null,
+    prefillEndMinute: Int? = null,
+    prefillIsAllDay: Boolean? = null,
+    prefillLocation: String? = null,
+    prefillDescription: String? = null,
+    prefillAttendees: List<String>? = null,
+    initialSyncEnabled: Boolean = false,
+    initialTargetKey: String? = null,
+    initialLocalCalendarId: String? = null
+): EventDraftFormState {
+    val defaultTime = remember {
+        LocalTime.now().let { LocalTime.of((it.hour + 1) % 24, 0) }
+    }
+    val initialStartHour = prefillStartHour ?: if (existingEvent != null && !existingEvent.isAllDay) {
+        java.time.Instant.ofEpochMilli(existingEvent.startTime)
+            .atZone(ZoneId.systemDefault())
+            .toLocalTime().hour
+    } else {
+        defaultTime.hour
+    }
+    val initialStartMinute = prefillStartMinute ?: if (existingEvent != null && !existingEvent.isAllDay) {
+        java.time.Instant.ofEpochMilli(existingEvent.startTime)
+            .atZone(ZoneId.systemDefault())
+            .toLocalTime().minute
+    } else {
+        0
+    }
+    val initialEndHour = prefillEndHour ?: if (existingEvent != null && existingEvent.endTime != null && !existingEvent.isAllDay) {
+        java.time.Instant.ofEpochMilli(existingEvent.endTime)
+            .atZone(ZoneId.systemDefault())
+            .toLocalTime().hour
+    } else {
+        (initialStartHour + 1) % 24
+    }
+    val initialEndMinute = prefillEndMinute ?: if (existingEvent != null && existingEvent.endTime != null && !existingEvent.isAllDay) {
+        java.time.Instant.ofEpochMilli(existingEvent.endTime)
+            .atZone(ZoneId.systemDefault())
+            .toLocalTime().minute
+    } else {
+        0
+    }
+    val initialDuration = ((initialEndHour * 60 + initialEndMinute) - (initialStartHour * 60 + initialStartMinute)).let {
+        if (it <= 0) it + 24 * 60 else it
+    }
+
+    val selectedCalendarIdState = rememberSaveable { mutableStateOf(existingEvent?.calendarId ?: "") }
+    val titleState = rememberSaveable { mutableStateOf(prefillTitle ?: existingEvent?.title ?: "") }
+    val dateState = rememberSaveable { mutableStateOf(prefillDate ?: existingEvent?.dayId ?: initialDate) }
+    val isAllDayState = rememberSaveable { mutableStateOf(prefillIsAllDay ?: existingEvent?.isAllDay ?: false) }
+    val startHourState = rememberSaveable { mutableStateOf(initialStartHour) }
+    val startMinuteState = rememberSaveable { mutableStateOf(initialStartMinute) }
+    val endHourState = rememberSaveable { mutableStateOf(initialEndHour) }
+    val endMinuteState = rememberSaveable { mutableStateOf(initialEndMinute) }
+    val durationMinutesState = rememberSaveable { mutableStateOf(initialDuration) }
+    val locationState = rememberSaveable { mutableStateOf(prefillLocation ?: existingEvent?.location ?: "") }
+    val descriptionState = rememberSaveable { mutableStateOf(prefillDescription ?: existingEvent?.description ?: "") }
+    val attendeesState = rememberSaveable {
+        mutableStateOf(prefillAttendees?.joinToString(", ") ?: existingEvent?.attendees ?: "")
+    }
+    val syncEnabledState = rememberSaveable { mutableStateOf(initialSyncEnabled) }
+    val selectedTargetKeyState = rememberSaveable { mutableStateOf(initialTargetKey) }
+    val selectedLocalCalendarIdState = rememberSaveable { mutableStateOf(initialLocalCalendarId) }
+
+    return remember {
+        EventDraftFormState(
+            selectedCalendarIdState = selectedCalendarIdState,
+            titleState = titleState,
+            dateState = dateState,
+            isAllDayState = isAllDayState,
+            startHourState = startHourState,
+            startMinuteState = startMinuteState,
+            endHourState = endHourState,
+            endMinuteState = endMinuteState,
+            durationMinutesState = durationMinutesState,
+            locationState = locationState,
+            descriptionState = descriptionState,
+            attendeesState = attendeesState,
+            syncEnabledState = syncEnabledState,
+            selectedTargetKeyState = selectedTargetKeyState,
+            selectedLocalCalendarIdState = selectedLocalCalendarIdState
+        )
+    }
+}
+
 @Composable
 fun AddEditEventDialog(
     onDismiss: () -> Unit,
@@ -133,75 +247,6 @@ fun AddEditEventDialog(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
-    // Form state - Uses prefill values from voice input, then existing event, then defaults
-    var selectedCalendarId by remember {
-        mutableStateOf(existingEvent?.calendarId ?: "")
-    }
-    var title by remember { mutableStateOf(prefillTitle ?: existingEvent?.title ?: "") }
-    var date by remember { mutableStateOf(prefillDate ?: existingEvent?.dayId ?: initialDate) }
-    var isAllDay by remember { mutableStateOf(prefillIsAllDay ?: existingEvent?.isAllDay ?: false) }
-
-    // Parse existing event time or default to next hour (rounded)
-    val defaultTime = LocalTime.now().let {
-        LocalTime.of((it.hour + 1) % 24, 0) // Round to next hour
-    }
-
-    // Calculate initial values - prefill > existing event > defaults
-    val initialStartHour = prefillStartHour ?: if (existingEvent != null && !existingEvent.isAllDay) {
-        java.time.Instant.ofEpochMilli(existingEvent.startTime)
-            .atZone(ZoneId.systemDefault())
-            .toLocalTime().hour
-    } else {
-        defaultTime.hour
-    }
-    val initialStartMinute = prefillStartMinute ?: if (existingEvent != null && !existingEvent.isAllDay) {
-        java.time.Instant.ofEpochMilli(existingEvent.startTime)
-            .atZone(ZoneId.systemDefault())
-            .toLocalTime().minute
-    } else {
-        0
-    }
-    val initialEndHour = prefillEndHour ?: if (existingEvent != null && existingEvent.endTime != null && !existingEvent.isAllDay) {
-        java.time.Instant.ofEpochMilli(existingEvent.endTime)
-            .atZone(ZoneId.systemDefault())
-            .toLocalTime().hour
-    } else {
-        (initialStartHour + 1) % 24
-    }
-    val initialEndMinute = prefillEndMinute ?: if (existingEvent != null && existingEvent.endTime != null && !existingEvent.isAllDay) {
-        java.time.Instant.ofEpochMilli(existingEvent.endTime)
-            .atZone(ZoneId.systemDefault())
-            .toLocalTime().minute
-    } else {
-        0
-    }
-
-    var startHour by remember { mutableStateOf(initialStartHour) }
-    var startMinute by remember { mutableStateOf(initialStartMinute) }
-    var endHour by remember { mutableStateOf(initialEndHour) }
-    var endMinute by remember { mutableStateOf(initialEndMinute) }
-
-    // Track duration for smart end time adjustment (in minutes)
-    var durationMinutes by remember {
-        mutableStateOf(
-            ((initialEndHour * 60 + initialEndMinute) - (initialStartHour * 60 + initialStartMinute)).let {
-                if (it <= 0) it + 24 * 60 else it  // Handle overnight events
-            }
-        )
-    }
-
-    var location by remember { mutableStateOf(prefillLocation ?: existingEvent?.location ?: "") }
-    var description by remember { mutableStateOf(prefillDescription ?: existingEvent?.description ?: "") }
-    // Attendees - stored as comma-separated names/emails
-    // Voice input provides names, user can edit to add emails for Google sync
-    var attendees by remember {
-        mutableStateOf(
-            prefillAttendees?.joinToString(", ")
-                ?: existingEvent?.attendees
-                ?: ""
-        )
-    }
-
     // Determine which mode we're in
     val isStandaloneMode = syncMode == AppSettings.SyncMode.STANDALONE
     val isHybridMode = syncMode == AppSettings.SyncMode.HYBRID
@@ -220,29 +265,50 @@ fun AddEditEventDialog(
     // Don't show for editing synced events - they stay synced to their provider
     val showSyncToggle = isHybridMode && hasAnyCloudAccount && !isEditingSyncedEvent
 
-    // Sync toggle state for hybrid mode
-    // In Hybrid mode: default to sync ON if cloud account exists
-    // For existing synced events: always ON (cannot unsync in this dialog)
-    // For existing local events: preserve their current sync state
-    var syncEnabled by remember {
-        mutableStateOf(
-            when {
-                isEditingSyncedEvent -> true  // Synced events stay synced
-                existingSyncEnabled != null -> existingSyncEnabled
-                isHybridMode && hasAnyCloudAccount -> true  // Hybrid mode defaults to sync ON
-                else -> false
-            }
-        )
-    }
+    val draft = rememberEventDraftFormState(
+        initialDate = initialDate,
+        existingEvent = existingEvent,
+        prefillTitle = prefillTitle,
+        prefillDate = prefillDate,
+        prefillStartHour = prefillStartHour,
+        prefillStartMinute = prefillStartMinute,
+        prefillEndHour = prefillEndHour,
+        prefillEndMinute = prefillEndMinute,
+        prefillIsAllDay = prefillIsAllDay,
+        prefillLocation = prefillLocation,
+        prefillDescription = prefillDescription,
+        prefillAttendees = prefillAttendees,
+        initialSyncEnabled = when {
+            isEditingSyncedEvent -> true
+            existingSyncEnabled != null -> existingSyncEnabled
+            isHybridMode && hasAnyCloudAccount -> true
+            else -> false
+        },
+        initialTargetKey = existingProviderId?.let { eventSaveTargetKey(it, existingEvent?.accountId) }
+            ?: saveTargets.firstOrNull()?.key,
+        initialLocalCalendarId = existingLocalCalendarId
+            ?: com.boox.day.events.DefaultEventTarget.localCalendar(localCalendars)
+    )
 
-    // Selected account line for sync (when syncEnabled = true): Google if available, else Outlook,
-    // else the first CalDAV account. For existing synced events: theirs (read-only)
-    var selectedTargetKey by remember {
-        mutableStateOf(existingProviderId?.let { eventSaveTargetKey(it, existingEvent?.accountId) } ?: saveTargets.firstOrNull()?.key)
-    }
-    // CalDAV accounts appear once their calendars have loaded
+    var selectedCalendarId by draft.selectedCalendarIdState
+    var title by draft.titleState
+    var date by draft.dateState
+    var isAllDay by draft.isAllDayState
+    var startHour by draft.startHourState
+    var startMinute by draft.startMinuteState
+    var endHour by draft.endHourState
+    var endMinute by draft.endMinuteState
+    var durationMinutes by draft.durationMinutesState
+    var location by draft.locationState
+    var description by draft.descriptionState
+    var attendees by draft.attendeesState
+    var syncEnabled by draft.syncEnabledState
+    var selectedTargetKey by draft.selectedTargetKeyState
+    var selectedLocalCalendarId by draft.selectedLocalCalendarIdState
+
+    // CalDAV accounts appear once their calendars have loaded; never wipe a saved selection while empty
     LaunchedEffect(saveTargets) {
-        if (!isEditingSyncedEvent && saveTargets.none { it.key == selectedTargetKey }) {
+        if (!isEditingSyncedEvent && saveTargets.isNotEmpty() && saveTargets.none { it.key == selectedTargetKey }) {
             selectedTargetKey = saveTargets.firstOrNull()?.key
         }
     }
@@ -259,30 +325,14 @@ fun AddEditEventDialog(
     LaunchedEffect(selectedProviderId, selectedAccountId, writableCalendars, isEditingSyncedEvent) {
         if (isEditingSyncedEvent) return@LaunchedEffect
         if (selectedProviderId == null) {
-            selectedCalendarId = ""
+            if (writableCalendars.isNotEmpty()) selectedCalendarId = ""
             return@LaunchedEffect
         }
         val currentProviderCalendars = calendarsForSelectedProvider
-        android.util.Log.d("AddEditEventDialog", "Provider changed to: $selectedProviderId")
-        android.util.Log.d("AddEditEventDialog", "Total writableCalendars: ${writableCalendars.size}")
-        android.util.Log.d("AddEditEventDialog", "Calendars for provider $selectedProviderId: ${currentProviderCalendars.size}")
-        currentProviderCalendars.forEach { cal ->
-            android.util.Log.d("AddEditEventDialog", "  - Calendar: ${cal.name} (id=${cal.id}, accountId=${cal.accountId})")
-        }
-        android.util.Log.d("AddEditEventDialog", "Current selectedCalendarId: $selectedCalendarId")
+        if (currentProviderCalendars.isEmpty()) return@LaunchedEffect
         if (currentProviderCalendars.none { it.id == selectedCalendarId }) {
-            val newCalendarId = calendarForNewEvent(currentProviderCalendars)?.id ?: ""
-            android.util.Log.d("AddEditEventDialog", "Updating selectedCalendarId from '$selectedCalendarId' to '$newCalendarId'")
-            selectedCalendarId = newCalendarId
+            selectedCalendarId = calendarForNewEvent(currentProviderCalendars)?.id ?: ""
         }
-    }
-
-    // Local calendar selection (for sync OFF / Standalone mode)
-    // Always auto-select default calendar
-    var selectedLocalCalendarId by remember {
-        mutableStateOf(
-            existingLocalCalendarId ?: com.boox.day.events.DefaultEventTarget.localCalendar(localCalendars)
-        )
     }
 
     // Time validation - check if end time is before start time (same day)

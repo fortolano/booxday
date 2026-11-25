@@ -1,17 +1,29 @@
 package com.boox.day.sync
 
 import android.app.Activity
+import android.app.Application
 import android.content.Intent
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.boox.day.data.db.AppDatabase
+import com.boox.day.data.db.CalendarEventRepository
 import com.boox.day.data.model.AccountType
 import com.boox.day.data.model.CalendarSelection
 import com.boox.day.data.model.ConnectedAccount
 import com.boox.day.data.model.ProviderId
+import com.boox.day.data.model.WritableCalendar
 import com.boox.day.sync.caldav.CalDavSignInOutcome
 import com.boox.day.sync.caldav.calDavSignInOutcome
 import com.boox.day.sync.outlook.OutlookAuthManager
+import com.boox.day.sync.outlook.OutlookCalendarService
 import com.boox.day.sync.provider.CalendarProviderException
+import com.boox.day.sync.provider.GoogleCalendarProvider
+import com.boox.day.sync.provider.OutlookCalendarProvider
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,11 +79,41 @@ import java.time.LocalDate
 class MultiAccountSyncViewModel(
     private val syncManager: MultiAccountSyncManager,
     private val googleAuthManager: GoogleAuthManager,
-    private val outlookAuthManager: OutlookAuthManager
+    private val outlookAuthManager: OutlookAuthManager,
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "MultiAccountSyncVM"
+        internal const val KEY_PENDING_PROVIDER = "pending_sign_in_provider"
+        internal const val KEY_PENDING_ACCOUNT_TYPE = "pending_sign_in_account_type"
+
+        /**
+         * ViewModelStore-owned factory using the Application context (never an Activity context)
+         * and [SavedStateHandle] so pending Google Sign-In discriminators survive Activity
+         * recreation (H10).
+         */
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val app = checkNotNull(this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY])
+                create(app, createSavedStateHandle())
+            }
+        }
+
+        fun create(app: Application, savedStateHandle: SavedStateHandle = SavedStateHandle()): MultiAccountSyncViewModel {
+            val db = AppDatabase.getDatabase(app)
+            val accountDao = db.connectedAccountDao()
+            val selectionDao = db.calendarSelectionDao()
+            val eventRepo = CalendarEventRepository(app)
+            val googleAuthManager = GoogleAuthManager(app)
+            val outlookAuthManager = OutlookAuthManager(app)
+            val calendarSyncManager = CalendarSyncManager(app, googleAuthManager, eventRepo)
+            val outlookCalendarService = OutlookCalendarService(outlookAuthManager)
+            val googleProvider = GoogleCalendarProvider(app, googleAuthManager, calendarSyncManager, accountDao, eventRepo)
+            val outlookProvider = OutlookCalendarProvider(app, outlookAuthManager, outlookCalendarService, accountDao)
+            val syncManager = MultiAccountSyncManager(app, googleProvider, outlookProvider, accountDao, selectionDao, eventRepo)
+            return MultiAccountSyncViewModel(syncManager, googleAuthManager, outlookAuthManager, savedStateHandle)
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -190,12 +232,35 @@ class MultiAccountSyncViewModel(
             get() = error != null || needsReauth
     }
 
-    private val _uiState = MutableStateFlow(UiState())
+    // Track pending sign-in in SavedStateHandle (non-secret provider/type keys only) so Activity
+    // recreation during Google Sign-In never drops a valid returning auth result (H10).
+    private var pendingSignInProvider: ProviderId?
+        get() = savedStateHandle.get<String>(KEY_PENDING_PROVIDER)?.let { ProviderId.fromKeyOrNull(it) }
+        set(value) {
+            if (value == null) savedStateHandle.remove<String>(KEY_PENDING_PROVIDER)
+            else savedStateHandle[KEY_PENDING_PROVIDER] = value.key
+        }
+
+    private var pendingSignInAccountType: AccountType?
+        get() = savedStateHandle.get<String>(KEY_PENDING_ACCOUNT_TYPE)?.let { AccountType.fromKeyOrNull(it) }
+        set(value) {
+            if (value == null) savedStateHandle.remove<String>(KEY_PENDING_ACCOUNT_TYPE)
+            else savedStateHandle[KEY_PENDING_ACCOUNT_TYPE] = value.key
+        }
+
+    private val _uiState = MutableStateFlow(
+        UiState(isConnectingGoogle = pendingSignInProvider == ProviderId.GOOGLE)
+    )
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    // Track pending sign-in for handleActivityResult
-    private var pendingSignInProvider: ProviderId? = null
-    private var pendingSignInAccountType: AccountType? = null
+    /** Writable calendars across all connected accounts (owned by the ViewModel's sync manager). */
+    val allWritableCalendars: StateFlow<List<WritableCalendar>>
+        get() = syncManager.allWritableCalendars
+
+    /** Refresh writable calendars for all connected accounts. */
+    fun loadAllWritableCalendars() = viewModelScope.launch {
+        syncManager.loadAllWritableCalendars()
+    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Initialization
@@ -306,10 +371,14 @@ class MultiAccountSyncViewModel(
                 syncManager.getSignInIntent(activity, accountType)
             }
         } catch (e: Exception) {
+            pendingSignInProvider = null
+            pendingSignInAccountType = null
             _uiState.update { it.copy(isConnectingGoogle = false) }
             throw e
         }
         if (intent == null) {
+            pendingSignInProvider = null
+            pendingSignInAccountType = null
             _uiState.update { it.copy(isConnectingGoogle = false) }
         }
         return intent

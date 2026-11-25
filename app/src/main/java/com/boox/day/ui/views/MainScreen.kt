@@ -74,6 +74,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.pointer.pointerInteropFilter
@@ -322,51 +324,26 @@ fun MainScreen(
     val syncViewModel: CalendarSyncViewModel = viewModel()
     val eventsViewModel: EventsViewModel = viewModel()
 
-    // Multi-provider sync manager and ViewModel
-    val (multiAccountSyncManager, multiAccountSyncViewModel) = remember {
-        val db = AppDatabase.getDatabase(context)
-        val accountDao = db.connectedAccountDao()
-        val selectionDao = db.calendarSelectionDao()
-        val eventRepo = CalendarEventRepository(context)
-
-        // Auth managers
-        val googleAuthManager = GoogleAuthManager(context)
-        val outlookAuthManager = OutlookAuthManager(context)
-        val calendarSyncManager = CalendarSyncManager(context, googleAuthManager, eventRepo)
-        val outlookCalendarService = OutlookCalendarService(outlookAuthManager)
-
-        // Providers
-        val googleProvider = GoogleCalendarProvider(context, googleAuthManager, calendarSyncManager, accountDao, eventRepo)
-        val outlookProvider = OutlookCalendarProvider(context, outlookAuthManager, outlookCalendarService, accountDao)
-
-        // Multi-account sync manager
-        val syncManager = MultiAccountSyncManager(context, googleProvider, outlookProvider, accountDao, selectionDao, eventRepo)
-
-        // ViewModel
-        val viewModel = MultiAccountSyncViewModel(syncManager, googleAuthManager, outlookAuthManager)
-        syncManager to viewModel
-    }
+    // Owner-managed multi-provider ViewModel (Application context + SavedStateHandle for H10)
+    val multiAccountSyncViewModel: MultiAccountSyncViewModel = viewModel(
+        factory = MultiAccountSyncViewModel.Factory
+    )
 
     // Activity reference for Outlook MSAL sign-in
     val activity = context as? Activity
 
-    // Sync state
+    // Sync state (keep only root-needed flows here; dialog-only flows stay inside their hosts)
     val isSignedIn by syncViewModel.isSignedIn.collectAsState()
-    val userEmail by syncViewModel.userEmail.collectAsState()
     val syncInProgress by syncViewModel.syncInProgress.collectAsState()
     val lastSyncTime by syncViewModel.lastSyncTime.collectAsState()
     val lastSyncMessage by syncViewModel.lastSyncMessage.collectAsState()
-    val autoSyncEnabled by syncViewModel.autoSyncEnabled.collectAsState()
-    val syncFrequency by syncViewModel.syncFrequency.collectAsState()
-    val availableCalendars by syncViewModel.availableCalendars.collectAsState()
-    val selectedCalendars by syncViewModel.selectedCalendars.collectAsState()
 
     // Events state
     val operationInProgress by eventsViewModel.operationInProgress.collectAsState()
 
     // Multi-account sync state (for connected account detection)
     val multiAccountUiState by multiAccountSyncViewModel.uiState.collectAsState()
-    val writableCalendars by multiAccountSyncManager.allWritableCalendars.collectAsState()
+    val writableCalendars by multiAccountSyncViewModel.allWritableCalendars.collectAsState()
 
     // Source filter state
     val sourceFilter by eventsViewModel.sourceFilter.collectAsState()
@@ -379,12 +356,12 @@ fun MainScreen(
 
     // Add Event's calendars, for every connected account
     LaunchedEffect(multiAccountUiState.accountCount) {
-        multiAccountSyncManager.loadAllWritableCalendars()
+        multiAccountSyncViewModel.loadAllWritableCalendars()
     }
 
-    // Dialog states
+    // Dialog states (rememberSaveable for sign-in & unsaved draft flows that must survive Activity recreation: H10)
     var showCalendarSettingsDialog by remember { mutableStateOf(false) }
-    var showAddEventDialog by remember { mutableStateOf(false) }
+    var showAddEventDialog by rememberSaveable { mutableStateOf(false) }
     var showEventDetailsDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showVoiceEventDialog by remember { mutableStateOf(false) }
@@ -401,8 +378,8 @@ fun MainScreen(
         TaskOcrService.initialize(context, scope)
     }
 
-    // Multi-provider calendar sync dialog
-    var showMultiProviderSyncDialog by remember { mutableStateOf(false) }
+    // Multi-provider calendar sync dialog (rememberSaveable so it stays open across Google Sign-In Activity recreation)
+    var showMultiProviderSyncDialog by rememberSaveable { mutableStateOf(false) }
 
     // Voice input parsed event data (for pre-filling AddEditEventDialog)
     var parsedEventData by remember { mutableStateOf<ParsedEventData?>(null) }
@@ -428,6 +405,8 @@ fun MainScreen(
 
     var selectedEventForDetails by remember { mutableStateOf<CalendarEvent?>(null) }
     var editingEvent by remember { mutableStateOf<CalendarEvent?>(null) }
+    var editingEventId by rememberSaveable { mutableStateOf<String?>(null) }
+    var editingEventIsLocal by rememberSaveable { mutableStateOf(false) }
     var linkedBooxNotesForEvent by remember { mutableStateOf<List<BooxNoteIndex>>(emptyList()) }
 
     // Local calendars state (for Standalone mode)
@@ -441,23 +420,9 @@ fun MainScreen(
     var isEventsPinned by remember { mutableStateOf(false) }
 
     // Events panel tab state: "events" or "due"
-    var selectedEventsTab by remember { mutableStateOf("events") }
+    var selectedEventsTab by rememberSaveable { mutableStateOf("events") }
 
-    // OAuth sign-in launcher
-    // NOTE: Google Sign-In can return different result codes even for successful sign-ins.
-    // When the user goes through the consent flow (selecting email, granting permissions),
-    // the result might not always be RESULT_OK. We should always attempt to process the
-    // result and let handleSignInResult determine if it was successful based on the intent data.
-    val signInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        // Always try to handle the result - GoogleSignIn.getSignedInAccountFromIntent
-        // will throw an appropriate exception if sign-in actually failed
-        Log.d(TAG, "Sign-in result: resultCode=${result.resultCode}, data=${result.data != null}")
-        syncViewModel.handleSignInResult(result.data)
-    }
-
-    // Multi-provider Google sign-in launcher (for new CalendarSyncSettingsDialog)
+    // Multi-provider Google sign-in launcher (for CalendarSyncSettingsDialog)
     val multiProviderSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -467,8 +432,8 @@ fun MainScreen(
 
     // Notification permission: the reminder card asks by itself (ui/permissions/PermissionAsk, Oct 2026)
 
-    // State for selected date - starts with today
-    var selectedDate by remember { mutableStateOf(today) }
+    // State for selected date - starts with today, survives Activity recreation (H10)
+    var selectedDate by rememberSaveable { mutableStateOf(today) }
 
     // PERFORMANCE: Use count-specific flow for badge (avoids full list collection)
     // eventsPanelEventsCount is now an Int directly, not List.size
@@ -503,8 +468,10 @@ fun MainScreen(
         }
     }
 
-    // Pending sync count for toolbar indicator (local events waiting to sync to cloud)
-    val pendingSyncCount by localEventRepository.observePendingSyncCount().collectAsState(initial = 0)
+    // Pending sync count for toolbar indicator (remember Flow so root recomposition doesn't re-subscribe: M8(1))
+    val pendingSyncCount by remember(localEventRepository) {
+        localEventRepository.observePendingSyncCount()
+    }.collectAsState(initial = 0)
     val summaryCacheRepository = remember { SummaryCacheRepository(context) }
     // Unified OCR repository for search (all content types)
     val ocrRepository = remember { UnifiedOcrRepository(context) }
@@ -857,8 +824,14 @@ fun MainScreen(
     // Quick Add task state - when set, opens TypeTaskDialog for this task
     var quickAddTargetTask by remember { mutableStateOf<Task?>(null) }
 
-    // Calendar viewing state (for month navigation)
-    var viewingCalendar by remember {
+    // Calendar viewing state (for month navigation, survives Activity recreation: H10)
+    val calendarSaver = remember {
+        Saver<Calendar, Long>(
+            save = { it.timeInMillis },
+            restore = { millis -> Calendar.getInstance().apply { timeInMillis = millis } }
+        )
+    }
+    var viewingCalendar by rememberSaveable(stateSaver = calendarSaver) {
         mutableStateOf(Calendar.getInstance().apply {
             try {
                 time = dateFormat.parse(selectedDate) ?: time
@@ -870,7 +843,7 @@ fun MainScreen(
 
     // Header popup visibility (Settings menu / Task stats) so raw drawing pauses under them
     var headerPopupVisible by remember { mutableStateOf(false) }
-    var requestedAddEventDate by remember { mutableStateOf<String?>(null) }
+    var requestedAddEventDate by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Start-the-day review (plan T4 §13.6B, Oct 2026)
     var startDayReview by remember { mutableStateOf<StartDayReviewData?>(null) }
@@ -2054,12 +2027,16 @@ fun MainScreen(
             }
             is com.boox.day.ui.MainScreenRequest.NewEvent -> {
                 editingEvent = null
+                editingEventId = null
+                editingEventIsLocal = false
                 parsedEventData = null
                 requestedAddEventDate = request.date
                 showAddEventDialog = true
             }
             is com.boox.day.ui.MainScreenRequest.NewEventFrom -> {
                 editingEvent = null
+                editingEventId = null
+                editingEventIsLocal = false
                 parsedEventData = request.draft
                 showAddEventDialog = true
             }
@@ -2179,6 +2156,8 @@ fun MainScreen(
                     onAddEventClick = {
                         // Allow adding events in standalone mode (no sign-in required)
                         editingEvent = null
+                        editingEventId = null
+                        editingEventIsLocal = false
                         parsedEventData = null  // Clear voice data when opening manually
                         showAddEventDialog = true
                     },
@@ -3346,6 +3325,8 @@ fun MainScreen(
 
         // Calendar Settings Dialog (unified settings with tabs)
         if (showCalendarSettingsDialog) {
+            val autoSyncEnabled by syncViewModel.autoSyncEnabled.collectAsState()
+            val syncFrequency by syncViewModel.syncFrequency.collectAsState()
             // Get connected account emails for mode switch warnings
             val multiAccountUiState by multiAccountSyncViewModel.uiState.collectAsState()
             val connectedEmails = remember(multiAccountUiState) {
@@ -5420,6 +5401,8 @@ fun MainScreen(
                     showVoiceEventDialog = false
                     // Open AddEditEventDialog with pre-filled data
                     editingEvent = null
+                    editingEventId = null
+                    editingEventIsLocal = false
                     showAddEventDialog = true
                 },
                 onDismiss = {
@@ -5428,8 +5411,26 @@ fun MainScreen(
             )
         }
 
+        // Reload existing event if Activity recreated while editing (H10)
+        LaunchedEffect(showAddEventDialog, editingEventId) {
+            val id = editingEventId
+            if (showAddEventDialog && id != null && editingEvent == null) {
+                val restored = withContext(Dispatchers.IO) {
+                    if (editingEventIsLocal) localEventRepository.getEventById(id)?.toCalendarEvent()
+                    else eventRepository.getEventById(id) ?: localEventRepository.getEventById(id)?.toCalendarEvent()
+                }
+                if (restored != null) {
+                    editingEvent = restored
+                } else {
+                    editingEventId = null
+                    editingEventIsLocal = false
+                    showAddEventDialog = false
+                }
+            }
+        }
+
         // Add/Edit Event Dialog
-        if (showAddEventDialog) {
+        if (showAddEventDialog && (editingEventId == null || editingEvent != null)) {
             // Calculate end time from parsed data if available
             val calculatedEndTime = parsedEventData?.calculateEndTime()
 
@@ -5459,6 +5460,8 @@ fun MainScreen(
                 onDismiss = {
                     showAddEventDialog = false
                     editingEvent = null
+                    editingEventId = null
+                    editingEventIsLocal = false
                     parsedEventData = null  // Clear parsed data on dismiss
                 },
                 onSave = { calendarId, title, date, startHour, startMin, endHour, endMin, isAllDay, location, description, attendees, syncEnabled, localCalendarId, syncProviderId, chosenAccountId ->
@@ -5505,6 +5508,8 @@ fun MainScreen(
                                 is EventOperationResult.Success -> {
                                     showAddEventDialog = false
                                     editingEvent = null
+                                    editingEventId = null
+                                    editingEventIsLocal = false
                                     parsedEventData = null
                                     SnackState.globalSnackFlow.tryEmit(
                                         SnackConf(text = "Event updated", duration = SnackConf.DURATION_STANDARD)
@@ -5546,6 +5551,8 @@ fun MainScreen(
                             onSuccess = { localEvent ->
                                 showAddEventDialog = false
                                 editingEvent = null
+                                editingEventId = null
+                                editingEventIsLocal = false
                                 parsedEventData = null
                                 selectedEventForDetails = localEvent.toCalendarEvent()
                                 SnackState.globalSnackFlow.tryEmit(
@@ -5624,7 +5631,10 @@ fun MainScreen(
                 },
                 onEdit = if (!selectedEventForDetails!!.isReadOnly) {
                     {
-                        editingEvent = selectedEventForDetails
+                        val target = selectedEventForDetails
+                        editingEvent = target
+                        editingEventId = target?.id
+                        editingEventIsLocal = target?.calendarId == "local"
                         showEventDetailsDialog = false
                         showAddEventDialog = true
                     }
