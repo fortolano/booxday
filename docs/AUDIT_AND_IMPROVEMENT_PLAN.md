@@ -2,7 +2,7 @@
 
 **Date:** 24 Nov 2026  
 **Baseline:** `main` at `631c665` (v1.0.65, Room DB v35)  
-**Status:** Owner decisions D1–D9 recorded and Fable 5.2 validation completed (24 Nov 2026). **Phase 1 completed & verified on branch `phase-1-fixes`** (790/790 JVM/Robolectric tests across 130 classes, `assembleDebug` clean, `MainScreen` 16,238 / `SharedToolbar` 12,227 code units, live-verified on BOOX Note Mini C); ready for merge or Phase 2.  
+**Status:** Owner decisions D1–D9 recorded and Fable 5.2 validation completed (24 Nov 2026). **Phases 1 and 2 completed & verified on branch `phase-1-fixes`** (ahead of `main` `631c665`, unmerged/unreleased): Phase 1 (790/790 JVM/Robolectric tests, live-verified on BOOX Note Mini C) and Phase 2 (two-step R8 cleanup: release APK `86.97 MB` → `51.57 MB` [-40.7%], DEX `55.35 MB` / 4 files → `20.16 MB` / 2 files, `seeds.txt` `33,576` → `7,464` classes, release `MainScreen` `8,006` / `Toolbar` `5,235` code units, `lintDebug` 0 errors with `abortOnError true`, live release smoke-tested on BOOX Note Mini C, plus widened `320.dp` Settings menu).  
 **Execution Order Approved:** **Phase 1** (Phase 0 skipped per D8), then **Phase 2** (two-step R8 cleanup per D9), followed by **Phases 3, 4, and 5**.
 
 > Paths below are relative to `app/src/main/java/com/boox/day/` unless prefixed with `app/`, `docs/`, or a repo-root filename. Line numbers are from `631c665` — search by symbol name before editing.
@@ -181,10 +181,10 @@ Every phase must preserve the verified BOOX hardware workarounds in `CLAUDE.md`:
 - `M8` (safety net): Port `BackupRestoreSafetyTest` & `BackupRestoreRoundTripTest` core rejection/integrity tests to JVM/Robolectric so they run without tablets; run lint delta audit and re-enable `abortOnError true` for new errors outside baseline.
 
 **Acceptance Criteria (Phase 2):**
-- `assembleRelease` passes with `apksigner`, `aapt2`, and `scan-apk-for-keys.py` clean.
-- Release APK `dexdump` confirms `MainScreen` stays under ART's 16,383-instruction JIT ceiling after R8 inlining.
-- Release APK drops measurably from 87.0 MB (target ~40–55 MB); `seeds.txt` drops `material-icons-extended` from 11,400 to only used icons; zero `junit` resource files or `*.dylib` entries in `app-release.apk`.
-- Release APK smoke test on BOOX hardware: cold launch, Google/CalDAV/Outlook sync, AI call + OpenRouter connect, Export PDF/Markdown, Share intake across build upgrade, BOOX Notes open/preview, every pen type.
+- `assembleRelease` passes with `apksigner`, `aapt2`, and `scan-apk-for-keys.py` clean. *(Verified Step 2A & Step 2B: SHA-256 `b037422f...bc0e`, `versionCode=65`/`1.0.65`, non-debuggable, 0 key leaks.)*
+- Release APK `dexdump` confirms `MainScreen` stays under ART's 16,383-instruction JIT ceiling after R8 inlining. *(Verified: baseline `8,977` → Step 2A `7,916` → Step 2B `8,006`; `ToolbarKt` `5,235`; largest method in APK `10,598`.)*
+- Release APK drops measurably from 87.0 MB (target ~40–55 MB); `seeds.txt` drops `material-icons-extended` from 11,400 to only used icons; zero `junit` resource files or `*.dylib` entries in `app-release.apk`. *(Verified: `86.97 MB` → Step 2A `55.01 MB` → Step 2B `51.57 MB` [-35.41 MB / -40.7%]; DEX `55.35 MB` [4 files] → `20.16 MB` [2 files]; `seeds.txt` `33,576` → `7,464` classes; 0 JUnit / `.dylib` / `DebugProbesKt.bin`; `Australia/Darwin`, `zoneinfo/` [620], `ical4j/` [11], `public-suffix-list.txt` intact.)*
+- Release APK smoke test on BOOX hardware: cold launch, Google/CalDAV/Outlook sync, AI call + OpenRouter connect, Export PDF/Markdown, Share intake across build upgrade, BOOX Notes open/preview, every pen type. *(Verified on BOOX Note Mini C `dc163c1f` release APK in place: cold start, Memos/Tasks/Week/Settings/Preferences/Search/Toolbar/Export UI, live Google Calendar sync of 576 events, ML Kit Digital Ink check, zero crashes. Not yet live-checked on this release APK: CalDAV/Outlook sign-in, live OpenRouter AI call/connect, Share intake, BOOX Notes open/preview, every pen type on hardware.)*
 
 ---
 
