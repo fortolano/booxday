@@ -1491,27 +1491,26 @@ fun SharedToolbar(
                 }
 
                 val aiTool: @Composable () -> Unit = {
-                    // 6. AI Tools - dropdown menu with AI features
-                    AiToolbarButton(
+                    // Unified Contextual AI Menu (Phase 4 / Decision D3 P3 Option B)
+                    UnifiedAiToolbarButton(
+                        tab = EditorTab.Memos,
+                        aiEnabled = memosAiEnabled,
                         hasSelectedStrokes = !activeState.selectionState.selectedStrokes.isNullOrEmpty(),
                         hasPageContent = activeState.pageView.strokes.isNotEmpty(),
                         hasTextAnnotations = activeState.pageView.textAnnotations.isNotEmpty(),
                         pageId = activeState.pageView.currentPageId,
-                        enabled = memosAiEnabled,
-                        onRecognizePage = onRecognizePage,
                         onVoiceInput = onVoiceInput,
+                        onRecognizePage = onRecognizePage,
                         onSummarize = onSummarize,
                         onTranslate = onTranslate,
                         onConvertMemoToTasks = onConvertMemoToTasksAction,
-                        // Only disable drawing when menu opens, don't re-enable when it closes
-                        // Drawing is re-enabled when user explicitly selects a drawing tool
                         onMenuOpenChange = { isOpen -> if (isOpen) activeState.isDrawing = false },
-                        modifier = Modifier.size(EInkTheme.Toolbar.buttonSizeMedium * LocalToolbarIconScale.current),  // Enlarged for touch
+                        modifier = Modifier.size(EInkTheme.Toolbar.buttonSizeMedium * LocalToolbarIconScale.current),
                         isActive = activeButton == "ai",
                         onActivate = {
                             activeButton = "ai"
-                            activeState.isDrawing = false  // Disable drawing when AI is active
-                            activeToolDropdown = "ai"  // Explicitly set dropdown state
+                            activeState.isDrawing = false
+                            activeToolDropdown = "ai"
                         },
                         isOpen = activeToolDropdown == "ai",
                         onOpenChange = { isOpen ->
@@ -1549,31 +1548,29 @@ fun SharedToolbar(
                 }
 
                 val taskAiTool: @Composable () -> Unit = {
-                        // AI Tools for Tasks
-                        TaskAiButton(
-                            onVoiceToTask = { onVoiceToTask?.invoke() },
-                            onSortByPriority = { onSortByPriority?.invoke() },
-                            onSmartSuggestions = { onSmartSuggestions?.invoke() },
-                            onTaskBreakdown = { onTaskBreakdown?.invoke() },
-                            onDailySummary = { onDailySummary?.invoke() },
-                            onWeeklySummary = { onWeeklySummary?.invoke() },
-                            onPlanMyDay = { onPlanMyDay?.invoke() },
-                            // AI is on when the user hasn't turned it off (aiEnabled)
-                            enabled = GlobalAppSettings.current.aiEnabled,
-                            // Only disable drawing when menu opens, don't re-enable when it closes
-                            onMenuOpenChange = { isOpen -> if (isOpen) activeState.isDrawing = false },
-                            modifier = Modifier.size(EInkTheme.Toolbar.buttonSizeMedium * LocalToolbarIconScale.current),  // Must match other tool buttons (44dp)
-                            isActive = activeButton == "taskAi",
-                            onActivate = {
-                                activeButton = "taskAi"
-                                activeState.isDrawing = false  // Disable drawing when Task AI is active
-                                activeToolDropdown = "taskAi"
-                            },
-                            isOpen = activeToolDropdown == "taskAi",
-                            onOpenChange = { isOpen ->
-                                activeToolDropdown = if (isOpen) "taskAi" else null
-                            }
-                        )
+                    // Unified Contextual AI Menu (Tasks context: Phase 4 / Decision D3 P3 Option B)
+                    UnifiedAiToolbarButton(
+                        tab = EditorTab.Tasks,
+                        aiEnabled = GlobalAppSettings.current.aiEnabled,
+                        onPlanMyDay = { onPlanMyDay?.invoke() },
+                        onSortByPriority = { onSortByPriority?.invoke() },
+                        onSmartSuggestions = { onSmartSuggestions?.invoke() },
+                        onTaskBreakdown = { onTaskBreakdown?.invoke() },
+                        onDailySummary = { onDailySummary?.invoke() },
+                        onWeeklySummary = { onWeeklySummary?.invoke() },
+                        onMenuOpenChange = { isOpen -> if (isOpen) activeState.isDrawing = false },
+                        modifier = Modifier.size(EInkTheme.Toolbar.buttonSizeMedium * LocalToolbarIconScale.current),
+                        isActive = activeButton == "taskAi",
+                        onActivate = {
+                            activeButton = "taskAi"
+                            activeState.isDrawing = false
+                            activeToolDropdown = "taskAi"
+                        },
+                        isOpen = activeToolDropdown == "taskAi",
+                        onOpenChange = { isOpen ->
+                            activeToolDropdown = if (isOpen) "taskAi" else null
+                        }
+                    )
                 }
 
                 val regularBarWidth = with(LocalDensity.current) { context.resources.displayMetrics.widthPixels.toDp() }
@@ -2327,20 +2324,22 @@ private fun toolbarMenuTools(
         }
         if (isCompactToolbar || BarTool.Ai in barOverflow) {
             add(ToolbarMenuTool(
-                label = "AI tools",
-                icon = { tint -> MenuIcon(R.drawable.ai_sparkles_text, tint) },
-                enabled = memosAiEnabled,
+                label = "AI Tools",
+                icon = { tint -> MenuIcon(R.drawable.ai_sparkles_text, if (memosAiEnabled) tint else EInkTheme.Disabled.foreground) },
+                enabled = true,
                 page = { closeMenu ->
-                    AiMenuItems(
+                    UnifiedAiMenuItems(
+                        tab = EditorTab.Memos,
+                        aiEnabled = memosAiEnabled,
                         hasSelectedStrokes = !state.selectionState.selectedStrokes.isNullOrEmpty(),
                         hasPageContent = state.pageView.strokes.isNotEmpty(),
                         hasTextAnnotations = state.pageView.textAnnotations.isNotEmpty(),
+                        pageId = state.pageView.currentPageId,
                         onRecognizePage = onRecognizePage,
                         onVoiceInput = onVoiceInput,
                         onSummarize = onSummarize,
                         onTranslate = onTranslate,
                         onConvertMemoToTasks = onConvertMemoToTasks,
-                        pageId = state.pageView.currentPageId,
                         onDone = closeMenu
                     )
                 }
@@ -2384,15 +2383,17 @@ private fun toolbarMenuTools(
             ))
         }
         if (isCompactToolbar || BarTool.TaskAi in barOverflow) {
+            val tasksAiOn = GlobalAppSettings.current.aiEnabled
             // Compact bar: first in the menu, above pen size and color (owner, 31 Oct 2026: the Tasks AI
             // features should be easy to find); regular bar: in bar order
             add(if (isCompactToolbar) 0 else size, ToolbarMenuTool(
-                label = "Task AI",
-                icon = { tint -> MenuIcon(R.drawable.ai_sparkles_text, tint) },
-                // AI is on when the user hasn't turned it off (aiEnabled)
-                enabled = GlobalAppSettings.current.aiEnabled,
+                label = "AI Tools",
+                icon = { tint -> MenuIcon(R.drawable.ai_sparkles_text, if (tasksAiOn) tint else EInkTheme.Disabled.foreground) },
+                enabled = true,
                 page = { closeMenu ->
-                    TaskAiMenuItems(
+                    UnifiedAiMenuItems(
+                        tab = EditorTab.Tasks,
+                        aiEnabled = tasksAiOn,
                         onPlanMyDay = { onPlanMyDay?.invoke() },
                         onSortByPriority = { onSortByPriority?.invoke() },
                         onSmartSuggestions = { onSmartSuggestions?.invoke() },

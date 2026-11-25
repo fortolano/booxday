@@ -19,8 +19,8 @@ import com.boox.day.notifications.NotificationChannelManager
 import com.boox.day.notifications.NotificationPermissionHelper
 import com.boox.day.security.UserOpenRouterKey
 
-/** The Settings menu entries that can need the user (Oct 2026, plan B3). */
-enum class SettingsPlace { PREFERENCES, CALENDAR_ACCOUNTS, AI_SETTINGS, BOOX_NOTES }
+/** The Settings menu entries that can need the user (Oct 2026, plan B3; Task Sync added P4-A). */
+enum class SettingsPlace { PREFERENCES, TASK_SYNC, CALENDAR_ACCOUNTS, AI_SETTINGS, BOOX_NOTES }
 
 /** Something that stops a feature the user turned on, and where to fix it. */
 data class AttentionItem(val place: SettingsPlace, val reason: String)
@@ -82,7 +82,7 @@ object SettingsAttentionRules {
                     !batteryOk -> add(AttentionItem(SettingsPlace.PREFERENCES, "Reminders may be late (battery saving)"))
                 }
             }
-            taskSyncNeeds?.let { add(AttentionItem(SettingsPlace.PREFERENCES, it)) }
+            taskSyncNeeds?.let { add(AttentionItem(SettingsPlace.TASK_SYNC, it)) }
             if (accountsToReconnect > 0) {
                 add(AttentionItem(SettingsPlace.CALENDAR_ACCOUNTS, if (accountsToReconnect == 1) "An account needs to reconnect" else "$accountsToReconnect accounts need to reconnect"))
             }

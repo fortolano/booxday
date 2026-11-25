@@ -109,6 +109,16 @@ object AiKeyGate {
         }
     }
 
+    /** Open AI Settings directly (e.g. from self-teaching disabled AI menu banner: P3-B). */
+    fun requestOpenAiSettings() {
+        onMain {
+            openReason = null
+            pendingAction = null
+            pasteRequested = false
+            addKeyPending = true
+        }
+    }
+
     /** "I already have a key" (or no browser): the key card opens with its paste field showing. */
     private var pasteRequested = false
 

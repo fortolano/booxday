@@ -172,15 +172,19 @@ fun PreferencesDialog(
     val disabledChannelsText = disabledChannels.joinToString(", ")
     val anyChannelDisabled = disabledChannels.isNotEmpty()
 
-    // Oct 2026 (plan B3): opened from the Settings dot, Preferences shows the reminders at once
+    // Oct 2026 (plan B3) + Nov 2026 (P4-A): jump directly to Task Sync or Reminders card when requested
     val remindersInView = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
     val taskSyncInView = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
     LaunchedEffect(Unit) {
-        if (com.boox.day.ui.attention.SettingsJump.consume(com.boox.day.ui.attention.SettingsPlace.PREFERENCES)) {
-            delay(150)  // laid out first
-            // Task sync (Oct 2026): its card, when it is what needs the user
-            if (com.boox.day.tasksync.TaskSync.attentionReason(context) != null) taskSyncInView.bringIntoView()
-            else remindersInView.bringIntoView()
+        when {
+            com.boox.day.ui.attention.SettingsJump.consume(com.boox.day.ui.attention.SettingsPlace.TASK_SYNC) -> {
+                delay(150)  // laid out first
+                taskSyncInView.bringIntoView()
+            }
+            com.boox.day.ui.attention.SettingsJump.consume(com.boox.day.ui.attention.SettingsPlace.PREFERENCES) -> {
+                delay(150)  // laid out first
+                remindersInView.bringIntoView()
+            }
         }
     }
 

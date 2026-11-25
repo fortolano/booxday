@@ -27,4 +27,18 @@ class RegularToolbarOverflowTest {
             regularToolbarOverflow(barWidth = go103Width, isMemos = true, hasPageNav = true)
         )
     }
+
+    @Test
+    fun noteMaxUses44dpPageChevronsWithNoOverflow() {
+        val noteMaxWidth = 997.dp
+        assertEquals(44.dp, regularNavChevronWidth(noteMaxWidth))
+        assertEquals(
+            emptySet<BarTool>(),
+            regularToolbarOverflow(barWidth = noteMaxWidth, isMemos = false, hasPageNav = true)
+        )
+        assertEquals(
+            emptySet<BarTool>(),
+            regularToolbarOverflow(barWidth = noteMaxWidth, isMemos = true, hasPageNav = true)
+        )
+    }
 }

@@ -305,22 +305,18 @@ class DrawCanvas(
         @Volatile var totalObserverRegistrations = 0
         @Volatile var totalObserverCancellations = 0
 
-        // SPLASH/WELCOME GHOST FIX (Mar 2026):
-        // Gate the first raw drawing open on actual splash/welcome dismissal timing.
+        // SPLASH GHOST FIX (Mar 2026; WelcomePopup retired in Phase 4 / P5 Option A):
+        // Gate the first raw drawing open on actual splash dismissal timing.
         private const val STARTUP_RAW_DRAWING_SETTLE_MS = 500L
         @Volatile private var splashDismissedAtMs: Long = 0L
-        @Volatile private var welcomePopupVisible: Boolean = false
-        @Volatile private var welcomeDismissedAtMs: Long = 0L
-        @Volatile private var ignoreWelcomePopupUntilStartupCanvasReady: Boolean = false
         private val startupCanvasReady = MutableStateFlow(false)
         // Nov 2026: a drawing surface shows black until its first picture, so the splash leaves only
         // once the active canvas has drawn (the black Memos flash at launch, 1.0.48 to 1.0.53: the
         // main screen waits for the settings since then, and the splash could leave first)
         private val startupCanvasDrawn = MutableStateFlow(false)
 
-        fun prepareStartupSplash(ignoreWelcomePopupUntilCanvasReady: Boolean = false) {
+        fun prepareStartupSplash() {
             splashDismissedAtMs = 0L
-            ignoreWelcomePopupUntilStartupCanvasReady = ignoreWelcomePopupUntilCanvasReady
             startupCanvasReady.value = false
             startupCanvasDrawn.value = false
         }
@@ -337,23 +333,6 @@ class DrawCanvas(
             splashDismissedAtMs = SystemClock.elapsedRealtime()
         }
 
-        fun setWelcomePopupVisible(visible: Boolean) {
-            if (visible) {
-                welcomePopupVisible = true
-                welcomeDismissedAtMs = 0L
-            } else {
-                welcomePopupVisible = false
-                if (welcomeDismissedAtMs == 0L) {
-                    welcomeDismissedAtMs = SystemClock.elapsedRealtime()
-                }
-            }
-        }
-
-        fun notifyWelcomeDismissed() {
-            welcomePopupVisible = false
-            welcomeDismissedAtMs = SystemClock.elapsedRealtime()
-        }
-
         suspend fun awaitStartupCanvasReady(timeoutMs: Long): Boolean {
             if (startupCanvasReady.value) return true
             return withTimeoutOrNull(timeoutMs) {
@@ -362,11 +341,10 @@ class DrawCanvas(
         }
 
         fun finishStartupSplashHandoff() {
-            ignoreWelcomePopupUntilStartupCanvasReady = false
+            // Kept as explicit lifecycle hook for Router after splash exit.
         }
 
         private fun notifyStartupCanvasReady() {
-            ignoreWelcomePopupUntilStartupCanvasReady = false
             startupCanvasReady.value = true
         }
 
@@ -1508,13 +1486,7 @@ class DrawCanvas(
         val now = SystemClock.elapsedRealtime()
 
         if (splashDismissedAtMs == 0L) return true
-        if (now - splashDismissedAtMs < STARTUP_RAW_DRAWING_SETTLE_MS) return true
-
-        if (ignoreWelcomePopupUntilStartupCanvasReady) return false
-
-        if (welcomePopupVisible) return true
-        if (welcomeDismissedAtMs == 0L) return true
-        return now - welcomeDismissedAtMs < STARTUP_RAW_DRAWING_SETTLE_MS
+        return now - splashDismissedAtMs < STARTUP_RAW_DRAWING_SETTLE_MS
     }
 
     private suspend fun tryActivateDeferredStartupRawDrawing(trigger: String) {

@@ -23,18 +23,19 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -103,113 +104,155 @@ fun SettingsMenu(
         properties = PopupProperties(focusable = true),
         offset = popupOffset + LocalNestedPopupOffset.current
     ) {
-        Column(
-            Modifier
-                .width(EInkTheme.PopupMenu.settingsWidth)
-                .background(EInkTheme.PopupMenu.background)
-                .border(EInkTheme.PopupMenu.borderWidth, EInkTheme.PopupMenu.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                .padding(EInkTheme.PopupMenu.padding)
-        ) {
-            // GENERAL SECTION
-            SectionHeader("General")
-            SettingsMenuItemWithIcon(
-                label = "Preferences",
-                icon = Icons.Default.Settings,
-                reason = attention.reasonFor(SettingsPlace.PREFERENCES),
-                onClick = {
-                    // From the dot: Preferences opens at the reminders (ui/attention/SettingsJump)
-                    if (attention.reasonFor(SettingsPlace.PREFERENCES) != null) SettingsJump.request(SettingsPlace.PREFERENCES)
-                    onPreferences()
-                }
-            )
+        SettingsMenuContent(
+            onPreferences = onPreferences,
+            onCalendarSettings = onCalendarSettings,
+            onCalendarAccounts = onCalendarAccounts,
+            onAiSettings = onAiSettings,
+            onVoiceSettings = onVoiceSettings,
+            onDataBackup = onDataBackup,
+            onBooxNotesSettings = onBooxNotesSettings,
+            onHelp = onHelp,
+            onAbout = onAbout,
+            onClose = onClose,
+            attention = attention,
+            isStandaloneMode = isStandaloneMode,
+            taskStreak = taskStreak,
+            onTaskStreak = onTaskStreak,
+            showStandaloneTooltip = showStandaloneTooltip,
+            onShowStandaloneTooltipChange = { showStandaloneTooltip = it }
+        )
+    }
+}
 
-            MenuDivider()
-
-            // CALENDAR SECTION
-            SectionHeader("Calendar")
-            SettingsMenuItemWithIcon(
-                label = "Calendar & Sync",
-                icon = Icons.Default.CalendarToday,
-                onClick = { onCalendarSettings() }
-            )
-            SettingsMenuItemWithIcon(
-                label = "Calendar Accounts",
-                icon = Icons.Default.AccountCircle,
-                enabled = !isStandaloneMode,
-                reason = attention.reasonFor(SettingsPlace.CALENDAR_ACCOUNTS),
-                onClick = {
-                    if (isStandaloneMode) {
-                        showStandaloneTooltip = true
-                    } else {
-                        onCalendarAccounts()
-                    }
-                }
-            )
-
-            // Tooltip shown when tapping disabled Calendar Accounts
-            if (showStandaloneTooltip) {
-                StandaloneTooltip(
-                    onDismiss = { showStandaloneTooltip = false },
-                    onNavigateToCalendarSync = {
-                        showStandaloneTooltip = false
-                        onCalendarSettings()
-                    }
-                )
+@Composable
+internal fun SettingsMenuContent(
+    onPreferences: () -> Unit,
+    onCalendarSettings: () -> Unit,
+    onCalendarAccounts: () -> Unit,
+    onAiSettings: () -> Unit,
+    onVoiceSettings: () -> Unit,
+    onDataBackup: () -> Unit,
+    onBooxNotesSettings: () -> Unit,
+    onHelp: () -> Unit,
+    onAbout: () -> Unit,
+    onClose: () -> Unit,
+    attention: SettingsAttention = SettingsAttention(),
+    isStandaloneMode: Boolean = false,
+    taskStreak: Int? = null,
+    onTaskStreak: () -> Unit = {},
+    showStandaloneTooltip: Boolean = false,
+    onShowStandaloneTooltipChange: (Boolean) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier
+            .width(EInkTheme.PopupMenu.settingsWidth)
+            .background(EInkTheme.PopupMenu.background)
+            .border(EInkTheme.PopupMenu.borderWidth, EInkTheme.PopupMenu.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+            .padding(EInkTheme.PopupMenu.padding)
+    ) {
+        // GENERAL SECTION
+        SectionHeader("General")
+        SettingsMenuItemWithIcon(
+            label = "Preferences",
+            icon = Icons.Default.Settings,
+            reason = attention.reasonFor(SettingsPlace.PREFERENCES),
+            onClick = {
+                if (attention.reasonFor(SettingsPlace.PREFERENCES) != null) SettingsJump.request(SettingsPlace.PREFERENCES)
+                onPreferences()
             }
+        )
 
-            MenuDivider()
+        MenuDivider()
 
-            // AI & VOICE SECTION
-            SectionHeader("AI & Voice")
-            SettingsMenuItemWithIcon(
-                label = "AI Settings",
-                icon = Icons.Default.Psychology,
-                reason = attention.reasonFor(SettingsPlace.AI_SETTINGS),
-                onClick = {
-                    if (attention.reasonFor(SettingsPlace.AI_SETTINGS) != null) SettingsJump.request(SettingsPlace.AI_SETTINGS)
-                    onAiSettings()
+        // SYNC & CALENDAR SECTION (P4-A: surfaces Task Sync directly via SettingsJump)
+        SectionHeader("Calendar & Sync")
+        SettingsMenuItemWithIcon(
+            label = "Calendar & Sync",
+            icon = Icons.Default.CalendarToday,
+            onClick = { onCalendarSettings() }
+        )
+        SettingsMenuItemWithIcon(
+            label = "Calendar Accounts",
+            icon = Icons.Default.AccountCircle,
+            enabled = !isStandaloneMode,
+            reason = attention.reasonFor(SettingsPlace.CALENDAR_ACCOUNTS),
+            onClick = {
+                if (isStandaloneMode) {
+                    onShowStandaloneTooltipChange(true)
+                } else {
+                    onCalendarAccounts()
+                }
+            }
+        )
+        SettingsMenuItemWithIcon(
+            label = "Task Sync",
+            icon = Icons.Default.TaskAlt,
+            reason = attention.reasonFor(SettingsPlace.TASK_SYNC),
+            onClick = {
+                SettingsJump.request(SettingsPlace.TASK_SYNC)
+                onPreferences()
+            }
+        )
+
+        // Tooltip shown when tapping disabled Calendar Accounts
+        if (showStandaloneTooltip) {
+            StandaloneTooltip(
+                onDismiss = { onShowStandaloneTooltipChange(false) },
+                onNavigateToCalendarSync = {
+                    onShowStandaloneTooltipChange(false)
+                    onCalendarSettings()
                 }
             )
-            SettingsMenuItemWithIcon("Voice-to-Text", Icons.Default.Mic) { onVoiceSettings() }
+        }
 
-            MenuDivider()
+        MenuDivider()
 
-            // DATA SECTION
-            SectionHeader("Data")
-            SettingsMenuItemWithIcon("Data & Backup", Icons.Default.CloudSync) { onDataBackup() }
-            SettingsMenuItemWithIcon(
-                label = "Boox Notes",
-                icon = painterResource(R.drawable.boox_b_letter),  // Boox "B", as on the Memos toolbar
-                reason = attention.reasonFor(SettingsPlace.BOOX_NOTES),
-                onClick = {
-                    com.boox.day.ui.dialogs.BooxNotesPlaces.settingsPage = com.boox.day.ui.dialogs.BooxNotesPlaces.SettingsPage.SETUP
-                    onBooxNotesSettings()
-                }
-            )
-            // Reads memos and tasks too, so it has its own row (it used to sit inside Boox Notes)
-            SettingsMenuItemWithIcon("Handwriting Search", Icons.Default.Search) {
-                com.boox.day.ui.dialogs.BooxNotesPlaces.settingsPage = com.boox.day.ui.dialogs.BooxNotesPlaces.SettingsPage.HANDWRITING
+        // AI & VOICE SECTION
+        SectionHeader("AI & Voice")
+        SettingsMenuItemWithIcon(
+            label = "AI Settings",
+            icon = Icons.Default.Psychology,
+            reason = attention.reasonFor(SettingsPlace.AI_SETTINGS),
+            onClick = {
+                if (attention.reasonFor(SettingsPlace.AI_SETTINGS) != null) SettingsJump.request(SettingsPlace.AI_SETTINGS)
+                onAiSettings()
+            }
+        )
+        SettingsMenuItemWithIcon("Voice-to-Text", Icons.Default.Mic) { onVoiceSettings() }
+
+        MenuDivider()
+
+        // DATA SECTION (P4-A: merged BOOX Notes & Search row)
+        SectionHeader("Data")
+        SettingsMenuItemWithIcon("Data & Backup", Icons.Default.CloudSync) { onDataBackup() }
+        SettingsMenuItemWithIcon(
+            label = "BOOX Notes & Search",
+            icon = painterResource(R.drawable.boox_b_letter),
+            reason = attention.reasonFor(SettingsPlace.BOOX_NOTES),
+            onClick = {
+                com.boox.day.ui.dialogs.BooxNotesPlaces.settingsPage = com.boox.day.ui.dialogs.BooxNotesPlaces.SettingsPage.SETUP
                 onBooxNotesSettings()
             }
+        )
 
-            MenuDivider()
+        MenuDivider()
 
-            // INFO SECTION
-            if (taskStreak != null) {
-                SettingsMenuItemWithIcon(
-                    label = if (taskStreak > 0) "Task streak: $taskStreak" else "Task streak",
-                    icon = ImageVector.vectorResource(R.drawable.local_fire_department_40px),
-                    onClick = onTaskStreak
-                )
-            }
-            SettingsMenuItemWithIcon("Help", Icons.AutoMirrored.Filled.Help) { onHelp() }
-            // Buy Me a Coffee (Oct 2026): the Support BooxDay popup, then the menu closes
-            SettingsMenuItemWithIcon("Support BooxDay", Icons.Default.LocalCafe) {
-                SupportPopup.open()
-                onClose()
-            }
-            SettingsMenuItemWithIcon("About", Icons.Default.Info) { onAbout() }
+        // INFO SECTION
+        if (taskStreak != null) {
+            SettingsMenuItemWithIcon(
+                label = if (taskStreak > 0) "Task streak: $taskStreak" else "Task streak",
+                icon = ImageVector.vectorResource(R.drawable.local_fire_department_40px),
+                onClick = onTaskStreak
+            )
         }
+        SettingsMenuItemWithIcon("Help", Icons.AutoMirrored.Filled.Help) { onHelp() }
+        SettingsMenuItemWithIcon("Support BooxDay", Icons.Default.LocalCafe) {
+            SupportPopup.open()
+            onClose()
+        }
+        SettingsMenuItemWithIcon("About", Icons.Default.Info) { onAbout() }
     }
 }
 
@@ -298,14 +341,10 @@ private fun SettingsMenuItemWithIcon(
             .fillMaxWidth()
             .heightIn(min = EInkTheme.MenuItem.height)
             .noRippleClickable { onClick() }
-            .padding(horizontal = EInkTheme.MenuItem.horizontalPadding),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EInkTheme.Global.spacing)
     ) {
-        // Dot when something here needs the user's action (ui/attention); tapping jumps straight to the card
-        if (reason != null) {
-            BadgeDot()
-        }
         Icon(
             painter = icon,
             contentDescription = null,
@@ -315,8 +354,16 @@ private fun SettingsMenuItemWithIcon(
         Text(
             text = label,
             color = if (enabled) EInkTheme.MenuItem.textColor else EInkTheme.Colors.gray,
-            fontSize = EInkTheme.MenuItem.fontSize
+            fontSize = EInkTheme.MenuItem.fontSize,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
+        // Trailing dot keeps all icons vertically aligned and shows what needs attention
+        if (reason != null) {
+            BadgeDot()
+        }
     }
 }
 

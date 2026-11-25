@@ -25,9 +25,9 @@ class SettingsAttentionTest {
     }
 
     @Test
-    fun taskSyncNeedingTheUserPointsToPreferences() {
+    fun taskSyncNeedingTheUserPointsToTaskSync() {
         val items = SettingsAttentionRules.items(allFine.copy(taskSyncNeeds = "Task Sync needs you to sign in again"))
-        assertEquals(listOf(AttentionItem(SettingsPlace.PREFERENCES, "Task Sync needs you to sign in again")), items)
+        assertEquals(listOf(AttentionItem(SettingsPlace.TASK_SYNC, "Task Sync needs you to sign in again")), items)
     }
 
     @Test

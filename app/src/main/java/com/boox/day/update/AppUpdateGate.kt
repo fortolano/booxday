@@ -141,8 +141,8 @@ object AppUpdateGate {
         if (state !is State.Idle || job?.isActive == true) return
         val prefs = prefs(app)
         if (System.currentTimeMillis() < prefs.getLong(KEY_SNOOZE_UNTIL, 0L)) return
-        // First run: the Welcome popup comes first; the next start checks
-        if (GlobalAppSettings.current.onboardingDismissedAt == 0L) return
+        // First run: WelcomeView comes first; the next start checks (P5 Option A)
+        if (GlobalAppSettings.current.showWelcome) return
         prefs.edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply()
         val result = AppUpdateChecker.check()
         if (result !is AppUpdateChecker.Result.Available) return

@@ -30,13 +30,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.Draw
 import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.runtime.Composable
@@ -75,17 +76,42 @@ import com.boox.day.ui.theme.EInkTheme
 @Composable
 fun WelcomeView(navController: NavController) {
     val context = LocalContext.current
-    val scrollState = rememberScrollState()
 
     // Auto-set optimal refresh mode for e-ink display
     LaunchedEffect(Unit) {
         setRecommendedMode()
     }
 
+    WelcomeViewContent(
+        onGetStarted = {
+            KvProxy(context).setAppSettings(
+                GlobalAppSettings.current.copy(
+                    showWelcome = false,
+                    onboardingDismissedAt = System.currentTimeMillis()
+                )
+            )
+            // Navigate to main and remove welcome from backstack
+            // NOTE: Do NOT call refreshScreen() here - GC refresh captures the current
+            // screen state (WelcomeView) and redraws it during the 1-2s refresh cycle,
+            // causing a "flash" effect while MainScreen tries to render underneath.
+            navController.navigate("main") {
+                popUpTo("welcome") { inclusive = true }
+            }
+        }
+    )
+}
+
+@Composable
+internal fun WelcomeViewContent(
+    onGetStarted: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scrollState = rememberScrollState()
+
     // Oct 2026: "Get Started" stays below the scrolling part, with the "Scroll for more" bar, so it is
     // always on screen (on the Go 6 it was below the edge, with no hint)
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(EInkTheme.Colors.background)
     ) {
@@ -186,18 +212,7 @@ fun WelcomeView(navController: NavController) {
                     EInkTheme.Colors.primary,
                     RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius)
                 )
-                .noRippleClickable {
-                    KvProxy(context).setAppSettings(
-                        GlobalAppSettings.current.copy(showWelcome = false)
-                    )
-                    // Navigate to main and remove welcome from backstack
-                    // NOTE: Do NOT call refreshScreen() here - GC refresh captures the current
-                    // screen state (WelcomeView) and redraws it during the 1-2s refresh cycle,
-                    // causing a "flash" effect while MainScreen tries to render underneath.
-                    navController.navigate("main") {
-                        popUpTo("welcome") { inclusive = true }
-                    }
-                },
+                .noRippleClickable(onClick = onGetStarted),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -397,7 +412,7 @@ private fun BooxNotesHighlight(modifier: Modifier = Modifier) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.MenuBook,
+                    imageVector = Icons.AutoMirrored.Outlined.MenuBook,
                     contentDescription = null,
                     tint = EInkTheme.Colors.white,
                     modifier = Modifier.size(18.dp)
@@ -512,14 +527,37 @@ private fun AlsoInBooxDayCard() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Footer
-        Text(
-            text = "Settings \u2192 Help explains every feature.",
-            fontSize = EInkTheme.Typography.labelSmall,
-            color = EInkTheme.Colors.gray,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center
-        )
+        // Concise Settings attention-dot guidance (folded from removed WelcomePopup: P5 Option A)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(EInkTheme.Colors.background, RoundedCornerShape(8.dp))
+                .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.borderStrong, RoundedCornerShape(8.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(contentAlignment = Alignment.TopEnd) {
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = null,
+                    tint = EInkTheme.Colors.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .background(EInkTheme.Colors.primary, CircleShape)
+                )
+            }
+            Text(
+                text = "A dot in Settings marks anything that needs your attention. Settings \u2192 Help explains every feature.",
+                fontSize = EInkTheme.Typography.bodySmall,
+                color = EInkTheme.Colors.darkGray,
+                lineHeight = EInkTheme.Typography.bodySmall * 1.3f,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 

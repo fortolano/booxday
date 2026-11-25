@@ -77,7 +77,7 @@ object BooxFreezeTip {
             shouldShow(
                 isBoox = NotificationPermissionHelper.isBooxDevice(),
                 alreadyShown = prefs(app).getBoolean(KEY_SHOWN, false),
-                welcomePending = settings.showWelcome || settings.onboardingDismissedAt == 0L,
+                welcomePending = settings.showWelcome,
                 remindersOn = settings.taskNotificationsEnabled || settings.eventNotificationsEnabled,
                 backgroundSyncOn = BackgroundSyncWorker.intervalHours(auth.isSyncEnabled(), hasAccounts, auth.getSyncFrequency()) != null,
                 taskSyncOn = TaskSync.isOn(app)

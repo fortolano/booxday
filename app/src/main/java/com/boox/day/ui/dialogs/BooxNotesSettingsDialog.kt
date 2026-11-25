@@ -215,9 +215,62 @@ fun BooxNotesSettingsDialog(
                         .verticalScroll(settingsScroll)
                         .padding(EInkTheme.PopupOverlay.padding)
                 ) {
+                    BooxNotesBar(title = "BOOX Notes & Search", onClose = onDismiss)
+                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
+                    // Unified 2-tab switcher so Setup & Handwriting Search are 1 tap apart (P4-A)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(EInkTheme.Global.borderWidth, EInkTheme.Colors.primary, RoundedCornerShape(EInkTheme.Global.cornerRadius)),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val isSetup = settingsPage == BooxNotesPlaces.SettingsPage.SETUP
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(EInkTheme.Button.height)
+                                .background(
+                                    if (isSetup) EInkTheme.Selection.background else EInkTheme.Colors.background,
+                                    RoundedCornerShape(
+                                        topStart = EInkTheme.Global.cornerRadius,
+                                        bottomStart = EInkTheme.Global.cornerRadius
+                                    )
+                                )
+                                .noRippleClickable { BooxNotesPlaces.settingsPage = BooxNotesPlaces.SettingsPage.SETUP },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Boox Notes",
+                                fontSize = EInkTheme.Typography.bodyMedium,
+                                fontWeight = if (isSetup) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSetup) EInkTheme.Selection.foreground else EInkTheme.Colors.primary
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(EInkTheme.Button.height)
+                                .background(
+                                    if (!isSetup) EInkTheme.Selection.background else EInkTheme.Colors.background,
+                                    RoundedCornerShape(
+                                        topEnd = EInkTheme.Global.cornerRadius,
+                                        bottomEnd = EInkTheme.Global.cornerRadius
+                                    )
+                                )
+                                .noRippleClickable { BooxNotesPlaces.settingsPage = BooxNotesPlaces.SettingsPage.HANDWRITING },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Handwriting Search",
+                                fontSize = EInkTheme.Typography.bodyMedium,
+                                fontWeight = if (!isSetup) FontWeight.Bold else FontWeight.Medium,
+                                color = if (!isSetup) EInkTheme.Selection.foreground else EInkTheme.Colors.primary
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(EInkTheme.Global.paddingMedium))
+
                     if (settingsPage == BooxNotesPlaces.SettingsPage.SETUP) {
-                        BooxNotesBar(title = "Boox Notes Setup", onClose = onDismiss)
-                        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
                         BooxNotesSetupSteps(
                             hasPermission = hasPermission,
                             resumeCount = resumeCount,
@@ -238,16 +291,6 @@ fun BooxNotesSettingsDialog(
                             }
                         )
                     } else {
-                        BooxNotesBar(
-                            title = "Handwriting Search",
-                            onClose = onDismiss,
-                            onBack = if (startedOn == BooxNotesPlaces.SettingsPage.SETUP) {
-                                { BooxNotesPlaces.settingsPage = BooxNotesPlaces.SettingsPage.SETUP }
-                            } else {
-                                null
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(EInkTheme.Global.paddingSmall))
                         OcrSettingsSection(
                             onIndexNow = onIndexNow,
                             onClearIndex = onClearIndex,

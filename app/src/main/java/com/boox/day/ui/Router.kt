@@ -95,9 +95,6 @@ fun Router() {
     val shouldWaitForCanvasHandoff = remember(startDestination) {
         startDestination == "main"
     }
-    val shouldBypassWelcomeGateForStartup = remember(startDestination) {
-        startDestination == "main" && GlobalAppSettings.current.onboardingDismissedAt == 0L
-    }
 
     // Splash screen state
     var showSplash by remember { mutableStateOf(true) }
@@ -105,9 +102,7 @@ fun Router() {
     var shouldComposeNavHost by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        DrawCanvas.prepareStartupSplash(
-            ignoreWelcomePopupUntilCanvasReady = shouldBypassWelcomeGateForStartup
-        )
+        DrawCanvas.prepareStartupSplash()
         // Let the splash paint once before composing the heavy navigation tree underneath it.
         withFrameNanos { }
         // Oct 2026: not before the saved settings are in (MainActivity). On defaults the main screen

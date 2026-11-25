@@ -244,7 +244,7 @@ data class AppSettings(
     // First-Run Onboarding (Play Store Launch - Jan 2026)
     // ═══════════════════════════════════════════════════════════════════════════
 
-    /** When the welcome popup was dismissed (epoch ms). 0 = never shown/dismissed */
+    /** Legacy field retained for JSON/backup backwards compatibility (single onboarding uses showWelcome: P5-A). */
     val onboardingDismissedAt: Long = 0L,
 
     /** Tracks which first-run setup items have been completed (for badge display) */

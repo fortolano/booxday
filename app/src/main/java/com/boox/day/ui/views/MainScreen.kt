@@ -170,7 +170,6 @@ import com.boox.day.ui.dialogs.ShowSimpleConfirmationDialog
 import com.boox.day.ui.dialogs.SyncSplashDialog
 import com.boox.day.ui.dialogs.VoiceEventDialog
 import com.boox.day.ui.dialogs.VoiceSettingsDialog
-import com.boox.day.ui.dialogs.WelcomePopup
 import com.boox.day.speech.TranscriptionService
 import com.boox.day.speech.AudioRecorder
 import com.boox.day.data.model.ParsedEventData
@@ -430,15 +429,6 @@ fun MainScreen(
     val defaultEventReminderMinutes by remember { derivedStateOf { GlobalAppSettings.current.defaultEventReminderMinutes } }
     val syncModeSetting by remember { derivedStateOf { GlobalAppSettings.current.syncMode } }
     val defaultSyncEnabled by remember { derivedStateOf { GlobalAppSettings.current.defaultSyncEnabled } }
-
-    // First-run onboarding state (Play Store launch - Jan 2026)
-    // Oct 2026: read live (not copied once), so a value saved elsewhere shows at once
-    val onboardingDismissedAt by remember { derivedStateOf { GlobalAppSettings.current.onboardingDismissedAt } }
-
-    // Keep startup raw drawing gate in sync with welcome popup visibility.
-    LaunchedEffect(onboardingDismissedAt) {
-        DrawCanvas.setWelcomePopupVisible(onboardingDismissedAt == 0L)
-    }
 
     var selectedEventForDetails by remember { mutableStateOf<CalendarEvent?>(null) }
     var editingEvent by remember { mutableStateOf<CalendarEvent?>(null) }
@@ -1447,8 +1437,7 @@ fun MainScreen(
                 com.boox.day.ui.CalendarAiNotice.isOpen ||
                 com.boox.day.ui.dialogs.BooxFreezeTip.isOpen ||
                 com.boox.day.ui.AppOverlays.isOpen ||
-                com.boox.day.ui.FullScreenState.transitioning ||
-                onboardingDismissedAt == 0L
+                com.boox.day.ui.FullScreenState.transitioning
         }
     }
 
@@ -3706,22 +3695,6 @@ fun MainScreen(
         if (showAboutDialog) {
             AboutDialog(
                 onDismiss = { showAboutDialog = false }
-            )
-        }
-
-        // Welcome Popup (First-run onboarding - Play Store launch Jan 2026)
-        // Shows once on first launch to direct users to badged settings
-        if (onboardingDismissedAt == 0L) {
-            WelcomePopup(
-                onDismiss = {
-                    val timestamp = System.currentTimeMillis()
-                    DrawCanvas.notifyWelcomeDismissed()
-                    val newSettings = GlobalAppSettings.current.copy(onboardingDismissedAt = timestamp)
-                    GlobalAppSettings.update(newSettings)
-                    scope.launch(Dispatchers.IO) {
-                        appRepository.kvProxy.setAppSettings(newSettings)
-                    }
-                }
             )
         }
 
