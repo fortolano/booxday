@@ -2314,7 +2314,7 @@ private fun BackupSuccessContent(
 
             Spacer(modifier = Modifier.height(EInkTheme.Global.paddingLarge))
 
-            // Done button
+            // Close button
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2324,7 +2324,7 @@ private fun BackupSuccessContent(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Done",
+                    text = "Close",
                     fontSize = EInkTheme.Typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = EInkTheme.Colors.white

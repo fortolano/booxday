@@ -419,7 +419,7 @@ private fun WeeklySummaryContent(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Done",
+                text = "Close",
                 color = EInkTheme.Button.primaryTextColor,
                 fontSize = EInkTheme.Typography.labelLarge,
                 fontWeight = FontWeight.Medium

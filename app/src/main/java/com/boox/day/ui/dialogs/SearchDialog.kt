@@ -184,54 +184,56 @@ fun SearchDialog(
         }
     }
 
-    // Anchor to top so the dialog doesn't shift when the virtual keyboard appears.
-    // Fixed height (480dp = ~2/3 of Boox screen) prevents resize on keyboard open.
-    Popup(
+    // Keyboard-safe top-anchored popup so results and controls never hide behind the Go 6 keyboard (P6)
+    com.boox.day.ui.components.KeyboardSafePopup(
         alignment = Alignment.TopCenter,
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.TopCenter
+        onDismissRequest = onDismiss
+    ) { keyboard ->
+        Column(
+            modifier = Modifier
+                .padding(top = if (keyboard > 0.dp) 12.dp else 24.dp, bottom = 12.dp)
+                .fillMaxWidth(0.92f)
+                .then(
+                    if (keyboard > 0.dp) Modifier.fillMaxHeight(0.96f)
+                    else Modifier.height(minOf(600.dp, EInkTheme.PopupOverlay.maxHeight))
+                )
+                .background(
+                    EInkTheme.PopupOverlay.background,
+                    RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
+                )
+                .border(
+                    EInkTheme.PopupOverlay.borderWidth,
+                    EInkTheme.PopupOverlay.borderColor,
+                    RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
+                )
+                .padding(EInkTheme.PopupOverlay.padding)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(top = 24.dp)
-                    .fillMaxWidth(0.92f)
-                    .height(600.dp)
-                    .background(
-                        EInkTheme.PopupOverlay.background,
-                        RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
-                    )
-                    .border(
-                        EInkTheme.PopupOverlay.borderWidth,
-                        EInkTheme.PopupOverlay.borderColor,
-                        RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
-                    )
-                    .padding(EInkTheme.PopupOverlay.padding)
+            // Header: Title + Close button (44dp touch target)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Header: Title + Close button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Text(
+                    text = "Search",
+                    fontSize = EInkTheme.ModernDialog.titleFontSize,
+                    fontWeight = FontWeight.Bold,
+                    color = EInkTheme.Colors.primary
+                )
+                Box(
+                    modifier = Modifier
+                        .size(EInkTheme.Global.touchTarget)
+                        .noRippleClickable { onDismiss() },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Search",
-                        fontSize = EInkTheme.ModernDialog.titleFontSize,
-                        fontWeight = FontWeight.Bold,
-                        color = EInkTheme.Colors.primary
-                    )
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
-                        modifier = Modifier
-                            .size(28.dp)
-                            .noRippleClickable { onDismiss() },
-                        tint = EInkTheme.Colors.darkGray
+                        modifier = Modifier.size(24.dp),
+                        tint = EInkTheme.Colors.primary
                     )
                 }
+            }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -359,7 +361,6 @@ fun SearchDialog(
             }
         }
     }
-}
 
 /**
  * Search input field — sized for e-ink readability.

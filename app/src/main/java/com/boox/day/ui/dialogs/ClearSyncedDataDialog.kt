@@ -44,60 +44,80 @@ fun ClearSyncedDataDialog(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(EInkTheme.ModernDialog.widthFraction)
-                    .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                    .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                    .padding(EInkTheme.ModernDialog.padding),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Clear synced calendar data",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = EInkTheme.ModernDialog.titleFontSize,
-                    color = EInkTheme.ModernDialog.titleColor
-                )
+            ClearSyncedDataDialogContent(
+                onDismiss = onDismiss,
+                onClearOnly = onClearOnly,
+                onClearAndResync = onClearAndResync,
+                modifier = Modifier.fillMaxWidth(EInkTheme.ModernDialog.widthFraction)
+            )
+        }
+    }
+}
 
-                Spacer(modifier = Modifier.height(12.dp))
+@Composable
+internal fun ClearSyncedDataDialogContent(
+    onDismiss: () -> Unit,
+    onClearOnly: () -> Unit,
+    onClearAndResync: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+            .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+            .padding(EInkTheme.ModernDialog.padding),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Clear synced calendar data",
+            fontWeight = FontWeight.Bold,
+            fontSize = EInkTheme.ModernDialog.titleFontSize,
+            color = EInkTheme.ModernDialog.titleColor
+        )
 
-                Text(
-                    text = "This will remove all synced calendar events (Google, Outlook, iCloud and others) that BooxDay has cached locally.\n\n" +
-                            "Your events online will not be deleted.",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.primary,
-                    textAlign = TextAlign.Center
-                )
+        Spacer(modifier = Modifier.height(12.dp))
 
-                Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "This will remove all synced calendar events (Google, Outlook, iCloud and others) that BooxDay has cached locally.\n\n" +
+                    "Your events online will not be deleted.",
+            fontSize = EInkTheme.Typography.bodyMedium,
+            color = EInkTheme.Colors.primary,
+            textAlign = TextAlign.Center
+        )
 
-                Text(
-                    text = "You can optionally run a fresh sync right after clearing.",
-                    fontSize = EInkTheme.Typography.bodySmall,
-                    color = EInkTheme.Colors.darkGray,
-                    textAlign = TextAlign.Center
-                )
+        Spacer(modifier = Modifier.height(16.dp))
 
-                Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = "You can optionally run a fresh sync right after clearing.",
+            fontSize = EInkTheme.Typography.bodySmall,
+            color = EInkTheme.Colors.darkGray,
+            textAlign = TextAlign.Center
+        )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    EinkSecondaryButton(
-                        text = "Cancel",
-                        onClick = onDismiss
-                    )
-                    ActionButton(
-                        text = "Clear only",
-                        onClick = onClearOnly
-                    )
-                    ActionButton(
-                        text = "Clear & Sync",
-                        onClick = onClearAndResync
-                    )
-                }
-            }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Dialog Rulebook: 1 escape left, 1 secondary/destructive middle, 1 primary right (P6)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            EinkSecondaryButton(
+                text = "Cancel",
+                onClick = onDismiss,
+                width = 0.dp,
+                modifier = Modifier.weight(1f)
+            )
+            EinkSecondaryButton(
+                text = "Clear Only",
+                onClick = onClearOnly,
+                width = 0.dp,
+                modifier = Modifier.weight(1f)
+            )
+            ActionButton(
+                text = "Clear & Sync",
+                onClick = onClearAndResync,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }

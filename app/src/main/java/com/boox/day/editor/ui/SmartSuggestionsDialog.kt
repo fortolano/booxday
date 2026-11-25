@@ -320,14 +320,19 @@ private fun SmartSuggestionsContent(
 
         Spacer(Modifier.height(16.dp))
 
-        // Action buttons
+        // Dialog Rulebook: escape ("Close") on the left, constructive ("Add All") on the right (P6)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Add All button (only if there are remaining suggestions)
+            EinkSecondaryButton(
+                text = "Close",
+                onClick = onDone,
+                modifier = Modifier.weight(1f)
+            )
+
             if (remainingSuggestions.isNotEmpty()) {
-                EinkSecondaryButton(
+                EinkPrimaryButton(
                     text = "Add All (${remainingSuggestions.size})",
                     onClick = {
                         remainingSuggestions.forEach { suggestion ->
@@ -338,13 +343,6 @@ private fun SmartSuggestionsContent(
                     modifier = Modifier.weight(1f)
                 )
             }
-
-            // Done button
-            EinkPrimaryButton(
-                text = "Done",
-                onClick = onDone,
-                modifier = Modifier.weight(1f)
-            )
         }
     }
 }

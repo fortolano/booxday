@@ -85,24 +85,19 @@ fun AiSettingsDialog(
         }
     }
 
-    // E-Ink: Use Popup instead of Dialog to avoid system scrim/dimming
-    Popup(
+    // E-Ink: keyboard-safe Popup so manual API key field stays visible above the keyboard on Go 6 (P6)
+    com.boox.day.ui.components.KeyboardSafePopup(
         alignment = Alignment.Center,
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+        onDismissRequest = onDismiss
+    ) { keyboard ->
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(EInkTheme.PanelDialog.widthFraction)  // Oct 2026: was 0.85f
+                .fillMaxHeight(if (keyboard > 0.dp) 0.96f else EInkTheme.PanelDialog.heightFraction)  // was 0.75f
+                .background(EInkTheme.PopupOverlay.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+                .border(EInkTheme.PopupOverlay.borderWidth, EInkTheme.PopupOverlay.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+                .padding(EInkTheme.PopupOverlay.padding)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(EInkTheme.PanelDialog.widthFraction)  // Oct 2026: was 0.85f
-                    .fillMaxHeight(EInkTheme.PanelDialog.heightFraction)  // was 0.75f
-                    .background(EInkTheme.PopupOverlay.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                    .border(EInkTheme.PopupOverlay.borderWidth, EInkTheme.PopupOverlay.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                    .padding(EInkTheme.PopupOverlay.padding)
-            ) {
                 // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -205,4 +200,3 @@ fun AiSettingsDialog(
             }
         }
     }
-}

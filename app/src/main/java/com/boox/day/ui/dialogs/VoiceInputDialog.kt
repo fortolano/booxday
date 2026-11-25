@@ -641,7 +641,7 @@ private fun VoiceRecordingContent(
                                 modifier = Modifier.size(18.dp),
                                 tint = EInkTheme.Button.primaryTextColor
                             )
-                            Text("Done", color = EInkTheme.Button.primaryTextColor, fontSize = EInkTheme.Typography.bodyMedium)
+                            Text("Finish", color = EInkTheme.Button.primaryTextColor, fontSize = EInkTheme.Typography.bodyMedium)
                         }
                     }
                 } else if (isPaused || hasError) {

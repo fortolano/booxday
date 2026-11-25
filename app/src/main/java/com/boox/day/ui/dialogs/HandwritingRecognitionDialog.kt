@@ -89,23 +89,19 @@ fun HandwritingRecognitionDialog(
     }
 
     // E-Ink: Use Popup instead of Dialog to avoid system scrim/dimming
-    Popup(
+    com.boox.day.ui.components.KeyboardSafePopup(
         alignment = Alignment.Center,
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true)
-    ) {
-        // fillMaxSize() ensures centering is based on full screen, not parent composable
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+        onDismissRequest = onDismiss
+    ) { _ ->
+        Column(
+            modifier = Modifier
+                .width(EInkTheme.PopupOverlay.wideWidth) // Tablet-appropriate width, within the screen (Oct 2026: was 520 dp)
+                .heightIn(max = EInkTheme.PopupOverlay.maxHeight)
+                .background(EInkTheme.PopupOverlay.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+                .border(EInkTheme.PopupOverlay.borderWidth, EInkTheme.PopupOverlay.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+                .verticalScroll(rememberScrollState())
+                .padding(28.dp) // Generous tablet padding
         ) {
-            Column(
-                modifier = Modifier
-                    .width(EInkTheme.PopupOverlay.wideWidth) // Tablet-appropriate width, within the screen (Oct 2026: was 520 dp)
-                    .background(EInkTheme.PopupOverlay.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                    .border(EInkTheme.PopupOverlay.borderWidth, EInkTheme.PopupOverlay.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                    .padding(28.dp) // Generous tablet padding
-            ) {
                 // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -126,7 +122,7 @@ fun HandwritingRecognitionDialog(
                         )
                     }
                     Box(
-                        modifier = Modifier.size(40.dp).noRippleClickable { onDismiss() },
+                        modifier = Modifier.size(EInkTheme.Global.touchTarget).noRippleClickable { onDismiss() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Default.Close, "Close", modifier = Modifier.size(24.dp), tint = EInkTheme.Colors.primary)
@@ -221,7 +217,6 @@ fun HandwritingRecognitionDialog(
             }
         }
     }
-}
 
 /**
  * Progress indicator with message - tablet-optimized layout.

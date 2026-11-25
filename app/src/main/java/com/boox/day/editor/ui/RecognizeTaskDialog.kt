@@ -218,7 +218,7 @@ fun ConvertHandwritingDialog(
                             Spacer(Modifier.height(12.dp))
 
                             EinkPrimaryButton(
-                                text = "Done",
+                                text = "Close",
                                 onClick = onDismiss,
                                 modifier = Modifier.fillMaxWidth(),
                                 height = 52.dp

@@ -347,9 +347,10 @@ fun CalendarSyncSettingsDialog(
                                     )
                                 }
                             }
-                            // Done button inside banner
+                            // Close button inside banner (44dp touch target per Dialog Rulebook)
                             Box(
                                 modifier = Modifier
+                                    .height(EInkTheme.Button.height)
                                     .background(
                                         EInkTheme.Colors.primary,
                                         RoundedCornerShape(EInkTheme.Global.cornerRadius)
@@ -358,11 +359,12 @@ fun CalendarSyncSettingsDialog(
                                         showSuccessBanner = false
                                         onDismiss()
                                     }
-                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                                    .padding(horizontal = 16.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "Done",
-                                    fontSize = EInkTheme.Typography.bodySmall,
+                                    text = "Close",
+                                    fontSize = EInkTheme.Typography.bodyMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = EInkTheme.Colors.white
                                 )

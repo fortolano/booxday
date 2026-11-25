@@ -359,8 +359,8 @@ private fun NoProposalsContent(
 
         Spacer(Modifier.height(16.dp))
 
-        EinkPrimaryButton(
-            text = "Done",
+        EinkSecondaryButton(
+            text = "Close",
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth()
         )

@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Card
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -85,30 +87,26 @@ fun AiResultDialog(
         TextSplitUtils.calculateRequiredPages(markdownText)
     }
 
-    Popup(
+    com.boox.day.ui.components.KeyboardSafePopup(
         alignment = Alignment.Center,
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true)
-    ) {
-        // fillMaxSize() ensures centering is based on full screen, not parent composable
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+        onDismissRequest = onDismiss
+    ) { _ ->
+        Column(
+            modifier = Modifier
+                .width(EInkTheme.PopupOverlay.wideWidth) // Tablet-appropriate width, within the screen (Oct 2026: was 520 dp)
+                .heightIn(max = EInkTheme.PopupOverlay.maxHeight)
+                .background(
+                    EInkTheme.PopupOverlay.background,
+                    RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
+                )
+                .border(
+                    EInkTheme.PopupOverlay.borderWidth,
+                    EInkTheme.PopupOverlay.borderColor,
+                    RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
+                )
+                .verticalScroll(rememberScrollState())
+                .padding(28.dp) // Generous padding for tablet
         ) {
-            Column(
-                modifier = Modifier
-                    .width(EInkTheme.PopupOverlay.wideWidth) // Tablet-appropriate width, within the screen (Oct 2026: was 520 dp)
-                    .background(
-                        EInkTheme.PopupOverlay.background,
-                        RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
-                    )
-                    .border(
-                        EInkTheme.PopupOverlay.borderWidth,
-                        EInkTheme.PopupOverlay.borderColor,
-                        RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius)
-                    )
-                    .padding(28.dp) // Generous padding for tablet
-            ) {
                 // Header with title and close button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -128,7 +126,7 @@ fun AiResultDialog(
                             color = EInkTheme.Colors.gray
                         )
                     }
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(EInkTheme.Global.touchTarget)) {
                         Icon(
                             Icons.Default.Close,
                             "Close",
@@ -217,7 +215,6 @@ fun AiResultDialog(
             }
         }
     }
-}
 
 /**
  * Action row for AI result dialog - tablet-optimized touch target.

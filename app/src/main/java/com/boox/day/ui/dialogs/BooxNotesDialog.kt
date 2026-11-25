@@ -675,19 +675,20 @@ fun BooxNotesDialog(
         }
     }
 
-    // E-ink: a Popup, not a Dialog (no scrim, no dimming)
+    // E-ink: a Popup, not a Dialog (no scrim, no dimming); respects keyboardHeight for All Notes filter (P6)
     Popup(
         alignment = Alignment.TopCenter,
         onDismissRequest = closeOrBack,
         properties = PopupProperties(focusable = true)
     ) {
         val theme = EInkTheme.BooxNotes
+        val keyboard = com.boox.day.ui.components.keyboardHeight()
         RemeasureAfterKeyboard()
         Box(modifier = Modifier.fillMaxSize()) {
             BoxWithConstraints(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = theme.surfaceTopInset, bottom = theme.surfaceBottomInset)
+                    .padding(top = theme.surfaceTopInset, bottom = maxOf(theme.surfaceBottomInset, keyboard))
                     .fillMaxWidth(theme.surfaceWidthFraction)
                     .fillMaxHeight()
                     .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))

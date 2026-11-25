@@ -9,11 +9,12 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import com.boox.day.ui.components.EinkPrimaryButton
+import com.boox.day.ui.components.EinkSecondaryButton
 import com.boox.day.ui.theme.EInkTheme
 
 /**
@@ -83,85 +84,92 @@ fun ChildTaskDialog(
             dismissOnClickOutside = true
         )
     ) {
-        Box(
-            modifier = Modifier
-                .width(280.dp)
-                .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.Global.cornerRadius))
-                .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, RoundedCornerShape(EInkTheme.Global.cornerRadius))
+        ChildTaskDialogContent(
+            onDelete = onDelete,
+            onEdit = onEdit,
+            onCopy = onCopy,
+            onDismiss = onDismiss
+        )
+    }
+}
+
+@Composable
+internal fun ChildTaskDialogContent(
+    onDelete: () -> Unit,
+    onEdit: (() -> Unit)? = null,
+    onCopy: (() -> Unit)? = null,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val dialogWidth = EInkTheme.PopupOverlay.width
+    Box(
+        modifier = modifier
+            .width(dialogWidth)
+            .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.Global.cornerRadius))
+            .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, RoundedCornerShape(EInkTheme.Global.cornerRadius))
+    ) {
+        Column(
+            modifier = Modifier.padding(EInkTheme.ModernDialog.padding)
         ) {
-            Column(
-                modifier = Modifier.padding(EInkTheme.ModernDialog.padding)
+            Text(
+                text = "Subtask",
+                fontSize = EInkTheme.ModernDialog.titleFontSize,
+                fontWeight = FontWeight.Bold,
+                color = EInkTheme.ModernDialog.titleColor
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "This is a subtask. To move it, use the parent task's Move option.",
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.darkGray
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Dialog Rulebook: [Cancel] (left, escape), [Delete] (middle, destructive, monochrome outlined),
+            // [Edit?] (secondary or primary if rightmost), [Copy?] (primary rightmost when present). All 44dp.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Title
-                Text(
-                    text = "Subtask",
-                    fontSize = EInkTheme.ModernDialog.titleFontSize,
-                    fontWeight = FontWeight.Bold,
-                    color = EInkTheme.ModernDialog.titleColor
+                EinkSecondaryButton(
+                    text = "Cancel",
+                    onClick = onDismiss,
+                    width = 0.dp,
+                    modifier = Modifier.weight(1f)
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Message
-                Text(
-                    text = "This is a subtask. To move it, use the parent task's Move option.",
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.darkGray
+                EinkSecondaryButton(
+                    text = "Delete",
+                    onClick = onDelete,
+                    width = 0.dp,
+                    modifier = Modifier.weight(1f)
                 )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Action buttons: [Cancel] [Delete] [Edit?] [Copy?]
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Cancel button (leftmost - escape)
-                    Box(
-                        modifier = Modifier
-                            .background(EInkTheme.Button.background, RoundedCornerShape(EInkTheme.Global.cornerRadius))
-                            .border(EInkTheme.Divider.thickness, EInkTheme.Button.borderColor, RoundedCornerShape(EInkTheme.Global.cornerRadius))
-                            .noRippleClickable { onDismiss() }
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text("Cancel", color = EInkTheme.Button.textColor, fontSize = EInkTheme.Typography.bodySmall)
+                if (onEdit != null) {
+                    if (onCopy == null) {
+                        EinkPrimaryButton(
+                            text = "Edit",
+                            onClick = onEdit,
+                            width = 0.dp,
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        EinkSecondaryButton(
+                            text = "Edit",
+                            onClick = onEdit,
+                            width = 0.dp,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
-
-                    // Delete button (middle - destructive)
-                    Box(
-                        modifier = Modifier
-                            .background(Color.Red, RoundedCornerShape(EInkTheme.Global.cornerRadius))
-                            .noRippleClickable { onDelete() }
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text("Delete", color = Color.White, fontSize = EInkTheme.Typography.bodySmall)
-                    }
-
-                    // Edit button (secondary) - only if onEdit is provided
-                    if (onEdit != null) {
-                        Box(
-                            modifier = Modifier
-                                .background(EInkTheme.Button.background, RoundedCornerShape(EInkTheme.Global.cornerRadius))
-                                .border(EInkTheme.Divider.thickness, EInkTheme.Button.borderColor, RoundedCornerShape(EInkTheme.Global.cornerRadius))
-                                .noRippleClickable { onEdit() }
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            Text("Edit", color = EInkTheme.Button.textColor, fontSize = EInkTheme.Typography.bodySmall)
-                        }
-                    }
-
-                    // Copy button (rightmost constructive) - only if onCopy is provided
-                    if (onCopy != null) {
-                        Box(
-                            modifier = Modifier
-                                .background(EInkTheme.Button.background, RoundedCornerShape(EInkTheme.Global.cornerRadius))
-                                .border(EInkTheme.Divider.thickness, EInkTheme.Button.borderColor, RoundedCornerShape(EInkTheme.Global.cornerRadius))
-                                .noRippleClickable { onCopy() }
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            Text("Copy", color = EInkTheme.Button.textColor, fontSize = EInkTheme.Typography.bodySmall)
-                        }
-                    }
+                }
+                if (onCopy != null) {
+                    EinkPrimaryButton(
+                        text = "Copy",
+                        onClick = onCopy,
+                        width = 0.dp,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }
@@ -169,14 +177,14 @@ fun ChildTaskDialog(
 }
 
 /**
- * Simple confirmation dialog for destructive actions.
- * E-ink optimized with no animations or gray overlays.
+ * Simple confirmation dialog following the Dialog Rulebook (Phase 4 / Decision D3 P6):
+ * 44dp buttons, no Color.Red, specific action verb required (never "Confirm"), Cancel on left.
  */
 @Composable
 fun ConfirmationDialog(
     title: String,
     message: String,
-    confirmText: String = "Confirm",
+    confirmText: String,
     cancelText: String = "Cancel",
     isDestructive: Boolean = false,
     onConfirm: () -> Unit,
@@ -191,69 +199,73 @@ fun ConfirmationDialog(
             dismissOnClickOutside = true
         )
     ) {
-        Box(
-            modifier = Modifier
-                .width(280.dp)
-                .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.Global.cornerRadius))
-                .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, RoundedCornerShape(EInkTheme.Global.cornerRadius))
+        ConfirmationDialogContent(
+            title = title,
+            message = message,
+            confirmText = confirmText,
+            cancelText = cancelText,
+            isDestructive = isDestructive,
+            onConfirm = onConfirm,
+            onDismiss = onDismiss
+        )
+    }
+}
+
+@Composable
+internal fun ConfirmationDialogContent(
+    title: String,
+    message: String,
+    confirmText: String,
+    cancelText: String = "Cancel",
+    isDestructive: Boolean = false,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val dialogWidth = minOf(EInkTheme.PopupPanel.width, EInkTheme.PopupOverlay.width)
+    Box(
+        modifier = modifier
+            .width(dialogWidth)
+            .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.Global.cornerRadius))
+            .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, RoundedCornerShape(EInkTheme.Global.cornerRadius))
+    ) {
+        Column(
+            modifier = Modifier.padding(EInkTheme.ModernDialog.padding)
         ) {
-            Column(
-                modifier = Modifier.padding(EInkTheme.ModernDialog.padding)
+            Text(
+                text = title,
+                fontSize = EInkTheme.ModernDialog.titleFontSize,
+                fontWeight = FontWeight.Bold,
+                color = EInkTheme.ModernDialog.titleColor
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = message,
+                fontSize = EInkTheme.Typography.bodyMedium,
+                color = EInkTheme.Colors.darkGray
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 2-button Dialog Rulebook layout: escape left, action verb right (monochrome E-Ink, 44dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Title
-                Text(
-                    text = title,
-                    fontSize = EInkTheme.ModernDialog.titleFontSize,
-                    fontWeight = FontWeight.Bold,
-                    color = EInkTheme.ModernDialog.titleColor
+                EinkSecondaryButton(
+                    text = cancelText,
+                    onClick = onDismiss,
+                    width = 0.dp,
+                    modifier = Modifier.weight(1f)
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Message
-                Text(
-                    text = message,
-                    fontSize = EInkTheme.Typography.bodyMedium,
-                    color = EInkTheme.Colors.darkGray
+                EinkPrimaryButton(
+                    text = confirmText,
+                    onClick = onConfirm,
+                    width = 0.dp,
+                    modifier = Modifier.weight(1f)
                 )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Action buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    // Cancel button
-                    Box(
-                        modifier = Modifier
-                            .background(EInkTheme.Button.background, RoundedCornerShape(EInkTheme.Global.cornerRadius))
-                            .border(EInkTheme.Divider.thickness, EInkTheme.Button.borderColor, RoundedCornerShape(EInkTheme.Global.cornerRadius))
-                            .noRippleClickable { onDismiss() }
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text(cancelText, color = EInkTheme.Button.textColor, fontSize = EInkTheme.Typography.bodySmall)
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Confirm button
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                if (isDestructive) Color.Red else EInkTheme.ModernDialog.PrimaryButton.background,
-                                RoundedCornerShape(EInkTheme.Global.cornerRadius)
-                            )
-                            .noRippleClickable { onConfirm() }
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            confirmText,
-                            color = EInkTheme.ModernDialog.PrimaryButton.textColor,
-                            fontSize = EInkTheme.Typography.bodySmall
-                        )
-                    }
-                }
             }
         }
     }

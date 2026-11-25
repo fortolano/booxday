@@ -47,7 +47,8 @@ fun EinkPrimaryButton(
             .widthIn(min = width)
             .background(backgroundColor, RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius))
             .border(EInkTheme.ModernDialog.borderWidth, borderColor, RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius))
-            .noRippleClickable(enabled = enabled) { onClick() },
+            .noRippleClickable(enabled = enabled) { onClick() }
+            .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -83,7 +84,8 @@ fun EinkSecondaryButton(
             .widthIn(min = width)
             .background(backgroundColor, RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius))
             .border(EInkTheme.ModernDialog.borderWidth, borderColor, RoundedCornerShape(EInkTheme.ModernDialog.PrimaryButton.cornerRadius))
-            .noRippleClickable(enabled = enabled) { onClick() },
+            .noRippleClickable(enabled = enabled) { onClick() }
+            .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(

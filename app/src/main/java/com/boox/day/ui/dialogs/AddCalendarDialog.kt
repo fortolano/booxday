@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Spacer
 import com.boox.day.ui.noRippleClickable
 import androidx.compose.foundation.shape.CircleShape
@@ -63,22 +65,19 @@ fun AddCalendarDialog(
     val isNameValid = name.isNotBlank() &&
             !existingNames.any { it.equals(name.trim(), ignoreCase = true) }
 
-    Popup(
+    com.boox.day.ui.components.KeyboardSafePopup(
         alignment = Alignment.Center,
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
+        onDismissRequest = onDismiss
+    ) { _ ->
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(EInkTheme.ModernDialog.widthFraction)
+                .heightIn(max = EInkTheme.PopupOverlay.maxHeight)
+                .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+                .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
+                .verticalScroll(rememberScrollState())
+                .padding(EInkTheme.ModernDialog.padding)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(EInkTheme.ModernDialog.widthFraction)
-                    .background(EInkTheme.ModernDialog.background, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                    .border(EInkTheme.ModernDialog.borderWidth, EInkTheme.ModernDialog.borderColor, RoundedCornerShape(EInkTheme.ModernDialog.cornerRadius))
-                    .padding(EInkTheme.ModernDialog.padding)
-            ) {
                 // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -232,7 +231,6 @@ fun AddCalendarDialog(
             }
         }
     }
-}
 
 /**
  * Color selector for calendar color.
