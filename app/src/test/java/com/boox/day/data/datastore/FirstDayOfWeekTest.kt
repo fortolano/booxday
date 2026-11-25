@@ -1,7 +1,6 @@
 package com.boox.day.data.datastore
 
 import com.boox.day.data.datastore.AppSettings.FirstDayOfWeek
-import com.boox.day.ui.calendar.compactWindowStart
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.DayOfWeek
@@ -42,11 +41,5 @@ class FirstDayOfWeekTest {
         assertEquals(3, (wednesdayFromSunday - FirstDayOfWeek.Sunday.shiftFromSunday + 7) % 7)
         assertEquals(2, (wednesdayFromSunday - FirstDayOfWeek.Monday.shiftFromSunday + 7) % 7)
         assertEquals(4, (wednesdayFromSunday - FirstDayOfWeek.Saturday.shiftFromSunday + 7) % 7)
-    }
-
-    @Test
-    fun theTwoWeekStripStartsOnTheChosenDay() {
-        assertEquals(LocalDate.of(2026, 10, 24), compactWindowStart(wednesday, FirstDayOfWeek.Saturday))
-        assertEquals(LocalDate.of(2026, 10, 26), compactWindowStart(wednesday, FirstDayOfWeek.Monday))
     }
 }

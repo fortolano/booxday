@@ -10,30 +10,19 @@ import android.content.res.Resources
 import com.boox.day.AppDensity
 
 /**
- * Screen layout profile (plan Phase 1.5, Oct 2026).
+ * Screen size metrics and device breakpoints.
  *
- * - [Regular]: the original layout (calendar month grid + events panel above the page).
- * - [Compact]: the Go 6 "layout B" (a header, a two-week strip and Events/Due boxes above the page;
- *   month grid and lists as popups). **Retired 13 Oct 2026**: every device uses [Regular] again,
- *   and narrow screens adapt sizes only, through [LayoutProfiles.isNarrowScreen]. The Compact code
- *   paths stay until each element has been reviewed and removed one at a time.
+ * Every device uses the same layout (calendar month grid + events panel above the page);
+ * narrow/small screens adapt sizes only via [LayoutProfiles.isNarrowScreen] and
+ * [LayoutProfiles.isSmallTablet].
  *
  * Fixed per device: the app is portrait-locked and runs at the fixed [AppDensity.dpi], so
  * nothing here changes at runtime. That matters because the Tasks rows (canvas height ÷ 10) and the
  * control-column boundary must never move under existing ink.
  */
-enum class LayoutProfile { Regular, Compact }
-
 object LayoutProfiles {
     /** Screens narrower than this (in dp at the app density) are narrow screens. */
     private const val NARROW_MAX_WIDTH_DP = 600f
-
-    /** The layout every device uses. */
-    val current: LayoutProfile = LayoutProfile.Regular
-
-    /** True only for the retired layout B (see [LayoutProfile]): false on every device now. */
-    val isCompact: Boolean
-        get() = current == LayoutProfile.Compact
 
     /**
      * Narrow screens such as the BOOX Go 6 (572 dp wide at 300 dpi): same layout, adapted sizes

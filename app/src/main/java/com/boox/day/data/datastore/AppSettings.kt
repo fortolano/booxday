@@ -356,10 +356,9 @@ enum class VoiceTextMode {
 }
 
 /**
- * Settings for Boox Notes OCR indexing.
+ * Settings for Boox Notes and Memos OCR indexing.
  *
- * SIMPLIFIED: No user-configurable windows/folders/network - system is intelligent.
- * OCR uses Google Cloud Vision API exclusively (no ML Kit, no LLM fallback).
+ * Page reading runs via OpenRouter (user's own key; zero-data-retention models).
  */
 @Serializable
 data class OcrSettings(

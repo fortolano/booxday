@@ -1,9 +1,7 @@
 package com.boox.day.ui.calendar
 
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import com.boox.day.ui.NestedPopupHost
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -35,13 +33,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -223,11 +216,8 @@ fun MonthHeaderWithToolbar(
     attention: SettingsAttention = SettingsAttention(),
     // Standalone mode - disables Calendar Accounts menu item
     isStandaloneMode: Boolean = false,
-    // Compact screens (plan Phase 1.5): ‹ Month Year › title opens the month popup; the other
-    // header buttons move into a ⋮ popup. Regular layout is unchanged when false.
-    compact: Boolean = false,
-    onMonthTitleClick: () -> Unit = {},
-    onCompactPopupVisibleChange: (Boolean) -> Unit = {}
+    // Report header popups (Settings menu / Task stats) so MainScreen pauses raw drawing under them
+    onHeaderPopupVisibleChange: (Boolean) -> Unit = {}
 ) {
     var isSettingsMenuOpen by remember { mutableStateOf(false) }
     var isMonthDropdownOpen by remember { mutableStateOf(false) }
@@ -237,6 +227,10 @@ fun MonthHeaderWithToolbar(
     var showStatsPopup by remember { mutableStateOf(false) }
     var currentStreak by remember { mutableStateOf(0) }
     val context = LocalContext.current
+
+    LaunchedEffect(isSettingsMenuOpen || showStatsPopup) {
+        onHeaderPopupVisibleChange(isSettingsMenuOpen || showStatsPopup)
+    }
 
     // Load streak count from database, and again whenever tasks change
     // (T18, Oct 2026: it was loaded once and never refreshed)
@@ -255,30 +249,26 @@ fun MonthHeaderWithToolbar(
 
     val years = (2023..2030).toList()
 
-    // Header button groups (plan Phase 1.5): shared by the Regular row (same order as before)
-    // and the compact ⋮ popup. In Regular, isOverflowOpen stays false.
-    var isOverflowOpen by remember { mutableStateOf(false) }
-
     // Today button
     val todayButton: @Composable () -> Unit = {
         // Right side: Toolbar icons with spacing
         // Today button with day number inside calendar icon (FIRST)
         val todayDayOfMonth = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
-        IconButton(onClick = onTodayClick, modifier = Modifier.size(EInkTheme.Global.touchTarget * LocalHeaderIconScale.current)) {
+        IconButton(onClick = onTodayClick, modifier = Modifier.size(EInkTheme.Global.touchTarget)) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     painter = painterResource(R.drawable.calendar_today_thin),  // Custom thin lines
                     contentDescription = "Go to today",
-                    modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard * LocalHeaderIconScale.current),
+                    modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard),
                     tint = EInkTheme.Colors.primary
                 )
                 // Day number positioned inside the calendar icon (centered with slight offset for visual balance)
                 Text(
                     text = todayDayOfMonth.toString(),
-                    fontSize = EInkTheme.Typography.labelSmall * LocalHeaderIconScale.current,
+                    fontSize = EInkTheme.Typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = EInkTheme.Colors.primary,
-                    modifier = Modifier.padding(top = 7.dp * LocalHeaderIconScale.current)  // Adjusted for better centering
+                    modifier = Modifier.padding(top = 7.dp)  // Adjusted for better centering
                 )
             }
         }
@@ -289,20 +279,18 @@ fun MonthHeaderWithToolbar(
         val aiEnabled = GlobalAppSettings.current.aiEnabled
         IconButton(
             onClick = {
-                isOverflowOpen = false
                 if (aiEnabled) {
                     onVoiceInput()
                 } else {
                     com.boox.day.ui.AiKeyGate.requireKey()
                 }
             },
-            modifier = Modifier
-                .size(EInkTheme.Global.touchTarget * LocalHeaderIconScale.current)
+            modifier = Modifier.size(EInkTheme.Global.touchTarget)
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_voice_input),
                 contentDescription = if (aiEnabled) "Voice input" else "Voice input (AI is off)",
-                modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard * LocalHeaderIconScale.current),
+                modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard),
                 tint = if (aiEnabled) EInkTheme.Colors.primary else EInkTheme.Disabled.foreground
             )
         }
@@ -310,11 +298,11 @@ fun MonthHeaderWithToolbar(
 
     // Add event
     val addEventButton: @Composable () -> Unit = {
-        IconButton(onClick = onAddEventClick, modifier = Modifier.size(EInkTheme.Global.touchTarget * LocalHeaderIconScale.current)) {
+        IconButton(onClick = onAddEventClick, modifier = Modifier.size(EInkTheme.Global.touchTarget)) {
             Icon(
                 imageVector = Icons.Filled.Add,
                 contentDescription = "Add event",
-                modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard * LocalHeaderIconScale.current),
+                modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard),
                 tint = EInkTheme.Colors.primary
             )
         }
@@ -323,7 +311,7 @@ fun MonthHeaderWithToolbar(
     // Sync icon with static E-Ink state (no 1s continuous rotation), pending count badge, and monochrome-safe error badge
     val syncIcon: @Composable () -> Unit = {
             Box {
-                IconButton(onClick = { isOverflowOpen = false; onSyncClick() }, modifier = Modifier.size(EInkTheme.Global.touchTarget * LocalHeaderIconScale.current)) {
+                IconButton(onClick = onSyncClick, modifier = Modifier.size(EInkTheme.Global.touchTarget)) {
                     Icon(
                         painter = painterResource(R.drawable.cloud_sync),
                         contentDescription = when {
@@ -333,8 +321,7 @@ fun MonthHeaderWithToolbar(
                             pendingSyncCount > 0 -> "$pendingSyncCount pending"
                             else -> "Synced"
                         },
-                        modifier = Modifier
-                            .size(EInkTheme.CalendarToolbar.iconSizeStandard * LocalHeaderIconScale.current),
+                        modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard),
                         tint = when {
                             !isSignedIn -> EInkTheme.Disabled.foreground
                             hasSyncError -> EInkTheme.Colors.primary
@@ -451,9 +438,8 @@ fun MonthHeaderWithToolbar(
         // Task streak badge (🔥 icon + count) - opens statistics popup
         Box(
             modifier = Modifier
-                .size(EInkTheme.Global.touchTarget * LocalHeaderIconScale.current)
+                .size(EInkTheme.Global.touchTarget)
                 .noRippleClickable {
-                    isOverflowOpen = false
                     showStatsPopup = true
                 },
             contentAlignment = Alignment.Center
@@ -465,7 +451,7 @@ fun MonthHeaderWithToolbar(
                 Icon(
                     painter = painterResource(R.drawable.local_fire_department_40px),
                     contentDescription = "Task streak",
-                    modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeSmall * LocalHeaderIconScale.current),
+                    modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeSmall),
                     tint = EInkTheme.Colors.primary
                 )
                 if (currentStreak > 0) {
@@ -484,11 +470,11 @@ fun MonthHeaderWithToolbar(
     // Search
     val searchButton: @Composable () -> Unit = {
         // Search button (opens search dialog)
-        IconButton(onClick = { isOverflowOpen = false; onSearchClick() }, modifier = Modifier.size(EInkTheme.Global.touchTarget * LocalHeaderIconScale.current)) {
+        IconButton(onClick = onSearchClick, modifier = Modifier.size(EInkTheme.Global.touchTarget)) {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Search",
-                modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard * LocalHeaderIconScale.current),
+                modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard),
                 tint = EInkTheme.Colors.primary
             )
         }
@@ -501,12 +487,12 @@ fun MonthHeaderWithToolbar(
             Box {
                 IconButton(
                     onClick = { isSettingsMenuOpen = !isSettingsMenuOpen },
-                    modifier = Modifier.size(EInkTheme.Global.touchTarget * LocalHeaderIconScale.current)
+                    modifier = Modifier.size(EInkTheme.Global.touchTarget)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Settings,
                         contentDescription = "Settings",
-                        modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard * LocalHeaderIconScale.current),
+                        modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard),
                         tint = EInkTheme.Colors.primary
                     )
                 }
@@ -597,153 +583,7 @@ fun MonthHeaderWithToolbar(
         Spacer(modifier = Modifier.width(2.dp))
     }
 
-    if (compact) {
-        // Report popups so MainScreen can pause raw drawing under them
-        val compactPopupVisible = isOverflowOpen || isSettingsMenuOpen || showStatsPopup
-        LaunchedEffect(compactPopupVisible) { onCompactPopupVisibleChange(compactPopupVisible) }
-        // Closing the settings menu (item chosen or dismissed) also closes the ⋮ popup
-        LaunchedEffect(isSettingsMenuOpen) { if (!isSettingsMenuOpen) isOverflowOpen = false }
-
-        // Layout B (Oct 2026): search and sync sit on the bar when the screen is wide enough (e.g.
-        // ~570-590dp at a 290-300 dpi setting); otherwise they stay in ⋮. ‹ "September 2026" ›,
-        // today, add and ⋮ (53dp buttons) with their gaps take ~438dp; search and sync add 63dp each.
-        val headerWidth = with(LocalDensity.current) { context.resources.displayMetrics.widthPixels.toDp() }
-        val searchOnBar = headerWidth >= 502.dp
-        val syncOnBar = headerWidth >= 565.dp
-        val headerHostView = LocalView.current  // for the settings menu opened inside the ⋮ popup
-
-        // Bigger header buttons on compact screens, easier to hit with a finger (Oct 2026)
-        CompositionLocalProvider(LocalHeaderIconScale provides HEADER_BAR_ICON_SCALE) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onPreviousMonth, modifier = Modifier.size(EInkTheme.Global.touchTarget)) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "Previous two weeks",
-                    modifier = Modifier.size(EInkTheme.Global.iconSizeLarge),
-                    tint = EInkTheme.Colors.primary
-                )
-            }
-            // Month title opens the month grid popup
-            Text(
-                text = "${monthNames[month]} $year",
-                fontSize = EInkTheme.CalendarToolbar.monthFontSize,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                modifier = Modifier
-                    .noRippleClickable { onMonthTitleClick() }
-                    .padding(horizontal = 4.dp, vertical = 8.dp)
-            )
-            IconButton(onClick = onNextMonth, modifier = Modifier.size(EInkTheme.Global.touchTarget)) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "Next two weeks",
-                    modifier = Modifier.size(EInkTheme.Global.iconSizeLarge),
-                    tint = EInkTheme.Colors.primary
-                )
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // A finger-width gap between the icons so one tap never hits two
-            if (searchOnBar) {
-                searchButton()
-                Spacer(modifier = Modifier.width(HEADER_ICON_GAP))
-            }
-            if (syncOnBar) {
-                syncIcon()
-                Spacer(modifier = Modifier.width(HEADER_ICON_GAP))
-            }
-            todayButton()
-            Spacer(modifier = Modifier.width(HEADER_ICON_GAP))
-            addEventButton()
-            Spacer(modifier = Modifier.width(HEADER_ICON_GAP))
-
-            // ⋮ — voice, streak, What's New, settings (+ sync and search when they're not on the bar)
-            Box {
-                IconButton(
-                    onClick = { isOverflowOpen = !isOverflowOpen },
-                    modifier = Modifier.size(EInkTheme.Global.touchTarget * LocalHeaderIconScale.current)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.MoreVert,
-                        contentDescription = "More",
-                        modifier = Modifier.size(EInkTheme.CalendarToolbar.iconSizeStandard * LocalHeaderIconScale.current),
-                        tint = EInkTheme.Colors.primary
-                    )
-                }
-                // Badge carries the counts of the buttons inside
-                val overflowBadgeCount = attention.count
-                val overflowNeedsAttention = overflowBadgeCount > 0 ||
-                    (!syncOnBar && isSignedIn && (hasSyncError || pendingSyncCount > 0))
-                if (overflowNeedsAttention) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 4.dp, end = 4.dp)
-                            .size(16.dp)
-                            .background(EInkTheme.Colors.primary, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = when {
-                                overflowBadgeCount > 9 -> "9+"
-                                overflowBadgeCount > 0 -> overflowBadgeCount.toString()
-                                else -> "!"
-                            },
-                            color = EInkTheme.Colors.white,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                if (isOverflowOpen) {
-                    val popupOffsetY = with(LocalDensity.current) { (EInkTheme.Global.touchTarget * HEADER_BAR_ICON_SCALE).roundToPx() }
-                    Popup(
-                        alignment = Alignment.TopEnd,
-                        offset = IntOffset(0, popupOffsetY),
-                        onDismissRequest = { if (!isSettingsMenuOpen) isOverflowOpen = false },
-                        properties = PopupProperties(focusable = true)
-                    ) {
-                        // Icons in the ⋮ popup are shown a bit larger than on the bar (Oct 2026)
-                        CompositionLocalProvider(LocalHeaderIconScale provides HEADER_POPUP_ICON_SCALE) {
-                        // The settings menu opens right under its button
-                        NestedPopupHost(hostView = headerHostView) {
-                        Row(
-                            modifier = Modifier
-                                .background(EInkTheme.PopupMenu.background)
-                                .border(EInkTheme.PopupMenu.borderWidth, EInkTheme.PopupMenu.borderColor)
-                                .padding(horizontal = 4.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            voiceButton()
-                            Spacer(modifier = Modifier.width(7.dp))
-                            if (!syncOnBar) {
-                                syncButton()
-                                Spacer(modifier = Modifier.width(7.dp))
-                            }
-                            streakButton()
-                            Spacer(modifier = Modifier.width(10.dp))
-                            if (!searchOnBar) {
-                                searchButton()
-                                Spacer(modifier = Modifier.width(8.dp))
-                            }
-                            settingsButton()
-                            Spacer(modifier = Modifier.width(2.dp))
-                        }
-                        }
-                        }
-                    }
-                }
-            }
-        }
-        }
-    } else Row(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp, vertical = 4.dp),
@@ -1462,9 +1302,6 @@ private fun formatLastSyncTime(timestamp: Long): String {
     }
 }
 
-/** Gap between the compact header's icons (layout B), so a finger tap never lands on two. */
-private val HEADER_ICON_GAP = 10.dp
-
 /**
  * Gap between the header's buttons on narrow screens (Go 6, Oct 2026): at least 8 dp plus an equal
  * share of the header's free width, so the buttons spread evenly, as on the toolbar.
@@ -1474,10 +1311,3 @@ private fun RowScope.HeaderGap() {
     Spacer(modifier = Modifier.width(8.dp))
     Spacer(modifier = Modifier.weight(1f))
 }
-
-/** Compact header button size relative to the 44dp touch target: on the bar and in the ⋮ popup. */
-private const val HEADER_BAR_ICON_SCALE = 1.2f
-private const val HEADER_POPUP_ICON_SCALE = 1.3f
-
-/** Size scale for the header's icon buttons; the compact ⋮ popup raises it (Oct 2026), elsewhere 1. */
-private val LocalHeaderIconScale = androidx.compose.runtime.staticCompositionLocalOf { 1f }

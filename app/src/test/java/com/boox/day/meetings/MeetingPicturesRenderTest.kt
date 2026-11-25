@@ -95,16 +95,6 @@ class MeetingPicturesRenderTest {
     }
 
     @Test
-    fun cards() {
-        for (d in listOf(devices[0], devices[2])) {
-            val w = Modifier.width(d.panel.dp)
-            render("card-${d.name}-none", d) { MeetingCardActions(hasNotes = false, beforeEnd = true, modifier = w) }
-            render("card-${d.name}-notes", d) { MeetingCardActions(hasNotes = true, beforeEnd = false, modifier = w) }
-            render("card-${d.name}-both", d) { MeetingCardActions(hasNotes = true, beforeEnd = true, modifier = w) }
-        }
-    }
-
-    @Test
     fun prepare() {
         for (d in devices) {
             val w = Modifier.width(d.panel.dp)

@@ -100,13 +100,6 @@ fun CalendarSettingsDialog(
     localCalendars: List<LocalCalendar> = emptyList(),
     onAddLocalCalendar: () -> Unit = {},
     onDeleteLocalCalendars: (List<String>) -> Unit = {},
-    // Legacy settings (kept for backward compatibility but will be removed later)
-    defaultSyncEnabled: Boolean = false,
-    showSyncBadges: Boolean = true,
-    offlineChangesWarning: Boolean = true,
-    onDefaultSyncChanged: (Boolean) -> Unit = {},
-    onShowSyncBadgesChanged: (Boolean) -> Unit = {},
-    onOfflineWarningChanged: (Boolean) -> Unit = {},
     // Initial tab selection
     initialTab: CalendarSettingsTab = CalendarSettingsTab.DISPLAY_MODE
 ) {

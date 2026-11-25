@@ -3,12 +3,9 @@ package com.boox.day.io
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.RectF
-import android.net.Uri
 import android.util.Base64
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import com.boox.day.BuildConfig
 import com.boox.day.SCREEN_HEIGHT
@@ -16,34 +13,25 @@ import com.boox.day.SCREEN_WIDTH
 import com.boox.day.data.datastore.A4_WIDTH
 import com.boox.day.data.db.BookRepository
 import com.boox.day.data.db.Image
-import com.boox.day.data.db.Page
 import com.boox.day.data.db.PageRepository
 import com.boox.day.data.db.Stroke
-import com.boox.day.data.db.StrokePoint
-import com.boox.day.data.ensureImagesFolder
 import com.boox.day.editor.utils.Pen
 import com.boox.day.ui.showHint
 import com.boox.day.utils.ensureNotMainThread
 import com.onyx.android.sdk.api.device.epd.EpdController
-import android.util.Log
 import com.boox.day.utils.TaggedLog
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream
 import org.w3c.dom.Document
 import org.w3c.dom.Element
-import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.BufferedWriter
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
-import java.io.InputStream
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.StringWriter
-import java.util.UUID
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.transform.OutputKeys
 import javax.xml.transform.TransformerFactory
@@ -223,243 +211,6 @@ class XoppFile(
         return writer.toString().trim() // Remove extra spaces or newlines
     }
 
-
-    /**
-     * Imports a `.xopp` file, creating a new book and pages in the database.
-     *
-     * @param context The application context.
-     * @param uri The URI of the `.xopp` file to import.
-     */
-    fun importBook(uri: Uri, savePageToDatabase: (PageContent) -> Unit) {
-        log.v("Importing book from $uri")
-        ensureNotMainThread("xoppImportBook")
-        val inputStream = context.contentResolver.openInputStream(uri) ?: return
-        val xmlContent = extractXmlFromXopp(inputStream) ?: return
-
-        val document = parseXml(xmlContent) ?: return
-
-        val pages = document.getElementsByTagName("page")
-
-        for (i in 0 until pages.length) {
-            val pageElement = pages.item(i) as Element
-            val page = Page()
-            val strokes = parseStrokes(pageElement, page)
-            val images = parseImages(pageElement, page)
-            savePageToDatabase(PageContent(page, strokes, images))
-        }
-        log.i("Successfully imported book with ${pages.length} pages.")
-    }
-
-    /**
-     * Extracts XML content from a `.xopp` file.
-     */
-    private fun extractXmlFromXopp(inputStream: InputStream): String? {
-        return try {
-            GzipCompressorInputStream(BufferedInputStream(inputStream)).bufferedReader()
-                .use { it.readText() }
-        } catch (e: IOException) {
-            log.e("Error extracting XML from .xopp file: ${e.message}")
-            null
-        }
-    }
-
-    /**
-     * Parses an XML string into a DOM Document.
-     */
-    private fun parseXml(xml: String): Document? {
-        return try {
-            val factory = DocumentBuilderFactory.newInstance()
-            factory.isNamespaceAware = true
-            val builder = factory.newDocumentBuilder()
-            builder.parse(ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8)))
-        } catch (e: Exception) {
-            log.e("Error parsing XML: ${e.message}")
-            null
-        }
-    }
-
-    /**
-     * Extracts strokes from a page element and saves them.
-     */
-    private fun parseStrokes(pageElement: Element, page: Page): List<Stroke> {
-        val strokeNodes = pageElement.getElementsByTagName("stroke")
-        val strokes = mutableListOf<Stroke>()
-
-
-        for (i in 0 until strokeNodes.length) {
-            val strokeElement = strokeNodes.item(i) as Element
-            val pointsString = strokeElement.textContent.trim()
-
-            if (pointsString.isBlank()) continue // Skip empty strokes
-
-            // Decode stroke attributes
-//            val strokeSize = strokeElement.getAttribute("width").toFloatOrNull()?.div(scaleFactor) ?: 1.0f
-            val color = parseColor(strokeElement.getAttribute("color"))
-
-
-            // Decode width attribute
-            val widthString = strokeElement.getAttribute("width").trim()
-            val widthValues = widthString.split(" ").mapNotNull { it.toFloatOrNull() }
-
-            val strokeSize =
-                widthValues.firstOrNull()?.div(scaleFactor) ?: 1.0f // First value is stroke width
-            val pressureValues = widthValues.drop(1) // Remaining values are pressure
-
-
-            val points = pointsString.split(" ").chunked(2).mapIndexedNotNull { index, chunk ->
-                try {
-                    StrokePoint(
-                        x = chunk[0].toFloat() / scaleFactor,
-                        y = chunk[1].toFloat() / scaleFactor,
-                        // pressure is shifted by one spot
-                        pressure = pressureValues.getOrNull(index-1)
-                            ?.times(maxPressure * PRESSURE_FACTOR) ?: 0f,
-                        tiltX = 0,
-                        tiltY = 0,
-                    )
-                } catch (e: Exception) {
-                    log.e("Error parsing stroke point: ${e.message}")
-                    null
-                }
-            }
-            if (points.isEmpty()) continue // Skip strokes without valid points
-
-            val boundingBox = RectF()
-
-            val decodedPoints = points.mapIndexed { index, it ->
-                if (index == 0) boundingBox.set(it.x, it.y, it.x, it.y) else boundingBox.union(
-                    it.x, it.y
-                )
-                it
-            }
-
-            boundingBox.inset(-strokeSize, -strokeSize)
-            val toolName = strokeElement.getAttribute("tool")
-            val tool = Pen.Companion.fromString(toolName)
-
-            val stroke = Stroke(
-                size = strokeSize,
-                pen = tool, // TODO: change this to proper pen
-                pageId = page.id,
-                top = boundingBox.top,
-                bottom = boundingBox.bottom,
-                left = boundingBox.left,
-                right = boundingBox.right,
-                points = decodedPoints,
-                color = android.graphics.Color.argb(
-                    (color.alpha * 255).toInt(),
-                    (color.red * 255).toInt(),
-                    (color.green * 255).toInt(),
-                    (color.blue * 255).toInt()
-                ),
-                maxPressure = maxPressure.toInt()
-            )
-            strokes.add(stroke)
-        }
-        return strokes
-    }
-
-
-    /**
-     * Extracts images from a page element and saves them.
-     */
-    private fun parseImages(pageElement: Element, page: Page): List<Image> {
-        val imageNodes = pageElement.getElementsByTagName("image")
-        val images = mutableListOf<Image>()
-
-        for (i in 0 until imageNodes.length) {
-            val imageElement = imageNodes.item(i) as? Element ?: continue
-            val base64Data = imageElement.textContent.trim()
-
-            if (base64Data.isBlank()) continue // Skip empty image data
-
-            try {
-                // Extract position attributes
-                val left =
-                    imageElement.getAttribute("left").toFloatOrNull()?.div(scaleFactor) ?: continue
-                val top =
-                    imageElement.getAttribute("top").toFloatOrNull()?.div(scaleFactor) ?: continue
-                val right =
-                    imageElement.getAttribute("right").toFloatOrNull()?.div(scaleFactor) ?: continue
-                val bottom = imageElement.getAttribute("bottom").toFloatOrNull()?.div(scaleFactor)
-                    ?: continue
-
-                // Decode Base64 to Bitmap
-                val imageUri = decodeAndSave(base64Data) ?: continue
-
-                // Create Image object and add it to the list
-                val image = Image(
-                    x = left.toInt(),
-                    y = top.toInt(),
-                    width = (right - left).toInt(),
-                    height = (bottom - top).toInt(),
-                    uri = imageUri.toString(),
-                    pageId = page.id
-                )
-                images.add(image)
-
-            } catch (e: Exception) {
-                log.e("ImageProcessing: Error parsing image: ${e.message}")
-            }
-        }
-        return images
-    }
-
-    /**
-     * Decodes a Base64 image string, saves it as a file, and returns the URI.
-     */
-    private fun decodeAndSave(base64String: String): Uri? {
-        return try {
-            // Decode Base64 to ByteArray
-            val decodedBytes = Base64.decode(base64String, Base64.DEFAULT)
-            val bitmap =
-                BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size) ?: return null
-
-            // Ensure the directory exists
-            val outputDir = ensureImagesFolder(context)
-
-            // Generate a unique and safe file name
-            val fileName = "image_${UUID.randomUUID()}.png"
-            val outputFile = File(outputDir, fileName)
-
-            // Save the bitmap to the file
-            FileOutputStream(outputFile).use { fos ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
-            }
-
-            // Return the file URI
-            Uri.fromFile(outputFile)
-        } catch (e: IOException) {
-            log.e("Error decoding and saving image: ${e.message}")
-            null
-        }
-    }
-
-
-    /**
-     * Parses an Xournal++ color string to a Compose Color.
-     */
-    private fun parseColor(colorString: String): Color {
-        return when (colorString.lowercase()) {
-            "black" -> Color.Companion.Black
-            "blue" -> Color.Companion.Blue
-            "red" -> Color.Companion.Red
-            "green" -> Color.Companion.Green
-            "magenta" -> Color.Companion.Magenta
-            "yellow" -> Color.Companion.Yellow
-            // Convert "#RRGGBBAA" → "#AARRGGBB" → Android Color
-            else -> {
-                if (colorString.startsWith("#") && colorString.length == 9) Color(
-                    ("#" + colorString.substring(7, 9) + colorString.substring(1, 7)).toColorInt()
-                )
-                else {
-                    log.e("Unknown color: $colorString")
-                    Color.Companion.Black
-                }
-            }
-        }
-    }
-
     /**
      * Maps a Compose Color to an Xournal++ color name.
      *
@@ -486,21 +237,6 @@ class XoppFile(
                     (argb shr 24) and 0xFF  // Alpha
                 )
             }
-        }
-    }
-
-    companion object {
-        // Helper functions to determine file type
-        fun isXoppFile(mimeType: String?, fileName: String?): Boolean {
-            val isXoppFile = mimeType in listOf(
-                "application/x-xopp",
-                "application/gzip",
-                "application/octet-stream"
-            ) ||
-                    fileName?.endsWith(".xopp", ignoreCase = true) == true
-
-            Log.d("XoppFile", "isXoppFile($isXoppFile): $mimeType, $fileName")
-            return isXoppFile
         }
     }
 }

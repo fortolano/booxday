@@ -270,34 +270,6 @@ fun MeetingPrepCard(
     }
 }
 
-/** On the event's Meeting notes card: what can be done with this meeting's notes. */
-@Composable
-fun MeetingCardActions(hasNotes: Boolean, beforeEnd: Boolean, modifier: Modifier = Modifier) {
-    Column(modifier.border(1.dp, Ink).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(text = "Meeting notes", fontSize = EInkTheme.Typography.bodyLarge, fontWeight = FontWeight.Bold, color = Ink)
-            Text(text = if (hasNotes) "3 pages" else "Not started", fontSize = EInkTheme.Typography.bodySmall, color = Ink)
-        }
-        val wide = Modifier.fillMaxWidth()
-        if (!hasNotes) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                EinkSecondaryButton(text = "Take Notes", onClick = {}, modifier = Modifier.weight(1f))
-                if (beforeEnd) EinkSecondaryButton(text = "Prepare", onClick = {}, modifier = Modifier.weight(1f))
-            }
-        } else {
-            Row(wide, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                EinkSecondaryButton(text = "Open Notes", onClick = {}, modifier = Modifier.weight(1f))
-                if (beforeEnd) EinkSecondaryButton(text = "Prepare", onClick = {}, modifier = Modifier.weight(1f))
-            }
-            Row(wide, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                EinkSecondaryButton(text = "Recap", onClick = {}, modifier = Modifier.weight(1f))
-                EinkSecondaryButton(text = "Action Items", onClick = {}, modifier = Modifier.weight(1f))
-                EinkSecondaryButton(text = "Export", onClick = {}, modifier = Modifier.weight(1f))
-            }
-        }
-    }
-}
-
 /** What arrived from another app. AI only runs on the user's tap, and the line says so. */
 @Composable
 fun ShareCard(

@@ -1,7 +1,7 @@
 # EInkTheme Cheat Sheet
 
 > **BooxDay** - E-Ink Optimized Design System for Android/Compose
-> **Last Updated**: December 2025
+> **Last Updated**: November 2026
 
 ---
 
@@ -12,16 +12,16 @@
 | **Primary** | `Colors.black`, `Colors.white` | Text, backgrounds, borders |
 | **Secondary** | `Colors.darkGray`, `Colors.gray` | Disabled, secondary text |
 | **Borders** | `1.dp`, `Colors.primary` | High contrast visibility |
-| **Touch Target** | `48.dp` | Accessibility minimum |
+| **Touch Target** | `44.dp` (`42.dp` compact min) | Accessibility minimum |
 | **Corner Radius** | `6.dp` | Consistent rounding |
-| **Title Font** | `18-20.sp` | Headers, section titles |
-| **Body Font** | `14-16.sp` | Primary content |
-| **Label Font** | `10-14.sp` | Buttons, captions |
-| **Popup Menu** | `230.dp` wide | Small anchored menus |
+| **Title Font** | `16-20.sp` | Headers, section titles |
+| **Body Font** | `13-16.sp` | Primary content |
+| **Label Font** | `12-15.sp` | Buttons, captions |
+| **Popup Menu** | `230.dp` (`260.dp` Settings/AI) | Small anchored menus |
 | **Popup Compact** | `280.dp` wide | Simple confirmations |
 | **Popup Panel** | `380.dp` wide | Date/color pickers |
-| **Popup Overlay** | `460.dp` wide | Full dialogs/forms |
-| **Popup Wide** | `520.dp` wide | Stats, AI results |
+| **Popup Overlay** | `460.dp` wide (screen-clamped) | Full dialogs/forms |
+| **Popup Wide** | `570.dp` wide (screen-clamped) | Stats, AI results |
 
 ---
 
@@ -84,10 +84,11 @@ EInkTheme.Colors.white      // Color.White (#FFFFFF)
 ### Grayscale (Use Sparingly!)
 
 ```kotlin
-EInkTheme.Colors.darkGray   // Color(0xFF4A4A4A) - Secondary text
-EInkTheme.Colors.gray       // Color(0xFF808080) - Disabled
-EInkTheme.Colors.lightGray  // Color(0xFFC0C0C0) - Thin dividers only
-EInkTheme.Colors.offWhite   // Color(0xFFF5F5F5) - Alternate backgrounds
+EInkTheme.Colors.darkGray   // Color(0xFF3A3A3A) - Secondary text/icons ONLY
+EInkTheme.Colors.gray       // Color(0xFF6A6A6A) - Disabled text/icons ONLY
+EInkTheme.Colors.lightGray  // Color(0xFFB8B8B8) - 1dp borders/dividers ONLY (NOT fills)
+EInkTheme.Colors.selectedGray // Color(0xFFEBEBEB) - Kaleido 3 safe selected fill
+EInkTheme.Colors.offWhite   // Color(0xFFF7F7F7) - Safe near-white for large areas
 ```
 
 ### Semantic Aliases (Preferred)
@@ -120,26 +121,26 @@ EInkTheme.Typography.titleSmall   // 16.sp - Card titles
 ### Body
 
 ```kotlin
-EInkTheme.Typography.bodyLarge    // 16.sp - Primary content
-EInkTheme.Typography.bodyMedium   // 14.sp - Secondary content
-EInkTheme.Typography.bodySmall    // 12.sp - Timestamps, hints
+EInkTheme.Typography.bodyLarge    // 16.sp - Primary content, menu items
+EInkTheme.Typography.bodyMedium   // 15.sp - Secondary content, descriptions
+EInkTheme.Typography.bodySmall    // 13.sp - Timestamps, hints, captions
 ```
 
 ### Labels
 
 ```kotlin
-EInkTheme.Typography.labelLarge   // 14.sp - Button text
-EInkTheme.Typography.labelMedium  // 12.sp - Chip text
-EInkTheme.Typography.labelSmall   // 10.sp - Tiny labels
+EInkTheme.Typography.labelLarge   // 15.sp - Button text
+EInkTheme.Typography.labelMedium  // 13.5.sp - Chip text, badges
+EInkTheme.Typography.labelSmall   // 12.sp - Tiny labels
 ```
 
 ### Semantic Aliases
 
 ```kotlin
 EInkTheme.Typography.menuItem     // = bodyLarge (16.sp)
-EInkTheme.Typography.button       // = labelLarge (14.sp)
-EInkTheme.Typography.hint         // = bodySmall (12.sp)
-EInkTheme.Typography.timestamp    // = bodySmall (12.sp)
+EInkTheme.Typography.button       // = labelLarge (15.sp)
+EInkTheme.Typography.hint         // = bodySmall (13.sp)
+EInkTheme.Typography.timestamp    // = bodySmall (13.sp)
 ```
 
 ---
@@ -147,32 +148,34 @@ EInkTheme.Typography.timestamp    // = bodySmall (12.sp)
 ## Global Defaults
 
 ```kotlin
-EInkTheme.Global.borderWidth      // 1.dp
-EInkTheme.Global.borderColor      // Colors.primary
-EInkTheme.Global.touchTarget      // 48.dp (accessibility minimum)
-EInkTheme.Global.iconSize         // 24.dp
-EInkTheme.Global.iconSizeSmall    // 20.dp
-EInkTheme.Global.iconSizeLarge    // 32.dp
-EInkTheme.Global.padding          // 16.dp
-EInkTheme.Global.paddingSmall     // 8.dp
-EInkTheme.Global.paddingMedium    // 12.dp
-EInkTheme.Global.paddingLarge     // 24.dp
-EInkTheme.Global.cornerRadius     // 6.dp
-EInkTheme.Global.spacing          // 8.dp
-EInkTheme.Global.spacingSmall     // 4.dp
-EInkTheme.Global.spacingLarge     // 16.dp
-EInkTheme.Global.background       // Colors.background
-EInkTheme.Global.foreground       // Colors.primary
+EInkTheme.Global.borderWidth        // 1.dp
+EInkTheme.Global.borderColor        // Colors.primary
+EInkTheme.Global.touchTarget        // 44.dp (standard minimum)
+EInkTheme.Global.touchTargetCompact // 42.dp (tight controls minimum)
+EInkTheme.Global.iconSize           // 24.dp
+EInkTheme.Global.iconSizeSmall      // 20.dp
+EInkTheme.Global.iconSizeLarge      // 32.dp
+EInkTheme.Global.padding            // 16.dp
+EInkTheme.Global.paddingSmall       // 8.dp
+EInkTheme.Global.paddingMedium      // 12.dp
+EInkTheme.Global.paddingLarge       // 24.dp
+EInkTheme.Global.cornerRadius       // 6.dp
+EInkTheme.Global.spacing            // 8.dp
+EInkTheme.Global.spacingSmall       // 4.dp
+EInkTheme.Global.spacingLarge       // 16.dp
+EInkTheme.Global.background         // Colors.background
+EInkTheme.Global.foreground         // Colors.primary
 ```
 
 ---
 
 ## Popup Components
 
-### PopupMenu (Small - 230dp)
+### PopupMenu (Small - 230dp / 260dp)
 
 ```kotlin
-EInkTheme.PopupMenu.width         // 230.dp
+EInkTheme.PopupMenu.width         // 230.dp (toolbar/compact dropdowns)
+EInkTheme.PopupMenu.settingsWidth // minOf(260.dp, SCREEN_POPUP_MAX_WIDTH) (Settings & AI menus)
 EInkTheme.PopupMenu.maxHeight     // 400.dp
 EInkTheme.PopupMenu.background    // Colors.background
 EInkTheme.PopupMenu.borderColor   // Colors.primary
@@ -215,13 +218,13 @@ EInkTheme.PopupPanel.titlePaddingBottom // 8.dp
 
 **Use for:** Date picker, color picker
 
-### PopupOverlay (Large - 460dp)
+### PopupOverlay (Large - 460dp, Screen-Clamped)
 
 ```kotlin
-EInkTheme.PopupOverlay.width                // 460.dp
-EInkTheme.PopupOverlay.maxWidth             // 480.dp
-EInkTheme.PopupOverlay.wideWidth            // 520.dp (stats, AI results)
-EInkTheme.PopupOverlay.maxHeight            // 580.dp
+EInkTheme.PopupOverlay.width                // minOf(460.dp, SCREEN_POPUP_MAX_WIDTH)
+EInkTheme.PopupOverlay.maxWidth             // minOf(480.dp, SCREEN_POPUP_MAX_WIDTH)
+EInkTheme.PopupOverlay.wideWidth            // minOf(570.dp, SCREEN_POPUP_MAX_WIDTH) (stats, AI results)
+EInkTheme.PopupOverlay.maxHeight            // SCREEN_POPUP_MAX_HEIGHT (82% of screen height)
 EInkTheme.PopupOverlay.background           // Colors.background
 EInkTheme.PopupOverlay.borderColor          // Colors.primary
 EInkTheme.PopupOverlay.borderWidth          // 1.dp
@@ -232,6 +235,8 @@ EInkTheme.PopupOverlay.titlePaddingBottom   // 12.dp
 EInkTheme.PopupOverlay.sectionSpacing       // 16.dp
 EInkTheme.PopupOverlay.buttonRowPaddingTop  // 16.dp
 ```
+
+> **Keyboard safety:** Text-input popups use `KeyboardSafePopup` (`ui/components/KeyboardSpace.kt`) so buttons stay above the soft keyboard on narrow tablets (Go 6).
 
 **Use for:** Event editor, settings dialog, voice input
 

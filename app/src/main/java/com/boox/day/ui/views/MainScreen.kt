@@ -250,10 +250,6 @@ import com.boox.day.ui.calendar.BooxNoteWithEvent
 import com.boox.day.ui.calendar.DayQuickViewData
 import com.boox.day.ui.calendar.DayQuickViewPopup
 import com.boox.day.ui.calendar.MonthHeaderWithToolbar
-import com.boox.day.ui.calendar.CompactCalendarRows
-import com.boox.day.ui.calendar.CompactDayListPopup
-import com.boox.day.ui.calendar.CompactMonthPopup
-import com.boox.day.ui.calendar.parseIsoDateOrNull
 import androidx.compose.runtime.SideEffect
 import com.boox.day.ui.theme.LayoutProfiles
 import com.boox.day.data.db.TaskDueDates
@@ -872,45 +868,17 @@ fun MainScreen(
     val currentYear = viewingCalendar.get(Calendar.YEAR)
     val currentMonth = viewingCalendar.get(Calendar.MONTH)
 
-    // ========== COMPACT LAYOUT (plan Phase 1.5: narrow screens such as the Go 6) ==========
-    // A one-week strip + Events/Due chips stay above the page; the month grid and the lists open
-    // as popups over it. Fixed per device — Regular screens never enter these paths.
-    val isCompactLayout = remember { LayoutProfiles.isCompact }
-    var compactWeekAnchor by remember { mutableStateOf(parseIsoDateOrNull(selectedDate) ?: LocalDate.now()) }
-    var showCompactMonthPopup by remember { mutableStateOf(false) }
-    var showCompactEventsPopup by remember { mutableStateOf(false) }
-    var compactEventsListDate by remember { mutableStateOf(selectedDate) }
-    var compactHeaderPopupVisible by remember { mutableStateOf(false) }
-    var compactAddEventDate by remember { mutableStateOf<String?>(null) }
+    // Header popup visibility (Settings menu / Task stats) so raw drawing pauses under them
+    var headerPopupVisible by remember { mutableStateOf(false) }
+    var requestedAddEventDate by remember { mutableStateOf<String?>(null) }
 
     // Start-the-day review (plan T4 §13.6B, Oct 2026)
     var startDayReview by remember { mutableStateOf<StartDayReviewData?>(null) }
     var reviewPickDayTask by remember { mutableStateOf<Task?>(null) }
     var reviewDeleteTask by remember { mutableStateOf<Task?>(null) }
 
-    // Layout B (Oct 2026): first event and first due task of the selected day for the one-line
-    // Events / Due boxes (compact only — the Regular layout never collects these)
-    val compactEventsPreview: String? = if (isCompactLayout) {
-        val dayEvents by remember(selectedDate) { eventsViewModel.getEventsForDate(selectedDate) }
-            .collectAsState(initial = emptyList())
-        remember(dayEvents, selectedDate) {
-            com.boox.day.ui.calendar.compactEventPreview(dayEvents, selectedDate)
-        }
-    } else {
-        null
-    }
-    val compactDuePreview: String? = if (isCompactLayout) {
-        val dueData by remember(selectedDate, dueFlowToday) { eventsViewModel.getDueTasksForDate(selectedDate) }
-            .collectAsState(initial = null)
-        dueData?.let { data ->
-            (data.dueTodayTasks + data.overdueTasks).firstOrNull()?.let { com.boox.day.ui.calendar.compactTaskPreview(it) }
-        }
-    } else {
-        null
-    }
-
     // Shows a month and syncs it, like the header's month arrows do
-    fun showCompactMonth(year: Int, monthIndex: Int) {
+    fun showMonthAndSync(year: Int, monthIndex: Int) {
         viewingCalendar = Calendar.getInstance().apply {
             set(Calendar.YEAR, year)
             set(Calendar.MONTH, monthIndex)
@@ -920,31 +888,6 @@ fun MainScreen(
             scope.launch { multiAccountSyncViewModel.syncAllAccounts() }
         } else if (isSignedIn) {
             syncViewModel.syncMonthIfNeeded(year, monthIndex + 1)
-        }
-    }
-
-    if (isCompactLayout) {
-        // The two-week strip follows the selected day — only when it leaves the two shown weeks, so
-        // picking a day in the second row doesn't shift the rows (layout B, Oct 2026)...
-        LaunchedEffect(selectedDate) {
-            parseIsoDateOrNull(selectedDate)?.let { date ->
-                val windowStart = com.boox.day.ui.calendar.compactWindowStart(compactWeekAnchor, firstDayOfWeek)
-                if (date < windowStart || date > windowStart.plusDays(13)) {
-                    compactWeekAnchor = date
-                }
-            }
-        }
-        // ...the header month arrows move it to the 1st of the shown month...
-        LaunchedEffect(currentYear, currentMonth) {
-            if (compactWeekAnchor.year != currentYear || compactWeekAnchor.monthValue - 1 != currentMonth) {
-                compactWeekAnchor = LocalDate.of(currentYear, currentMonth + 1, 1)
-            }
-        }
-        // ...and the shown month follows the strip when a week step crosses into another month
-        LaunchedEffect(compactWeekAnchor) {
-            if (compactWeekAnchor.year != currentYear || compactWeekAnchor.monthValue - 1 != currentMonth) {
-                showCompactMonth(compactWeekAnchor.year, compactWeekAnchor.monthValue - 1)
-            }
         }
     }
 
@@ -1168,12 +1111,7 @@ fun MainScreen(
         val date = quickViewData?.date ?: return
         selectedDate = date
         selectedEventsTab = tab
-        if (isCompactLayout) {
-            compactEventsListDate = date
-            showCompactEventsPopup = true
-        } else {
-            isEventsExpanded = true
-        }
+        isEventsExpanded = true
         showDayQuickView = false
     }
     // Tasks page navigation (plan §13.4, Oct 2026): the quota check and the page lookup or
@@ -1348,7 +1286,7 @@ fun MainScreen(
                 context = context,
                 canvasHeight = canvasHeight,
                 topOffset = com.boox.day.editor.utils.tasksTopOffset(),
-                realignOnFirstRun = isCompactLayout
+                realignOnFirstRun = false
             )
         }
         if (moved) {
@@ -1426,9 +1364,7 @@ fun MainScreen(
                 reviewPickDayTask != null ||
                 reviewDeleteTask != null ||
                 (showDayQuickView && quickViewData != null) ||
-                showCompactMonthPopup ||
-                showCompactEventsPopup ||
-                compactHeaderPopupVisible ||
+                headerPopupVisible ||
                 com.boox.day.actionitems.ActionItemsUi.isOpen ||
                 com.boox.day.meetings.MeetingNotesUi.isOpen ||
                 com.boox.day.ui.AiKeyGate.isOpen ||
@@ -2092,7 +2028,7 @@ fun MainScreen(
     com.boox.day.ui.dialogs.CrashReportHost()
     // Week view and later overlays (Nov 2026): new ones go in AppOverlays, not here
     com.boox.day.ui.AppOverlaysHost()
-    LaunchedEffect(showAddEventDialog) { if (!showAddEventDialog) compactAddEventDate = null }
+    LaunchedEffect(showAddEventDialog) { if (!showAddEventDialog) requestedAddEventDate = null }
     com.boox.day.events.EventTargets.publish {
         com.boox.day.events.DefaultEventTarget.of(
             com.boox.day.events.DefaultEventTarget.offered(
@@ -2109,7 +2045,7 @@ fun MainScreen(
                 selectedDate = request.date
                 val day = LocalDate.parse(request.date)
                 if (day.year != viewingCalendar.get(Calendar.YEAR) || day.monthValue - 1 != viewingCalendar.get(Calendar.MONTH)) {
-                    showCompactMonth(day.year, day.monthValue - 1)
+                    showMonthAndSync(day.year, day.monthValue - 1)
                 }
             }
             is com.boox.day.ui.MainScreenRequest.ShowEvent -> {
@@ -2119,7 +2055,7 @@ fun MainScreen(
             is com.boox.day.ui.MainScreenRequest.NewEvent -> {
                 editingEvent = null
                 parsedEventData = null
-                compactAddEventDate = request.date
+                requestedAddEventDate = request.date
                 showAddEventDialog = true
             }
             is com.boox.day.ui.MainScreenRequest.NewEventFrom -> {
@@ -2158,7 +2094,7 @@ fun MainScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(if (isCompactLayout) Modifier else Modifier.weight(0.40f))
+                    .weight(0.40f)
                     .pointerInteropFilter { event ->
                         // Trigger on initial touch - ANY touch in this area means user wants UI
                         // Whether finger or stylus, tapping calendar/toolbar = not drawing
@@ -2195,11 +2131,6 @@ fun MainScreen(
                         year = currentYear,
                         month = currentMonth,
                         onPreviousMonth = {
-                            if (isCompactLayout) {
-                                // Layout B: the arrows move the two-week strip (the month follows it)
-                                DrawCanvas.flushUIUpdates()
-                                compactWeekAnchor = compactWeekAnchor.plusWeeks(-2)
-                            } else {
                             // Unfreeze UI while switching months if raw drawing is active
                             DrawCanvas.flushUIUpdates()
                             viewingCalendar = (viewingCalendar.clone() as Calendar).apply {
@@ -2217,15 +2148,8 @@ fun MainScreen(
                                     )
                                 }
                             }
-                        
-                            }
                         },
                         onNextMonth = {
-                            if (isCompactLayout) {
-                                // Layout B: the arrows move the two-week strip (the month follows it)
-                                DrawCanvas.flushUIUpdates()
-                                compactWeekAnchor = compactWeekAnchor.plusWeeks(2)
-                            } else {
                             // Unfreeze UI while switching months if raw drawing is active
                             DrawCanvas.flushUIUpdates()
                             viewingCalendar = (viewingCalendar.clone() as Calendar).apply {
@@ -2240,8 +2164,6 @@ fun MainScreen(
                                         viewingCalendar.get(Calendar.MONTH) + 1
                                     )
                                 }
-                            }
-                        
                             }
                         },
                     onTodayClick = goToToday,
@@ -2352,42 +2274,11 @@ fun MainScreen(
                     attention = com.boox.day.ui.attention.rememberSettingsAttention(
                         accountsToReconnect = multiAccountUiState.allAccounts.count { it.needsReauth }
                     ),
-                    compact = isCompactLayout,
-                    onMonthTitleClick = { showCompactMonthPopup = true },
-                    onCompactPopupVisibleChange = { compactHeaderPopupVisible = it }
+                    onHeaderPopupVisibleChange = { headerPopupVisible = it }
                 )
 
-                if (isCompactLayout) {
-                    CompactCalendarRows(
-                        anchorDate = compactWeekAnchor,
-                        selectedDate = selectedDate,
-                        today = today,
-                        badges = CalendarBadges(
-                            datesWithNotes = datesWithNotesSet,
-                            datesWithEvents = datesWithEvents,
-                            datesWithBooxNotes = datesWithBooxNotes,
-                            datesWithTasks = datesWithTasks
-                        ),
-                        firstDayOfWeekSetting = firstDayOfWeek,
-                        eventsCount = eventsPanelEventsCount,
-                        eventsPreview = compactEventsPreview,
-                        dueCount = eventsPanelDueCount,
-                        duePreview = compactDuePreview,
-                        onDateSelected = { date ->
-                            if (date != selectedDate) {
-                                selectedDate = date
-                            }
-                        },
-                        onOpenList = { tab ->
-                            selectedEventsTab = tab
-                            compactEventsListDate = selectedDate
-                            showCompactEventsPopup = true
-                        }
-                    )
-                }
-
                 // Main content row: Calendar (60%) | Events (40%)
-                if (!isCompactLayout) Row(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -2581,7 +2472,7 @@ fun MainScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(if (isCompactLayout || com.boox.day.ui.FullScreenState.isOn) 1f else 0.60f)
+                    .weight(if (com.boox.day.ui.FullScreenState.isOn) 1f else 0.60f)
                     .fullScreenExtraProbe()  // the Memos drag's page height before full screen is opened
             ) {
                 // Full screen: the selected day above the toolbar (the calendar header is hidden)
@@ -3310,7 +3201,7 @@ fun MainScreen(
             // Expands from events area downward into canvas (not full screen)
             // Note: Dismissal is handled by CalendarGrid's onDateSelected callback
             // so tapping a day both closes the panel AND changes the date
-            if (isEventsExpanded && !isCompactLayout) {
+            if (isEventsExpanded) {
                 // Backdrop to capture taps on the CANVAS AREA only (not calendar)
                 // Calendar taps are handled by CalendarGrid.onDateSelected which already closes the panel
                 // This only covers the bottom 60% (canvas area) to avoid blocking calendar interactions
@@ -3396,95 +3287,6 @@ fun MainScreen(
 
       SplitOutDialogs {
         // ========== DIALOGS ==========
-
-        // Compact layout popups (plan Phase 1.5): month grid and Events/Due list over the page
-        if (isCompactLayout && showCompactMonthPopup) {
-            CompactMonthPopup(
-                year = currentYear,
-                month = currentMonth,
-                selectedDate = selectedDate,
-                today = today,
-                badges = CalendarBadges(
-                    datesWithNotes = datesWithNotesSet,
-                    datesWithEvents = datesWithEvents,
-                    datesWithBooxNotes = datesWithBooxNotes,
-                    datesWithTasks = datesWithTasks
-                ),
-                firstDayOfWeekSetting = firstDayOfWeek,
-                showWeekNumbers = showWeekNumbers,
-                onPreviousMonth = {
-                    val cal = (viewingCalendar.clone() as Calendar).apply { add(Calendar.MONTH, -1) }
-                    showCompactMonth(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH))
-                },
-                onNextMonth = {
-                    val cal = (viewingCalendar.clone() as Calendar).apply { add(Calendar.MONTH, 1) }
-                    showCompactMonth(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH))
-                },
-                onDateSelected = { date ->
-                    showCompactMonthPopup = false
-                    if (date != selectedDate) {
-                        selectedDate = date
-                    }
-                },
-                onDismiss = { showCompactMonthPopup = false }
-            )
-        }
-
-        if (isCompactLayout) {
-            // "+" in the list popup creates the event on the list's day
-            LaunchedEffect(showAddEventDialog) {
-                if (!showAddEventDialog) compactAddEventDate = null
-            }
-        }
-
-        if (isCompactLayout && showCompactEventsPopup) {
-            CompactDayListPopup(
-                listDate = compactEventsListDate,
-                onListDateChange = { compactEventsListDate = it },
-                onAddEvent = {
-                    compactAddEventDate = compactEventsListDate
-                    editingEvent = null
-                    parsedEventData = null
-                    showAddEventDialog = true
-                },
-                onDismiss = { showCompactEventsPopup = false }
-            ) {
-                ExpandedEventsList(
-                    selectedDate = compactEventsListDate,
-                    eventsViewModel = eventsViewModel,
-                    booxNoteRepository = booxNoteRepository,
-                    booxNotesIntegration = booxNotesIntegration,
-                    onEventClick = { event ->
-                        selectedEventForDetails = event
-                        showEventDetailsDialog = true
-                    },
-                    onClose = { showCompactEventsPopup = false },
-                    isPinned = false,
-                    onTogglePin = {},
-                    showPinButton = false,
-                    noteLinkRefreshTrigger = noteLinkRefreshTrigger,
-                    selectedEventsTab = selectedEventsTab,
-                    onTabSelected = { selectedEventsTab = it },
-                    onDueTaskClick = { task ->
-                        // Open the task (its day, page and row) — plan T3
-                        showCompactEventsPopup = false
-                        goToTask(task.id, task.dayDate)
-                    },
-                    sourceFilter = sourceFilter,
-                    onToggleSource = { source ->
-                        val success = eventsViewModel.toggleSource(source)
-                        if (!success) {
-                            showHint("At least one calendar must be selected", scope)
-                        }
-                        success
-                    },
-                    hasGoogleAccount = hasGoogleAccount,
-                    hasOutlookAccount = hasOutlookAccount,
-                    hasCalDavAccount = hasCalDavAccount,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
 
         // Startup Sync: No blocking dialog - sync runs in background
         // Events grid shows "Syncing..." when sync is in progress
@@ -3590,9 +3392,6 @@ fun MainScreen(
                 },
                 // Sync mode settings
                 syncMode = syncModeSetting,
-                defaultSyncEnabled = defaultSyncEnabled,
-                showSyncBadges = true, // TODO: Add to GlobalAppSettings
-                offlineChangesWarning = true, // TODO: Add to GlobalAppSettings
                 // Connected accounts info for mode switch warnings
                 connectedAccountEmails = connectedEmails,
                 syncedEventCount = syncedEventCountForSwitch,
@@ -3635,12 +3434,6 @@ fun MainScreen(
                         )
                     }
                 },
-                onDefaultSyncChanged = { newValue ->
-                    val newSettings = GlobalAppSettings.current.copy(defaultSyncEnabled = newValue)
-                    appRepository.kvProxy.setAppSettings(newSettings)
-                },
-                onShowSyncBadgesChanged = { /* TODO: Implement */ },
-                onOfflineWarningChanged = { /* TODO: Implement */ },
                 // Local calendars (for Standalone mode)
                 localCalendars = localCalendars,
                 onAddLocalCalendar = { showAddCalendarDialog = true },
@@ -5780,7 +5573,7 @@ fun MainScreen(
                 },
                 writableCalendars = writableCalendarsForDialog,
                 existingEvent = editingEvent,
-                initialDate = parsedEventData?.date ?: compactAddEventDate ?: selectedDate,
+                initialDate = parsedEventData?.date ?: requestedAddEventDate ?: selectedDate,
                 isLoading = operationInProgress,
                 // Pre-fill from voice input
                 prefillTitle = parsedEventData?.title,
@@ -8246,14 +8039,11 @@ private fun ExpandedEventsList(
             ) {
                 // Isolated tabs component - won't recompose when Events panel recomposes
                 // CRITICAL: Uses same EventsPanelTabs as collapsed panel for consistency
-                // Compact (the Go 6 Events/Due popup, Oct 2026): finger-size tabs and filter icons
-                val fingerSizeHeader = LayoutProfiles.isCompact
                 EventsPanelTabs(
                     selectedTab = selectedEventsTab,
                     onTabSelected = onTabSelected,
                     eventsCount = sortedEvents.size,
-                    dueCount = dueTasksData.totalCount,
-                    large = fingerSizeHeader
+                    dueCount = dueTasksData.totalCount
                 )
                 // Right side: Filter icons (when connected accounts) OR Date label (standalone mode)
                 val showFilterIcons = (hasGoogleAccount || hasOutlookAccount || hasCalDavAccount) && selectedEventsTab == "events"
@@ -8266,8 +8056,7 @@ private fun ExpandedEventsList(
                         hasOutlookAccount = hasOutlookAccount,
                         hasCalDavAccount = hasCalDavAccount,
                         selectedDayOfMonth = selectedDate.split("-").getOrNull(2)?.toIntOrNull() ?: 1,
-                        isCompact = false,
-                        large = fingerSizeHeader
+                        isCompact = false
                     )
                 } else if (!LayoutProfiles.isNarrowScreen) {
                     // Date label (standalone mode or Due tab); not on narrow screens (Go 6), where it

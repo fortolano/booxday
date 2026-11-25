@@ -85,17 +85,6 @@ data class RecognitionModelConfig(
             get() = fromServerConfig()
 
         /**
-         * Fast config - uses concurrent models, skips formatting AND inference.
-         * Uses server-side model config when available.
-         */
-        val FAST: RecognitionModelConfig
-            get() = fromServerConfig(
-                useConcurrentVision = true,
-                skipFormatting = true,
-                enableSemanticInference = false
-            )
-
-        /**
          * Reliable config - multiple fallbacks, no concurrent, with inference.
          * Uses server-side model config when available.
          */

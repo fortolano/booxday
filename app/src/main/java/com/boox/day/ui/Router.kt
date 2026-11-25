@@ -49,7 +49,6 @@ import java.util.Locale
 import com.boox.day.ui.messages.splashTaglines
 import com.boox.day.ui.views.BugReportScreen
 import com.boox.day.ui.views.MainScreen
-import com.boox.day.ui.views.SettingsView
 import com.boox.day.ui.views.WelcomeView
 import com.boox.day.utils.TaggedLog
 import kotlinx.coroutines.CompletableDeferred
@@ -239,11 +238,6 @@ fun Router() {
                 // Welcome/Setup screen (shown on first run or if permissions needed)
                 composable(route = "welcome") {
                     WelcomeView(navController = navController)
-                }
-
-                // Settings screen
-                composable(route = "settings") {
-                    SettingsView(navController = navController)
                 }
 
                 // Bug report screen
