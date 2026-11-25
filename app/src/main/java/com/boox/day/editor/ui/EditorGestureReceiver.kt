@@ -231,10 +231,12 @@ fun EditorGestureReceiver(
                                     val holdPosition = gestureState.getLastPositionIO()
                                     if (holdPosition != null) {
                                         val holdOffset = Offset(holdPosition.x.toFloat(), holdPosition.y.toFloat())
-                                        
+                                        val liveScroll = editorState?.pageView?.scroll ?: Offset.Zero
+                                        val liveZoom = editorState?.pageView?.zoomLevel?.value ?: 1f
+
                                         // 1. Check if holding on an attachment
                                         val attachmentAtPoint = findAttachmentAtScreenPoint(
-                                            holdOffset, pageId, scroll, zoomLevel
+                                            holdOffset, pageId, liveScroll, liveZoom
                                         )
                                         if (attachmentAtPoint != null) {
                                             // Directly select this attachment
@@ -248,7 +250,7 @@ fun EditorGestureReceiver(
 
                                         // 2. Check if holding on an Image (e.g. Table)
                                         val imageAtPoint = findImageAtScreenPoint(
-                                            holdOffset, pageId, scroll, zoomLevel
+                                            holdOffset, pageId, liveScroll, liveZoom
                                         )
                                         if (imageAtPoint != null) {
                                             log.i("Long-press on image: ${imageAtPoint.id}")
@@ -261,7 +263,7 @@ fun EditorGestureReceiver(
 
                                         // 3. Check if holding on a TextAnnotation (text box)
                                         val textAnnotationAtPoint = findTextAnnotationAtScreenPoint(
-                                            holdOffset, pageId, scroll, zoomLevel
+                                            holdOffset, pageId, liveScroll, liveZoom
                                         )
                                         if (textAnnotationAtPoint != null && textBoxState != null) {
                                             log.i("Long-press on text box: ${textAnnotationAtPoint.id}")
@@ -408,14 +410,18 @@ fun EditorGestureReceiver(
                                     )
                                 }
 
+                                // Read live viewport at tap time so same-page pans don't leave hit tests stale
+                                val liveScroll = editorState?.pageView?.scroll ?: Offset.Zero
+                                val liveZoom = editorState?.pageView?.zoomLevel?.value ?: 1f
+
                                 // Check attachment tap BEFORE text box tap
                                 if (tapPosition != null) {
                                     val attachmentHandled = handleAttachmentTap(
                                         context = context,
                                         tapPosition = tapPosition,
                                         pageId = pageId,
-                                        scroll = scroll,
-                                        zoomLevel = zoomLevel
+                                        scroll = liveScroll,
+                                        zoomLevel = liveZoom
                                     )
                                     if (attachmentHandled) {
                                         log.i("Tap handled by attachment")
@@ -427,8 +433,8 @@ fun EditorGestureReceiver(
                                     val handled = handleTextBoxTap(
                                         tapPosition = tapPosition,
                                         pageId = pageId,
-                                        scroll = scroll,
-                                        zoomLevel = zoomLevel,
+                                        scroll = liveScroll,
+                                        zoomLevel = liveZoom,
                                         textBoxState = textBoxState,
                                         editorState = editorState
                                     )

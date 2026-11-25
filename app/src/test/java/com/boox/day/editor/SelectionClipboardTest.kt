@@ -57,4 +57,34 @@ class SelectionClipboardTest {
         assertTrue(ClipboardContent().isEmpty)
         assertTrue(SelectionState().selectionToClipboard(Offset.Zero, context).isEmpty)
     }
+
+    @Test
+    fun panoramaSampleSizeAndExtremeAspectRatioAreBounded() {
+        // 8000x2000 panorama: must downsample by 4x so max dim <= 2500 (2000x500)
+        assertEquals(4, com.boox.day.io.calculateInSampleSize(8000, 2000))
+        // Normal 1860x2480 tablet portrait fits within 2500 maxDim and 6.25M pixels at sample 1
+        assertEquals(1, com.boox.day.io.calculateInSampleSize(1860, 2480))
+        // Extreme 10000x1 image fitted into 500x500 must clamp height to >= 1 (never 0)
+        val (w, h) = com.boox.day.io.fittedImageSize(10000, 1, 500, 500)
+        assertEquals(500, w)
+        assertEquals(1, h)
+    }
+
+    @Test
+    fun canvasLimitRectExcludesTasksControlColumn() {
+        val tasksRect = com.boox.day.editor.utils.computeCanvasLimitRect(
+            viewWidth = 1000, viewHeight = 1400, toolbarHeight = 80, toolbarAtTop = true, controlColumnLeftPx = 240
+        )
+        assertEquals(240, tasksRect.left)
+        assertEquals(80, tasksRect.top)
+        assertEquals(1000, tasksRect.right)
+        assertEquals(1400, tasksRect.bottom)
+
+        val memosRect = com.boox.day.editor.utils.computeCanvasLimitRect(
+            viewWidth = 1000, viewHeight = 1400, toolbarHeight = 80, toolbarAtTop = false, controlColumnLeftPx = 0
+        )
+        assertEquals(0, memosRect.left)
+        assertEquals(0, memosRect.top)
+        assertEquals(1320, memosRect.bottom)
+    }
 }

@@ -41,6 +41,9 @@ class SelectionState {
     var selectedImages by mutableStateOf<List<Image>?>(null)
     var selectedAttachments by mutableStateOf<List<Attachment>?>(null)
 
+    // Snapshot of selectedImages prior to resize so Undo (Operation.UpdateImage) restores the original
+    internal var originalImagesBeforeResize: List<Image>? = null
+
     // TODO: Bitmap should be change, if scale changes.
     var selectedBitmap by mutableStateOf<Bitmap?>(null)
 
@@ -53,6 +56,7 @@ class SelectionState {
         selectedStrokes = null
         selectedImages = null
         selectedAttachments = null
+        originalImagesBeforeResize = null
         secondPageCut = null
         firstPageCut = null
         selectedBitmap = null
@@ -73,10 +77,11 @@ class SelectionState {
     }
 
     fun resizeImages(scale: Int, scope: CoroutineScope, page: PageView) {
-        val selectedImagesCopy = selectedImages?.map { image ->
+        val currentImages = selectedImages
+        val selectedImagesCopy = currentImages?.map { image ->
             image.copy(
-                height = image.height + (image.height * scale / 100),
-                width = image.width + (image.width * scale / 100)
+                height = max(1, image.height + (image.height * scale / 100)),
+                width = max(1, image.width + (image.width * scale / 100))
             )
         }
 
@@ -86,6 +91,9 @@ class SelectionState {
             return
         }
 
+        if (originalImagesBeforeResize == null) {
+            originalImagesBeforeResize = currentImages
+        }
         selectedImages = selectedImagesCopy
         // Adjust displacement offset by half the size change
         val sizeChange = selectedImagesCopy.firstOrNull()?.let { image ->
@@ -180,7 +188,8 @@ class SelectionState {
 
     /**
      * Apply resize to the selected image based on corner drag.
-     * Updates selectedImages, selectionRect, selectionStartOffset, and selectedBitmap.
+     * Snapshots pre-resize image state for undo and updates geometry without reallocating the
+     * preview bitmap on every drag frame; call [finishImageResize] when the drag ends.
      */
     fun applyImageResize(
         handle: ResizeHandle,
@@ -189,12 +198,14 @@ class SelectionState {
         page: PageView
     ) {
         val currentImage = selectedImages?.firstOrNull() ?: return
+        if (originalImagesBeforeResize == null) {
+            originalImagesBeforeResize = selectedImages
+        }
 
         val newBounds = calculateImageResizedBounds(currentImage, handle, deltaX, deltaY)
-        val newWidth = newBounds.width()
-        val newHeight = newBounds.height()
+        val newWidth = max(1, newBounds.width())
+        val newHeight = max(1, newBounds.height())
 
-        // Create updated image with new bounds
         val updatedImage = currentImage.copy(
             x = newBounds.left,
             y = newBounds.top,
@@ -202,13 +213,16 @@ class SelectionState {
             height = newHeight
         )
 
-        // Update selection state
         selectedImages = listOf(updatedImage)
         selectionStartOffset = IntOffset(newBounds.left, newBounds.top)
         selectionRect = newBounds
+        selectionDisplaceOffset = IntOffset.Zero
+    }
 
-        // Regenerate bitmap at new size
-        val newBitmap = createBitmap(max(1, newWidth), max(1, newHeight))
+    /** Regenerates the crisp selection preview bitmap once after a corner resize drag finishes. */
+    fun finishImageResize(page: PageView) {
+        val updatedImage = selectedImages?.firstOrNull() ?: return
+        val newBitmap = createBitmap(max(1, updatedImage.width), max(1, updatedImage.height))
         val canvas = Canvas(newBitmap)
         drawImage(
             page.context,
@@ -217,9 +231,6 @@ class SelectionState {
             Offset(-updatedImage.x.toFloat(), -updatedImage.y.toFloat())
         )
         selectedBitmap = newBitmap
-
-        // Reset displacement since we're applying resize directly to position
-        selectionDisplaceOffset = IntOffset.Zero
     }
 
     /**
@@ -242,7 +253,7 @@ class SelectionState {
             val imageIds: List<String> = selectedImagesToRemove.map { it.id }
             Log.i(TAG, "removing images")
             page.removeImages(imageIds)
-            operationList += Operation.AddImage(selectedImagesToRemove)
+            operationList += Operation.AddImage(originalImagesBeforeResize ?: selectedImagesToRemove)
         }
         val selectedStrokesToRemove = selectedStrokes
         if (!selectedStrokesToRemove.isNullOrEmpty()) {
@@ -316,8 +327,11 @@ class SelectionState {
         val selectedAttachmentsCopy = selectedAttachments
         val offset = selectionDisplaceOffset!!
 
-        // Save original zone before offsetting (to redraw/clear the old position)
+        // Save original zone before offsetting (including pre-resize bounds so shrinking clears old pixels)
         val originalZone = Rect(selectionRect!!)
+        originalImagesBeforeResize?.takeIf { it.isNotEmpty() }?.let {
+            originalZone.union(imageBoundsInt(it))
+        }
         val finalZone = selectionRect!!
         finalZone.offset(offset.x, offset.y)
 
@@ -354,15 +368,21 @@ class SelectionState {
 
             page.addImage(displacedImages)
 
-            if (offset.x != 0 || offset.y != 0 || placementMode == PlacementMode.Paste) {
-                // TODO: find why sometimes we add two times same operation.
-                // A displacement happened or this is a paste commit - create history for this
-                // To undo changes we first remove image
-                operationList += Operation.DeleteImage(displacedImages.map { it.id })
-                // then add the original images, only if we intended to move it.
-                if (placementMode == PlacementMode.Move)
-                    operationList += Operation.AddImage(selectedImagesCopy)
+            val originals = originalImagesBeforeResize ?: selectedImagesCopy
+            val resized = originalImagesBeforeResize != null
+            if (offset.x != 0 || offset.y != 0 || placementMode == PlacementMode.Paste || resized) {
+                if (placementMode == PlacementMode.Move && resized && originals.size == 1 && displacedImages.size == 1) {
+                    operationList += Operation.UpdateImage(
+                        before = originals.first(),
+                        after = displacedImages.first()
+                    )
+                } else {
+                    operationList += Operation.DeleteImage(displacedImages.map { it.id })
+                    if (placementMode == PlacementMode.Move)
+                        operationList += Operation.AddImage(originals)
+                }
             }
+            originalImagesBeforeResize = null
         }
         if (!selectedAttachmentsCopy.isNullOrEmpty()) {
             Log.i(TAG, "Commit attachments to history.")

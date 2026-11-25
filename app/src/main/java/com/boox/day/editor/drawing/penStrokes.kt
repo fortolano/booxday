@@ -205,6 +205,7 @@ internal var onyxPenLibraryFailed = false
 /** Draws a stroke with the Onyx pen library ([libraryDraw]), or with BooxDay's own drawing when that library fails. */
 internal inline fun drawWithOnyxPen(
     canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: Int?, maxPressure: Float,
+    markerDots: Boolean = false,
     libraryDraw: () -> Unit
 ) {
     if (!onyxPenLibraryFailed) {
@@ -217,7 +218,7 @@ internal inline fun drawWithOnyxPen(
             onyxPenFailed(stroke.pen, e)
         }
     }
-    drawOwnStroke(canvas, stroke, offset, colorOverride, maxPressure)
+    drawOwnStroke(canvas, stroke, offset, colorOverride, maxPressure, markerDots)
 }
 
 internal fun onyxPenFailed(pen: Pen, e: Throwable) {
@@ -235,13 +236,20 @@ internal fun onyxPenFailed(pen: Pen, e: Throwable) {
  * paint: the library changes the points it is given (it divides each pressure by the maximum
  * before its first pen call, which is where 1.0.38 failed).
  */
-internal fun drawOwnStroke(canvas: Canvas, stroke: Stroke, offset: Offset, colorOverride: Int?, maxPressure: Float) {
+internal fun drawOwnStroke(
+    canvas: Canvas,
+    stroke: Stroke,
+    offset: Offset,
+    colorOverride: Int?,
+    maxPressure: Float,
+    markerDots: Boolean = false
+) {
     val paint = Paint().apply {
         color = colorOverride ?: stroke.color
         this.strokeWidth = stroke.size
     }
     val points = strokeToTouchPoints(if (offset == Offset.Zero) stroke else offsetStroke(stroke, offset))
-    if (stroke.pen == Pen.MARKER) drawMarkerStroke(canvas, paint, stroke.size, points)
+    if (stroke.pen == Pen.MARKER) drawMarkerStroke(canvas, paint, stroke.size, points, markerDots)
     else drawFountainPenStroke(canvas, paint, stroke.size, points, maxPressure)
 }
 
@@ -300,7 +308,7 @@ fun drawStroke(
             }
             Pen.MARKER -> {
                 if (GlobalAppSettings.current.neoTools)
-                    drawWithOnyxPen(canvas, stroke, offset, colorOverride, maxPressure) {
+                    drawWithOnyxPen(canvas, stroke, offset, colorOverride, maxPressure, markerDots) {
                         NeoMarkerPenWrapper.drawStroke(canvas, paint, points, stroke.size, false)
                     }
                 else

@@ -580,15 +580,6 @@ class EditorControlTower(
         val clip = state.selectionState.selectionToClipboard(page.scroll, context)
         if (clip.isEmpty) return
         state.clipboard = clip
-
-        // CRITICAL: Clear system text clipboard so paste button shows drawing icon
-        // This ensures the most recent copy operation (drawing) takes precedence
-        try {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            clipboard?.clearPrimaryClip()
-        } catch (e: Exception) {
-            logEditorControlTower.w("Could not clear system clipboard: ${e.message}")
-        }
     }
 
 

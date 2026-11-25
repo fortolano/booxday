@@ -170,7 +170,10 @@ class DrawCanvas(
     private val strokeHistoryBatch = mutableListOf<String>()
     private val logCanvasObserver = TaggedLog("CanvasObservers")
     private val log = TaggedLog("DrawCanvas")
-    var lastStrokeEndTime: Long = 0
+    // Monotonic elapsed-realtime timestamps for Scribble-to-Erase grace window (clock-independent across Onyx SDK & AndroidStylusInput)
+    @Volatile private var lastStrokeStartElapsedMs: Long = 0L
+    @Volatile private var lastStrokeEndElapsedMs: Long = 0L
+    @Volatile private var pendingEraseRenderResumePageId: String? = null
     // PERFORMANCE: Prevent redundant setupSurface calls
     private var surfaceUpdateInProgress = false
     private var lastSurfaceUpdateCompletionTime: Long = 0
@@ -207,6 +210,10 @@ class DrawCanvas(
         log.d("Detached from window")
         cancelAndroidPen()
         surfaceReady = false
+        pendingEraseRenderResumePageId = null
+        if (sharedCanvas.get() === this) {
+            sharedTouchHelperGeneration++
+        }
         finishStylusContact()
         // PERFORMANCE FIX: Cancel all observer coroutines when detached
         cancelObservers()
@@ -372,6 +379,7 @@ class DrawCanvas(
         private var sharedTouchHelper: TouchHelper? = null
         private var sharedCanvasHash: Int? = null
         private var sharedCanvas = WeakReference<DrawCanvas>(null)
+        @Volatile private var sharedTouchHelperGeneration: Long = 0L
 
         fun dispatchAndroidStylusEvent(event: MotionEvent): Boolean =
             sharedCanvas.get()?.dispatchAndroidPen(event) ?: false
@@ -409,6 +417,7 @@ class DrawCanvas(
                 sharedCanvas = WeakReference(canvas)
                 sharedTouchHelper = newHelper
                 sharedCanvasHash = currentHash
+                sharedTouchHelperGeneration++
                 newHelper to true
             }
         }
@@ -609,6 +618,14 @@ class DrawCanvas(
          * Without it, the 50ms disable cycle causes stroke loss during fast drawing.
          * See: CLAUDE.md "Critical Bug Fixes" and memory.md section 14
          */
+        private fun canReenableSharedHelper(helper: TouchHelper, expectedGeneration: Long): Boolean {
+            if (isCanvasInputBlockedByOverlay() || viewportMoving) return false
+            if (sharedTouchHelper !== helper || sharedTouchHelperGeneration != expectedGeneration) return false
+            val canvas = sharedCanvas.get() ?: return false
+            return canvas.isAttachedToWindow && canvas.hasWindowFocus() &&
+                canvas.rawDrawingOpened && canvas.state.isDrawing
+        }
+
         fun flushUIUpdates() {
             val helper = sharedTouchHelper ?: return
             // ⚠️ CRITICAL GUARD: DO NOT REMOVE - prevents stroke loss during fast drawing
@@ -618,14 +635,15 @@ class DrawCanvas(
             }
             // A view move holds the pen paused; its finish shows the screen anyway
             if (viewportMoving) return
+            val helperGen = sharedTouchHelperGeneration
             PageDataManager.setTransitioning(true)
             try {
                 helper.setRawDrawingEnabled(false)
                 // Post re-enable to give Android one frame to rasterize
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                     try {
-                        if (isCanvasInputBlockedByOverlay()) {
-                            Log.i("DrawCanvas", "RACE_DEBUG: flushUIUpdates leaving raw drawing disabled because a blocking overlay is open")
+                        if (!canReenableSharedHelper(helper, helperGen)) {
+                            Log.i("DrawCanvas", "RACE_DEBUG: flushUIUpdates leaving raw drawing disabled (overlay/focus/helper changed)")
                         } else {
                             Log.i("DrawCanvas", "RACE_DEBUG: flushUIUpdates re-enabling raw drawing")
                             helper.setRawDrawingEnabled(true)
@@ -653,13 +671,14 @@ class DrawCanvas(
         fun forceUnfreeze() {
             val helper = sharedTouchHelper ?: return
             if (viewportMoving) return  // see flushUIUpdates
+            val helperGen = sharedTouchHelperGeneration
             try {
                 Log.i("DrawCanvas", "UNFREEZE: Force unfreezing e-ink (tap outside canvas)")
                 helper.setRawDrawingEnabled(false)
                 // Post re-enable to give Android one frame to rasterize
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    if (isCanvasInputBlockedByOverlay()) {
-                        Log.i("DrawCanvas", "UNFREEZE: Keeping raw drawing disabled because a blocking overlay is open")
+                    if (!canReenableSharedHelper(helper, helperGen)) {
+                        Log.i("DrawCanvas", "UNFREEZE: Keeping raw drawing disabled (overlay/focus/helper changed)")
                     } else {
                         Log.i("DrawCanvas", "UNFREEZE: Re-enabling raw drawing after force unfreeze")
                         helper.setRawDrawingEnabled(true)
@@ -725,6 +744,7 @@ class DrawCanvas(
         // - erase :  `onBeginRawErasing()` -> `onRawErasingTouchPointMoveReceived()` -> `onRawErasingTouchPointListReceived()` -> `onEndRawErasing()`
 
         override fun onBeginRawDrawing(p0: Boolean, p1: TouchPoint?) {
+            lastStrokeStartElapsedMs = SystemClock.elapsedRealtime()
             beginStylusContact()
             log.i("RAW_IN[${canvasOwnerId()}]: onBeginRawDrawing p0=$p0")
         }
@@ -773,23 +793,29 @@ class DrawCanvas(
                 return
             }
 
-            val currentLastStrokeEndTime = lastStrokeEndTime
-            lastStrokeEndTime = System.currentTimeMillis()
-            // sometimes UI will get refreshed and frozen before we draw all the strokes.
-            // I think, its because of doing it in separate thread. Commented it for now, to
-            // observe app behavior, and determine if it fixed this bug,
-            // as I do not know reliable way to reproduce it
-            // Need testing if it will be better to do in main thread on, in separate.
-            // thread(start = true, isDaemon = false, priority = Thread.MAX_PRIORITY) {
+            val nowElapsedMs = SystemClock.elapsedRealtime()
+            val currentLastStrokeEndTime = lastStrokeEndElapsedMs
+            val strokeStartTime = lastStrokeStartElapsedMs.takeIf { it > 0L } ?: nowElapsedMs
+            lastStrokeStartElapsedMs = 0L
+            lastStrokeEndElapsedMs = nowElapsedMs
 
-            when (getActualState().mode) {
+            // Capture immutable intake target so a page/tab switch before the lock runs never writes to the wrong page
+            val targetPage = this@DrawCanvas.page
+            val targetPageId = targetPage.currentPageId
+            val targetHistory = this@DrawCanvas.history
+            val targetState = getActualState()
+
+            when (targetState.mode) {
                 Mode.Erase -> onRawErasingTouchPointListReceived(plist)
                 Mode.Select -> {
+                    val pageScroll = targetPage.scroll
+                    val pageZoom = targetPage.zoomLevel.value
                     thread {
+                        if (this@DrawCanvas.page !== targetPage || targetPage.currentPageId != targetPageId) return@thread
                         val points =
-                            copyInputToSimplePointF(plist.points, page.scroll, page.zoomLevel.value)
+                            copyInputToSimplePointF(plist.points, pageScroll, pageZoom)
                         handleSelect(
-                            coroutineScope, this@DrawCanvas.page, getActualState(), points
+                            coroutineScope, targetPage, targetState, points
                         )
                         val boundingBox = calculateBoundingBox(points) { Pair(it.x, it.y) }.toRect()
                         val padding = 10
@@ -810,11 +836,10 @@ class DrawCanvas(
                 // strokes want be visible, so we need to ensure that it will be done
                 // before anything else happens.
                 Mode.Line -> {
-                    val pageScroll = page.scroll
-                    val pageZoom = page.zoomLevel.value
-                    val currentState = getActualState()
-                    val currentPen = currentState.pen
-                    val currentPenSettings = currentState.penSettings[currentPen.penName]!!
+                    val pageScroll = targetPage.scroll
+                    val pageZoom = targetPage.zoomLevel.value
+                    val currentPen = targetState.pen
+                    val currentPenSettings = targetState.penSettings[currentPen.penName]!!
                     val (startPoint, endPoint) = getModifiedStrokeEndpoints(
                         plist.points,
                         pageScroll,
@@ -829,48 +854,62 @@ class DrawCanvas(
                     )
 
                     coroutineScope.launch(Dispatchers.Main.immediate) {
+                        var drew = false
                         withDrawingLock("raw-line") {
+                            if (this@DrawCanvas.page !== targetPage || targetPage.currentPageId != targetPageId) {
+                                log.w("STROKE_SKIP: page changed before raw-line ($targetPageId -> ${this@DrawCanvas.page.currentPageId})")
+                                return@withDrawingLock
+                            }
                             handleDraw(
-                                this@DrawCanvas.page,
+                                targetPage,
                                 strokeHistoryBatch,
                                 currentPenSettings.strokeSize,
                                 currentPenSettings.color,
                                 currentPen,
                                 linePoints
                             )
+                            drew = true
                         }
 
-                        coroutineScope.launch(Dispatchers.Default) {
+                        if (drew) {
+                            coroutineScope.launch(Dispatchers.Default) {
 //                                partialRefreshRegionOnce(this@DrawCanvas, dirtyRect)
-                            refreshUi(dirtyRect)
-                            commitHistorySignal.emit(Unit)
+                                refreshUi(dirtyRect)
+                                commitHistorySignal.emit(Unit)
+                            }
                         }
                     }
                 }
 
                 Mode.Draw -> {
-                    val pageScroll = page.scroll
-                    val pageZoom = page.zoomLevel.value
-                    val currentState = getActualState()
-                    val currentPen = currentState.pen
-                    val currentPenSettings = currentState.penSettings[currentPen.penName]!!
+                    val pageScroll = targetPage.scroll
+                    val pageZoom = targetPage.zoomLevel.value
+                    val currentPen = targetState.pen
+                    val currentPenSettings = targetState.penSettings[currentPen.penName]!!
                     val scaledPoints = copyInput(plist.points, pageScroll, pageZoom)
-                    val firstPointTime = plist.points.first().timestamp
+                    val strokeAllowed = buildTaskStrokeErasableFilter()
 
                     coroutineScope.launch(Dispatchers.Main.immediate) {
+                        var wrote = false
                         withDrawingLock("raw-draw") {
+                            if (this@DrawCanvas.page !== targetPage || targetPage.currentPageId != targetPageId) {
+                                log.w("STROKE_SKIP: page changed before raw-draw ($targetPageId -> ${this@DrawCanvas.page.currentPageId})")
+                                return@withDrawingLock
+                            }
                             val erasedByScribbleDirtyRect = handleScribbleToErase(
-                                page,
+                                targetPage,
                                 scaledPoints,
-                                history,
+                                targetHistory,
                                 currentPen,
                                 currentLastStrokeEndTime,
-                                firstPointTime
+                                strokeStartTime,
+                                strokeAllowed = strokeAllowed
                             )
+                            wrote = true
                             if (erasedByScribbleDirtyRect.isNullOrEmpty()) {
                                 // draw the stroke
                                 handleDraw(
-                                    this@DrawCanvas.page,
+                                    targetPage,
                                     strokeHistoryBatch,
                                     currentPenSettings.strokeSize,
                                     currentPenSettings.color,
@@ -910,14 +949,16 @@ class DrawCanvas(
                                     val scribbleArea = calculateBoundingBox(plist.points) { Pair(it.x, it.y) }
                                         .toRect().apply { inset(-scribblePad, -scribblePad) }
                                     commitErasedPage(scribbleArea.apply {
-                                        union(page.toScreenCoordinates(erasedByScribbleDirtyRect))
+                                        union(targetPage.toScreenCoordinates(erasedByScribbleDirtyRect))
                                     })
                                 }
                             }
 
                         }
-                        coroutineScope.launch(Dispatchers.Default) {
-                            commitHistorySignal.emit(Unit)
+                        if (wrote) {
+                            coroutineScope.launch(Dispatchers.Default) {
+                                commitHistorySignal.emit(Unit)
+                            }
                         }
                     }
                 }
@@ -1019,7 +1060,8 @@ class DrawCanvas(
                 this@DrawCanvas.page,
                 history,
                 points,
-                eraser = getActualState().eraser
+                eraser = getActualState().eraser,
+                strokeAllowed = buildTaskStrokeErasableFilter()
             )
             showErasedPage(penUpMs, eraserEnd, trailArea, zoneEffected)
             if (zoneEffected != null) {
@@ -1170,6 +1212,30 @@ class DrawCanvas(
             lastStylusActivityMs = System.currentTimeMillis()
             // A pen-rest blit skipped while this contact lasted must still run.
             if (surfaceStale) schedulePenRestBlit()
+            // An erase-commit resume deferred because stylus contact lasted past the wait loop
+            // must resume cleanly right after pen-up.
+            val pendingPageId = pendingEraseRenderResumePageId
+            if (pendingPageId != null) {
+                pendingEraseRenderResumePageId = null
+                post { resumePenRenderAfterErase(pendingPageId) }
+            }
+        }
+    }
+
+    /**
+     * Filters out strokes whose dominant task row is checked/completed in Tasks mode.
+     * Returns an allow-all predicate in Memos mode.
+     */
+    private fun buildTaskStrokeErasableFilter(): (com.boox.day.data.db.Stroke) -> Boolean {
+        if (isMemosCanvas) return { true }
+        val protectedRows = completedTaskRows.value
+        if (protectedRows.isEmpty()) return { true }
+        val canvasHeight = com.boox.day.tasks.TaskPagination.screenRowsHeight(height.toFloat())
+        val rowCount = com.boox.day.tasks.TaskPagination.screenRowCount
+        val topOffset = 1f
+        if (canvasHeight <= topOffset || rowCount <= 0) return { true }
+        return { stroke ->
+            com.boox.day.editor.utils.getDominantRowIndex(stroke, canvasHeight, rowCount, topOffset) !in protectedRows
         }
     }
 
@@ -1285,12 +1351,26 @@ class DrawCanvas(
                     waitedMs += 50
                 }
             } finally {
-                if (generation == eraseCommitGeneration) resumePenRenderAfterErase(pageId)
+                if (generation == eraseCommitGeneration) {
+                    if (stylusContact.isActive) {
+                        // Never toggle raw render mid-stroke even if contact exceeds the wait budget;
+                        // finishStylusContact() will resume as soon as the pen lifts.
+                        pendingEraseRenderResumePageId = pageId
+                        log.i("ERASE_COMMIT: deferring pen render resume until pen-up")
+                    } else {
+                        pendingEraseRenderResumePageId = null
+                        resumePenRenderAfterErase(pageId)
+                    }
+                }
             }
         }
     }
 
     private fun resumePenRenderAfterErase(pageId: String) {
+        if (stylusContact.isActive) {
+            pendingEraseRenderResumePageId = pageId
+            return
+        }
         // A page or tab change, a popup or a text box has taken over the pen: its own flow turns
         // raw drawing back on.
         if (page.currentPageId != pageId || memoModeChanged.value != isMemosCanvas ||
@@ -1674,14 +1754,14 @@ class DrawCanvas(
                                 } else {
                                     Rect(0, viewHeight - toolbarHeight, screenWidth, viewHeight)
                                 }
-                                val controlWidthPx = convertDpToPixel(TASKS_CONTROL_COLUMN_WIDTH, context).toInt()
-                                val limitRect = if (GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top) {
-                                    if (!isMemosCanvas) Rect(controlWidthPx, toolbarHeight, viewWidth, viewHeight)
-                                    else Rect(0, toolbarHeight, viewWidth, viewHeight)
-                                } else {
-                                    if (!isMemosCanvas) Rect(controlWidthPx, 0, viewWidth, viewHeight - toolbarHeight)
-                                    else Rect(0, 0, viewWidth, viewHeight - toolbarHeight)
-                                }
+                                val controlWidthPx = if (!isMemosCanvas) convertDpToPixel(TASKS_CONTROL_COLUMN_WIDTH, context).toInt() else 0
+                                val limitRect = com.boox.day.editor.utils.computeCanvasLimitRect(
+                                    viewWidth = viewWidth,
+                                    viewHeight = viewHeight,
+                                    toolbarHeight = toolbarHeight,
+                                    toolbarAtTop = GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top,
+                                    controlColumnLeftPx = controlWidthPx
+                                )
                                 val canvasName = if (isMemosCanvas) "Memos" else "Tasks"
                                 log.i("LIMIT_RECT_FIX[$canvasName]: forceUpdate setting limitRect=$limitRect before openRawDrawing")
                                 touchHelper.setLimitRect(mutableListOf(limitRect)).setExcludeRect(listOf(excludeRect))
@@ -2209,67 +2289,49 @@ class DrawCanvas(
     }
 
     private fun handleImage(imageUri: Uri) {
-        // Convert the image to a software-backed bitmap
-        val imageBitmap = uriToBitmap(context, imageUri)?.asImageBitmap()
-        if (imageBitmap == null)
-            showHint("There was an error during image processing.", coroutineScope)
-        val softwareBitmap =
-            imageBitmap?.asAndroidBitmap()?.copy(Bitmap.Config.ARGB_8888, true)
-        if (softwareBitmap != null) {
+        // Probe bounds only (zero pixel allocation); drawImage does the single bounded decode & cache
+        val bounds = com.boox.day.io.decodeImageBounds(context, imageUri)
+        if (bounds == null) {
             addImageByUri.value = null
-
-            // Get the original image dimensions
-            val originalWidth = softwareBitmap.width
-            val originalHeight = softwareBitmap.height
-
-            // Calculate available canvas space with margins for the mini toolbar
-            // The selection toolbar appears above the selection
-            val topMargin = 200  // Space for mini toolbar above the image
-            val sideMargin = 20
-            val bottomMargin = 20
-            val availableWidth = page.viewWidth - (sideMargin * 2)
-            val availableHeight = page.viewHeight - topMargin - bottomMargin
-
-            // Calculate scale factor if image is larger than available space
-            var finalWidth = originalWidth
-            var finalHeight = originalHeight
-            var bitmapToUse = softwareBitmap
-
-            if (originalWidth > availableWidth || originalHeight > availableHeight) {
-                val scaleX = availableWidth.toFloat() / originalWidth
-                val scaleY = availableHeight.toFloat() / originalHeight
-                val scale = minOf(scaleX, scaleY)
-
-                finalWidth = (originalWidth * scale).toInt()
-                finalHeight = (originalHeight * scale).toInt()
-
-                // Scale the bitmap
-                bitmapToUse = Bitmap.createScaledBitmap(softwareBitmap, finalWidth, finalHeight, true)
-            }
-
-            // Calculate position: center horizontally, but push down to leave room for toolbar at top
-            val centerX = (page.viewWidth - finalWidth) / 2 + page.scroll.x.toInt()
-            // Position image below the toolbar space, centered in remaining area
-            val centerY = topMargin + (availableHeight - finalHeight) / 2 + page.scroll.y.toInt()
-            val imageToSave = Image(
-                x = centerX,
-                y = centerY,
-                height = finalHeight,
-                width = finalWidth,
-                uri = imageUri.toString(),
-                pageId = page.currentPageId
-            )
-            drawImage(
-                context, page.windowedCanvas, imageToSave, -page.scroll
-            )
-            selectImage(coroutineScope, page, state, imageToSave)
-            // image will be added to database when released, the same as with paste element.
-            state.selectionState.placementMode = PlacementMode.Paste
-            // make sure, that after regaining focus, we wont go back to drawing mode
-        } else {
-            // Handle cases where the bitmap could not be created
-            Log.e("ImageProcessing", "Failed to create software bitmap from URI.")
+            showHint("There was an error during image processing.", coroutineScope)
+            Log.e("ImageProcessing", "Failed to read image bounds from URI.")
+            return
         }
+
+        // Calculate available canvas space with margins for the mini toolbar
+        val topMargin = 200  // Space for mini toolbar above the image
+        val sideMargin = 20
+        val bottomMargin = 20
+        val availableWidth = (page.viewWidth - (sideMargin * 2)).coerceAtLeast(1)
+        val availableHeight = (page.viewHeight - topMargin - bottomMargin).coerceAtLeast(1)
+
+        val (finalWidth, finalHeight) = com.boox.day.io.fittedImageSize(
+            originalWidth = bounds.first,
+            originalHeight = bounds.second,
+            availableWidth = availableWidth,
+            availableHeight = availableHeight
+        )
+
+        // Position image below the toolbar space, centered in remaining area
+        val centerX = (page.viewWidth - finalWidth) / 2 + page.scroll.x.toInt()
+        val centerY = topMargin + (availableHeight - finalHeight) / 2 + page.scroll.y.toInt()
+        val imageToSave = Image(
+            x = centerX,
+            y = centerY,
+            height = finalHeight,
+            width = finalWidth,
+            uri = imageUri.toString(),
+            pageId = page.currentPageId
+        )
+        addImageByUri.value = null
+        if (!drawImage(context, page.windowedCanvas, imageToSave, -page.scroll)) {
+            showHint("There was an error during image processing.", coroutineScope)
+            Log.e("ImageProcessing", "Failed to decode image from URI.")
+            return
+        }
+        selectImage(coroutineScope, page, state, imageToSave)
+        // image will be added to database when released, the same as with paste element.
+        state.selectionState.placementMode = PlacementMode.Paste
     }
 
 
@@ -2531,14 +2593,14 @@ class DrawCanvas(
                 }
 
             // For Tasks tab, exclude the left control column from the raw input area
-            val controlWidthPx = convertDpToPixel(TASKS_CONTROL_COLUMN_WIDTH, context).toInt()
-            val limitRect = if (GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top) {
-                if (!isMemosCanvas) Rect(controlWidthPx, toolbarHeight, viewWidth, viewHeight)
-                else Rect(0, toolbarHeight, viewWidth, viewHeight)
-            } else {
-                if (!isMemosCanvas) Rect(controlWidthPx, 0, viewWidth, viewHeight - toolbarHeight)
-                else Rect(0, 0, viewWidth, viewHeight - toolbarHeight)
-            }
+            val controlWidthPx = if (!isMemosCanvas) convertDpToPixel(TASKS_CONTROL_COLUMN_WIDTH, context).toInt() else 0
+            val limitRect = com.boox.day.editor.utils.computeCanvasLimitRect(
+                viewWidth = viewWidth,
+                viewHeight = viewHeight,
+                toolbarHeight = toolbarHeight,
+                toolbarAtTop = GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top,
+                controlColumnLeftPx = controlWidthPx
+            )
 
             if (PERF_LOGS) log.i("TOUCH_TRACE[$canvasName]: reactivateRawDrawing START - limitRect=$limitRect, rawDrawingOpened=$rawDrawingOpened, touchHelper=${touchHelper.hashCode()}")
 
@@ -2726,12 +2788,14 @@ class DrawCanvas(
 
                 val startSetup = if (PERF_LOGS) System.currentTimeMillis() else 0L
                 val allowStartupRawDrawingOpen = !isStartupRawDrawingCaptureBlocked()
+                val controlWidthPx = if (!isMemosCanvas) convertDpToPixel(TASKS_CONTROL_COLUMN_WIDTH, context).toInt() else 0
                 withRawDrawingOwner("setupSurface-$canvasName") {
                     rawDrawingOpened = setupSurface(
                         this@DrawCanvas,
                         touchHelper,
                         toolbarHeight,
-                        allowRawDrawingOpen = allowStartupRawDrawingOpen
+                        allowRawDrawingOpen = allowStartupRawDrawingOpen,
+                        controlColumnLeftPx = controlWidthPx
                     )
                 }
                 if (!rawDrawingOpened && !isCanvasInputBlockedByOverlay() && !allowStartupRawDrawingOpen) {

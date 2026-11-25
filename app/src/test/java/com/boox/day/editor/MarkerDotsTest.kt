@@ -81,4 +81,27 @@ class MarkerDotsTest {
         val band = band(draw(marker(), dots = false))
         assertTrue(band.all { it != Color.BLACK && it != Color.WHITE })
     }
+
+    @Test fun neoMarkerFallbackPreservesCallerMarkerDotsFlag() {
+        val canvasBitmap = Bitmap.createBitmap(200, 100, Bitmap.Config.ARGB_8888).also { bitmap ->
+            val canvas = Canvas(bitmap)
+            canvas.drawColor(Color.WHITE)
+            com.boox.day.editor.drawing.drawWithOnyxPen(
+                canvas, marker(), Offset.Zero, null, 4096f, markerDots = true
+            ) { throw IllegalStateException("simulated sdk failure") }
+        }
+        val canvasBand = band(canvasBitmap)
+        assertTrue("canvas fallback must draw black dots", canvasBand.all { it == Color.BLACK || it == Color.WHITE })
+        assertTrue("canvas fallback must contain black dots", canvasBand.any { it == Color.BLACK })
+
+        val exportBitmap = Bitmap.createBitmap(200, 100, Bitmap.Config.ARGB_8888).also { bitmap ->
+            val canvas = Canvas(bitmap)
+            canvas.drawColor(Color.WHITE)
+            com.boox.day.editor.drawing.drawWithOnyxPen(
+                canvas, marker(), Offset.Zero, null, 4096f, markerDots = false
+            ) { throw IllegalStateException("simulated sdk failure") }
+        }
+        val exportBand = band(exportBitmap)
+        assertTrue("export fallback must keep pale grey", exportBand.all { it != Color.BLACK && it != Color.WHITE })
+    }
 }

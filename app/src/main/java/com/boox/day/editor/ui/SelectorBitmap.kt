@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
@@ -79,11 +80,23 @@ fun SelectedBitmap(
                 selectionState.reset()
                 controlTower.setIsDrawing(true)
             }) {
+        val resizable = selectionState.isResizable()
         Image(
             bitmap = selectionState.selectedBitmap!!.asImageBitmap(),
             contentDescription = "Selection bitmap",
+            contentScale = if (resizable) ContentScale.FillBounds else ContentScale.None,
             modifier = Modifier
                 .offset { selectionStartOffset + selectionDisplaceOffset }
+                .then(
+                    if (resizable) {
+                        Modifier.size(
+                            width = with(density) { selectionRect.width().coerceAtLeast(1).toDp() },
+                            height = with(density) { selectionRect.height().coerceAtLeast(1).toDp() }
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
                 .drawBehind {
                     drawRect(
                         color = Color.Gray,
@@ -150,6 +163,11 @@ fun SelectedBitmap(
                                 },
                                 onDragEnd = {
                                     selectionState.activeResizeHandle = ResizeHandle.NONE
+                                    selectionState.finishImageResize(controlTower.page)
+                                },
+                                onDragCancel = {
+                                    selectionState.activeResizeHandle = ResizeHandle.NONE
+                                    selectionState.finishImageResize(controlTower.page)
                                 },
                                 onDrag = { change, dragAmount ->
                                     change.consume()

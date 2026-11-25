@@ -273,6 +273,25 @@ fun onSurfaceDestroy(view: View, touchHelper: TouchHelper) {
 }
 
 /**
+ * Shared view-relative raw-input limit rect for Memos (left = 0) and Tasks (left = controlColumnLeftPx).
+ * Used identically during surface creation, reactivation, and force-update redraws.
+ */
+internal fun computeCanvasLimitRect(
+    viewWidth: Int,
+    viewHeight: Int,
+    toolbarHeight: Int,
+    toolbarAtTop: Boolean,
+    controlColumnLeftPx: Int = 0
+): Rect {
+    val left = controlColumnLeftPx.coerceIn(0, viewWidth.coerceAtLeast(0))
+    return if (toolbarAtTop) {
+        Rect(left, toolbarHeight, viewWidth, viewHeight)
+    } else {
+        Rect(left, 0, viewWidth, viewHeight - toolbarHeight)
+    }
+}
+
+/**
  * Sets up the drawing surface with proper limit and exclude rects.
  * @return true if raw drawing was opened and enabled, false if it was skipped due to overlay
  */
@@ -280,7 +299,8 @@ fun setupSurface(
     view: View,
     touchHelper: TouchHelper,
     toolbarHeight: Int,
-    allowRawDrawingOpen: Boolean = true
+    allowRawDrawingOpen: Boolean = true,
+    controlColumnLeftPx: Int = 0
 ): Boolean {
     // Takes at least 50ms on Note 4c,
     // and I don't think that we need it immediately
@@ -300,10 +320,11 @@ fun setupSurface(
     // Using view width caused right-side toolbar buttons (chevrons) to not receive stylus input
     val screenWidth = view.context.resources.displayMetrics.widthPixels
 
+    val toolbarAtTop = GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top
     // Determine the exclusion area based on toolbar position
     // Use screenWidth to ensure the entire toolbar is excluded from stylus drawing capture
     val excludeRect: Rect =
-        if (GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top) {
+        if (toolbarAtTop) {
             Rect(0, 0, screenWidth, toolbarHeight)
         } else {
             Rect(0, viewHeight - toolbarHeight, screenWidth, viewHeight)
@@ -311,11 +332,13 @@ fun setupSurface(
 
     // NOTE: Limit rect uses VIEW-RELATIVE coordinates (0,0 = top-left of view)
     // DO NOT use screen-absolute coordinates - tested and breaks stylus completely
-    val limitRect =
-        if (GlobalAppSettings.current.toolbarPosition == AppSettings.Position.Top)
-            Rect(0, toolbarHeight, viewWidth, viewHeight)
-        else
-            Rect(0, 0, viewWidth, viewHeight - toolbarHeight)
+    val limitRect = computeCanvasLimitRect(
+        viewWidth = viewWidth,
+        viewHeight = viewHeight,
+        toolbarHeight = toolbarHeight,
+        toolbarAtTop = toolbarAtTop,
+        controlColumnLeftPx = controlColumnLeftPx
+    )
 
     touchHelper.setLimitRect(mutableListOf(limitRect)).setExcludeRect(listOf(excludeRect))
     if (com.boox.day.diagnostics.StartReport.on) com.boox.day.diagnostics.StartReport.mark("Pen area: limit $limitRect, exclude $excludeRect, open allowed $allowRawDrawingOpen, window open ${DrawCanvas.isCanvasInputBlockedByOverlay()}")
