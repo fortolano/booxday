@@ -247,24 +247,33 @@ class DriveBackupService(private val context: Context) : CloudBackupService {
      * and legacy JSON backups without buffering the whole payload in RAM: M5(5)).
      * Caller owns deleting the returned file when finished.
      */
-    override suspend fun downloadBackupToFile(fileId: String): FileDownloadResult = withContext(Dispatchers.IO) {
-        val dir = java.io.File(context.cacheDir, "drive-restore").apply { mkdirs() }
+    override suspend fun downloadBackupToFile(fileId: String): FileDownloadResult {
+        val dir = java.io.File(context.cacheDir, "drive-restore")
         val tempFile = java.io.File(dir, "drive-backup-${java.util.UUID.randomUUID()}.tmp")
+        // Nov 2026: a download finished just as the screen closed never reached the caller and
+        // stayed in the cache; the caller owns the file only once it has the result
+        var handedOver = false
         try {
-            val drive = getDriveService()
-            if (drive == null) {
-                return@withContext FileDownloadResult.Error("Not signed in to Google")
-            }
-            Log.i(TAG, "Streaming backup download to file: $fileId")
-            java.io.FileOutputStream(tempFile).buffered().use { out ->
-                drive.files().get(fileId).executeMediaAndDownloadTo(out)
-            }
-            Log.i(TAG, "Downloaded backup file: ${tempFile.length()} bytes")
-            FileDownloadResult.Success(tempFile)
-        } catch (e: Exception) {
-            tempFile.delete()
-            Log.e(TAG, "Streaming download failed: ${e.javaClass.simpleName}", e)
-            FileDownloadResult.Error(e.message ?: "Unknown download error")
+            return withContext(Dispatchers.IO) {
+                try {
+                    dir.mkdirs()
+                    val drive = getDriveService()
+                    if (drive == null) {
+                        return@withContext FileDownloadResult.Error("Not signed in to Google")
+                    }
+                    Log.i(TAG, "Streaming backup download to file: $fileId")
+                    java.io.FileOutputStream(tempFile).buffered().use { out ->
+                        drive.files().get(fileId).executeMediaAndDownloadTo(out)
+                    }
+                    Log.i(TAG, "Downloaded backup file: ${tempFile.length()} bytes")
+                    FileDownloadResult.Success(tempFile)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Streaming download failed: ${e.javaClass.simpleName}", e)
+                    FileDownloadResult.Error(e.message ?: "Unknown download error")
+                }
+            }.also { handedOver = it is FileDownloadResult.Success }
+        } finally {
+            if (!handedOver) tempFile.delete()
         }
     }
 

@@ -5,6 +5,10 @@ import com.boox.day.sync.BackupMetadata
 import com.boox.day.sync.DriveBackupService
 import com.boox.day.sync.ImportService
 import com.boox.day.sync.LocalBackupService
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -71,6 +75,27 @@ class PendingRestoreTest {
         pending.offerFile(preview, deviceFile)
         pending.cancel()
         assertTrue(deviceFile.exists())
+        assertTrue(restored.isEmpty())
+    }
+
+    /** Review 25 Nov 2026: closing the screen during the preview left the private backup in the cache. */
+    @Test
+    fun closingDuringThePreviewDeletesTheDownload() = runBlocking {
+        val download = folder.newFile("download.tmp")
+        val pending = PendingRestore()
+        val previewing = CompletableDeferred<Unit>()
+
+        val screen = launch {
+            pending.offerDownload(
+                { DriveBackupService.FileDownloadResult.Success(download) },
+                { previewing.complete(Unit); awaitCancellation() }
+            )
+        }
+        previewing.await()
+        screen.cancelAndJoin()
+
+        assertFalse(download.exists())
+        assertNull(pending.waiting)
         assertTrue(restored.isEmpty())
     }
 

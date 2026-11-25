@@ -232,6 +232,24 @@ class OneDriveBackupServiceTest {
         }
     }
 
+    /** Review 25 Nov 2026: a download cut short by the screen closing stayed in the cache. */
+    @Test
+    fun cancelledDownloadLeavesNoFile() = runBlocking {
+        val dir = folder.newFolder()
+        val service = OneDriveBackupService(
+            graph = { MicrosoftGraph(token = { throw kotlinx.coroutines.CancellationException("screen closed") }, baseUrl = server.url("/v1.0").toString()) },
+            downloadDir = { dir },
+            onBackedUp = {}
+        )
+        try {
+            service.downloadBackupToFile("ITEM1")
+            fail("expected the cancellation to go through")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // the caller's coroutine ends
+        }
+        assertEquals(0, dir.listFiles()!!.size)
+    }
+
     @Test
     fun downloadFollowsOneDrivesRedirectIntoATempFile() = runBlocking {
         val bytes = "PK backup bytes".toByteArray()

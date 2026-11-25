@@ -205,29 +205,35 @@ internal class OneDriveBackupService(
         }
     }
 
-    override suspend fun downloadBackupToFile(fileId: String): FileDownloadResult = withContext(Dispatchers.IO) {
+    override suspend fun downloadBackupToFile(fileId: String): FileDownloadResult {
         var temp: File? = null
+        // The caller owns the file only once it has the result: a cancellation before that (the
+        // screen closed mid-download, or as the answer comes back) deletes it here
+        var handedOver = false
         try {
-            val graph = graph() ?: return@withContext FileDownloadResult.Error(NOT_CONNECTED)
-            val dir = downloadDir().apply { mkdirs() }
-            temp = File(dir, "onedrive-backup-${UUID.randomUUID()}.tmp")
-            FileOutputStream(temp).buffered().use { graph.download("/me/drive/items/$fileId/content", it) }
-            Log.i(TAG, "Downloaded backup (${temp.length()} bytes)")
-            FileDownloadResult.Success(temp)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: GraphException) {
-            temp?.delete()
-            Log.w(TAG, "Download failed: ${e.javaClass.simpleName}")
-            FileDownloadResult.Error(messageOf(e))
-        } catch (e: IOException) {
-            temp?.delete()
-            Log.w(TAG, "Download failed writing the file: ${e.javaClass.simpleName}")
-            FileDownloadResult.Error("Couldn't save the backup on the tablet. Is the tablet full?")
-        } catch (e: Exception) {
-            temp?.delete()
-            Log.w(TAG, "Download failed: ${e.javaClass.simpleName}")
-            FileDownloadResult.Error(SOMETHING_WRONG)
+            return withContext(Dispatchers.IO) {
+                try {
+                    val graph = graph() ?: return@withContext FileDownloadResult.Error(NOT_CONNECTED)
+                    val dir = downloadDir().apply { mkdirs() }
+                    val file = File(dir, "onedrive-backup-${UUID.randomUUID()}.tmp").also { temp = it }
+                    FileOutputStream(file).buffered().use { graph.download("/me/drive/items/$fileId/content", it) }
+                    Log.i(TAG, "Downloaded backup (${file.length()} bytes)")
+                    FileDownloadResult.Success(file)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: GraphException) {
+                    Log.w(TAG, "Download failed: ${e.javaClass.simpleName}")
+                    FileDownloadResult.Error(messageOf(e))
+                } catch (e: IOException) {
+                    Log.w(TAG, "Download failed writing the file: ${e.javaClass.simpleName}")
+                    FileDownloadResult.Error("Couldn't save the backup on the tablet. Is the tablet full?")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Download failed: ${e.javaClass.simpleName}")
+                    FileDownloadResult.Error(SOMETHING_WRONG)
+                }
+            }.also { handedOver = it is FileDownloadResult.Success }
+        } finally {
+            if (!handedOver) temp?.delete()
         }
     }
 

@@ -25,21 +25,31 @@ internal class PendingRestore {
         waiting = Waiting(preview, file, isDownload = false)
     }
 
-    /** Downloads a cloud backup and previews it. Null when it waits for the user, else what went wrong. */
+    /**
+     * Downloads a cloud backup and previews it. Null when it waits for the user, else what went
+     * wrong. The downloaded copy is deleted unless it reached [waiting]: also when the screen closes
+     * (the coroutine is cancelled) during the preview (review, 25 Nov 2026: it stayed in the cache).
+     */
     suspend fun offerDownload(
         download: suspend () -> DriveBackupService.FileDownloadResult,
         preview: suspend (File) -> LocalBackupService.PreviewResult
-    ): String? = when (val got = download()) {
-        is DriveBackupService.FileDownloadResult.Error -> "Download failed: ${got.message}"
-        is DriveBackupService.FileDownloadResult.Success -> when (val seen = preview(got.file)) {
-            is LocalBackupService.PreviewResult.Success -> {
-                waiting = Waiting(seen.preview, got.file, isDownload = true)
-                null
+    ): String? {
+        val got = download()
+        if (got !is DriveBackupService.FileDownloadResult.Success) {
+            return "Download failed: ${(got as DriveBackupService.FileDownloadResult.Error).message}"
+        }
+        var handedOver = false
+        try {
+            return when (val seen = preview(got.file)) {
+                is LocalBackupService.PreviewResult.Success -> {
+                    waiting = Waiting(seen.preview, got.file, isDownload = true)
+                    handedOver = true
+                    null
+                }
+                is LocalBackupService.PreviewResult.Error -> "Cannot open backup: ${seen.message}"
             }
-            is LocalBackupService.PreviewResult.Error -> {
-                got.file.delete()
-                "Cannot open backup: ${seen.message}"
-            }
+        } finally {
+            if (!handedOver) got.file.delete()
         }
     }
 
