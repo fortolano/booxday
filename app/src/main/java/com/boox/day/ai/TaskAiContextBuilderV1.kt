@@ -406,10 +406,6 @@ object TaskAiContextBuilderV1 {
 
         val start = rangeStart ?: date
         val end = rangeEnd ?: date
-        val cacheKey = buildSemanticRangeKey(start, end, includeSourceTypes)
-        lastSemanticRangeCache?.let { cached ->
-            if (cached.key == cacheKey) return cached.contexts
-        }
 
         val contexts = try {
             val dates = generateDateRange(start, end)
@@ -423,13 +419,14 @@ object TaskAiContextBuilderV1 {
                     }
                 }.map { it.await() }
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
-            Log.w(TAG, "Semantic context load failed: ${e.message}")
+            Log.w(TAG, "Semantic context load failed: ${e.javaClass.simpleName}")
             null
         }
 
         if (contexts.isNullOrEmpty()) return null
-        lastSemanticRangeCache = SemanticRangeCacheEntry(cacheKey, contexts)
         return contexts
     }
 

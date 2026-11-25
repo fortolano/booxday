@@ -210,6 +210,9 @@ fun VoiceInputDialog(
                     // AI voice mode needs the user's OpenRouter key: the key popup is open instead
                     onDismiss()
                 }
+                is StartResult.RecordingFailed -> {
+                    aiError = result.message
+                }
             }
             Log.d("VoiceInputDialog", "████ After startTranscribing(), activeSource=${activeSource}, recorderState=${recorderState}")
         }

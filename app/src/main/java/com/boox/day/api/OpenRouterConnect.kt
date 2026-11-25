@@ -119,19 +119,25 @@ object OpenRouterConnect {
             "&key_label=${enc(KEY_LABEL)}&state=${enc(state)}"
     }
 
-    /** `code` and `state` from a `booxday-connect://openrouter?...` link; null when it isn't one. */
+    /** `code` and `state` from a `booxday-connect://openrouter?...` link; null when invalid or malformed. */
     internal fun parseLink(link: String?): Map<String, String>? {
-        if (link == null) return null
-        val prefix = "$CALLBACK_SCHEME://$CALLBACK_HOST"
-        if (!link.startsWith(prefix, ignoreCase = true)) return null
-        val query = link.substringAfter('?', "").substringBefore('#')
-        return query.split('&')
-            .filter { it.isNotEmpty() }
-            .associate { part ->
-                val name = URLDecoder.decode(part.substringBefore('='), "UTF-8")
-                val value = URLDecoder.decode(part.substringAfter('=', ""), "UTF-8")
-                name to value
-            }
+        if (link.isNullOrBlank()) return null
+        val uri = runCatching { java.net.URI(link) }.getOrNull() ?: return null
+        if (!CALLBACK_SCHEME.equals(uri.scheme, ignoreCase = true)) return null
+        if (!CALLBACK_HOST.equals(uri.host, ignoreCase = true)) return null
+        if (uri.port != -1 || uri.userInfo != null) return null
+        if (!uri.path.isNullOrEmpty() && uri.path != "/") return null
+        val rawQuery = uri.rawQuery ?: return emptyMap()
+        val result = LinkedHashMap<String, String>()
+        for (part in rawQuery.split('&')) {
+            if (part.isEmpty()) continue
+            val name = runCatching { URLDecoder.decode(part.substringBefore('='), "UTF-8") }.getOrNull() ?: return null
+            val value = runCatching { URLDecoder.decode(part.substringAfter('=', ""), "UTF-8") }.getOrNull() ?: return null
+            // Reject duplicate parameters so a crafted link cannot smuggle a second code/state
+            if (name in result) return null
+            result[name] = value
+        }
+        return result
     }
 
     /** True for text that is an OpenRouter key rather than a connection code. */

@@ -82,8 +82,10 @@ object AiRetryExecutor {
             if (cycle > cycles) break
             coroutineContext.ensureActive()
             Log.d(TAG, "Starting cycle $cycle/$cycles")
+            var cycleRetryAfterMs = 0L
 
             for ((index, model) in models.withIndex()) {
+                coroutineContext.ensureActive()
                 // After a credit refusal only free models can answer
                 if (creditRefusal != null && !OpenRouterAccount.isFreeModel(model.id)) continue
                 totalAttempts++
@@ -107,7 +109,10 @@ object AiRetryExecutor {
                         }
                     }
                     is AiResponse.Error.RateLimitError -> {
-                        Log.w(TAG, "${model.displayName} rate limited")
+                        Log.w(TAG, "${model.displayName} rate limited (retryAfter=${response.retryAfterSeconds}s)")
+                        response.retryAfterSeconds?.let { sec ->
+                            cycleRetryAfterMs = maxOf(cycleRetryAfterMs, (sec * 1000L).coerceAtMost(15_000L))
+                        }
                         lastError = "Rate limited"
                         lastProblem = AiProblem.of(response)
                     }
@@ -146,10 +151,11 @@ object AiRetryExecutor {
                 }
             }
 
-            // Wait between cycles (but not after the last cycle)
+            // Wait between cycles (but not after the last cycle); honor Retry-After when longer
             if (cycle < cycles) {
-                Log.d(TAG, "Cycle $cycle complete, waiting ${INTER_CYCLE_DELAY_MS}ms before next cycle...")
-                delay(INTER_CYCLE_DELAY_MS)
+                val waitMs = maxOf(INTER_CYCLE_DELAY_MS, cycleRetryAfterMs)
+                Log.d(TAG, "Cycle $cycle complete, waiting ${waitMs}ms before next cycle...")
+                delay(waitMs)
             }
         }
 

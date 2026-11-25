@@ -233,9 +233,15 @@ class TranscriptionService(
             // Gemini mode - start AudioRecorder only
             Log.i(TAG, "████ ▶ Starting AudioRecorder ONLY (Gemini mode)")
             Log.i(TAG, "████ AudioRecorder current state BEFORE start: ${audioRecorder.state.value}")
-            audioRecorder.startRecording()
-            Log.i(TAG, "████ AudioRecorder.startRecording() returned")
-            Log.i(TAG, "████ AudioRecorder current state AFTER start: ${audioRecorder.state.value}")
+            val started = audioRecorder.startRecording()
+            Log.i(TAG, "████ AudioRecorder.startRecording() returned=$started, state=${audioRecorder.state.value}")
+            if (!started) {
+                val errMsg = (audioRecorder.state.value as? AudioRecorder.State.Error)?.message
+                    ?: "Could not start microphone recording"
+                _activeSource.value = null
+                _state.value = TranscriptionState.IDLE
+                return StartResult.RecordingFailed(errMsg)
+            }
             _activeSource.value = TranscriptionSource.GEMINI
             Log.i(TAG, "████ activeSource set to GEMINI")
         }
@@ -268,18 +274,23 @@ class TranscriptionService(
      * Resume transcription after pause.
      */
     fun resume() {
-        when (_activeSource.value) {
+        val resumed = when (_activeSource.value) {
             TranscriptionSource.SPEECH_RECOGNIZER -> {
                 voiceInputService.resume()
                 Log.d(TAG, "SpeechRecognizer resumed")
+                true
             }
             TranscriptionSource.GEMINI -> {
-                audioRecorder.resumeRecording()
-                Log.d(TAG, "AudioRecorder resumed")
+                val ok = audioRecorder.resumeRecording()
+                Log.d(TAG, "AudioRecorder resumed: ok=$ok")
+                ok
             }
-            null -> Log.w(TAG, "resume() called but no active source")
+            null -> {
+                Log.w(TAG, "resume() called but no active source")
+                false
+            }
         }
-        _state.value = TranscriptionState.LISTENING
+        _state.value = if (resumed) TranscriptionState.LISTENING else TranscriptionState.IDLE
     }
 
     /**
@@ -456,6 +467,9 @@ sealed class StartResult {
 
     /** AI voice mode without the user's own OpenRouter key (Oct 2026) - the key popup is open */
     object NeedsApiKey : StartResult()
+
+    /** Microphone failed to initialize or start recording */
+    data class RecordingFailed(val message: String) : StartResult()
 }
 
 /**

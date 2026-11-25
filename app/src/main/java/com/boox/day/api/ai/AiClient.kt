@@ -78,7 +78,7 @@ object AiClient {
             if (response.isSuccessful) {
                 handleSuccessResponse(response.body(), request.model.id)
             } else {
-                handleErrorResponse(response.code(), response.errorBody()?.string())
+                handleErrorResponse(response.code(), response.errorBody()?.string(), response.headers()["Retry-After"])
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
@@ -95,8 +95,11 @@ object AiClient {
         noteCreditState(request.model.id, result)
         // A picked model's failure shows on its AI Models row until it answers again (Oct 2026)
         if (notePick) com.boox.day.api.AiPickStatus.noteResult(request.model, result)
-        // Behind the next failure a dialog shows (2 Nov 2026)
-        if (result is AiResponse.Error) LastAiProblem.noteTry(request, result)
+        // Behind the next failure a dialog shows (2 Nov 2026); attributed to the active invocation scope if any
+        if (result is AiResponse.Error) {
+            val scopeId = kotlin.coroutines.coroutineContext[LastAiProblem.ScopeElement]?.scopeId
+            LastAiProblem.noteTry(request, result, scopeId = scopeId)
+        }
         return result
     }
 
@@ -245,7 +248,11 @@ object AiClient {
     /**
      * Handle HTTP error responses.
      */
-    internal fun handleErrorResponse(code: Int, errorBody: String?): AiResponse<String> {
+    internal fun handleErrorResponse(
+        code: Int,
+        errorBody: String?,
+        retryAfterHeader: String? = null
+    ): AiResponse<String> {
         val safeMessage = safeErrorSummary(code, errorBody)
         Log.e(TAG, "HTTP error $code (${errorBody?.length ?: 0} chars)")
         Log.d(TAG, "HTTP error $code raw body: ${errorBody?.take(500)}")
@@ -253,7 +260,7 @@ object AiClient {
         return when (code) {
             429 -> AiResponse.Error.RateLimitError(
                 message = safeMessage,
-                retryAfterSeconds = null
+                retryAfterSeconds = parseRetryAfterSeconds(retryAfterHeader)
             )
             400 -> AiResponse.Error.InvalidRequest(
                 message = safeMessage
@@ -270,6 +277,12 @@ object AiClient {
                 message = safeMessage
             )
         }
+    }
+
+    /** Parses numeric HTTP Retry-After header (seconds), clamped to 1..60s. */
+    internal fun parseRetryAfterSeconds(header: String?): Int? {
+        val trimmed = header?.trim() ?: return null
+        return trimmed.toIntOrNull()?.takeIf { it > 0 }?.coerceAtMost(60)
     }
 
     /**

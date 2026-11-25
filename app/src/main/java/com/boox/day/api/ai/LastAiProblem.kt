@@ -47,9 +47,19 @@ object LastAiProblem {
     var last by mutableStateOf<Problem?>(null)
         private set
 
-    private val recentTries = mutableListOf<Try>()
+    private data class RecordedTry(val entry: Try, val scopeId: String?)
+
+    private val recentTries = mutableListOf<RecordedTry>()
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Coroutine-local invocation scope so concurrent AI features or background indexing never cross-attribute tries (L2). */
+    class ScopeElement(val scopeId: String) : kotlin.coroutines.AbstractCoroutineContextElement(Key) {
+        companion object Key : kotlin.coroutines.CoroutineContext.Key<ScopeElement>
+    }
+
+    suspend fun <T> withScope(scopeId: String = java.util.UUID.randomUUID().toString(), block: suspend () -> T): T =
+        kotlinx.coroutines.withContext(ScopeElement(scopeId)) { block() }
 
     @Volatile
     private var prefs: SharedPreferences? = null
@@ -67,22 +77,41 @@ object LastAiProblem {
     }
 
     /** A request that failed (AiClient sees every request). */
-    fun noteTry(request: AiRequest, error: AiResponse.Error, nowMs: Long = System.currentTimeMillis()) =
-        noteTry(request, whyOf(error), nowMs)
+    fun noteTry(
+        request: AiRequest,
+        error: AiResponse.Error,
+        nowMs: Long = System.currentTimeMillis(),
+        scopeId: String? = null
+    ) = noteTry(request, whyOf(error), nowMs, scopeId)
 
     /** A request whose answer the feature could not use, or any other [why] in BooxDay's own words. */
-    fun noteTry(request: AiRequest, why: String, nowMs: Long = System.currentTimeMillis()) {
+    fun noteTry(
+        request: AiRequest,
+        why: String,
+        nowMs: Long = System.currentTimeMillis(),
+        scopeId: String? = null
+    ) {
         val step = request.jsonSchema?.name?.let { STEPS[it] ?: it } ?: "answer"
         synchronized(recentTries) {
-            recentTries.add(Try(step, request.model.id, why, nowMs))
-            while (recentTries.size > MAX_TRIES) recentTries.removeAt(0)
+            recentTries.add(RecordedTry(Try(step, request.model.id, why, nowMs), scopeId))
+            while (recentTries.size > MAX_TRIES * 2) recentTries.removeAt(0)
         }
     }
 
-    /** [feature]'s dialog shows [message] as a failure: kept with the tries just before it. */
-    fun noteShown(feature: String, message: String, nowMs: Long = System.currentTimeMillis()) {
+    /** [feature]'s dialog shows [message] as a failure: kept with the tries from this operation scope (or unscoped tries). */
+    fun noteShown(
+        feature: String,
+        message: String,
+        nowMs: Long = System.currentTimeMillis(),
+        scopeId: String? = null
+    ) {
         val tries = synchronized(recentTries) {
-            recentTries.filter { nowMs - it.atMs <= TRIES_WINDOW_MS }.also { recentTries.clear() }
+            val matched = recentTries
+                .filter { nowMs - it.entry.atMs <= TRIES_WINDOW_MS && it.scopeId == scopeId }
+                .takeLast(MAX_TRIES)
+                .map { it.entry }
+            recentTries.removeAll { it.scopeId == scopeId || nowMs - it.entry.atMs > TRIES_WINDOW_MS }
+            matched
         }
         val problem = Problem(feature, message, nowMs, BuildConfig.VERSION_NAME, tries)
         last = problem

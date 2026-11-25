@@ -138,16 +138,16 @@ class AudioRecorder(private val context: Context) {
     /**
      * Start a new recording session (clears any previous PCM data).
      */
-    fun startRecording() {
-        startInternal(clearExisting = true)
+    fun startRecording(): Boolean {
+        return startInternal(clearExisting = true)
     }
 
     /**
      * Resume recording after [pauseRecording], preserving previously captured PCM audio and
      * elapsed recording duration while resetting silence-detection timers for the resumed segment.
      */
-    fun resumeRecording() {
-        startInternal(clearExisting = false)
+    fun resumeRecording(): Boolean {
+        return startInternal(clearExisting = false)
     }
 
     internal fun prepareSessionBuffers(clearExisting: Boolean) {
@@ -173,19 +173,19 @@ class AudioRecorder(private val context: Context) {
     @androidx.annotation.VisibleForTesting
     internal fun bufferedByteCountForTest(): Int = synchronized(bufferLock) { pcmBuffer.size() }
 
-    private fun startInternal(clearExisting: Boolean) {
+    private fun startInternal(clearExisting: Boolean): Boolean {
         Log.i(TAG, "████ startInternal(clearExisting=$clearExisting) ENTER - current state: ${_state.value}")
 
         if (_state.value is State.Recording || _state.value is State.Speaking) {
             Log.w(TAG, "████ Already recording - returning early")
-            return
+            return true
         }
 
         Log.i(TAG, "████ Checking permission...")
         if (!isAvailable(context)) {
             Log.e(TAG, "████ Permission NOT granted!")
             _state.value = State.Error("Audio permission not granted")
-            return
+            return false
         }
         Log.i(TAG, "████ Permission granted ✓")
 
@@ -207,7 +207,7 @@ class AudioRecorder(private val context: Context) {
             if (minBufferSize == AudioRecord.ERROR || minBufferSize == AudioRecord.ERROR_BAD_VALUE) {
                 Log.e(TAG, "████ Failed to calculate buffer size!")
                 _state.value = State.Error("Failed to calculate buffer size")
-                return
+                return false
             }
 
             // Use larger buffer for stability
@@ -230,7 +230,7 @@ class AudioRecorder(private val context: Context) {
                 _state.value = State.Error("Failed to initialize AudioRecord")
                 recorder.release()
                 audioRecord = null
-                return
+                return false
             }
             Log.i(TAG, "████ AudioRecord initialized ✓")
 
@@ -255,7 +255,7 @@ class AudioRecorder(private val context: Context) {
                 _state.value = State.Error("Microphone busy or unavailable")
                 recorder.release()
                 audioRecord = null
-                return
+                return false
             }
             Log.i(TAG, "████ AudioRecord recording confirmed ✓")
 
@@ -271,6 +271,7 @@ class AudioRecorder(private val context: Context) {
                 val buffer = ShortArray(minBufferSize / 2)  // 16-bit samples
                 val recordingStartTime = segmentStartTimeMs
                 var loopCount = 0
+                var consecutiveReadErrors = 0
 
                 try {
                     Log.i(TAG, "████ Entering while loop - isActive=$isActive, recordingState=${recorder.recordingState}")
@@ -282,6 +283,20 @@ class AudioRecorder(private val context: Context) {
                         if (loopCount <= 3 || loopCount % 50 == 0) {
                             Log.d(TAG, "████ Loop iteration #$loopCount: readCount=$readCount")
                         }
+
+                        if (readCount < 0) {
+                            consecutiveReadErrors++
+                            if (readCount == AudioRecord.ERROR_INVALID_OPERATION ||
+                                readCount == AudioRecord.ERROR_DEAD_OBJECT ||
+                                consecutiveReadErrors >= 5
+                            ) {
+                                Log.e(TAG, "Fatal AudioRecord read error ($readCount, consecutive=$consecutiveReadErrors)")
+                                _state.value = State.Error("Microphone stopped responding")
+                                break
+                            }
+                            continue
+                        }
+                        consecutiveReadErrors = 0
 
                         if (readCount > 0) {
                             // Convert shorts to bytes and store
@@ -344,6 +359,10 @@ class AudioRecorder(private val context: Context) {
                                     break
                                 }
                             }
+                        } else if (accumulatedDurationMs + (System.currentTimeMillis() - recordingStartTime) > MAX_RECORDING_DURATION_MS) {
+                            Log.i(TAG, "Max recording duration reached during empty reads")
+                            triggerAutoComplete()
+                            break
                         }
                     }
                     Log.i(TAG, "████ Recording loop exited normally after $loopCount iterations")
@@ -376,12 +395,15 @@ class AudioRecorder(private val context: Context) {
             }
             recordingJob = launchedJob
             Log.i(TAG, "████ startInternal() EXIT - recordingJob launched")
+            return true
         } catch (e: SecurityException) {
             Log.e(TAG, "Security exception starting recording", e)
             _state.value = State.Error("Permission denied")
+            return false
         } catch (e: Exception) {
             Log.e(TAG, "Error starting recording", e)
-            _state.value = State.Error("Failed to start recording: ${e.message}")
+            _state.value = State.Error("Failed to start recording: ${e.javaClass.simpleName}")
+            return false
         }
     }
 

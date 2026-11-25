@@ -73,10 +73,12 @@ data class CatalogModel(
 data class CatalogSnapshot(
     val fetchedAtMs: Long,
     val models: List<CatalogModel>,
-    /** From `/models/user`; null = not known (no key, or that call failed) */
+    /** From `/models/user`; null = not known (no key, or that call failed). Empty list = account allows zero models. */
     val allowedIds: List<String>? = null,
     /** [OpenRouterModelCatalog.SNAPSHOT_VERSION] when saved; an older list lacks fields the checks need */
-    val version: Int = 0
+    val version: Int = 0,
+    /** False when the ZDR subfetch failed during refresh so the next call knows to retry it. */
+    val zdrFresh: Boolean = true
 )
 
 /**
@@ -166,7 +168,8 @@ object OpenRouterModelCatalog {
 
     /** Model ids from an answer whose `data` lists models (`id`) or endpoints (`model_id`). */
     internal fun parseIds(body: String, field: String): Set<String> {
-        val data = Json.parseToJsonElement(body).jsonObject["data"]?.jsonArray ?: return emptySet()
+        val data = Json.parseToJsonElement(body).jsonObject["data"]?.jsonArray
+            ?: throw IllegalStateException("missing data array")
         return data.mapNotNull { (it as? JsonObject)?.string(field) }.toSet()
     }
 
@@ -311,7 +314,7 @@ object OpenRouterModelCatalog {
     }
 
     fun isStale(nowMs: Long = System.currentTimeMillis()): Boolean =
-        snapshot?.let { nowMs - it.fetchedAtMs > MAX_AGE_MS } ?: true
+        snapshot?.let { !it.zdrFresh || nowMs - it.fetchedAtMs > MAX_AGE_MS } ?: true
 
     /** Ids OpenRouter lists, or null when there is no list recent enough to trust. */
     fun listedIds(nowMs: Long = System.currentTimeMillis()): Set<String>? =
@@ -340,23 +343,32 @@ object OpenRouterModelCatalog {
             loading = true
             error = null
             try {
-                val zdrIds = runCatching { parseIds(get(ZDR_URL, null), "model_id") }.getOrElse {
-                    Log.w(TAG, "Zero-data-retention list not loaded: ${it.message}")
-                    emptySet()
+                val priorZdrIds = snapshot?.models?.filter { it.zdr }?.mapTo(HashSet()) { it.id } ?: emptySet()
+                val zdrResult = runCatching { parseIds(get(ZDR_URL, null), "model_id") }
+                val zdrIds = zdrResult.getOrElse {
+                    Log.w(TAG, "Zero-data-retention list not loaded (${it.javaClass.simpleName}); keeping prior ZDR flags")
+                    priorZdrIds
                 }
                 val models = parseModels(get(MODELS_URL, null), zdrIds)
                 if (models.isEmpty()) throw IllegalStateException("empty list")
                 val key = UserOpenRouterKey.value
+                // Preserve valid empty allowlists (distinct from null = unknown/no-key/failed)
                 val allowed = if (key.isNullOrBlank()) null else runCatching {
                     parseIds(get(USER_MODELS_URL, key), "id").toList()
                 }.getOrElse {
-                    Log.w(TAG, "Account's allowed models not loaded: ${it.message}")
+                    Log.w(TAG, "Account's allowed models not loaded: ${it.javaClass.simpleName}")
                     null
                 }
-                val fresh = CatalogSnapshot(System.currentTimeMillis(), models, allowed?.takeIf { it.isNotEmpty() }, SNAPSHOT_VERSION)
+                val fresh = CatalogSnapshot(
+                    fetchedAtMs = System.currentTimeMillis(),
+                    models = models,
+                    allowedIds = allowed,
+                    version = SNAPSHOT_VERSION,
+                    zdrFresh = zdrResult.isSuccess
+                )
                 snapshot = fresh
                 saveCache(fresh)
-                Log.i(TAG, "Model list updated: ${models.size} models, ${allowed?.size ?: "unknown"} allowed")
+                Log.i(TAG, "Model list updated: ${models.size} models, zdrFresh=${zdrResult.isSuccess}, ${allowed?.size ?: "unknown"} allowed")
                 true
             } catch (e: Exception) {
                 Log.w(TAG, "Model list download failed: ${e.message}")

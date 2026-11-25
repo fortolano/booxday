@@ -104,4 +104,16 @@ class OpenRouterConnectTest {
         assertTrue(OpenRouterConnect.looksLikeKey("  sk-or-v1-0123  "))
         assertFalse(OpenRouterConnect.looksLikeKey("d7f3c1a9-5b2e-4c8f-9a61-3e0b7d24f915"))
     }
+
+    @Test
+    fun `parseLink rejects spoofed hosts, malformed percent encoding, and duplicate params`() {
+        assertNull(OpenRouterConnect.parseLink("booxday-connect://openrouter.evil.com?code=abc&state=1"))
+        assertNull(OpenRouterConnect.parseLink("booxday-connect://openrouter:8080?code=abc&state=1"))
+        assertNull(OpenRouterConnect.parseLink("booxday-connect://openrouter?code=%ZZ&state=1"))
+        assertNull(OpenRouterConnect.parseLink("booxday-connect://openrouter?code=first&code=second&state=1"))
+        assertEquals(
+            mapOf("code" to "abc", "state" to "1"),
+            OpenRouterConnect.parseLink("booxday-connect://openrouter?code=abc&state=1")
+        )
+    }
 }

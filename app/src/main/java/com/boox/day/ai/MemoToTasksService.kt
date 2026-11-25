@@ -464,12 +464,12 @@ Use this context to:
     }
 
     /**
-     * Encodes a bitmap to Base64 JPEG string.
+     * Encodes a bitmap to Base64 JPEG string off the caller/main thread.
      */
-    private fun encodeBitmapToBase64(bitmap: Bitmap): String {
+    private suspend fun encodeBitmapToBase64(bitmap: Bitmap): String = withContext(Dispatchers.Default) {
         val stream = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
-        return Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+        Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
     }
 
     /** Stage 1 for other features: the words in [bitmap], "" when there are none. Throws when every model failed. */
@@ -525,8 +525,10 @@ Use this context to:
 
                 log.w("Model ${model.id} failed or returned empty, trying next...")
 
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                log.w("Model ${model.id} threw exception: ${e.message}")
+                log.w("Model ${model.id} threw exception: ${e.javaClass.simpleName}")
                 continue
             }
         }
@@ -628,8 +630,10 @@ Use this context to:
 
                 log.w("Model ${model.id} failed or returned empty tasks, trying next...")
 
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                log.w("Model ${model.id} threw exception: ${e.message}")
+                log.w("Model ${model.id} threw exception: ${e.javaClass.simpleName}")
                 continue
             }
         }

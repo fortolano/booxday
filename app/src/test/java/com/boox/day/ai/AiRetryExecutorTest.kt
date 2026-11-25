@@ -152,4 +152,38 @@ class AiRetryExecutorTest {
         assertTrue(result is AiResponse.Error.NoApiKey)
         assertEquals(listOf(paidA.id), sent)
     }
+
+    @Test
+    fun `cancellation stops immediately between models`() = runBlocking {
+        var cancelled = false
+        val job = kotlinx.coroutines.Job()
+        AiRetryExecutor.send = { request, _ ->
+            sent += request.model.id
+            job.cancel()
+            AiResponse.Error.ApiError(500, "err")
+        }
+        try {
+            kotlinx.coroutines.withContext(job) {
+                AiRetryExecutor.executeSimple(listOf(paidA, paidB, free), ::build)
+            }
+        } catch (_: kotlinx.coroutines.CancellationException) {
+            cancelled = true
+        }
+        assertTrue("CancellationException must propagate immediately", cancelled)
+        assertEquals("must not attempt second model after cancellation", listOf(paidA.id), sent)
+    }
+
+    @Test
+    fun `LastAiProblem scopes tries to their invocation`() {
+        val reqA = build(paidA)
+        val reqB = build(paidB)
+        com.boox.day.api.ai.LastAiProblem.noteTry(reqA, "scopeA-fail", nowMs = 1000L, scopeId = "scope-A")
+        com.boox.day.api.ai.LastAiProblem.noteTry(reqB, "scopeB-fail", nowMs = 1000L, scopeId = "scope-B")
+
+        com.boox.day.api.ai.LastAiProblem.noteShown("Feature A", "failed A", nowMs = 1001L, scopeId = "scope-A")
+        assertEquals(listOf("scopeA-fail"), com.boox.day.api.ai.LastAiProblem.last?.tries?.map { it.why })
+
+        com.boox.day.api.ai.LastAiProblem.noteShown("Feature B", "failed B", nowMs = 1002L, scopeId = "scope-B")
+        assertEquals(listOf("scopeB-fail"), com.boox.day.api.ai.LastAiProblem.last?.tries?.map { it.why })
+    }
 }
