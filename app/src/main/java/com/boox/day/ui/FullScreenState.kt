@@ -7,6 +7,7 @@ import com.boox.day.tasks.TaskPagination
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -104,13 +105,19 @@ object FullScreenState {
         if (!isOn && TaskPagination.current == null) block() else collapse(then = block)
     }
 
-    /** The canvas host's Tasks reflow for full screen, in turn with [collapse] (pen off meanwhile). */
-    suspend fun <T> whileSwitching(block: suspend () -> T): T = switching.withLock {
-        transitioning = true
-        try {
-            block()
-        } finally {
-            transitioning = false
+    /**
+     * The canvas host's Tasks reflow for full screen, in turn with [collapse] (pen off meanwhile).
+     * Runs on [scope] so cancelling a UI LaunchedEffect stops awaiting the result without aborting
+     * an in-flight DB reflow or releasing [switching] before publication finishes.
+     */
+    suspend fun <T> whileSwitching(block: suspend () -> T): T = scope.async {
+        switching.withLock {
+            transitioning = true
+            try {
+                block()
+            } finally {
+                transitioning = false
+            }
         }
-    }
+    }.await()
 }

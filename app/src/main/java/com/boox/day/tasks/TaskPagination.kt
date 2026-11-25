@@ -21,8 +21,13 @@ import com.boox.day.editor.utils.getDominantRowIndex
 import com.boox.day.ocr.TaskTextIndexer
 import com.boox.day.ocr.model.OcrSource
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.Date
@@ -77,6 +82,11 @@ object TaskPagination {
     private val json = Json { ignoreUnknownKeys = true }
     private lateinit var appContext: Context
 
+    // Process-lifetime owner for accepted reflows: cancelling a UI LaunchedEffect must never leave a
+    // committed DB reflow unpublished or changingDate stuck.
+    private val reflowScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val reflowLock = Mutex()
+
     /** The day on pages of more than 10 rows, or null (one day at a time). */
     @Volatile
     var current: Reflowed? = null
@@ -120,59 +130,69 @@ object TaskPagination {
 
     /** Full screen shows [date]'s Tasks: pages of [rows] rows. False when nothing changed. */
     suspend fun expand(date: String, rows: Int, normalHeight: Float, topOffset: Float): Boolean {
-        current?.let { return it.date == date && it.rows == rows }
-        if (rows <= NORMAL_ROWS || rows > MAX_ROWS) return false
-        val rowHeight = (normalHeight - topOffset) / NORMAL_ROWS
-        if (rowHeight <= 0f) return false
-        // Before the reflow: if the app dies right after it, the next start knows to look
-        prefs().edit().putBoolean(PREF_PENDING, true).commit()
-        changingDate = date
-        val result = onWriteQueue("expand $date") { db ->
-            val pageIds = db.taskDao().getTasksForDay(date).map { it.pageId }.distinct()
-            val outcome = reflowDay(db, date, NORMAL_ROWS, rows, rowHeight, topOffset, pageIds, minPages = 1, deleteUnused = false)
-                ?: return@onWriteQueue null
-            val record = Reflowed(date, rows, rowHeight, topOffset, pageIds)
-            db.kvDao().set(Kv(KV_KEY, json.encodeToString(Reflowed.serializer(), record)))
-            record to outcome
-        }
-        if (result == null) {
-            changingDate = null
-            prefs().edit().remove(PREF_PENDING).apply()
-            return false
-        }
-        current = result.first
-        changingDate = null
-        Log.i(TAG, "Tasks of $date on pages of $rows rows")
-        afterReflow(date, result.second)
-        return true
+        return reflowScope.async {
+            reflowLock.withLock {
+                current?.let { return@withLock it.date == date && it.rows == rows }
+                if (rows <= NORMAL_ROWS || rows > MAX_ROWS) return@withLock false
+                val rowHeight = (normalHeight - topOffset) / NORMAL_ROWS
+                if (rowHeight <= 0f) return@withLock false
+                // Before the reflow: if the app dies right after it, the next start knows to look
+                prefs().edit().putBoolean(PREF_PENDING, true).commit()
+                changingDate = date
+                try {
+                    val result = onWriteQueue("expand $date") { db ->
+                        val pageIds = db.taskDao().getTasksForDay(date).map { it.pageId }.distinct()
+                        val outcome = reflowDay(db, date, NORMAL_ROWS, rows, rowHeight, topOffset, pageIds, minPages = 1, deleteUnused = false)
+                            ?: return@onWriteQueue null
+                        val record = Reflowed(date, rows, rowHeight, topOffset, pageIds)
+                        db.kvDao().set(Kv(KV_KEY, json.encodeToString(Reflowed.serializer(), record)))
+                        record to outcome
+                    }
+                    if (result == null) {
+                        prefs().edit().remove(PREF_PENDING).apply()
+                        return@withLock false
+                    }
+                    current = result.first
+                    Log.i(TAG, "Tasks of $date on pages of $rows rows")
+                    afterReflow(date, result.second)
+                    true
+                } finally {
+                    changingDate = null
+                }
+            }
+        }.await()
     }
 
     /** Back to pages of 10 rows (normal view). True when no day is reflowed any more. */
     suspend fun collapse(): Boolean {
-        val record = current ?: return true
-        changingDate = record.date
-        val outcome = onWriteQueue("collapse ${record.date}") { db ->
-            val outcome = reflowDay(
-                db, record.date, record.rows, NORMAL_ROWS, record.rowHeight, record.topOffset,
-                preferredPageIds = record.pageIds, minPages = record.pageIds.size, deleteUnused = true
-            ) ?: return@onWriteQueue null
-            db.kvDao().delete(KV_KEY)
-            outcome
-        }
-        if (outcome == null) {
-            changingDate = null
-            return false
-        }
-        current = null
-        changingDate = null
-        prefs().edit().remove(PREF_PENDING).apply()
-        Log.i(TAG, "Tasks of ${record.date} back on pages of 10 rows")
-        afterReflow(record.date, outcome)
-        // Text typed in full screen was indexed with the full screen pages: index the day's pages again
-        TaskTextIndexer.getInstanceOrNull()?.let { indexer ->
-            outcome.pageIds.forEachIndexed { index, pageId -> indexer.indexNow(record.date, index, pageId) }
-        }
-        return true
+        return reflowScope.async {
+            reflowLock.withLock {
+                val record = current ?: return@withLock true
+                changingDate = record.date
+                try {
+                    val outcome = onWriteQueue("collapse ${record.date}") { db ->
+                        val outcome = reflowDay(
+                            db, record.date, record.rows, NORMAL_ROWS, record.rowHeight, record.topOffset,
+                            preferredPageIds = record.pageIds, minPages = record.pageIds.size, deleteUnused = true
+                        ) ?: return@onWriteQueue null
+                        db.kvDao().delete(KV_KEY)
+                        outcome
+                    }
+                    if (outcome == null) return@withLock false
+                    current = null
+                    prefs().edit().remove(PREF_PENDING).apply()
+                    Log.i(TAG, "Tasks of ${record.date} back on pages of 10 rows")
+                    afterReflow(record.date, outcome)
+                    // Text typed in full screen was indexed with the full screen pages: index the day's pages again
+                    TaskTextIndexer.getInstanceOrNull()?.let { indexer ->
+                        outcome.pageIds.forEachIndexed { index, pageId -> indexer.indexNow(record.date, index, pageId) }
+                    }
+                    true
+                } finally {
+                    changingDate = null
+                }
+            }
+        }.await()
     }
 
     /**
@@ -348,9 +368,14 @@ object TaskPagination {
 
         // Pages no longer used: kept for the way back (full screen), or deleted when nothing is left on them
         val deleted = if (deleteUnused) {
+            val imageDao = db.ImageDao()
+            val attachmentDao = db.attachmentDao()
             unusedPageIds.filter { pageId ->
-                val empty = taskDao.getTasksForPageId(pageId).isEmpty() && !strokeDao.hasStrokesForPage(pageId) &&
-                    textDao.getForPageNow(pageId).isEmpty()
+                val empty = taskDao.getTasksForPageId(pageId).isEmpty() &&
+                    !strokeDao.hasStrokesForPage(pageId) &&
+                    textDao.getForPageNow(pageId).isEmpty() &&
+                    !imageDao.hasImagesForPage(pageId) &&
+                    !attachmentDao.hasAttachmentsForPage(pageId)
                 if (empty) pageDao.delete(pageId) else Log.w(TAG, "Unused page $pageId of $date still has content; kept")
                 empty
             }
