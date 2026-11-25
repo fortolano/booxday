@@ -206,6 +206,26 @@ class MicrosoftTodoProviderTest {
         assertEquals("false", todo.task(TASKS, made.remoteId)!!["isReminderOn"]!!.jsonPrimitive.content)
     }
 
+    // ── Changing a copy only as it was read (If-Match, measured 25 Nov 2026) ──
+
+    @Test
+    fun aChangeMadeInToDoSinceTheReadIsNeverWrittenOver() = runBlocking {
+        val p = provider()
+        val made = p.upsert(outgoing("Call Anna", due = "2026-11-26"), null)
+        todo.meanwhile = { method, _ ->
+            if (method == "PATCH") todo.patchTask(TASKS, made.remoteId, mapOf("title" to JsonPrimitive("Call Anna and Bo")))
+        }
+
+        try {
+            p.upsert(outgoing("Call Anna today", due = "2026-11-26"), linkOf(made, "Call Anna", "2026-11-26"))
+            fail("expected RemoteChanged")
+        } catch (e: TaskSyncServiceException.RemoteChanged) {
+            assertEquals("the merge takes To Do's words in first", "Call Anna and Bo", e.remote.title)
+        }
+        assertEquals("nothing written over them", "Call Anna and Bo", todo.task(TASKS, made.remoteId)!!.str("title"))
+        assertEquals(1, todo.ifMatches.size)
+    }
+
     // ── Priority (owner decision 80): one mapping ──
 
     @Test

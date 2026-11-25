@@ -371,7 +371,17 @@ internal class MicrosoftTodoProvider(
             // Due on another day by now (an earlier tick went through, or the phone's): not ticked
             // again, which would tick the next one
             if (dueOf(before) == lastDue && before.str("status") != COMPLETED) {
-                onTask(listId) { graph.call("PATCH", path, buildJsonObject { put("status", COMPLETED) }) }
+                try {
+                    // Only as read: a tick on the phone in between would make this one tick the next one
+                    onTask(listId) { graph.call("PATCH", path, buildJsonObject { put("status", COMPLETED) }, ifMatch = before.str(ETAG)) }
+                } catch (e: GraphException.Http) {
+                    if (e.status != PRECONDITION_FAILED) throw e
+                    val again = onTask(listId) { get(path) }
+                    // Still open on that day: changed otherwise; merged first, then ticked again
+                    if (dueOf(again) == lastDue && again.str("status") != COMPLETED) {
+                        throw TaskSyncServiceException.RemoteChanged(taskState(listId, again))
+                    }
+                }
             }
             return remoteTaskOf(listId, before).copy(rolledOver = true)
         }
@@ -379,7 +389,13 @@ internal class MicrosoftTodoProvider(
 
         val patch = changesOf(task, link)
         if (patch.isEmpty()) return remoteTaskOf(listId, before)
-        val after = onTask(listId) { graph.call("PATCH", path, patch) } ?: onTask(listId) { get(path) }
+        val after = try {
+            onTask(listId) { graph.call("PATCH", path, patch, ifMatch = before.str(ETAG)) } ?: onTask(listId) { get(path) }
+        } catch (e: GraphException.Http) {
+            if (e.status != PRECONDITION_FAILED) throw e
+            // Changed in To Do since it was read: nothing was written; merged first, then sent again
+            throw TaskSyncServiceException.RemoteChanged(taskState(listId, onTask(listId) { get(path) }))
+        }
         return remoteTaskOf(listId, after)
     }
 
@@ -427,7 +443,13 @@ internal class MicrosoftTodoProvider(
             if (task.title != link.syncedTitle) put("displayName", task.title)
             if (task.completed != link.syncedCompleted) put("isChecked", task.completed)
         }
-        val after = if (patch.isEmpty()) before else onTask(listId) { graph.call("PATCH", path, patch) } ?: onTask(listId) { get(path) }
+        val after = if (patch.isEmpty()) before else try {
+            onTask(listId) { graph.call("PATCH", path, patch, ifMatch = before.str(ETAG)) } ?: onTask(listId) { get(path) }
+        } catch (e: GraphException.Http) {
+            if (e.status != PRECONDITION_FAILED) throw e
+            val again = onTask(listId) { get(path) }
+            throw stepState(listId, taskId, again)?.let { TaskSyncServiceException.RemoteChanged(it) } ?: e
+        }
         return stepTaskOf(listId, taskId, after).copy(parentKept = kept)
     }
 
@@ -755,6 +777,9 @@ internal class MicrosoftTodoProvider(
         private const val FLAGGED_EMAILS = "flaggedEmails"
         private const val COMPLETED = "completed"
         private const val MODIFIED = "lastModifiedDateTime"
+        /** A change sent with it as If-Match is made only if nobody changed the item since (else 412, measured 25 Nov 2026). */
+        private const val ETAG = "@odata.etag"
+        private const val PRECONDITION_FAILED = 412
         private const val REMOVED = "@removed"
         private const val NEXT_LINK = "@odata.nextLink"
         private const val DELTA_LINK = "@odata.deltaLink"

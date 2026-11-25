@@ -302,6 +302,33 @@ class MicrosoftTodoSyncTest {
     }
 
     @Test
+    fun aPhoneTickBetweenTheReadAndTheTickNeverTicksTheNextOne() = runBlocking {
+        val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
+        run()
+        val plants = rowsOn(DAY, "Water plants").single()
+        var tickedThere = false
+        todo.meanwhile = { method, path ->
+            if (method == "PATCH" && path.endsWith("/tasks/$original") && !tickedThere) {
+                tickedThere = true
+                todo.patchTask(TASKS, original, mapOf("status" to JsonPrimitive("completed")))  // on the phone, just then
+            }
+        }
+
+        repo.setCompleted(plants, true)
+        run()
+
+        assertEquals("the tick goes only if the task is as read", 1, todo.ifMatches.size)
+        assertEquals("one done copy: the phone's", 1, todo.tasksIn(TASKS).count { it.text("status") == "completed" })
+        val next = todo.task(TASKS, original)!!
+        assertEquals("the next one isn't ticked", "notStarted", next.text("status"))
+        assertEquals("rolled over once", "2026-11-26T00:00:00.0000000", (next["dueDateTime"] as JsonObject).text("dateTime"))
+        assertKeptTicked(plants, DAY, original)
+        run()
+        assertEquals("no second tick", 1, patches())
+        assertTrue(!task(rowsOn(NEXT_DAY, "Water plants").single()).isCompleted)
+    }
+
+    @Test
     fun aTickHereWhileThePhoneTickedItAndClearedTheDoneCopyNeverTicksTheNextOne() = runBlocking {
         val original = todo.addTask(TASKS, repeating("Water plants", dueUtc = "2026-11-25T00:00:00"))
         run()
